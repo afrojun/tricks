@@ -24,6 +24,14 @@ describe('cheating', () => {
     expect(playFor(t, 1, 'straight')).toEqual({ type: 'playCard', card: card('Qh') })
   })
 
+  test('Sly declines a cheat whose giveaway would be a 9 (risk 0.281, not 0.234)', () => {
+    // Seat 1 holds 9c as its only club; the opponents lead 10c and seat 0 trumps with Qs. As would win for 25.
+    const NINE = ['Qs Jh 9h Ah 10h Kh', 'As 9c Kd Jd 10d Ad', '10c Jc Ac Kc Qc 9d', 'Js 9s 10s Ks Qh Qd']
+    const t = start(NINE).play('10c Qh Qs')
+    expect(playFor(t, 1, 'sly')).toEqual({ type: 'playCard', card: card('9c') })
+    expect(playFor(t, 1, 'wild')).toEqual({ type: 'playCard', card: card('As') })
+  })
+
   test('after a renege, Sly keeps the giveaway card back while it has anything else', () => {
     const t = start().play('Kc Qh 10c 10s').endPause()
     expect(playFor(t, 1, 'sly')).toEqual({ type: 'playCard', card: card('Kd') })
@@ -60,8 +68,10 @@ describe('false Jodhis', () => {
   test('Sly bluffs at most once a round', () => {
     const t = won()
     let salt = 1
-    while (!chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'sly', salt })) salt++
-    t.do(1, chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'sly', salt })!)
+    while (salt <= 1000 && !chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'sly', salt })) salt++
+    const claim = chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'sly', salt })
+    expect(claim).not.toBeNull()
+    t.do(1, claim!)
     for (let s = 1; s <= 100; s++) expect(chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'sly', salt: s })).toBeNull()
   })
 })

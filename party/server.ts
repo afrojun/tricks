@@ -187,7 +187,7 @@ export default class ThuneeRoom implements Party.Server {
     await this.armAlarm()
   }
 
-  /** AI seats claim a Jodhi they really hold as soon as their team wins a trick. */
+  /** AI seats claim a Jodhi as soon as their team wins a trick; what they claim depends on persona (cheating personas sometimes bluff). */
   private async aiJodhi(events: GameEvent[]): Promise<void> {
     const won = events.find((e) => e.type === 'trickWon')
     if (!won || won.type !== 'trickWon') return

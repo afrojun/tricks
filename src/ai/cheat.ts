@@ -26,10 +26,13 @@ export function chooseCheat(view: View, phase: ViewPlaying, honest: Card, mind: 
 
   if (cheats === 'careful') {
     // Shown up when the first card of `led` must come out: after the other cards are gone.
-    const held = phase.hand.filter((c) => c.suit === led).length
+    const heldCards = phase.hand.filter((c) => c.suit === led)
+    const held = heldCards.length
+    // J and 9 are the top two ranks, so the giveaway is a J or 9 only when every held card of the suit is.
+    const showsHigh = heldCards.every((c) => c.rank === 'J' || c.rank === '9')
     const gap = Math.max(0, 5 - done - held)
     const theirLead = teamOf(phase.current[0].seat) !== teamOf(me)
-    const risk = (c: Card) => noticeOdds(ASSUMED_ATTENTION, gap, 1.3 * (prize(c) >= 30 ? 1.3 : 1) * (theirLead ? 1.2 : 1))
+    const risk = (c: Card) => noticeOdds(ASSUMED_ATTENTION, gap, 1.3 * (prize(c) >= 30 ? 1.3 : 1) * (theirLead ? 1.2 : 1) * (showsHigh ? 1.2 : 1))
     return wins.filter((c) => prize(c) >= 20 && risk(c) < 0.25).sort((a, b) => risk(a) - risk(b))[0] ?? null
   }
 
