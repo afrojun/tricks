@@ -39,10 +39,15 @@ function headline(view: View, s: RoundSummary): string {
 export function RoundResult({ view, summary, winner, can }: { view: View; summary: RoundSummary; winner: Team | null; can: Available }) {
   const { send } = useSession()
   const mine = view.seat !== null && teamOf(view.seat) === summary.winner
+  // "You take", "Asha & Chan take", but "Asha takes" in a two-player game.
+  const verb = (team: Team, base: string) =>
+    view.playerCount === 2 && !(view.seat !== null && teamOf(view.seat) === team) ? `${base}s` : base
   return (
     <section className="panel p-4 w-full max-w-xs grid gap-3">
       <h2 className="display text-xl">
-        {winner !== null ? `${teamName(view, winner)} win the game` : `${teamName(view, summary.winner)} take ${plural(summary.balls, 'ball')}`}
+        {winner !== null
+          ? `${teamName(view, winner, view.seat)} ${verb(winner, 'win')} the game`
+          : `${teamName(view, summary.winner, view.seat)} ${verb(summary.winner, 'take')} ${plural(summary.balls, 'ball')}`}
       </h2>
       <p>{headline(view, summary)}</p>
 
