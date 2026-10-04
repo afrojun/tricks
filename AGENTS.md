@@ -17,6 +17,8 @@ pnpm party:deploy   # deploy PartyKit to production
 
 To try a game alone: create a game, sit down, and use "Add computer" on the other seats.
 
+In development Vite proxies `/parties` to PartyKit, so the app needs only one URL. To play from another device, point an HTTPS tunnel (for example `tailscale serve`) at `127.0.0.1:5173`; `*.ts.net` hosts are already allowed in `vite.config.ts`.
+
 ## Tech Stack
 
 - **Frontend**: Vite + React + TypeScript

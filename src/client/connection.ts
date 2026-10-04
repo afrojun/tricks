@@ -4,7 +4,8 @@ import { PING, PONG, type ServerMessage, TOKEN_PARAM } from '../protocol'
 import { deviceToken } from './identity'
 import { GameStore } from './store'
 
-const HOST = import.meta.env.VITE_PARTYKIT_HOST || `${location.hostname}:1999`
+// Production names the PartyKit host; in development Vite proxies /parties on the page's own origin.
+const HOST = import.meta.env.VITE_PARTYKIT_HOST || location.host
 
 const PING_EVERY_MS = 5000
 const MAX_UNANSWERED_PINGS = 2
