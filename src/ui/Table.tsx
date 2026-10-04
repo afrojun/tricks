@@ -80,11 +80,11 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
       <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-1 px-2">
         <div className="flex justify-center">{at('top') !== undefined && <SeatBadge view={view} seat={at('top')!} />}</div>
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 min-h-0">
-          <div>{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side />}</div>
+          <div>{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side="left" />}</div>
           <div className={`h-full min-h-0 flex items-center justify-center py-1 ${centreScrolls ? 'overflow-y-auto' : ''}`}>
             <Centre view={view} can={can} />
           </div>
-          <div>{at('right') !== undefined && <SeatBadge view={view} seat={at('right')!} side />}</div>
+          <div>{at('right') !== undefined && <SeatBadge view={view} seat={at('right')!} side="right" />}</div>
         </div>
       </div>
 
@@ -93,7 +93,7 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
           {!watching && <RoleBadges view={view} seat={me} />}
           {!watching &&
             said(view, me).map((text) => (
-              <span key={text} className="said">
+              <span key={text} className="bubble" data-mine>
                 {text}
               </span>
             ))}
@@ -138,8 +138,8 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
         </Sheet>
       )}
       {sheet === 'history' && (
-        <Sheet title="Tricks this round" onClose={() => setSheet(null)}>
-          <History view={view} playing={playing} />
+        <Sheet title="Last trick" onClose={() => setSheet(null)}>
+          <LastTrick view={view} playing={playing} />
         </Sheet>
       )}
       {sheet === 'jodhi' && playing && (
@@ -184,7 +184,7 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
               })}
             </div>
             {tricks !== null && (
-              <button key={tricks} className="trick-pile" onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show tricks.`}>
+              <button key={tricks} className="trick-pile" onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show the last trick.`}>
                 <span aria-hidden className="trick-pile-icon" />
                 {plural(tricks, 'trick')}
               </button>
@@ -267,32 +267,32 @@ function said(view: View, seat: Seat): string[] {
   const phase = view.phase
   switch (phase.kind) {
     case 'calling':
-      if (phase.call?.seat === seat) return [`Called ${phase.call.amount}`]
-      return phase.passed.includes(seat) ? ['Passed'] : []
+      if (phase.call?.seat === seat) return [`Call ${phase.call.amount}!`]
+      return phase.passed.includes(seat) ? ['Pass'] : []
     case 'thuneeWindow':
-      if (phase.pending === seat) return ['Wants Thunee']
+      if (phase.pending === seat) return ['Thunee!']
       return phase.passed.includes(seat) ? ['No Thunee'] : []
     case 'playing':
     case 'trickPause':
       return [
-        ...(phase.thunee?.caller === seat ? ['Thunee'] : []),
-        ...(phase.double?.caller === seat ? ['Double'] : []),
-        ...(phase.khanaak?.caller === seat ? ['Khanaak'] : []),
-        ...phase.jodhiClaims.filter((j) => j.seat === seat).map((j) => `Jodhi ${j.points}`),
+        ...(phase.thunee?.caller === seat ? ['Thunee!'] : []),
+        ...(phase.double?.caller === seat ? ['Double!'] : []),
+        ...(phase.khanaak?.caller === seat ? ['Khanaak!'] : []),
+        ...phase.jodhiClaims.filter((j) => j.seat === seat).map((j) => `Jodhi ${j.points}!`),
       ]
     default:
       return []
   }
 }
 
-function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: boolean }) {
+function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: 'left' | 'right' }) {
   const phase = view.phase
   const info = view.seats[seat]
   const count = 'handCounts' in phase ? phase.handCounts[seat] : 0
   const turn = (phase.kind === 'playing' && phase.turn === seat) || (phase.kind === 'trumpSelection' && phase.trumper === seat)
   const away = info.kind === 'human' && !info.connected
   return (
-    <div className="flex flex-col items-center gap-1 max-w-24">
+    <div className="flex flex-col items-center gap-1 max-w-24" data-side={side}>
       <p className="seat-name truncate max-w-full text-sm" data-turn={turn}>
         {info.name}
       </p>
@@ -300,7 +300,7 @@ function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: boolea
         <RoleBadges view={view} seat={seat} />
       </div>
       {said(view, seat).map((text) => (
-        <p key={text} className="said">
+        <p key={text} className="bubble">
           {text}
         </p>
       ))}
@@ -608,36 +608,24 @@ function ChallengeSheet({ view, can, playing, onDone }: { view: View; can: Avail
   )
 }
 
-function History({ view, playing }: { view: View; playing: ViewPlaying | null }) {
-  if (!playing || playing.tricks.length === 0) return <p>No tricks have been played this round.</p>
+/** The most recent completed trick only: what a player at the table could still picture. */
+function LastTrick({ view, playing }: { view: View; playing: ViewPlaying | null }) {
+  const trick = playing?.tricks[playing.tricks.length - 1]
+  if (!trick) return <p>No trick has been completed this round.</p>
   return (
-    <ol className="grid gap-3">
-      {playing.tricks.map((trick, i) => (
-        <li key={i} className="grid gap-1 border-b border-line/40 pb-2">
-          <p className="text-sm text-on-surface-muted">
-            Trick {i + 1}, won by {seatName(view, trick.winner)}
-          </p>
-          <div className="flex gap-2">
-            {trick.plays.map((play) => (
-              <div key={play.seat} className="grid justify-items-center gap-1">
-                <PlayingCard card={play.card} size="trick" className={play.seat === trick.winner ? 'winner-ring' : ''} />
-                <span className="text-xs truncate max-w-14">{seatName(view, play.seat)}</span>
-              </div>
-            ))}
+    <div className="grid gap-2">
+      <p>
+        Won by {trick.winner === view.seat ? 'you' : seatName(view, trick.winner)}. {trick.plays[0].seat === view.seat ? 'You' : seatName(view, trick.plays[0].seat)} led.
+      </p>
+      <div className="flex gap-2">
+        {trick.plays.map((play) => (
+          <div key={play.seat} className="grid justify-items-center gap-1">
+            <PlayingCard card={play.card} size="trick" className={play.seat === trick.winner ? 'winner-ring' : ''} />
+            <span className="text-xs truncate max-w-14">{play.seat === view.seat ? 'You' : seatName(view, play.seat)}</span>
           </div>
-        </li>
-      ))}
-      {playing.jodhiClaims.length > 0 && (
-        <li>
-          <p className="font-semibold">Jodhi called</p>
-          {playing.jodhiClaims.map((j, i) => (
-            <p key={i}>
-              {seatName(view, j.seat)}: {j.points} in {SUIT_NAME[j.suit]}
-            </p>
-          ))}
-        </li>
-      )}
-    </ol>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -655,7 +643,7 @@ function MenuSheet({ view, room, onSheet, now }: { view: View; room: string; onS
           Rules in this game
         </button>
         <button className="btn btn-small" onClick={() => onSheet('history')}>
-          Tricks this round
+          Last trick
         </button>
         <button
           className="btn btn-small"
