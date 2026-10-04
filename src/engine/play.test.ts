@@ -357,10 +357,7 @@ describe('between rounds', () => {
     const trumper = (t.game.dealer + 1) % 4
     t.advance(10_000)
     // Whoever trumps, seat 1 calls Thunee and leads.
-    if (t.game.phase.kind !== 'trumpSelection') throw new Error()
-    t.do(trumper, { type: 'chooseTrump', choice: 'lastCard' })
-    if (t.game.phase.kind === 'thuneeWindow') t.do(1, { type: 'callThunee' })
-    if (t.game.phase.kind === 'thuneeWindow') t.advance(5000)
+    t.do(trumper, { type: 'chooseTrump', choice: 'lastCard' }).do(1, { type: 'callThunee' })
     t.play('Js Qs Jd 10d  9s 9h 9d Kd  As Ah Ad Qd  10s Jc 10h 10c  Ks 9c Kh Kc  Jh Ac Qh Qc').endPause()
     expect(result(t.game)).toMatchObject({ reason: 'thunee', thunee: { caller: 1, success: true }, tricksWon: [0, 6] })
   })

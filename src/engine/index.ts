@@ -9,3 +9,5 @@ export { type Available, availableActions, canStart, replaceableSeats, STALL_MS 
 export { apply, createGame, isAiControlled, nextDeadline, seatsToAct } from './apply'
 export { cleanName, MAX_NAME_LENGTH } from './lobby'
 export { cardPointsByTeam, tricksWonByTeam } from './scoring'
+export { checkInvariants } from './invariants'
+export { actionSchema, ruleOverridesSchema } from './schema'
