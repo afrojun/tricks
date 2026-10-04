@@ -214,6 +214,8 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       game.lastRoundWinner = null
       game.roundNumber = 1
       game.dealer = Math.floor(ctx.rng() * game.playerCount)
+      // A surprise persona revealed at game over stays revealed.
+      for (const s of game.seats) s.personaHidden = false
       round.beginRound(game, ctx, events)
       return null
 

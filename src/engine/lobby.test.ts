@@ -132,4 +132,14 @@ describe('computer personas', () => {
     const over: Game = { ...game, phase: { kind: 'gameOver', winner: 0, summary: {} as RoundSummary } }
     expect(viewFor(over, 0).seats[1].persona).toBe(game.seats[1].persona)
   })
+
+  test('a surprise persona revealed at game over stays revealed after a rematch', () => {
+    let game = run(hosted(), 0, { type: 'addAi', seat: 1, persona: 'surprise' })
+    for (const seat of [2, 3]) game = run(game, 0, { type: 'addAi', seat })
+    const over: Game = { ...game, phase: { kind: 'gameOver', winner: 0, summary: {} as RoundSummary } }
+    const again = run(over, 0, { type: 'rematch' })
+    expect(again.phase.kind).toBe('calling')
+    expect(again.seats[1].personaHidden).toBe(false)
+    for (const seat of [0, 1, null]) expect(viewFor(again, seat).seats[1].persona).toBe(game.seats[1].persona)
+  })
 })
