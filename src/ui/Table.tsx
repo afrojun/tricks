@@ -91,6 +91,12 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-center gap-2 px-3 min-h-7" aria-live="polite">
           {!watching && <RoleBadges view={view} seat={me} />}
+          {!watching &&
+            said(view, me).map((text) => (
+              <span key={text} className="said">
+                {text}
+              </span>
+            ))}
           <span className="text-center">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>
         </div>
         {can.reclaimSeat && (
@@ -253,6 +259,32 @@ function RoleBadges({ view, seat }: { view: View; seat: Seat }) {
   )
 }
 
+/**
+ * What this player has said out loud so far, as anyone at the table would have heard:
+ * their call or pass, and any Thunee, Jodhi, Double or Khanaak.
+ */
+function said(view: View, seat: Seat): string[] {
+  const phase = view.phase
+  switch (phase.kind) {
+    case 'calling':
+      if (phase.call?.seat === seat) return [`Called ${phase.call.amount}`]
+      return phase.passed.includes(seat) ? ['Passed'] : []
+    case 'thuneeWindow':
+      if (phase.pending === seat) return ['Wants Thunee']
+      return phase.passed.includes(seat) ? ['No Thunee'] : []
+    case 'playing':
+    case 'trickPause':
+      return [
+        ...(phase.thunee?.caller === seat ? ['Thunee'] : []),
+        ...(phase.double?.caller === seat ? ['Double'] : []),
+        ...(phase.khanaak?.caller === seat ? ['Khanaak'] : []),
+        ...phase.jodhiClaims.filter((j) => j.seat === seat).map((j) => `Jodhi ${j.points}`),
+      ]
+    default:
+      return []
+  }
+}
+
 function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: boolean }) {
   const phase = view.phase
   const info = view.seats[seat]
@@ -267,6 +299,11 @@ function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: boolea
       <div className="flex gap-1 empty:hidden">
         <RoleBadges view={view} seat={seat} />
       </div>
+      {said(view, seat).map((text) => (
+        <p key={text} className="said">
+          {text}
+        </p>
+      ))}
       {(away || info.standIn) && <p className="text-xs text-muted">{info.standIn ? 'computer playing' : 'disconnected'}</p>}
       <div className={`flex ${side ? 'flex-col -space-y-7' : '-space-x-3'}`}>
         {Array.from({ length: count }, (_, i) => (
@@ -442,7 +479,7 @@ function TrickArea({ view, phase }: { view: View; phase: ViewPlaying }) {
           return (
             <motion.div
               key={`${trickNumber}-${play.seat}`}
-              className={area[where]}
+              className={`relative ${area[where]}`}
               // The player's own card arrives from the hand by shared layout; others come from their seat.
               layoutId={mine ? cardLayoutId(play.card) : undefined}
               custom={exitTo}
@@ -456,6 +493,7 @@ function TrickArea({ view, phase }: { view: View; phase: ViewPlaying }) {
               exit="taken"
             >
               <PlayingCard card={play.card} size="trick" className={winner === play.seat ? 'winner-ring' : ''} />
+              {play === showing[0] && <span className="led-tag">Led</span>}
             </motion.div>
           )
         })}
@@ -470,7 +508,7 @@ function TrickArea({ view, phase }: { view: View; phase: ViewPlaying }) {
 function Hint({ view, can }: { view: View; can: Available }) {
   const phase = view.phase
   if (phase.kind === 'playing') {
-    if (phase.turn === view.seat) return <span className="text-accent font-semibold">Your turn{phase.current.length === 0 ? ' to lead' : ''}. Tap a card or drag it up.</span>
+    if (phase.turn === view.seat) return <span className="text-accent font-semibold">Your turn{phase.current.length === 0 ? ' to lead' : ''}. Tap a card or drag it onto the table.</span>
     return <>{seatName(view, phase.turn!)} to play.</>
   }
   if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <>Your side won the trick. You can call Jodhi now.</>

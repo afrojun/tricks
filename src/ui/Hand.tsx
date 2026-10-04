@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { type Card, cardId, sameCard } from '../engine'
 import { PlayingCard } from './Card'
@@ -19,95 +19,152 @@ interface HandProps {
   onPlay: (card: Card) => void
 }
 
-const DRAG_TO_PLAY_PX = 70
+/** A card let go this far above the hand has been put on the table. */
+const DROP_ABOVE_HAND_PX = 24
 const TAP_SLOP_PX = 12
+/** If a dropped card has not left the hand by now, the play was refused: bring it back. */
+const RETURN_AFTER_MS = 1200
 
 export function Hand({ cards, playable, legal, dealFrom, onPlay }: HandProps) {
   // An illegal card needs a second, explicit confirmation.
   const [pending, setPending] = useState<Card | null>(null)
   const [shake, setShake] = useState(0)
-  const dragged = useRef(false)
+  const handRef = useRef<HTMLDivElement>(null)
+  const dragging = useRef(false)
   useEffect(() => {
     setPending(null)
-    dragged.current = false // a drag cut short by the turn ending must not block later taps
+    dragging.current = false // a drag cut short by the turn ending must not block later taps
   }, [playable, cards.length])
 
-  const attempt = (card: Card) => {
-    if (!playable) return
+  /** Returns whether the card was sent to the table. */
+  const attempt = (card: Card): boolean => {
+    if (!playable) return false
     if (legal.some((c) => sameCard(c, card))) {
       setPending(null)
       onPlay(card)
-    } else {
-      setPending(card)
-      setShake((n) => n + 1)
+      return true
     }
+    setPending(card)
+    setShake((n) => n + 1)
+    return false
   }
 
   // Tighter overlap as the hand grows, so six cards still fit a phone.
   const overlap = cards.length >= 6 ? -0.16 : cards.length === 5 ? -0.1 : -0.04
 
   return (
-    <div className="hand" style={{ '--overlap': overlap } as React.CSSProperties} onClick={() => !dragged.current && setPending(null)}>
+    <div ref={handRef} className="hand" style={{ '--overlap': overlap } as React.CSSProperties} onClick={() => !dragging.current && setPending(null)}>
       <AnimatePresence initial={false}>
-        {cards.map((card, i) => {
-          const isLegal = legal.some((c) => sameCard(c, card))
-          const isPending = pending !== null && sameCard(pending, card)
-          const tilt = (i - (cards.length - 1) / 2) * 4
-          return (
-            <motion.div
-              key={cardId(card)}
-              className="hand-slot"
-              layout
-              layoutId={cardLayoutId(card)}
-              style={{ zIndex: isPending ? 20 : i }}
-              variants={{
-                dealt: { x: dealFrom.x, y: dealFrom.y, opacity: 0 },
-                held: { x: 0, y: 0, opacity: 1, transition: { delay: i * 0.07 } },
-              }}
-              initial="dealt"
-              animate="held"
-              drag={playable ? 'y' : false}
-              dragConstraints={{ top: -180, bottom: 0 }}
-              dragElastic={0.15}
-              dragSnapToOrigin
-              onDragStart={() => (dragged.current = true)}
-              onDragEnd={(_, info) => {
-                const moved = Math.hypot(info.offset.x, info.offset.y)
-                // A finger rarely lands perfectly still: a tiny drag is a tap.
-                if (info.offset.y < -DRAG_TO_PLAY_PX || moved < TAP_SLOP_PX) attempt(card)
-                // The click that ends a drag must not count as a tap.
-                setTimeout(() => (dragged.current = false), 0)
-              }}
-            >
-              {isPending && (
-                <button
-                  className="btn btn-danger btn-small play-anyway"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setPending(null)
-                    onPlay(card)
-                  }}
-                >
-                  Play {cardText(card)} anyway
-                </button>
-              )}
-              <PlayingCard
-                key={isPending ? shake : 0}
-                card={card}
-                playable={playable}
-                dim={playable && !isLegal}
-                selected={isPending}
-                className={isPending ? 'shake' : ''}
-                onClick={(e) => {
-                  e?.stopPropagation()
-                  if (!dragged.current) attempt(card)
-                }}
-                style={{ '--tilt': `${tilt}deg` } as React.CSSProperties}
-              />
-            </motion.div>
-          )
-        })}
+        {cards.map((card, i) => (
+          <HandCard
+            key={cardId(card)}
+            card={card}
+            index={i}
+            count={cards.length}
+            playable={playable}
+            legal={legal.some((c) => sameCard(c, card))}
+            pending={pending !== null && sameCard(pending, card)}
+            shake={shake}
+            dealFrom={dealFrom}
+            dragging={dragging}
+            handTop={() => handRef.current?.getBoundingClientRect().top ?? 0}
+            onAttempt={() => attempt(card)}
+            onConfirm={() => {
+              setPending(null)
+              onPlay(card)
+            }}
+          />
+        ))}
       </AnimatePresence>
     </div>
+  )
+}
+
+interface HandCardProps {
+  card: Card
+  index: number
+  count: number
+  playable: boolean
+  legal: boolean
+  pending: boolean
+  shake: number
+  dealFrom: { x: number; y: number }
+  dragging: React.RefObject<boolean>
+  handTop: () => number
+  onAttempt: () => boolean
+  onConfirm: () => void
+}
+
+/** One card in the hand. It can be picked up and carried anywhere, and is played by letting go over the table. */
+function HandCard({ card, index, count, playable, legal, pending, shake, dealFrom, dragging, handTop, onAttempt, onConfirm }: HandCardProps) {
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
+  // A carried card swings a little with the hand that moves it.
+  const swing = useTransform(x, [-160, 160], [-12, 12], { clamp: true })
+  const returnTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(returnTimer.current), [])
+
+  const goHome = () => {
+    animate(x, 0)
+    animate(y, 0)
+  }
+  const tilt = (index - (count - 1) / 2) * 4
+
+  return (
+    <motion.div
+      className="hand-slot"
+      layout
+      layoutId={cardLayoutId(card)}
+      style={{ x, y, rotate: swing, zIndex: pending ? 20 : index }}
+      variants={{
+        dealt: { x: dealFrom.x, y: dealFrom.y, opacity: 0 },
+        held: { x: 0, y: 0, opacity: 1, transition: { delay: index * 0.07 } },
+      }}
+      initial="dealt"
+      animate="held"
+      drag={playable}
+      dragMomentum={false}
+      whileDrag={{ scale: 1.12, zIndex: 60 }}
+      onDragStart={() => {
+        dragging.current = true
+        clearTimeout(returnTimer.current)
+      }}
+      onDragEnd={(_, info) => {
+        const moved = Math.hypot(info.offset.x, info.offset.y)
+        const overTable = info.point.y < handTop() - DROP_ABOVE_HAND_PX
+        // A finger rarely lands perfectly still: a tiny drag is a tap.
+        const played = (overTable || moved < TAP_SLOP_PX) && onAttempt()
+        // A played card waits where it was dropped and travels to the trick from there.
+        if (played) returnTimer.current = setTimeout(goHome, RETURN_AFTER_MS)
+        else goHome()
+        // The click that ends a drag must not count as a tap.
+        setTimeout(() => (dragging.current = false), 0)
+      }}
+    >
+      {pending && (
+        <button
+          className="btn btn-danger btn-small play-anyway"
+          onClick={(e) => {
+            e.stopPropagation()
+            onConfirm()
+          }}
+        >
+          Play {cardText(card)} anyway
+        </button>
+      )}
+      <PlayingCard
+        key={pending ? shake : 0}
+        card={card}
+        playable={playable}
+        dim={playable && !legal}
+        selected={pending}
+        className={pending ? 'shake' : ''}
+        onClick={(e) => {
+          e?.stopPropagation()
+          if (!dragging.current) onAttempt()
+        }}
+        style={{ '--tilt': `${tilt}deg` } as React.CSSProperties}
+      />
+    </motion.div>
   )
 }

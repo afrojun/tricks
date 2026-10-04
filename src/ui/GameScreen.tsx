@@ -30,7 +30,7 @@ function present(event: NumberedEvent, view: View, seat: Seat | null): Presentat
       return event.half === 2 ? { toast: 'Second half: six new cards each.' } : {}
     case 'called':
       playSound('call')
-      return { toast: `${name(event.seat)} ${verb(event.seat, 'call', 'calls')} ${event.amount}.` }
+      return {} // shown at the caller's seat
     case 'trumpChosen':
       return { toast: `${name(event.seat)} ${verb(event.seat, 'have', 'has')} chosen trump${event.lastCard ? ' by last card' : ''}.` }
     case 'dealCancelled':
@@ -54,7 +54,7 @@ function present(event: NumberedEvent, view: View, seat: Seat | null): Presentat
         event.seat,
         `Jodhi ${event.points}`,
         `${name(event.seat)} ${verb(event.seat, 'hold', 'holds')} King and Queen${event.withJack ? ' with the Jack' : ''} of ${SUIT_NAME[event.suit]}`,
-        1300,
+        2600,
       )
     case 'challengeResolved':
       playSound('challenge')

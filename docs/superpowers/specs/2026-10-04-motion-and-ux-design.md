@@ -23,7 +23,7 @@ Sits between the socket and the store.
   | `dealt`, `trumpRevealed` | 600 |
   | `trumpChosen` | 700 |
   | `called` | 800 |
-  | `jodhiClaimed` | 1400 |
+  | `jodhiClaimed` | 2800 |
   | `dealCancelled` | 1500 |
   | `doubleCalled`, `khanaakCalled` | 1600 |
   | `thuneeCalled` | 1800 |
@@ -85,3 +85,6 @@ One overlay, fed by events, showing one moment at a time.
 - **Challenge.** The balls and their sounds wait for the verdict beat, and the table is veiled while a moment is showing.
 - **Taps.** A drag of under 12 pixels counts as a tap.
 - **Not done.** The first deal of a game appears without the deal animation, because the table is first drawn at that moment; later rounds and rematches animate.
+- **Dragging (after first play-test).** A card can be picked up and carried anywhere; it grows, swings with the hand, and is played by letting go over the table. It then travels to its place in the trick from where it was dropped. Let go over the hand, it returns.
+- **Jodhi (after first play-test).** The Jodhi moment stays for 2.6 seconds and holds the next move for 2.8.
+- **What players said (after first play-test).** Each seat shows what that player has said aloud: their call or pass, "Wants Thunee" or "No Thunee", and any Thunee, Double, Khanaak or Jodhi with its points. These stay for as long as they matter (the calling window, or the round). The card that led a trick is tagged. Call amounts no longer use the toast.

@@ -9,7 +9,7 @@ const DWELL_MS: Partial<Record<GameEvent['type'], number>> = {
   trumpRevealed: 600,
   trumpChosen: 700,
   called: 800,
-  jodhiClaimed: 1400,
+  jodhiClaimed: 2800,
   dealCancelled: 1500,
   doubleCalled: 1600,
   khanaakCalled: 1600,

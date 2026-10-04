@@ -197,6 +197,7 @@ button:disabled {
   position: relative;
   margin-inline: calc(var(--w) * var(--overlap, -0.1) / 2);
   touch-action: none;
+  cursor: grab;
 }
 .hand .playing-card {
   --w: inherit;
@@ -544,4 +545,30 @@ button:disabled {
     transform: translateY(105vh) rotate(540deg);
     opacity: 0.2;
   }
+}
+
+/* Something a player said aloud: a call, a pass, a Jodhi. It pops when it appears. */
+.said {
+  padding: 0 0.45rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--on-surface);
+  box-shadow: var(--shadow-sm);
+  animation: pop 320ms ease-out;
+}
+.led-tag {
+  position: absolute;
+  left: 50%;
+  bottom: -0.55rem;
+  translate: -50% 0;
+  padding: 0 0.3rem;
+  font-size: 0.65rem;
+  line-height: 1.4;
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--text) 40%, transparent);
 }
