@@ -49,6 +49,7 @@ Dependency direction: `ui -> client -> engine`; `party -> engine, ai`; `ai -> en
 
 - **The engine is pure.** Nothing in `src/engine/` reads the clock, generates randomness, or imports from other folders. Time and randomness arrive through `ctx`. `apply` never mutates its input and never throws on player input; it returns `{ rejected }`.
 - **One source of truth.** Timers are deadlines inside the saved game. The server sets PartyKit's single alarm to `nextDeadline(game)` after every change. Do not keep timer or game facts in server memory.
+- **Abandoned rooms reset.** A room with no seated human connected for 24 hours (`ABANDONED_AFTER_MS` in `party/server.ts`) goes back to an empty lobby. The clock is `emptySince` in the saved state and shares the one alarm with game deadlines.
 - **Shared validation.** `apply` checks round actions against `availableActions(viewFor(game, seat))`, the same function the UI uses to decide what to show. Add a new action there first.
 - **Views hide information.** Clients only receive `viewFor(game, seat)`. Never send `Game`. Other hands, the stock, `handBefore`, `legal`, Jodhi `valid`, tokens, and unrevealed trump must not appear in a view; the simulation test checks this.
 - **Identity is a secret token, not a connection.** The browser's token maps to a seat on the server. Clients only see seat numbers.

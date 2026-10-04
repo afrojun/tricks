@@ -34,6 +34,8 @@ interface Saved {
   tokens: Record<string, Seat>
   version: number
   eventCount: number
+  /** When the last seated human disconnected; null while one is present or the room is unused. */
+  emptySince: number | null
 }
 
 interface Deps {
@@ -47,6 +49,8 @@ const defaultDeps: Deps = {
 }
 
 const STORAGE_KEY = 'state'
+/** A room no seated human has been connected to for this long is reset to an empty lobby. */
+export const ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000
 const MAX_MESSAGE_LENGTH = 2000
 type ConnState = { token: string }
 
@@ -66,6 +70,8 @@ export default class ThuneeRoom implements Party.Server {
       this.saved = stored
       // Nobody is connected to a room that has just started.
       for (const seat of this.saved.game.seats) if (seat.kind === 'human') seat.connected = false
+      this.saved.emptySince = emptySince(this.saved.game, stored.emptySince ?? null, this.deps.now())
+      await this.room.storage.put(STORAGE_KEY, this.saved)
     }
     await this.armAlarm()
   }
@@ -141,6 +147,7 @@ export default class ThuneeRoom implements Party.Server {
       tokens,
       version: this.saved.version + 1,
       eventCount: this.saved.eventCount + events.length,
+      emptySince: emptySince(result.game, this.saved.emptySince, this.deps.now()),
     }
     await this.room.storage.put(STORAGE_KEY, this.saved)
     for (const conn of this.room.getConnections<ConnState>()) this.send(conn, events)
@@ -156,6 +163,10 @@ export default class ThuneeRoom implements Party.Server {
       const game = this.saved.game
       const now = this.deps.now()
       const phase = game.phase
+      if (this.saved.emptySince !== null && now >= this.saved.emptySince + ABANDONED_AFTER_MS) {
+        await this.reset()
+        break
+      }
       if ('deadline' in phase && phase.deadline <= now) {
         await this.act('system', { type: 'tick' })
         continue
@@ -187,8 +198,17 @@ export default class ThuneeRoom implements Party.Server {
     }
   }
 
+  /** Throws away an abandoned game. Versions keep rising so connected clients accept the new view. */
+  private async reset(): Promise<void> {
+    this.saved = { ...fresh(), version: this.saved.version + 1, eventCount: this.saved.eventCount }
+    await this.room.storage.put(STORAGE_KEY, this.saved)
+    for (const conn of this.room.getConnections<ConnState>()) this.send(conn, [])
+  }
+
   private async armAlarm(): Promise<void> {
-    const deadline = nextDeadline(this.saved.game)
+    const expiry = this.saved.emptySince === null ? null : this.saved.emptySince + ABANDONED_AFTER_MS
+    const times = [nextDeadline(this.saved.game), expiry].filter((t): t is number => t !== null)
+    const deadline = times.length > 0 ? Math.min(...times) : null
     if (deadline === null) await this.room.storage.deleteAlarm()
     else await this.room.storage.setAlarm(Math.max(deadline, this.deps.now() + 1))
   }
@@ -222,7 +242,15 @@ export default class ThuneeRoom implements Party.Server {
 }
 
 function fresh(): Saved {
-  return { game: createGame(), tokens: {}, version: 0, eventCount: 0 }
+  return { game: createGame(), tokens: {}, version: 0, eventCount: 0, emptySince: null }
+}
+
+/** Starts, keeps or clears the abandonment clock for the game as it now stands. */
+function emptySince(game: Game, previous: number | null, now: number): number | null {
+  const unused = game.phase.kind === 'lobby' && game.seats.every((s) => s.kind === 'empty')
+  const humanPresent = game.seats.some((s) => s.kind === 'human' && s.connected)
+  if (unused || humanPresent) return null
+  return previous ?? now
 }
 
 function parse(message: string | ArrayBuffer | ArrayBufferView): Action | null {

@@ -308,3 +308,86 @@ describe('AI seats', () => {
     expect(back.view.seats[2]).toMatchObject({ standIn: false, connected: true })
   })
 })
+
+describe('abandoned rooms', () => {
+  const DAY = 24 * 60 * 60 * 1000
+
+  /** One human and three computers, started, then the human disconnects. */
+  async function abandoned() {
+    const w = await new World().boot()
+    const me = await w.connect(TOKENS[0])
+    await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
+    for (const seat of [1, 2, 3]) await w.send(me, { type: 'addAi', seat })
+    await w.send(me, { type: 'start' })
+    const leftAt = w.now
+    await w.close(me)
+    return { w, leftAt }
+  }
+  /** Fires alarms until the next one is more than a minute away, or `limit` is reached. */
+  async function settle(w: World, limit = 500) {
+    for (let i = 0; i < limit && w.alarm !== null && w.alarm - w.now < 60_000; i++) await w.fireAlarm()
+  }
+
+  test('a room with no human connected for a day resets to an empty lobby', async () => {
+    const { w, leftAt } = await abandoned()
+    await settle(w) // the computers play on until the game needs the human
+    expect(w.alarm).toBe(leftAt + DAY)
+    await w.fireAlarm()
+    expect(w.alarm).toBeNull()
+
+    const back = await w.connect(TOKENS[0])
+    expect(back.sync.seat).toBeNull()
+    expect(back.view.phase.kind).toBe('lobby')
+    expect(back.view.seats.every((s) => s.kind === 'empty')).toBe(true)
+    expect(back.view.host).toBeNull()
+  })
+
+  test('coming back before the day is up cancels the reset', async () => {
+    const { w, leftAt } = await abandoned()
+    await settle(w)
+    w.now = leftAt + DAY - 1000
+    const back = await w.connect(TOKENS[0])
+    expect(back.sync.seat).toBe(0)
+    expect(back.view.phase.kind).not.toBe('lobby')
+    expect(w.alarm === null || w.alarm < leftAt + DAY - 1000 + 60_000).toBe(true) // only game timers remain
+    // Leaving again starts a fresh day.
+    await w.close(back)
+    await settle(w)
+    expect(w.alarm).toBe(leftAt + DAY - 1000 + DAY)
+  })
+
+  test('the countdown survives a room restart', async () => {
+    const { w, leftAt } = await abandoned()
+    await settle(w)
+    w.alarm = null
+    await w.boot()
+    expect(w.alarm).toBe(leftAt + DAY)
+    await w.fireAlarm()
+    expect((await w.connect(TOKENS[0])).view.phase.kind).toBe('lobby')
+  })
+
+  test('a watching spectator does not keep the room alive, and sees the reset', async () => {
+    const { w } = await abandoned()
+    const watcher = await w.connect('s'.repeat(20))
+    const before = watcher.sync.version
+    await settle(w)
+    await w.fireAlarm()
+    expect(watcher.view.phase.kind).toBe('lobby')
+    expect(watcher.sync.version).toBeGreaterThan(before) // clients ignore lower versions
+  })
+
+  test('a lobby everyone left is reset too, but an untouched room never sets an alarm', async () => {
+    const w = await new World().boot()
+    const visitor = await w.connect(TOKENS[0])
+    await w.close(visitor)
+    expect(w.alarm).toBeNull()
+
+    const me = await w.connect(TOKENS[0])
+    await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
+    await w.close(me)
+    expect(w.alarm).toBe(w.now + DAY)
+    await w.fireAlarm()
+    expect(w.alarm).toBeNull()
+    expect((await w.connect(TOKENS[0])).sync.seat).toBeNull()
+  })
+})

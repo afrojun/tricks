@@ -345,3 +345,4 @@ These differ from the sections above and are what the code does.
 - **Lobby actions (4.4).** `clearSeat` replaces `removeAi` and can also remove a human in the lobby. `nextRound` may be sent by any seated human, not only the host.
 - **Connection.** The client pings the room every 5 seconds and reconnects after two unanswered pings, and reacts to the browser going offline and online.
 - **Simulation (7).** The default run is 30 games per configuration; `pnpm test:soak` runs 400.
+- **Abandoned rooms (5.5).** When no seated human has been connected for 24 hours, the room is reset to an empty lobby and its seats and tokens are discarded. The clock starts when the last human disconnects, is saved with the game so it survives a restart, and is cleared when any seated human reconnects. Spectators do not keep a room alive. A room nobody ever sat in has nothing to reset and sets no alarm.
