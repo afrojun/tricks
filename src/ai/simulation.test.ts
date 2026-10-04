@@ -15,6 +15,7 @@ import {
 } from '../engine'
 import { Table, collectCards, seededRng } from '../engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
+import { HONEST } from './mind'
 
 /** Raise with SIM_GAMES=2000 for a soak run. */
 const GAMES = Number(process.env.SIM_GAMES ?? 30)
@@ -81,7 +82,7 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
     // Jodhi: honest claims from the AI, plus the odd bluff.
     if (phase.kind === 'playing' || phase.kind === 'trickPause') {
       for (let seat = 0; seat < playerCount; seat++) {
-        const honest = chooseJodhi(viewFor(t.game, seat, 'full'))
+        const honest = chooseJodhi(viewFor(t.game, seat, 'full'), HONEST)
         if (honest) step(seat, honest, true)
         else if (chaos() < 0.02 && availableActions(viewFor(t.game, seat)).claimJodhi.length > 0) {
           step(seat, { type: 'claimJodhi', suit: pick(SUITS), withJack: chaos() < 0.5 }, false)
@@ -126,7 +127,7 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
     } else if (current.kind === 'calling' && chaos() < 0.2 && availableActions(view).calls.length > 0) {
       step(seat, { type: 'call', amount: availableActions(view).calls[0] }, true)
     } else {
-      step(seat, chooseAction(view), true) // AI actions must never be rejected
+      step(seat, chooseAction(view, HONEST), true) // AI actions must never be rejected
     }
   }
   throw new Error(`seed ${seed}: game did not finish`)
@@ -164,14 +165,14 @@ describe('simulation', () => {
         if (phase.kind === 'roundResult') t.do(0, { type: 'nextRound' })
         else if (seatsToAct(t.game).length === 0) {
           for (let seat = 0; seat < 4; seat++) {
-            const claim = chooseJodhi(viewFor(t.game, seat))
+            const claim = chooseJodhi(viewFor(t.game, seat), HONEST)
             if (claim) t.do(seat, claim)
           }
           t.now = nextDeadline(t.game)!
           t.do('system', { type: 'tick' })
         } else {
           const seat = seatsToAct(t.game)[0]
-          t.do(seat, chooseAction(viewFor(t.game, seat)))
+          t.do(seat, chooseAction(viewFor(t.game, seat), HONEST))
         }
         const p = t.game.phase
         if (p.kind === 'playing' || p.kind === 'trickPause') {

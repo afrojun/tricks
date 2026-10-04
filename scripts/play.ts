@@ -6,6 +6,7 @@
  */
 import PartySocket from 'partysocket'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
+import { HONEST } from '../src/ai/mind'
 import { type Action, type View, availableActions } from '../src/engine'
 import type { ServerMessage } from '../src/protocol'
 
@@ -78,10 +79,10 @@ while (a.view!.phase.kind !== 'gameOver') {
     const phase = view.phase
     let action: Action | null = null
     if (phase.kind === 'roundResult' && p === a) action = { type: 'nextRound' }
-    else if (phase.kind === 'calling' && (can.calls.length > 0 || can.pass)) action = chooseAction(view)
-    else if (phase.kind === 'trumpSelection' && can.chooseTrump.length > 0) action = chooseAction(view)
-    else if ((phase.kind === 'playing' || phase.kind === 'trickPause') && chooseJodhi(view)) action = chooseJodhi(view)
-    else if (phase.kind === 'playing' && can.play.length > 0) action = chooseAction(view)
+    else if (phase.kind === 'calling' && (can.calls.length > 0 || can.pass)) action = chooseAction(view, HONEST)
+    else if (phase.kind === 'trumpSelection' && can.chooseTrump.length > 0) action = chooseAction(view, HONEST)
+    else if ((phase.kind === 'playing' || phase.kind === 'trickPause') && chooseJodhi(view, HONEST)) action = chooseJodhi(view, HONEST)
+    else if (phase.kind === 'playing' && can.play.length > 0) action = chooseAction(view, HONEST)
     const key = `${p.name}:${JSON.stringify(action)}:${JSON.stringify(phase).length}:${view.roundNumber}`
     if (action && key !== lastSent) {
       p.send(action)

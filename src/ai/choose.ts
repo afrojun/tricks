@@ -1,4 +1,4 @@
-/** AI players. They see only a seat's view, play legally, and never bluff. */
+/** AI players. They see only a seat's view; whether they cheat depends on their persona. */
 import {
   type Action,
   type Card,
@@ -14,7 +14,9 @@ import {
   teamOf,
   trickWinner,
 } from '../engine'
-import { wouldWin } from './read'
+import { chooseCheat, holdBack } from './cheat'
+import { type Mind, TRAITS, roll } from './mind'
+import { history, wouldWin } from './read'
 
 const HIGH = new Set<Card['rank']>(['J', '9', 'A'])
 
@@ -95,7 +97,7 @@ function sureSpecialCall(view: View, phase: ViewPlaying, card: Card): Action | n
 }
 
 /** The action an AI seat takes when it is one of the seats to act. */
-export function chooseAction(view: View): Action {
+export function chooseAction(view: View, mind: Mind): Action {
   const can = availableActions(view)
   const phase = view.phase
   switch (phase.kind) {
@@ -109,7 +111,9 @@ export function chooseAction(view: View): Action {
     case 'thuneeWindow':
       return can.callThunee && wantsThunee(phase.hand) ? { type: 'callThunee' } : { type: 'pass' }
     case 'playing': {
-      const card = chooseCard(view, phase, can.legal)
+      const careful = TRAITS[mind.persona].cheats === 'careful'
+      const honest = chooseCard(view, phase, careful ? holdBack(view, phase, can.legal) : can.legal)
+      const card = chooseCheat(view, phase, honest, mind) ?? honest
       return sureSpecialCall(view, phase, card) ?? { type: 'playCard', card }
     }
     default:
@@ -117,15 +121,29 @@ export function chooseAction(view: View): Action {
   }
 }
 
-/** A Jodhi the seat really holds and may claim now, if any. */
-export function chooseJodhi(view: View): Action | null {
+const BLUFF_CHANCE = 0.5
+
+/** A Jodhi the seat may claim now: a real one, or for cheating personas sometimes a bluff. */
+export function chooseJodhi(view: View, mind: Mind): Action | null {
   const phase = view.phase
   if (view.seat === null || (phase.kind !== 'playing' && phase.kind !== 'trickPause')) return null
   const me = view.seat
   const ownPlays = phase.tricks.filter((t) => t.half === phase.half).flatMap((t) => t.plays).filter((p) => p.seat === me)
   const cards = view.rules.jodhiCards === 'inHand' ? phase.hand : [...phase.hand, ...ownPlays.map((p) => p.card)]
-  for (const suit of availableActions(view).claimJodhi) {
+  const open = availableActions(view).claimJodhi
+  for (const suit of open) {
     if (holdsJodhi(cards, suit, false)) return { type: 'claimJodhi', suit, withJack: holdsJodhi(cards, suit, true) }
+  }
+
+  // A bluff needs one of the pair in hand and the other not yet seen.
+  const { cheats } = TRAITS[mind.persona]
+  if (cheats === 'never') return null
+  if (cheats === 'careful' && phase.jodhiClaims.some((j) => j.seat === me)) return null
+  const played = history(phase).flatMap((t) => t.plays.map((p) => p.card))
+  for (const suit of open) {
+    const pair = (c: Card) => c.suit === suit && (c.rank === 'K' || c.rank === 'Q')
+    if (phase.hand.filter(pair).length !== 1 || played.some(pair)) continue
+    if (roll(mind.salt, me, `bluff:${phase.tricks.length}:${suit}`) < BLUFF_CHANCE) return { type: 'claimJodhi', suit, withJack: false }
   }
   return null
 }

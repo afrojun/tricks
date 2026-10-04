@@ -1,6 +1,7 @@
 import type * as Party from 'partykit/server'
 import { describe, expect, test } from 'vitest'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
+import { HONEST } from '../src/ai/mind'
 import type { Action, View } from '../src/engine'
 import { seededRng } from '../src/engine/testing'
 import type { ServerMessage } from '../src/protocol'
@@ -280,9 +281,9 @@ describe('AI seats', () => {
         rounds++
         await w.send(me, { type: 'nextRound' })
       } else if (phase.kind === 'trumpSelection' && phase.trumper === 0) {
-        await w.send(me, chooseAction(me.view))
+        await w.send(me, chooseAction(me.view, HONEST))
       } else if (phase.kind === 'playing' && phase.turn === 0) {
-        await w.send(me, chooseJodhi(me.view) ?? chooseAction(me.view))
+        await w.send(me, chooseJodhi(me.view, HONEST) ?? chooseAction(me.view, HONEST))
       } else {
         await w.fireAlarm() // AI turns, call windows and trick pauses
       }

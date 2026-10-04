@@ -1,5 +1,6 @@
 import type * as Party from 'partykit/server'
 import { chooseAction, chooseJodhi, fallbackAction } from '../src/ai/choose'
+import { mindFor } from '../src/ai/mind'
 import {
   type Action,
   type Actor,
@@ -175,7 +176,7 @@ export default class ThuneeRoom implements Party.Server {
         const seat = seatsToAct(game).find((s) => isAiControlled(game, s))
         if (seat === undefined) break
         const view = viewFor(game, seat, 'full')
-        if (!(await this.act(seat, chooseAction(view))) && !(await this.act(seat, fallbackAction(view)))) {
+        if (!(await this.act(seat, chooseAction(view, mindFor(game, seat)))) && !(await this.act(seat, fallbackAction(view)))) {
           throw new Error(`AI seat ${seat} has no acceptable action in ${phase.kind}`)
         }
         continue
@@ -193,7 +194,7 @@ export default class ThuneeRoom implements Party.Server {
     const game = this.saved.game
     for (let seat = 0; seat < game.playerCount; seat++) {
       if (!isAiControlled(game, seat) || teamOf(seat) !== teamOf(won.seat)) continue
-      const claim = chooseJodhi(viewFor(this.saved.game, seat, 'full'))
+      const claim = chooseJodhi(viewFor(this.saved.game, seat, 'full'), mindFor(this.saved.game, seat))
       if (claim) await this.act(seat, claim)
     }
   }
