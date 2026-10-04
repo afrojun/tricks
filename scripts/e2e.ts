@@ -10,7 +10,13 @@ const shots = process.argv[3] ?? '/tmp/shots'
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
-const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
+const reduced = process.env.REDUCED === '1'
+const context = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 2,
+  reducedMotion: reduced ? 'reduce' : 'no-preference',
+  recordVideo: process.env.VIDEO ? { dir: process.env.VIDEO, size: { width: 390, height: 844 } } : undefined,
+})
 await context.addInitScript((t) => {
   localStorage.setItem('thunee-theme', t)
   localStorage.setItem('thunee-muted', '1')
@@ -53,10 +59,12 @@ while (Date.now() - started < 6 * 60_000) {
   await once('6-thunee-window', await visible('No Thunee'))
   await once('8-round-result', await visible('Deal next round'))
 
-  if (await visible('Pass')) await page.getByRole('button', { name: 'Pass' }).click()
-  else if (await page.getByText('Choose trump').isVisible()) await page.locator('.panel .btn').first().click()
-  else if (await visible('No Thunee')) await page.getByRole('button', { name: 'No Thunee' }).click()
-  else if (await visible('Deal next round')) await page.getByRole('button', { name: 'Deal next round' }).click()
+  // A control can disappear between being seen and being clicked; that is the game moving on, not a failure.
+  const tap = (target: ReturnType<typeof page.locator>) => target.click({ timeout: 1500 }).catch(() => {})
+  if (await visible('Pass')) await tap(page.getByRole('button', { name: 'Pass' }))
+  else if (await page.getByText('Choose trump').isVisible()) await tap(page.locator('.panel .btn').first())
+  else if (await visible('No Thunee')) await tap(page.getByRole('button', { name: 'No Thunee' }))
+  else if (await visible('Deal next round')) await tap(page.getByRole('button', { name: 'Deal next round' }))
   else if (await page.getByText(/Your turn/).isVisible()) {
     await once('7-my-turn', (await page.locator('.trick-area .playing-card').count()) >= 2)
     // Refresh once, mid-hand: the seat and cards must come back with no name prompt.
@@ -71,7 +79,7 @@ while (Date.now() - started < 6 * 60_000) {
       console.log(`refreshed mid-hand, same ${after.length} cards`)
     }
     const legal = page.locator('.hand .playing-card[data-dim="false"]').first()
-    await legal.click().catch(() => {})
+    await legal.click({ timeout: 1500 }).catch(() => {})
   }
   await page.waitForTimeout(150)
 }
@@ -80,7 +88,8 @@ await shot('9-game-over')
 const finished = await page.getByText(/win the game/).isVisible()
 await page.getByRole('button', { name: 'Open menu' }).click().catch(() => {})
 await shot('10-menu')
-console.log(`${theme}: finished=${finished} refreshed=${refreshed} screens=${[...seen].sort().join(',')}`)
+console.log(`${theme}${reduced ? ' (reduced motion)' : ''}: finished=${finished} refreshed=${refreshed} screens=${[...seen].sort().join(',')}`)
 if (problems.length) console.log('PROBLEMS:\n' + [...new Set(problems)].join('\n'))
+await context.close() // flushes the video, if one is being recorded
 await browser.close()
 process.exit(finished && refreshed && problems.length === 0 ? 0 : 1)

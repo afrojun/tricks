@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:soak": "SIM_GAMES=400 vitest run src/ai",
-    "e2e": "tsx scripts/e2e.ts && tsx scripts/e2e-two.ts",
+    "e2e": "tsx scripts/e2e.ts && tsx scripts/e2e-two.ts && tsx scripts/e2e-controls.ts",
     "e2e:sockets": "tsx scripts/play.ts"
   },
   "dependencies": {

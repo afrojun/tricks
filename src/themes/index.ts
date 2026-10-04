@@ -1,3 +1,4 @@
+import type { Transition } from 'motion/react'
 import './tokens.css'
 
 export interface Theme {
@@ -7,6 +8,8 @@ export interface Theme {
   /** Browser chrome colour on phones. */
   chrome: string
   cardBacks: { id: string; name: string }[]
+  /** How things move in this theme. */
+  motion: Transition
 }
 
 export const THEMES: Theme[] = [
@@ -15,6 +18,7 @@ export const THEMES: Theme[] = [
     name: 'Retro',
     blurb: 'Pixel type on green felt',
     chrome: '#1a4d2e',
+    motion: { type: 'tween', duration: 0.18, ease: 'linear' },
     cardBacks: [
       { id: 'crosshatch', name: 'Crosshatch' },
       { id: 'arcade', name: 'Arcade' },
@@ -26,6 +30,7 @@ export const THEMES: Theme[] = [
     name: 'Modern table',
     blurb: 'Peacock baize and brass',
     chrome: '#0e3b3c',
+    motion: { type: 'spring', stiffness: 380, damping: 30 },
     cardBacks: [{ id: 'brass', name: 'Brass' }],
   },
   {
@@ -33,6 +38,7 @@ export const THEMES: Theme[] = [
     name: 'Minimal',
     blurb: 'Flat, quiet, quick to read',
     chrome: '#f4f4f0',
+    motion: { type: 'tween', duration: 0.2, ease: 'easeOut' },
     cardBacks: [{ id: 'plain', name: 'Plain' }],
   },
 ]

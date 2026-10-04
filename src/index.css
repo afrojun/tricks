@@ -187,16 +187,30 @@ button:disabled {
 /* ── Hand ───────────────────────────────────────────────────────────────── */
 
 .hand {
+  --w: clamp(3.4rem, 17.5vw, 5.2rem);
   display: flex;
   justify-content: center;
-  padding: 0.6rem 0.5rem 0.2rem;
+  padding: 0.7rem 0.5rem 0.3rem;
+  touch-action: pan-x;
+}
+.hand-slot {
+  position: relative;
+  margin-inline: calc(var(--w) * var(--overlap, -0.1) / 2);
+  touch-action: none;
 }
 .hand .playing-card {
-  --w: clamp(3rem, 14.5vw, 4.4rem);
-  margin-inline: calc(var(--w) * -0.07);
-  transition: transform var(--motion);
+  --w: inherit;
+  width: clamp(3.4rem, 17.5vw, 5.2rem);
+  transition: transform var(--motion), filter var(--motion);
   transform: translateY(var(--lift, 0)) rotate(var(--tilt, 0deg));
   transform-origin: 50% 120%;
+}
+.hand .playing-card .corner {
+  font-size: clamp(1.15rem, 6vw, 1.75rem);
+}
+.hand .playing-card .centre {
+  font-size: clamp(2.1rem, 11vw, 3.2rem);
+  margin-top: 30%;
 }
 .hand .playing-card[data-playable='true']:hover {
   --lift: -0.5rem;
@@ -208,12 +222,43 @@ button:disabled {
 .hand .playing-card[data-dim='true'] {
   filter: saturate(0.5) brightness(0.86);
 }
+.hand .playing-card.shake {
+  animation: shake 320ms ease;
+}
+@keyframes shake {
+  20%,
+  60% {
+    translate: -5px 0;
+  }
+  40%,
+  80% {
+    translate: 5px 0;
+  }
+}
+.play-anyway {
+  position: absolute;
+  bottom: calc(100% + 1.1rem);
+  left: 50%;
+  translate: -50% 0;
+  white-space: nowrap;
+  z-index: 30;
+}
+.hand-slot:first-child .play-anyway {
+  left: 0;
+  translate: 0 0;
+}
+.hand-slot:last-child .play-anyway {
+  left: auto;
+  right: 0;
+  translate: 0 0;
+}
 
 /* ── Table pieces ───────────────────────────────────────────────────────── */
 
 .trick-area {
   display: grid;
-  grid-template-columns: repeat(3, 3.1rem);
+  /* Narrower than the cards, so the cross closes up and fits between the side seats. */
+  grid-template-columns: repeat(3, 2.5rem);
   grid-template-rows: repeat(3, 2.9rem);
   place-items: center;
   gap: 0.35rem;
@@ -252,7 +297,8 @@ button:disabled {
   outline-offset: 2px;
 }
 .card-in {
-  animation: card-in var(--motion) ease-out;
+  display: inline-flex;
+  animation: card-in 220ms ease-out backwards;
 }
 @keyframes card-in {
   from {
@@ -307,10 +353,188 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* A bar that cannot run would mislead; the number still counts down. */
+  .timer-bar {
+    display: none;
+  }
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Status, seats and timers ───────────────────────────────────────────── */
+
+.pip-track i[data-fresh='true'] {
+  animation: pip-fill 420ms ease-out backwards;
+}
+@keyframes pip-fill {
+  0% {
+    background: transparent;
+    opacity: 0.4;
+    scale: 1;
+  }
+  55% {
+    scale: 2.4;
+  }
+}
+
+.trick-pile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 0.85rem;
+  line-height: 1;
+  animation: pop 320ms ease-out;
+}
+.trick-pile-icon {
+  width: 0.7rem;
+  height: 0.95rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 -0.5px currentColor;
+}
+@keyframes pop {
+  40% {
+    scale: 1.3;
+  }
+}
+
+.fact {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--text) 35%, transparent);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.suit-chip {
+  display: inline-block;
+  min-width: 1.3em;
+  margin-left: 0.15em;
+  text-align: center;
+  line-height: 1.15;
+  /* A scrap of card face, so red and black suits both read on any table colour. */
+  background: var(--card-face);
+  color: var(--card-ink);
+  border-radius: 3px;
+}
+.suit-chip[data-red='true'] {
+  color: var(--card-red);
+}
+.role-badge {
+  padding: 0 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--text) 16%, transparent);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.seat-name {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  color: var(--text-muted);
+  outline: 2px solid transparent;
+}
+.seat-name[data-turn='true'] {
+  color: var(--accent);
+  font-weight: 600;
+  outline-color: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.timer-bar {
+  height: 0.4rem;
+  background: color-mix(in srgb, var(--on-surface) 14%, transparent);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.timer-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  animation: timer-run linear forwards;
+}
+.timer-bar[data-urgent='true'] i {
+  background: var(--danger);
+}
+@keyframes timer-run {
+  from {
+    transform: scaleX(var(--from, 1));
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.attention {
+  animation: attention 1.2s ease-in-out infinite;
+}
+@keyframes attention {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+}
+
+/* ── Moments and celebration ────────────────────────────────────────────── */
+
+.moment-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.moment {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  max-width: calc(100% - 2rem);
+  padding: 1rem 1.3rem;
+  text-align: center;
+  border-width: calc(var(--line-width) + 1px);
+}
+.moment[data-tone='call'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.moment[data-tone='danger'] {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+
+.celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  overflow: hidden;
+  pointer-events: none;
+}
+.celebration i {
+  position: absolute;
+  top: -1rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: currentColor;
+  animation: fall linear forwards;
+}
+.celebration i:nth-child(3n) {
+  background: var(--accent);
+  border-radius: 0;
+}
+@keyframes fall {
+  to {
+    transform: translateY(105vh) rotate(540deg);
+    opacity: 0.2;
   }
 }

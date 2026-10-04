@@ -1,3 +1,4 @@
+import { MotionConfig } from 'motion/react'
 import { type ReactNode, createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import { type Session, openSession } from '../client/connection'
 import type { ClientState } from '../client/store'
@@ -63,7 +64,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyTheme(theme, cardBack)
     setState({ theme, cardBack: currentCardBack(theme) })
   }
-  return <ThemeContext.Provider value={{ ...state, setTheme }}>{children}</ThemeContext.Provider>
+  return (
+    <ThemeContext.Provider value={{ ...state, setTheme }}>
+      {/* "user" drops travel and keeps fades when the system asks for reduced motion. */}
+      <MotionConfig reducedMotion="user" transition={state.theme.motion}>
+        {children}
+      </MotionConfig>
+    </ThemeContext.Provider>
+  )
 }
 
 export function useTheme(): ThemeState {

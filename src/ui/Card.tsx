@@ -7,7 +7,7 @@ type Size = 'hand' | 'trick' | 'small'
 interface PlayingCardProps {
   card: Card
   size?: Size
-  onClick?: () => void
+  onClick?: (event?: React.MouseEvent) => void
   playable?: boolean
   dim?: boolean
   selected?: boolean

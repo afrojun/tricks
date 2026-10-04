@@ -1,9 +1,10 @@
+import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import {
   type Available,
-  type Card,
   type Seat,
   type Suit,
+  type Team,
   type TrumpChoice,
   type View,
   type ViewPhase,
@@ -11,31 +12,47 @@ import {
   availableActions,
   jodhiPoints,
   replaceableSeats,
-  sameCard,
   teamOf,
 } from '../engine'
 import { CardBack, PlayingCard } from './Card'
+import { Hand, cardLayoutId } from './Hand'
 import { RoundResult } from './RoundResult'
 import { RulesList, rulesSummary } from './Rules'
 import { Sheet } from './Sheet'
 import { ThemePicker } from './ThemePicker'
 import { navigate, useCountdown, useSession } from './session'
 import { isMuted, playSound, setMuted } from './sound'
-import { SUIT_NAME, SUIT_SYMBOL, cardText, isRed, seatName, sortHand, teamName } from './text'
+import { SUIT_NAME, SUIT_SYMBOL, isRed, plural, seatName, sortHand, teamName } from './text'
 
 type SheetName = 'menu' | 'history' | 'rules' | 'jodhi' | 'challenge' | null
+type Where = 'bottom' | 'right' | 'top' | 'left'
 
 /** Where a seat sits on screen relative to the viewer, who is always at the bottom. */
-function position(seat: Seat, me: Seat, n: number): 'bottom' | 'right' | 'top' | 'left' {
+function position(seat: Seat, me: Seat, n: number): Where {
   const offset = (seat - me + n) % n
   if (n === 2) return offset === 0 ? 'bottom' : 'top'
   return (['bottom', 'right', 'top', 'left'] as const)[offset]
 }
 
-export function Table({ view, room }: { view: View; room: string }) {
+/** Roughly how far, in pixels, a card travels to or from each side of the table. */
+const TOWARD: Record<Where, { x: number; y: number }> = {
+  bottom: { x: 0, y: 190 },
+  top: { x: 0, y: -190 },
+  left: { x: -150, y: 0 },
+  right: { x: 150, y: 0 },
+}
+
+/** New balls to fill one at a time on the score track. */
+export interface BallBurst {
+  team: Team
+  from: number
+  count: number
+  id: number
+}
+
+export function Table({ view, room, burst }: { view: View; room: string; burst: BallBurst | null }) {
   const { send, store } = useSession()
   const [sheet, setSheet] = useState<SheetName>(null)
-  const [selected, setSelected] = useState<Card | null>(null)
   const me = view.seat ?? 0
   const watching = view.seat === null
   const phase = view.phase
@@ -43,32 +60,28 @@ export function Table({ view, room }: { view: View; room: string }) {
   const myTurn = phase.kind === 'playing' && phase.turn === view.seat
 
   useEffect(() => {
-    if (myTurn) playSound('yourTurn')
+    if (!myTurn) return
+    playSound('yourTurn')
+    navigator.vibrate?.(30)
   }, [myTurn])
-  useEffect(() => setSelected(null), [phase.kind, myTurn])
 
   const others = view.seats.map((_, seat) => seat).filter((seat) => seat !== me)
-  const at = (where: string) => others.find((seat) => position(seat, me, view.playerCount) === where)
+  const at = (where: Where) => others.find((seat) => position(seat, me, view.playerCount) === where)
   const hand = 'hand' in phase ? sortHand(phase.hand) : []
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
-
-  const play = (card: Card) => {
-    const legal = can.legal.some((c) => sameCard(c, card))
-    if (legal || (selected && sameCard(selected, card))) {
-      send({ type: 'playCard', card })
-      setSelected(null)
-    } else setSelected(card) // breaking a rule takes a second tap
-  }
+  // Result panels may need to scroll; during play nothing may clip a travelling card.
+  const centreScrolls = phase.kind === 'roundResult' || phase.kind === 'gameOver'
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden">
-      <StatusStrip view={view} onMenu={() => setSheet('menu')} />
+      <StatusStrip view={view} burst={burst} onMenu={() => setSheet('menu')} onTricks={() => setSheet('history')} />
+      <RoundFacts view={view} />
 
       <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-1 px-2">
         <div className="flex justify-center">{at('top') !== undefined && <SeatBadge view={view} seat={at('top')!} />}</div>
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 min-h-0">
           <div>{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side />}</div>
-          <div className="h-full min-h-0 flex items-center justify-center overflow-y-auto py-1">
+          <div className={`h-full min-h-0 flex items-center justify-center py-1 ${centreScrolls ? 'overflow-y-auto' : ''}`}>
             <Centre view={view} can={can} />
           </div>
           <div>{at('right') !== undefined && <SeatBadge view={view} seat={at('right')!} side />}</div>
@@ -76,9 +89,10 @@ export function Table({ view, room }: { view: View; room: string }) {
       </div>
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        <p className="text-center px-3 min-h-6" aria-live="polite">
-          {watching ? 'You are watching this game.' : <Hint view={view} can={can} selected={selected} />}
-        </p>
+        <div className="flex items-center justify-center gap-2 px-3 min-h-7" aria-live="polite">
+          {!watching && <RoleBadges view={view} seat={me} />}
+          <span className="text-center">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>
+        </div>
         {can.reclaimSeat && (
           <div className="flex items-center justify-center gap-2 px-3 pb-1" role="status">
             <span>The computer is playing for you.</span>
@@ -94,24 +108,14 @@ export function Table({ view, room }: { view: View; room: string }) {
         )}
         {!watching && (
           <>
-            <div className="hand">
-              {hand.map((card, i) => {
-                const legal = can.legal.some((c) => sameCard(c, card))
-                const tilt = (i - (hand.length - 1) / 2) * 4
-                return (
-                  <PlayingCard
-                    key={cardText(card)}
-                    card={card}
-                    playable={myTurn}
-                    dim={myTurn && !legal}
-                    selected={selected !== null && sameCard(selected, card)}
-                    onClick={() => play(card)}
-                    style={{ '--tilt': `${tilt}deg` } as React.CSSProperties}
-                  />
-                )
-              })}
-            </div>
-            <ActionBar view={view} can={can} playing={playing} onSheet={setSheet} />
+            <Hand
+              cards={hand}
+              playable={myTurn}
+              legal={can.legal}
+              dealFrom={TOWARD[position(view.dealer, me, view.playerCount)]}
+              onPlay={(card) => send({ type: 'playCard', card })}
+            />
+            <ActionBar can={can} playing={playing} onSheet={setSheet} />
           </>
         )}
       </div>
@@ -148,42 +152,104 @@ export function Table({ view, room }: { view: View; room: string }) {
 
 // ── Status strip ─────────────────────────────────────────────────────────
 
-function StatusStrip({ view, onMenu }: { view: View; onMenu: () => void }) {
+function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: BallBurst | null; onMenu: () => void; onTricks: () => void }) {
   const phase = view.phase
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
-  const trump = playing?.trump ?? (phase.kind === 'thuneeWindow' ? phase.trump : null)
-  const call = playing?.callAmount ?? ('callAmount' in phase ? phase.callAmount : phase.kind === 'calling' ? (phase.call?.amount ?? 0) : 0)
   const myTeam = view.seat === null ? null : teamOf(view.seat)
 
   return (
-    <header className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2">
-      {([0, 1] as const).map((team) => (
-        <div key={team} className={`min-w-0 ${team === 1 ? 'order-3 text-right' : ''}`} style={{ color: team === 0 ? 'var(--team0)' : 'var(--team1)' }}>
-          <p className="truncate text-sm">{teamName(view, team, myTeam === team ? view.seat : null)}</p>
-          <div className={`pip-track ${team === 1 ? 'justify-end' : ''}`} aria-label={`${view.balls[team]} of ${view.ballsTarget} balls`}>
-            {Array.from({ length: view.ballsTarget }, (_, i) => (
-              <i key={i} data-on={i < view.balls[team]} />
-            ))}
+    <header className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-start gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1">
+      {([0, 1] as const).map((team) => {
+        const tricks = playing ? playing.tricks.filter((t) => teamOf(t.winner) === team).length : null
+        return (
+          <div key={team} className={`min-w-0 grid gap-1 ${team === 1 ? 'order-3 justify-items-end text-right' : ''}`} style={{ color: team === 0 ? 'var(--team0)' : 'var(--team1)' }}>
+            <p className="truncate max-w-full text-sm">{teamName(view, team, myTeam === team ? view.seat : null)}</p>
+            <div className={`pip-track ${team === 1 ? 'justify-end' : ''}`} aria-label={`${view.balls[team]} of ${view.ballsTarget} balls`}>
+              {Array.from({ length: view.ballsTarget }, (_, i) => {
+                const fresh = burst !== null && burst.team === team && i >= burst.from && i < burst.from + burst.count
+                return (
+                  <i
+                    key={fresh ? `${burst.id}-${i}` : i}
+                    data-on={i < view.balls[team]}
+                    data-fresh={fresh}
+                    style={fresh ? { animationDelay: `${(i - burst.from) * BALL_STAGGER_MS}ms` } : undefined}
+                  />
+                )
+              })}
+            </div>
+            {tricks !== null && (
+              <button key={tricks} className="trick-pile" onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show tricks.`}>
+                <span aria-hidden className="trick-pile-icon" />
+                {plural(tricks, 'trick')}
+              </button>
+            )}
           </div>
-        </div>
-      ))}
-      <button className="order-2 btn btn-quiet btn-small flex-col !gap-0 !py-1" onClick={onMenu} aria-label="Open menu">
-        <span className="leading-none whitespace-nowrap">
-          {playing?.thunee ? (
-            'Thunee'
-          ) : trump ? (
-            <>
-              Trump <span className={isRed(trump) ? 'text-danger' : ''}>{SUIT_SYMBOL[trump]}</span>
-            </>
-          ) : phase.kind === 'calling' || phase.kind === 'trumpSelection' || phase.kind === 'thuneeWindow' ? (
-            'No trump yet'
-          ) : (
-            `Round ${view.roundNumber}`
-          )}
-        </span>
-        <span className="text-sm leading-none opacity-80">{call > 0 ? `Call ${call}` : 'Menu'}</span>
+        )
+      })}
+      <button className="order-2 btn btn-quiet btn-small" onClick={onMenu} aria-label="Open menu">
+        Menu
       </button>
     </header>
+  )
+}
+
+export const BALL_STAGGER_MS = 280
+
+/** Trump, the call and the target for this round, in one line. */
+function RoundFacts({ view }: { view: View }) {
+  const phase = view.phase
+  const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
+  const facts: React.ReactNode[] = []
+
+  if (playing?.thunee) {
+    facts.push(`Thunee: ${seatName(view, playing.thunee.caller)} must win every trick`)
+    if (playing.trump) facts.push(<Trump suit={playing.trump} />)
+  } else if (playing) {
+    facts.push(playing.trump ? <Trump suit={playing.trump} /> : 'Trump shows after the first card')
+    if (playing.callAmount > 0) facts.push(`Call ${playing.callAmount}`)
+    const counting = (1 - teamOf(playing.trumper)) as Team
+    const target = view.playerCount === 2 ? view.rules.twoPlayerTarget : 105
+    const who = view.seat !== null && teamOf(view.seat) === counting ? 'You count' : `${teamName(view, counting)} count`
+    facts.push(`${who} to ${target}`)
+  } else if (phase.kind === 'thuneeWindow') {
+    facts.push(phase.trump ? <Trump suit={phase.trump} /> : 'Trump is chosen')
+    if (phase.callAmount > 0) facts.push(`Call ${phase.callAmount}`)
+  } else if (phase.kind === 'calling' || phase.kind === 'trumpSelection') {
+    facts.push(`Round ${view.roundNumber}`, 'No trump yet')
+  }
+  if (facts.length === 0) return null
+  return (
+    <ul className="shrink-0 flex flex-wrap justify-center gap-x-2 gap-y-1 px-3 pb-1 text-sm">
+      {facts.map((fact, i) => (
+        <li key={i} className="fact">
+          {fact}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function Trump({ suit }: { suit: Suit }) {
+  return (
+    <>
+      Trump
+      <span className="suit-chip" data-red={isRed(suit)} aria-label={SUIT_NAME[suit]}>
+        {SUIT_SYMBOL[suit]}
+      </span>
+    </>
+  )
+}
+
+/** Small markers for the dealer and the player who chose trump. */
+function RoleBadges({ view, seat }: { view: View; seat: Seat }) {
+  const phase = view.phase
+  const trumper = 'trumper' in phase ? phase.trumper : null
+  if (phase.kind === 'roundResult' || phase.kind === 'gameOver' || phase.kind === 'lobby') return null
+  return (
+    <>
+      {view.dealer === seat && <span className="role-badge">Dealer</span>}
+      {trumper === seat && <span className="role-badge">Trumper</span>}
+    </>
   )
 }
 
@@ -194,15 +260,19 @@ function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: boolea
   const turn = (phase.kind === 'playing' && phase.turn === seat) || (phase.kind === 'trumpSelection' && phase.trumper === seat)
   const away = info.kind === 'human' && !info.connected
   return (
-    <div className={`flex ${side ? 'flex-col' : 'flex-col'} items-center gap-1 max-w-24`}>
-      <p className={`truncate max-w-full text-sm ${turn ? 'text-accent turn-marker font-semibold' : 'text-muted'}`}>
+    <div className="flex flex-col items-center gap-1 max-w-24">
+      <p className="seat-name truncate max-w-full text-sm" data-turn={turn}>
         {info.name}
-        {view.dealer === seat && ' (D)'}
       </p>
+      <div className="flex gap-1 empty:hidden">
+        <RoleBadges view={view} seat={seat} />
+      </div>
       {(away || info.standIn) && <p className="text-xs text-muted">{info.standIn ? 'computer playing' : 'disconnected'}</p>}
       <div className={`flex ${side ? 'flex-col -space-y-7' : '-space-x-3'}`}>
         {Array.from({ length: count }, (_, i) => (
-          <CardBack key={i} />
+          <span key={i} className="card-in" style={{ animationDelay: `${i * 60}ms` }}>
+            <CardBack />
+          </span>
         ))}
       </div>
     </div>
@@ -231,12 +301,21 @@ function Centre({ view, can }: { view: View; can: Available }) {
   }
 }
 
-function Timer({ deadline }: { deadline: number }) {
+function Timer({ deadline, totalSeconds }: { deadline: number; totalSeconds: number }) {
+  const { store } = useSession()
   const seconds = useCountdown(deadline)
+  // The bar runs on its own clock from where the countdown stands when it is first drawn.
+  const remaining = Math.max(0, deadline - store.serverNow(Date.now()))
+  const fraction = Math.min(1, remaining / (totalSeconds * 1000))
   return (
-    <p className={`display text-3xl text-center ${seconds <= 3 ? 'text-danger' : ''}`} aria-label={`${seconds} seconds left`}>
-      {seconds}
-    </p>
+    <div className="grid gap-1">
+      <p className={`display text-3xl text-center ${seconds <= 3 ? 'text-danger' : ''}`} aria-label={`${seconds} seconds left`}>
+        {seconds}
+      </p>
+      <div className="timer-bar" data-urgent={seconds <= 3}>
+        <i key={deadline} style={{ '--from': fraction, animationDuration: `${remaining}ms` } as React.CSSProperties} />
+      </div>
+    </div>
   )
 }
 
@@ -264,7 +343,7 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
   const mine = trumper === view.seat
   return (
     <section className="panel p-3 w-full max-w-xs grid gap-3">
-      <Timer deadline={phase.deadline} />
+      <Timer deadline={phase.deadline} totalSeconds={view.rules.callTimerSeconds} />
       <p className="text-center">
         {phase.call
           ? `${mine ? 'You called' : `${seatName(view, phase.call.seat)} called`} ${phase.call.amount}.`
@@ -279,9 +358,9 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
       {can.calls.length > 0 && (
         <div className="grid gap-2">
           <p className="text-center text-sm text-on-surface-muted">Call to choose trump. The other side starts that many points up.</p>
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {can.calls.map((amount) => (
-              <button key={amount} className="btn btn-primary btn-small" onClick={() => send({ type: 'call', amount })}>
+              <button key={amount} className="btn btn-primary btn-small !px-1" onClick={() => send({ type: 'call', amount })} aria-label={`Call ${amount}`}>
                 {amount}
               </button>
             ))}
@@ -317,7 +396,7 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
   const { send } = useSession()
   return (
     <section className="panel p-3 w-full max-w-xs grid gap-3">
-      <Timer deadline={phase.deadline} />
+      <Timer deadline={phase.deadline} totalSeconds={view.rules.thuneeWindowSeconds} />
       <p className="text-center">
         {phase.pending !== null
           ? `${seatName(view, phase.pending)} wants Thunee. The trumping side can take it instead.`
@@ -342,16 +421,42 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
 function TrickArea({ view, phase }: { view: View; phase: ViewPlaying }) {
   const me = view.seat ?? 0
   const last = phase.tricks[phase.tricks.length - 1]
-  const showing = phase.kind === 'trickPause' && last ? last.plays : phase.current
-  const winner = phase.kind === 'trickPause' && last ? last.winner : null
-  const area: Record<string, string> = { top: 'col-start-2 row-start-1', left: 'col-start-1 row-start-2', right: 'col-start-3 row-start-2', bottom: 'col-start-2 row-start-3' }
+  const paused = phase.kind === 'trickPause' && last !== undefined
+  const showing = paused ? last.plays : phase.current
+  const winner = paused ? last.winner : null
+  // The same number while a trick is being played and while it is shown complete, so its cards keep their identity.
+  const trickNumber = paused ? phase.tricks.length - 1 : phase.tricks.length
+  // A finished trick leaves toward whoever won it.
+  const exitTo = last ? TOWARD[position(last.winner, me, view.playerCount)] : { x: 0, y: 0 }
+  const area: Record<Where, string> = { top: 'col-start-2 row-start-1', left: 'col-start-1 row-start-2', right: 'col-start-3 row-start-2', bottom: 'col-start-2 row-start-3' }
   return (
     <div className="trick-area" aria-label="Current trick">
-      {showing.map((play) => (
-        <div key={play.seat} className={`${area[position(play.seat, me, view.playerCount)]} card-in`}>
-          <PlayingCard card={play.card} size="trick" className={winner === play.seat ? 'winner-ring' : ''} />
-        </div>
-      ))}
+      <AnimatePresence custom={exitTo}>
+        {showing.map((play) => {
+          const where = position(play.seat, me, view.playerCount)
+          const mine = play.seat === view.seat
+          const from = TOWARD[where]
+          return (
+            <motion.div
+              key={`${trickNumber}-${play.seat}`}
+              className={area[where]}
+              // The player's own card arrives from the hand by shared layout; others come from their seat.
+              layoutId={mine ? cardLayoutId(play.card) : undefined}
+              custom={exitTo}
+              variants={{
+                away: { x: from.x * 0.6, y: from.y * 0.6, opacity: 0, scale: 0.8 },
+                down: { x: 0, y: 0, opacity: 1, scale: 1 },
+                taken: (to: { x: number; y: number }) => ({ x: to.x, y: to.y, opacity: 0, scale: 0.5 }),
+              }}
+              initial={mine ? false : 'away'}
+              animate="down"
+              exit="taken"
+            >
+              <PlayingCard card={play.card} size="trick" className={winner === play.seat ? 'winner-ring' : ''} />
+            </motion.div>
+          )
+        })}
+      </AnimatePresence>
       {winner !== null && <p className="col-start-2 row-start-2 text-center text-sm text-accent">{winner === view.seat ? 'You win it' : `${seatName(view, winner)} wins`}</p>}
     </div>
   )
@@ -359,11 +464,10 @@ function TrickArea({ view, phase }: { view: View; phase: ViewPlaying }) {
 
 // ── Hint line and actions ────────────────────────────────────────────────
 
-function Hint({ view, can, selected }: { view: View; can: Available; selected: Card | null }) {
+function Hint({ view, can }: { view: View; can: Available }) {
   const phase = view.phase
-  if (selected) return <span className="text-danger">Not a legal play. Tap {cardText(selected)} again to play it anyway.</span>
   if (phase.kind === 'playing') {
-    if (phase.turn === view.seat) return <span className="text-accent font-semibold">Your turn{phase.current.length === 0 ? ' to lead' : ''}.</span>
+    if (phase.turn === view.seat) return <span className="text-accent font-semibold">Your turn{phase.current.length === 0 ? ' to lead' : ''}. Tap a card or drag it up.</span>
     return <>{seatName(view, phase.turn!)} to play.</>
   }
   if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <>Your side won the trick. You can call Jodhi now.</>
@@ -371,33 +475,29 @@ function Hint({ view, can, selected }: { view: View; can: Available; selected: C
   return null
 }
 
-function ActionBar({ view, can, playing, onSheet }: { view: View; can: Available; playing: ViewPlaying | null; onSheet: (s: SheetName) => void }) {
+function ActionBar({ can, playing, onSheet }: { can: Available; playing: ViewPlaying | null; onSheet: (s: SheetName) => void }) {
   const { send } = useSession()
   if (!playing) return <div className="h-12" />
   const canChallenge = can.challengePlay.length > 0 || can.challengeJodhi.length > 0
   return (
-    <div className="flex flex-wrap justify-center gap-2 px-2 pb-2 min-h-12">
+    <div className="flex flex-wrap items-center justify-center gap-2 px-2 pb-2 min-h-12">
       {can.claimJodhi.length > 0 && (
-        <button className="btn btn-primary btn-small" onClick={() => onSheet('jodhi')}>
-          Jodhi
+        <button className="btn btn-primary attention" onClick={() => onSheet('jodhi')}>
+          Call Jodhi
         </button>
       )}
       {can.callDouble && (
-        <button className="btn btn-primary btn-small" onClick={() => send({ type: 'callDouble' })}>
-          Double
+        <button className="btn btn-primary attention" onClick={() => send({ type: 'callDouble' })}>
+          Call Double
         </button>
       )}
       {can.callKhanaak && (
-        <button className="btn btn-primary btn-small" onClick={() => send({ type: 'callKhanaak' })}>
-          Khanaak
+        <button className="btn btn-primary attention" onClick={() => send({ type: 'callKhanaak' })}>
+          Call Khanaak
         </button>
       )}
-      <button className="btn btn-danger btn-small" disabled={!canChallenge} onClick={() => onSheet('challenge')}>
+      <button className="btn btn-quiet btn-small" disabled={!canChallenge} onClick={() => onSheet('challenge')}>
         Challenge
-      </button>
-      <button className="btn btn-quiet btn-small" onClick={() => onSheet('history')}>
-        Tricks {playing.tricks.filter((t) => teamOf(t.winner) === teamOf(view.seat ?? 0)).length}–
-        {playing.tricks.filter((t) => teamOf(t.winner) !== teamOf(view.seat ?? 0)).length}
       </button>
     </div>
   )

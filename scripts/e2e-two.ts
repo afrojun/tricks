@@ -49,16 +49,16 @@ async function act(page: Page): Promise<boolean> {
   const button = (name: string) => page.getByRole('button', { name, exact: true })
   for (const name of ['Pass', 'No Thunee', 'Deal next round']) {
     if (await button(name).isVisible()) {
-      await button(name).click()
+      await button(name).click({ timeout: 1500 }).catch(() => {})
       return true
     }
   }
   if (await page.getByText('Choose trump').isVisible()) {
-    await page.locator('.panel .btn').first().click()
+    await page.locator('.panel .btn').first().click({ timeout: 1500 }).catch(() => {})
     return true
   }
   if (await page.getByText(/Your turn/).isVisible()) {
-    await page.locator('.hand .playing-card[data-dim="false"]').first().click().catch(() => {})
+    await page.locator('.hand .playing-card[data-dim="false"]').first().click({ timeout: 1500 }).catch(() => {})
     return true
   }
   return false

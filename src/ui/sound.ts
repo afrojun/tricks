@@ -1,5 +1,5 @@
 /** Small synthesised sound effects. No audio files. */
-export type Sound = 'cardPlay' | 'deal' | 'trickWin' | 'yourTurn' | 'call' | 'challenge' | 'ball' | 'gameOver'
+export type Sound = 'cardPlay' | 'deal' | 'trickWin' | 'yourTurn' | 'call' | 'challenge' | 'ball' | 'pip' | 'gameOver'
 
 const MUTE_KEY = 'thunee-muted'
 let context: AudioContext | null = null
@@ -62,6 +62,7 @@ const SOUNDS: Record<Sound, () => void> = {
   yourTurn: () => tone(880, 0.12, 'sine', 0.14),
   call: () => tone(330, 0.14, 'triangle', 0.18),
   challenge: () => [220, 196, 165].forEach((f, i) => tone(f, 0.18, 'sawtooth', 0.14, i * 0.12)),
+  pip: () => tone(784, 0.14, 'triangle', 0.2),
   ball: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.16, 'triangle', 0.2, i * 0.09)),
   gameOver: () => [523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, 'triangle', 0.2, i * 0.14)),
 }
