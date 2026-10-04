@@ -16,6 +16,7 @@ import {
 import { Table, collectCards, seededRng } from '../engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
 import { HONEST } from './mind'
+import { chooseChallenge } from './suspicion'
 
 /** Raise with SIM_GAMES=2000 for a soak run. */
 const GAMES = Number(process.env.SIM_GAMES ?? 30)
@@ -157,27 +158,30 @@ describe('simulation', () => {
     }, 120_000)
   }
 
-  test('the AI on its own, with nobody cheating, never needs a challenge and never bluffs', () => {
+  test('Straight and Sharp on their own never cheat, never bluff, and Straight never sees a proof that is not there', () => {
+    const personas = ['straight', 'sharp', 'straight', 'sharp'] as const
     for (let seed = 1; seed <= 20; seed++) {
       const t = new Table(4, {}, seed).do(0, { type: 'start' })
+      const mind = (seat: number) => ({ persona: personas[seat], salt: t.game.aiSalt })
       for (let guard = 0; guard < 5000 && t.game.phase.kind !== 'gameOver'; guard++) {
         const phase = t.game.phase
         if (phase.kind === 'roundResult') t.do(0, { type: 'nextRound' })
         else if (seatsToAct(t.game).length === 0) {
           for (let seat = 0; seat < 4; seat++) {
-            const claim = chooseJodhi(viewFor(t.game, seat), HONEST)
+            const claim = chooseJodhi(viewFor(t.game, seat, 'full'), mind(seat))
             if (claim) t.do(seat, claim)
           }
           t.now = nextDeadline(t.game)!
           t.do('system', { type: 'tick' })
         } else {
           const seat = seatsToAct(t.game)[0]
-          t.do(seat, chooseAction(viewFor(t.game, seat), HONEST))
+          t.do(seat, chooseAction(viewFor(t.game, seat, 'full'), mind(seat)))
         }
         const p = t.game.phase
         if (p.kind === 'playing' || p.kind === 'trickPause') {
           expect(p.play.current.every((r) => r.legal)).toBe(true)
           expect(p.play.jodhiClaims.every((j) => j.valid)).toBe(true)
+          for (const seat of [0, 2]) expect(chooseChallenge(viewFor(t.game, seat, 'full'), mind(seat))).toBeNull()
         }
       }
       expect(t.game.phase.kind).toBe('gameOver')
