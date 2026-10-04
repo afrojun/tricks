@@ -1,5 +1,5 @@
 {
   "name": "tuscan-thunee",
-  "main": "party/index.ts",
-  "compatibilityDate": "2024-01-01"
+  "main": "party/server.ts",
+  "compatibilityDate": "2025-01-01"
 }
