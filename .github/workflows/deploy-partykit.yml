@@ -5,24 +5,34 @@ on:
     branches: [main]
     paths:
       - 'party/**'
-      - 'src/game/**'
+      - 'src/engine/**'
+      - 'src/ai/**'
+      - 'src/protocol.ts'
+      - 'partykit.json'
       - '.github/workflows/deploy-partykit.yml'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-      
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
       - name: Install dependencies
-        run: bun install
-      
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check and test
+        run: pnpm check && pnpm test
+
       - name: Deploy to PartyKit
-        run: npx partykit deploy
+        run: pnpm exec partykit deploy
         env:
           PARTYKIT_LOGIN: ${{ secrets.PARTYKIT_LOGIN }}
           PARTYKIT_TOKEN: ${{ secrets.PARTYKIT_TOKEN }}

@@ -3,84 +3,72 @@
 ## Commands
 
 ```bash
-# Install dependencies
-bun install
-
-# Run frontend dev server (localhost:5173)
-bun run dev
-
-# Run PartyKit game server (localhost:1999)
-bun run party
-
-# Quick test: Click "🤖 Quick Test (4P vs AI)" on home page to instantly start a 4-player game with 3 AI opponents
-
-# Type check
-bun run check
-
-# Build for production
-bun run build
-
-# Deploy PartyKit to production
-bun run party:deploy
+pnpm install        # install dependencies
+pnpm dev            # frontend dev server (localhost:5173)
+pnpm party          # PartyKit game server (localhost:1999)
+pnpm check          # type check
+pnpm test           # unit, server and simulation tests (Vitest)
+pnpm test:soak      # 400 simulated games per configuration
+pnpm e2e            # browser games (needs dev + party running, and Chromium)
+pnpm e2e:sockets    # a full game over real sockets (needs party running)
+pnpm build          # production build
+pnpm party:deploy   # deploy PartyKit to production
 ```
+
+To try a game alone: create a game, sit down, and use "Add computer" on the other seats.
 
 ## Tech Stack
 
 - **Frontend**: Vite + React + TypeScript
-- **Styling**: Tailwind CSS (retro 2D aesthetic)
+- **Styling**: Tailwind CSS v4 over theme tokens (CSS custom properties)
 - **Real-time**: PartyKit (WebSocket game server)
-- **Package Manager**: Bun
+- **Validation**: Zod
+- **Package manager**: pnpm; **tests**: Vitest
 
-## Project Structure
+## Architecture
+
+The design is written up in `docs/superpowers/specs/2026-10-04-thunee-rebuild-design.md`.
 
 ```
-src/
-├── components/     # React UI components
-│   ├── Card.tsx           # Card display (face/back)
-│   ├── PlayerHand.tsx     # Fan layout of player's cards
-│   ├── GameBoard.tsx      # Main game view
-│   ├── BiddingPanel.tsx   # Timer-based calling UI
-│   ├── TrumpSelector.tsx  # Trump suit selection
-│   ├── ScoreBoard.tsx     # Team scores display
-│   ├── TrickArea.tsx      # Current trick display
-│   ├── Lobby.tsx          # Game lobby/join screen
-│   └── GameHeader.tsx     # Leave button + game code
-├── game/           # Shared game logic
-│   ├── types.ts           # TypeScript types
-│   ├── deck.ts            # Card deck utilities
-│   ├── rules.ts           # Game rule validation
-│   ├── state.ts           # State creation/serialization
-│   └── utils.ts           # Helper functions
-├── hooks/
-│   └── usePartySocket.ts  # PartyKit WebSocket hook
-├── pages/
-│   ├── Home.tsx           # Create/join game
-│   └── Game.tsx           # Game session page
-└── index.css       # Tailwind + custom styles
-
-party/
-└── index.ts        # PartyKit server (game state machine)
+src/engine/    Pure rules. One Game value, changed only by apply(game, actor, action, ctx).
+src/ai/        Computer players: seat view -> action.
+src/protocol.ts  Wire messages shared by client and server.
+party/server.ts  PartyKit room: identity, persistence, alarm, AI driving.
+src/client/    Socket wrapper and the store the UI reads.
+src/ui/        Screens and components.
+src/themes/    Theme tokens and the theme list.
+src/presets/   Rule presets: storage, share links, descriptions.
+scripts/       End-to-end scripts.
 ```
+
+Dependency direction: `ui -> client -> engine`; `party -> engine, ai`; `ai -> engine`.
+
+### Rules that keep it correct
+
+- **The engine is pure.** Nothing in `src/engine/` reads the clock, generates randomness, or imports from other folders. Time and randomness arrive through `ctx`. `apply` never mutates its input and never throws on player input; it returns `{ rejected }`.
+- **One source of truth.** Timers are deadlines inside the saved game. The server sets PartyKit's single alarm to `nextDeadline(game)` after every change. Do not keep timer or game facts in server memory.
+- **Shared validation.** `apply` checks round actions against `availableActions(viewFor(game, seat))`, the same function the UI uses to decide what to show. Add a new action there first.
+- **Views hide information.** Clients only receive `viewFor(game, seat)`. Never send `Game`. Other hands, the stock, `handBefore`, `legal`, Jodhi `valid`, tokens, and unrevealed trump must not appear in a view; the simulation test checks this.
+- **Identity is a secret token, not a connection.** The browser's token maps to a seat on the server. Clients only see seat numbers.
+- **Events, not diffs.** Sounds, toasts and celebrations are driven by numbered events from the server (`store.onEvent`), never by comparing one view with the last.
+- **Rules are data.** Every variant is a field of `RuleSet` (`src/engine/rules.ts`), frozen into the game at start. Traditional is the default; a preset stores only its differences. A new rule needs: the field and its Traditional value, the engine branch, a line in `src/presets/describe.ts`, a line in `ruleOverridesSchema`, and tests under each value.
+- **Themes are tokens.** Components use token-backed classes (`bg-surface`, `text-accent`, `.btn`, `.panel`) and never fixed colours or font families. A new theme is a block in `src/themes/tokens.css` plus an entry in `src/themes/index.ts`.
 
 ## Game Rules (Thunee)
 
-- South African trick-taking card game
-- 2 or 4 players (4 players in teams of 2)
-- 24-card deck: J, 9, A, 10, K, Q in each suit
-- Card values: J=30, 9=20, A=11, 10=10, K=3, Q=2
-- First to 13 "balls" wins
-- Calling phase: 10s timer, anyone can call, resets on new call
-- Must follow suit; can "chop" (trump) if void
-- Game allows intentional invalid plays (cheating) with challenge system
+- South African trick-taking card game, 2 or 4 players (4 play in teams of 2)
+- 24-card deck: J, 9, A, 10, K, Q in each suit; values J=30, 9=20, A=11, 10=10, K=3, Q=2
+- Play is counterclockwise. Four cards are dealt, players may call for the right to choose trump (10s window), trump is chosen, two more cards are dealt, then anyone may call Thunee.
+- The counting team (the trumper's opponents) needs 105 points. First to 12 balls wins.
+- Must follow suit. Breaking the rules is allowed by the app and recorded; an opponent may challenge for 4 balls.
+- Special calls: Jodhi, Thunee, Double, Khanaak. Section 4 of the spec has the details and every configurable rule.
 
 ## Conventions
 
-- Mobile-first responsive design
-- Use Tailwind utility classes
+- Mobile-first layout; check screens at 390x844
 - Game terminology: "call" not "bid", "balls" for game points
-- Card backs: red/white crosshatch pattern
-- Cards in fan layout with rotation
-- Timer uses PartyKit alarm API (not setTimeout)
+- UI copy in sentence case and plain language
+- Timers use the PartyKit alarm API, never `setTimeout`, on the server
 
 ## Environment Variables
 
@@ -91,14 +79,14 @@ VITE_PARTYKIT_HOST=your-app.partykit.dev
 
 ## Deployment
 
-### PartyKit Server
+### PartyKit server
 
 ```bash
-npx partykit login
-bun run party:deploy
+pnpm exec partykit login
+pnpm party:deploy
 ```
 
-Server URL will be: `tuscan-thunee.USERNAME.partykit.dev`
+Server URL will be `tuscan-thunee.USERNAME.partykit.dev`. Pushes to `main` that touch the server deploy automatically through `.github/workflows/deploy-partykit.yml`.
 
 ### Frontend (Vercel recommended)
 
@@ -106,11 +94,4 @@ Server URL will be: `tuscan-thunee.USERNAME.partykit.dev`
 vercel
 ```
 
-Set `VITE_PARTYKIT_HOST` in Vercel dashboard → Settings → Environment Variables, then redeploy.
-
-### Other Frontend Hosts
-
-- **Cloudflare Pages**: `bun run build`, upload `dist/`
-- **Netlify**: `bun run build`, drag `dist/` to dashboard
-
-All require setting `VITE_PARTYKIT_HOST` env var to the PartyKit server URL.
+Set `VITE_PARTYKIT_HOST` in Vercel dashboard → Settings → Environment Variables, then redeploy. Any static host works: `pnpm build` and serve `dist/` with all paths rewritten to `/`.

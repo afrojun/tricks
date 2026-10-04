@@ -19,8 +19,10 @@ class FakeConn {
     this.state = s
     return s
   }
+  raw: string[] = []
   send(raw: string) {
-    this.inbox.push(JSON.parse(raw))
+    this.raw.push(raw)
+    if (raw !== 'pong') this.inbox.push(JSON.parse(raw))
   }
   get sync(): Sync {
     return this.inbox.filter((m): m is Sync => m.type === 'sync').at(-1)!
@@ -182,6 +184,16 @@ describe('messages', () => {
       await w.server.onMessage(raw, conns[0] as never)
     }
     expect(conns[0].take()).toEqual(Array(5).fill({ type: 'rejected', reason: 'malformed' }))
+  })
+
+  test('a ping is answered with a pong and changes nothing', async () => {
+    const { w, conns } = await startedGame()
+    const version = conns[0].sync.version
+    conns[0].take()
+    await w.server.onMessage('ping', conns[0] as never)
+    expect(conns[0].raw.at(-1)).toBe('pong')
+    expect(conns[0].take()).toEqual([])
+    expect((await w.connect('p'.repeat(20))).sync.version).toBe(version)
   })
 
   test('state is written before any sync is sent', async () => {

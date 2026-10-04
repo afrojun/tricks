@@ -25,3 +25,7 @@ export type ServerMessage =
 export const TOKEN_PARAM = 'token'
 export const MIN_TOKEN_LENGTH = 16
 export const MAX_TOKEN_LENGTH = 64
+
+/** Heartbeat frames, sent as bare strings outside the JSON protocol. */
+export const PING = 'ping'
+export const PONG = 'pong'

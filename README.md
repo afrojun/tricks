@@ -1,86 +1,41 @@
 # Thunee
 
-A multiplayer South African card game built with React, TypeScript, and PartyKit.
+A multiplayer South African card game for two or four players, built with React, TypeScript and PartyKit.
 
 ## Features
 
-- 2 or 4 player modes
-- Real-time multiplayer via WebSockets
-- Timer-based calling system (10s per round)
-- Mobile-first responsive design
-- Retro 2D aesthetic
+- Two-player and four-player games, with computer players to fill seats
+- Traditional rules by default, with house rules as named presets you can save and share by link
+- Timed calling, Thunee, Jodhi, Double, Khanaak and 4-ball challenges
+- Reconnects to your seat after a refresh or a dropped connection
+- Three themes: Retro, Modern table and Minimal
 
-## Local Development
+## Local development
 
 ```bash
-# Install dependencies
-bun install
+pnpm install
 
-# Terminal 1: Start game server
-bun run party
+# Terminal 1: game server
+pnpm party
 
-# Terminal 2: Start frontend
-bun run dev
+# Terminal 2: frontend
+pnpm dev
 ```
 
-Open http://localhost:5173 to play.
+Open http://localhost:5173. To play alone, create a game, sit down, and add computer players to the other seats.
+
+```bash
+pnpm check   # type check
+pnpm test    # tests
+pnpm e2e     # browser games; needs both servers running and Chromium installed
+```
 
 ## Deployment
 
-### 1. Deploy PartyKit Server
+1. Deploy the PartyKit server: `pnpm exec partykit login`, then `pnpm party:deploy`. Note the URL, `tuscan-thunee.YOUR_USERNAME.partykit.dev`.
+2. Deploy the frontend to any static host (Vercel, Cloudflare Pages, Netlify) with `pnpm build`, serving `dist/` and rewriting all paths to `/`.
+3. Set the `VITE_PARTYKIT_HOST` environment variable on the frontend host to the PartyKit URL and redeploy.
 
-```bash
-# Login (creates account if needed)
-npx partykit login
+## How it is built
 
-# Deploy
-bun run party:deploy
-```
-
-Note your server URL: `tuscan-thunee.YOUR_USERNAME.partykit.dev`
-
-### 2. Deploy Frontend (Vercel)
-
-```bash
-# Install Vercel CLI
-bun add -g vercel
-
-# Deploy
-vercel
-```
-
-Then add the environment variable in Vercel dashboard:
-- Go to Settings → Environment Variables
-- Add `VITE_PARTYKIT_HOST` = `tuscan-thunee.YOUR_USERNAME.partykit.dev`
-- Redeploy
-
-### Alternative Frontend Hosts
-
-**Cloudflare Pages:**
-```bash
-bun run build
-# Upload dist/ folder in Cloudflare dashboard
-# Add VITE_PARTYKIT_HOST in Settings → Environment Variables
-```
-
-**Netlify:**
-```bash
-bun run build
-# Drag dist/ folder to Netlify
-# Add VITE_PARTYKIT_HOST in Site settings → Environment variables
-```
-
-## Game Rules
-
-- 24-card deck: J, 9, A, 10, K, Q in each suit
-- Card values: J=30, 9=20, A=11, 10=10, K=3, Q=2
-- First to 13 "balls" wins
-- Calling phase: 10s timer, anyone can call
-- Must follow suit; can "chop" (trump) if void
-- Challenge system for invalid plays
-
-## Tech Stack
-
-- **Frontend**: Vite + React + TypeScript + Tailwind CSS
-- **Real-time**: PartyKit (WebSocket server)
-- **Package Manager**: Bun
+See `AGENTS.md` for the architecture and `docs/superpowers/specs/2026-10-04-thunee-rebuild-design.md` for the design, including every rule and setting.

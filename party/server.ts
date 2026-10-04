@@ -21,6 +21,8 @@ import {
   type ServerMessage,
   MAX_TOKEN_LENGTH,
   MIN_TOKEN_LENGTH,
+  PING,
+  PONG,
   TOKEN_PARAM,
   clientMessageSchema,
 } from '../src/protocol'
@@ -93,6 +95,7 @@ export default class ThuneeRoom implements Party.Server {
   }
 
   onMessage(message: string | ArrayBuffer | ArrayBufferView, sender: Party.Connection<ConnState>) {
+    if (message === PING) return void sender.send(PONG)
     return this.enqueue(async () => {
       const parsed = parse(message)
       if (parsed === null) return this.sendTo(sender, { type: 'rejected', reason: 'malformed' })
