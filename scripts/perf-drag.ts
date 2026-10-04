@@ -18,7 +18,10 @@ await page.goto(process.env.APP_URL ?? 'http://localhost:5173')
 await page.getByRole('button', { name: 'Create game' }).click()
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()
-for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Add computer' }).first().click()
+for (let i = 0; i < 3; i++) {
+  await page.getByRole('button', { name: 'Add computer' }).first().click()
+  await page.getByRole('button', { name: /^Straight/ }).click()
+}
 await page.getByRole('button', { name: 'Start game' }).click()
 const tap = (name: string) => page.getByRole('button', { name, exact: true }).click({ timeout: 1000 }).catch(() => {})
 for (let i = 0; i < 900 && !(await page.getByText(/Your turn/).isVisible()); i++) {

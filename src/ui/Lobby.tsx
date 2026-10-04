@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { type View, canStart, cleanName, teamOf } from '../engine'
 import { type GameSetup, setupKey } from './Home'
 import { RulesEditor, RulesList, rulesSummary } from './Rules'
+import { PERSONA_CHOICES, PERSONA_NAMES } from './personas'
 import { Sheet } from './Sheet'
 import { navigate, useSession } from './session'
 import { copyText } from './text'
@@ -21,6 +22,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
   const { send } = useSession()
   const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) ?? '')
   const [copied, setCopied] = useState(false)
+  const [picking, setPicking] = useState<number | null>(null)
   const [sheet, setSheet] = useState<'rules' | 'edit' | null>(null)
   const me = view.seat
   const isHost = me !== null && view.host === me
@@ -86,7 +88,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
                   </p>
                   <p className="text-sm text-on-surface-muted">
                     {view.playerCount === 4 ? `Team ${team + 1}` : `Player ${i + 1}`}
-                    {seat.kind === 'ai' && ', computer'}
+                    {seat.kind === 'ai' && `, computer: ${seat.persona === null ? 'secret' : PERSONA_NAMES[seat.persona]}`}
                     {view.host === i && ', host'}
                     {seat.kind === 'human' && !seat.connected && ', disconnected'}
                   </p>
@@ -97,7 +99,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
                   </button>
                 )}
                 {seat.kind === 'empty' && isHost && (
-                  <button className="btn btn-small" onClick={() => send({ type: 'addAi', seat: i })}>
+                  <button className="btn btn-small" onClick={() => setPicking(i)}>
                     Add computer
                   </button>
                 )}
@@ -160,6 +162,28 @@ export function Lobby({ view, room }: { view: View; room: string }) {
       {sheet === 'edit' && (
         <Sheet title="Change rules" onClose={() => setSheet(null)}>
           <RulesEditor rules={view.rules} onChange={(overrides) => send({ type: 'setRules', overrides })} />
+        </Sheet>
+      )}
+      {picking !== null && (
+        <Sheet title="Choose a computer player" onClose={() => setPicking(null)}>
+          <ul className="grid gap-2">
+            {PERSONA_CHOICES.map((choice) => (
+              <li key={choice.value}>
+                <button
+                  className="btn w-full text-left"
+                  onClick={() => {
+                    send({ type: 'addAi', seat: picking, persona: choice.value })
+                    setPicking(null)
+                  }}
+                >
+                  <span className="grid w-full gap-0.5">
+                    <span className="font-semibold">{choice.label}</span>
+                    <span className="text-sm text-on-surface-muted">{choice.text}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </Sheet>
       )}
     </main>

@@ -25,7 +25,10 @@ await page.goto(base)
 await page.getByRole('button', { name: 'Create game' }).click()
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()
-for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Add computer' }).first().click()
+for (let i = 0; i < 3; i++) {
+  await page.getByRole('button', { name: 'Add computer' }).first().click()
+  await page.getByRole('button', { name: /^Straight/ }).click()
+}
 await page.getByRole('button', { name: 'Start game' }).click()
 
 /** Plays along until it is this player's turn (and, if asked, one where an illegal card exists). */

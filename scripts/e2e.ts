@@ -33,7 +33,10 @@ await shot('1-home')
 await page.getByRole('button', { name: 'Create game' }).click()
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()
-for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Add computer' }).first().click()
+for (let i = 0; i < 3; i++) {
+  await page.getByRole('button', { name: 'Add computer' }).first().click()
+  await page.getByRole('button', { name: /^Straight/ }).click()
+}
 await page.getByRole('button', { name: 'Change rules' }).click()
 await page.getByRole('button', { name: 'More Balls to win' }).waitFor()
 for (let i = 0; i < 9; i++) await page.getByRole('button', { name: 'Less Balls to win' }).click()

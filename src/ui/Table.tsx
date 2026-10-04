@@ -20,6 +20,7 @@ import { RoundResult } from './RoundResult'
 import { RulesList, rulesSummary } from './Rules'
 import { Sheet } from './Sheet'
 import { ThemePicker } from './ThemePicker'
+import { personaLabel } from './personas'
 import { navigate, useCountdown, useSession } from './session'
 import { isMuted, playSound, setMuted } from './sound'
 import { SUIT_NAME, SUIT_SYMBOL, isRed, plural, seatName, sortHand, teamName } from './text'
@@ -291,11 +292,13 @@ function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: 'left'
   const count = 'handCounts' in phase ? phase.handCounts[seat] : 0
   const turn = (phase.kind === 'playing' && phase.turn === seat) || (phase.kind === 'trumpSelection' && phase.trumper === seat)
   const away = info.kind === 'human' && !info.connected
+  const persona = personaLabel(info)
   return (
     <div className="flex flex-col items-center gap-1 max-w-24" data-side={side}>
       <p className="seat-name truncate max-w-full text-sm" data-turn={turn}>
         {info.name}
       </p>
+      {persona && <p className="text-xs text-muted">{persona}</p>}
       <div className="flex gap-1 empty:hidden">
         <RoleBadges view={view} seat={seat} />
       </div>
