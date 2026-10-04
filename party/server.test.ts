@@ -1,5 +1,5 @@
 import type * as Party from 'partykit/server'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
 import { HONEST } from '../src/ai/mind'
 import type { Action, View } from '../src/engine'
@@ -262,6 +262,21 @@ describe('timers', () => {
     w.data.set('state', { game: { formatVersion: 999 }, tokens: {}, version: 7, eventCount: 0 })
     await w.boot()
     expect((await w.connect(TOKENS[0])).sync).toMatchObject({ version: 0, view: { phase: { kind: 'lobby' } } })
+  })
+
+  test('a format 1 save that cannot be upgraded is logged and replaced by a fresh lobby', async () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { seats: _, ...old } = createGame() as unknown as Record<string, unknown>
+      const w = new World()
+      w.data.set('state', { game: { ...old, formatVersion: 1 }, tokens: { [TOKENS[0]]: 0 }, version: 3, eventCount: 0, emptySince: null })
+      await w.boot()
+      expect(quiet).toHaveBeenCalledWith('Discarding a saved game that could not be loaded', expect.any(TypeError))
+      const watcher = await w.connect('w'.repeat(20))
+      expect(watcher.sync).toMatchObject({ version: 0, view: { phase: { kind: 'lobby' } } })
+    } finally {
+      quiet.mockRestore()
+    }
   })
 })
 

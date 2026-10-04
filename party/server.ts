@@ -72,7 +72,8 @@ export default class ThuneeRoom implements Party.Server {
     if (stored) {
       try {
         game = upgradeGame(stored.game, Math.floor(this.deps.rng() * 2 ** 32))
-      } catch {
+      } catch (error) {
+        console.error('Discarding a saved game that could not be loaded', error)
         game = null // a malformed save is as unusable as an old one
       }
     }
