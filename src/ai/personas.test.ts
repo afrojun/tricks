@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest'
-import { type Action, type Game, type Persona, availableActions, checkInvariants, hasCard, nextDeadline, seatsToAct, viewFor } from '../engine'
+import { type Action, type Game, type Persona, type RuleOverrides, CLASSIC_APP_OVERRIDES, availableActions, checkInvariants, hasCard, nextDeadline, seatsToAct, viewFor } from '../engine'
 import { Table } from '../engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
-import type { Mind } from './mind'
+import { type Mind, TRAITS } from './mind'
 import { chooseChallenge } from './suspicion'
 
 const GAMES = Number(process.env.SIM_GAMES ?? 30)
@@ -13,8 +13,8 @@ interface Tally {
 }
 
 /** A whole game in which every seat is a computer with the given persona, all watching each other. */
-function playGame(personas: Persona[], seed: number) {
-  const t = new Table(personas.length as 2 | 4, { ballsToWin: 6 }, seed).do(0, { type: 'start' })
+function playGame(personas: Persona[], seed: number, preset: RuleOverrides = {}) {
+  const t = new Table(personas.length as 2 | 4, { ...preset, ballsToWin: 6 }, seed).do(0, { type: 'start' })
   const tally = new Map<Persona, Tally>(personas.map((p) => [p, { illegal: 0, bluffs: 0 }]))
   const mind = (seat: number): Mind => ({ persona: personas[seat], salt: t.game.aiSalt })
   const inPlay = () => t.game.phase.kind === 'playing' || t.game.phase.kind === 'trickPause'
@@ -60,7 +60,12 @@ function playGame(personas: Persona[], seed: number) {
   return { tally, challenges }
 }
 
-describe('personas', () => {
+const PRESETS: [string, RuleOverrides][] = [
+  ['Traditional', {}],
+  ['Classic App', CLASSIC_APP_OVERRIDES],
+]
+
+describe.each(PRESETS)('personas under %s rules', (name, preset) => {
   test(`${GAMES} games of Straight and Sharp against Sly and Wild`, () => {
     // Seats 0 and 2 are a team, as are 1 and 3.
     const personas: Persona[] = ['straight', 'sly', 'sharp', 'wild']
@@ -68,14 +73,19 @@ describe('personas', () => {
     let guilty = 0
     let innocent = 0
     for (let seed = 1; seed <= GAMES; seed++) {
-      const { tally, challenges } = playGame(personas, seed)
+      const { tally, challenges } = playGame(personas, seed, preset)
       for (const [p, n] of tally) {
         total.get(p)!.illegal += n.illegal
         total.get(p)!.bluffs += n.bluffs
       }
-      for (const c of challenges) if (c.type === 'challengeResolved') c.guilty ? guilty++ : innocent++
+      for (const c of challenges) {
+        if (c.type !== 'challengeResolved') continue
+        c.guilty ? guilty++ : innocent++
+        // Straight and Sly challenge only on proof, so they are never wrong.
+        if (TRAITS[personas[c.challenger]].hunchAt === null) expect(c).toMatchObject({ guilty: true })
+      }
     }
-    console.log('personas:', JSON.stringify(Object.fromEntries(total)), `challenges: ${guilty} guilty, ${innocent} innocent`)
+    console.log(`personas (${name}):`, JSON.stringify(Object.fromEntries(total)), `challenges: ${guilty} guilty, ${innocent} innocent`)
     expect(total.get('straight')).toEqual({ illegal: 0, bluffs: 0 })
     expect(total.get('sharp')).toEqual({ illegal: 0, bluffs: 0 })
     expect(total.get('wild')!.illegal).toBeGreaterThan(total.get('sly')!.illegal)
@@ -86,6 +96,6 @@ describe('personas', () => {
 
   test('two-player games finish with any pair of personas', () => {
     const pairs: Persona[][] = [['sly', 'wild'], ['sharp', 'straight'], ['wild', 'sharp']]
-    for (const pair of pairs) for (let seed = 1; seed <= 5; seed++) playGame(pair, seed)
+    for (const pair of pairs) for (let seed = 1; seed <= 5; seed++) playGame(pair, seed, preset)
   }, 120_000)
 })
