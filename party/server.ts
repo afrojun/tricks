@@ -1,13 +1,13 @@
 import type * as Party from 'partykit/server'
 import { chooseAction, chooseJodhi, fallbackAction } from '../src/ai/choose'
 import { mindFor } from '../src/ai/mind'
+import { chooseChallenge } from '../src/ai/suspicion'
 import {
   type Action,
   type Actor,
   type Game,
   type GameEvent,
   type Seat,
-  FORMAT_VERSION,
   apply,
   checkInvariants,
   createGame,
@@ -15,6 +15,7 @@ import {
   nextDeadline,
   seatsToAct,
   teamOf,
+  upgradeGame,
   viewFor,
 } from '../src/engine'
 import {
@@ -67,8 +68,16 @@ export default class ThuneeRoom implements Party.Server {
 
   async onStart() {
     const stored = await this.room.storage.get<Saved>(STORAGE_KEY)
-    if (stored && stored.game?.formatVersion === FORMAT_VERSION) {
-      this.saved = stored
+    let game: Game | null = null
+    if (stored) {
+      try {
+        game = upgradeGame(stored.game, Math.floor(this.deps.rng() * 2 ** 32))
+      } catch {
+        game = null // a malformed save is as unusable as an old one
+      }
+    }
+    if (stored && game) {
+      this.saved = { ...stored, game }
       // Nobody is connected to a room that has just started.
       for (const seat of this.saved.game.seats) if (seat.kind === 'human') seat.connected = false
       this.saved.emptySince = emptySince(this.saved.game, stored.emptySince ?? null, this.deps.now())
@@ -155,6 +164,7 @@ export default class ThuneeRoom implements Party.Server {
     await this.armAlarm()
 
     await this.aiJodhi(result.events)
+    await this.aiChallenge(result.events)
     return true
   }
 
@@ -196,6 +206,18 @@ export default class ThuneeRoom implements Party.Server {
       if (!isAiControlled(game, seat) || teamOf(seat) !== teamOf(won.seat)) continue
       const claim = chooseJodhi(viewFor(this.saved.game, seat, 'full'), mindFor(this.saved.game, seat))
       if (claim) await this.act(seat, claim)
+    }
+  }
+
+  /** Computer seats watch every card and claim; a challenge, if any, ends the round. */
+  private async aiChallenge(events: GameEvent[]): Promise<void> {
+    if (!events.some((e) => e.type === 'cardPlayed' || e.type === 'jodhiClaimed')) return
+    for (let seat = 0; seat < this.saved.game.playerCount; seat++) {
+      const game = this.saved.game
+      if (game.phase.kind !== 'playing' && game.phase.kind !== 'trickPause') return
+      if (!isAiControlled(game, seat)) continue
+      const challenge = chooseChallenge(viewFor(game, seat, 'full'), mindFor(game, seat))
+      if (challenge && (await this.act(seat, challenge))) return
     }
   }
 

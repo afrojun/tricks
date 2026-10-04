@@ -3,7 +3,8 @@ import { describe, expect, test } from 'vitest'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
 import { HONEST } from '../src/ai/mind'
 import type { Action, View } from '../src/engine'
-import { seededRng } from '../src/engine/testing'
+import { type Game, createGame } from '../src/engine'
+import { Table, card, seededRng } from '../src/engine/testing'
 import type { ServerMessage } from '../src/protocol'
 import ThuneeRoom from './server'
 
@@ -390,5 +391,41 @@ describe('abandoned rooms', () => {
     await w.fireAlarm()
     expect(w.alarm).toBeNull()
     expect((await w.connect(TOKENS[0])).sync.seat).toBeNull()
+  })
+})
+
+describe('computer personas', () => {
+  const D1 = ['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']
+
+  /** A saved room in which seats 0 and 2 are Straight computers and seat 1 (a human) has just reneged. */
+  async function afterRenege() {
+    const t = new Table(4, { redealIfNoTrumps: false }).deal(D1).toPlay('spades').play('Kc Qh 10c Js').endPause()
+    const game: Game = {
+      ...t.game,
+      host: 1,
+      seats: t.game.seats.map((s, i) => (i % 2 === 0 ? { ...s, kind: 'ai' as const, name: `Bot ${i}` } : s)),
+    }
+    const w = new World()
+    w.data.set('state', { game, tokens: { [TOKENS[1]]: 1, [TOKENS[3]]: 3 }, version: 1, eventCount: 0, emptySince: null })
+    await w.boot()
+    return { w, me: await w.connect(TOKENS[1]) }
+  }
+
+  test('a computer catches a clumsy renege the moment it shows', async () => {
+    const { w, me } = await afterRenege()
+    await w.send(me, { type: 'playCard', card: card('Qc') })
+    expect(me.view.phase).toMatchObject({ kind: 'roundResult', summary: { reason: 'challenge', challenge: { accused: 1, guilty: true } } })
+    expect(me.inbox.some((m) => m.type === 'error')).toBe(false)
+  })
+
+  test('a room saved before personas existed keeps its players', async () => {
+    const old = createGame() as unknown as Record<string, unknown>
+    const seats = [{ name: 'Old', kind: 'human', connected: true, standIn: false }, ...(old.seats as object[]).slice(1)]
+    const w = new World()
+    w.data.set('state', { game: { ...old, formatVersion: 1, seats, host: 0, aiSalt: undefined }, tokens: { [TOKENS[0]]: 0 }, version: 3, eventCount: 0, emptySince: null })
+    await w.boot()
+    const me = await w.connect(TOKENS[0])
+    expect(me.sync.seat).toBe(0)
+    expect(me.view.seats[0]).toMatchObject({ name: 'Old', persona: 'straight' })
   })
 })
