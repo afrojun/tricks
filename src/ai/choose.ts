@@ -14,6 +14,7 @@ import {
   teamOf,
   trickWinner,
 } from '../engine'
+import { wouldWin } from './read'
 
 const HIGH = new Set<Card['rank']>(['J', '9', 'A'])
 
@@ -47,10 +48,6 @@ function wantsThunee(hand: readonly Card[]): boolean {
 const lowest = (cards: readonly Card[]) =>
   [...cards].sort((a, b) => CARD_POINTS[a.rank] - CARD_POINTS[b.rank] || rankStrength(a.rank) - rankStrength(b.rank))[0]
 const highest = (cards: readonly Card[]) => [...cards].sort((a, b) => rankStrength(b.rank) - rankStrength(a.rank))[0]
-
-function wouldWin(phase: ViewPlaying, me: number, card: Card): boolean {
-  return trickWinner([...phase.current, { seat: me, card }], phase.trump) === me
-}
 
 function chooseCard(view: View, phase: ViewPlaying, legal: readonly Card[]): Card {
   const me = view.seat!
