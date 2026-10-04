@@ -24,7 +24,9 @@ function expectNoLeak(game: Game, seat: number | null) {
   const hands = 'hands' in phase ? phase.hands : 'play' in phase ? phase.play.hands : null
   if (hands === null) return
   const stock = 'stock' in phase ? phase.stock : 'play' in phase ? phase.play.stock : []
-  const hidden = [...hands.filter((_, s) => s !== seat).flat(), ...stock]
+  // Cards of tricks before the last one have been turned down and must be gone from the view too.
+  const forgotten = 'play' in phase ? phase.play.tricks.slice(0, -1).flatMap((t) => t.plays.map((p) => p.card)) : []
+  const hidden = [...hands.filter((_, s) => s !== seat).flat(), ...stock, ...forgotten]
   const leaked = collectCards(viewFor(game, seat)).filter((c) => hidden.some((h) => sameCard(h, c)))
   if (leaked.length > 0) throw new Error(`view for ${seat} leaks ${JSON.stringify(leaked)} in ${phase.kind}`)
   const text = JSON.stringify(viewFor(game, seat))
@@ -79,7 +81,7 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
     // Jodhi: honest claims from the AI, plus the odd bluff.
     if (phase.kind === 'playing' || phase.kind === 'trickPause') {
       for (let seat = 0; seat < playerCount; seat++) {
-        const honest = chooseJodhi(viewFor(t.game, seat))
+        const honest = chooseJodhi(viewFor(t.game, seat, 'full'))
         if (honest) step(seat, honest, true)
         else if (chaos() < 0.02 && availableActions(viewFor(t.game, seat)).claimJodhi.length > 0) {
           step(seat, { type: 'claimJodhi', suit: pick(SUITS), withJack: chaos() < 0.5 }, false)
@@ -111,7 +113,8 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
       continue
     }
     const seat = pick(waiting)
-    const view = viewFor(t.game, seat)
+    const view = viewFor(t.game, seat, 'full')
+    expect(availableActions(view)).toEqual(availableActions(viewFor(t.game, seat)))
     if (current.kind === 'playing' && chaos() < 0.03) {
       step(seat, { type: 'playCard', card: pick(availableActions(view).play) }, true) // possibly a cheat
     } else if (current.kind === 'playing' && chaos() < 0.05 && availableActions(view).callKhanaak) {

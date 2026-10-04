@@ -79,8 +79,10 @@ function sureSpecialCall(view: View, phase: ViewPlaying, card: Card): Action | n
   const me = view.seat!
   const can = availableActions(view)
   if (phase.current.length !== view.playerCount - 1 || !wouldWin(phase, me, card)) return null
+  // These sums need every card played; a view that has forgotten earlier tricks cannot make them.
+  const remembersAll = phase.tricks.every((t) => t.plays.length > 0)
   if (can.callDouble) return { type: 'callDouble' }
-  if (can.callKhanaak) {
+  if (can.callKhanaak && remembersAll) {
     const team = teamOf(me)
     const points = (t: number) =>
       phase.tricks.filter((x) => teamOf(x.winner) === t).reduce((s, x) => s + x.plays.reduce((p, y) => p + CARD_POINTS[y.card.rank], 0), 0)

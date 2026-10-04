@@ -100,8 +100,9 @@ export function availableActions(view: View): Available {
         out.claimJodhi = SUITS.filter((s) => !mine.includes(s))
       }
 
-      const played = new Set([...phase.tricks.flatMap((t) => t.plays), ...phase.current].map((p) => p.seat))
-      out.challengePlay = [...played].filter((s) => teamOf(s) !== myTeam).sort()
+      // Once a trick has been completed, every seat has played a card this round.
+      const played = phase.tricks.length > 0 ? view.seats.map((_, seat) => seat) : phase.current.map((p) => p.seat)
+      out.challengePlay = played.filter((s) => teamOf(s) !== myTeam).sort()
       out.challengeJodhi = phase.jodhiClaims.flatMap((j, i) => (teamOf(j.seat) !== myTeam ? [i] : []))
       break
     }

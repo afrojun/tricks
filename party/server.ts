@@ -174,7 +174,7 @@ export default class ThuneeRoom implements Party.Server {
       if (game.aiActAt !== null && game.aiActAt <= now) {
         const seat = seatsToAct(game).find((s) => isAiControlled(game, s))
         if (seat === undefined) break
-        const view = viewFor(game, seat)
+        const view = viewFor(game, seat, 'full')
         if (!(await this.act(seat, chooseAction(view))) && !(await this.act(seat, fallbackAction(view)))) {
           throw new Error(`AI seat ${seat} has no acceptable action in ${phase.kind}`)
         }
@@ -193,7 +193,7 @@ export default class ThuneeRoom implements Party.Server {
     const game = this.saved.game
     for (let seat = 0; seat < game.playerCount; seat++) {
       if (!isAiControlled(game, seat) || teamOf(seat) !== teamOf(won.seat)) continue
-      const claim = chooseJodhi(viewFor(this.saved.game, seat))
+      const claim = chooseJodhi(viewFor(this.saved.game, seat, 'full'))
       if (claim) await this.act(seat, claim)
     }
   }

@@ -465,3 +465,30 @@ describe('review fixes', () => {
     expect(t.game.seats[0].standIn).toBe(true)
   })
 })
+
+describe('what a view remembers', () => {
+  const afterThree = () => start().play('Jc Qh 10c Qc  9c Kh Qd 10s  Js 10h 10d Qs')
+
+  test('a player’s view carries the cards of the last trick only, and who won the earlier ones', () => {
+    const t = afterThree()
+    const phase = viewFor(t.game, 0).phase
+    if (phase.kind !== 'trickPause') throw new Error(phase.kind)
+    expect(phase.tricks.map((trick) => trick.winner)).toEqual([2, 1, 1])
+    expect(phase.tricks.map((trick) => trick.plays.length)).toEqual([0, 0, 4])
+    expect(JSON.stringify(viewFor(t.game, null))).not.toContain('"rank":"J","suit":"clubs"') // trick 1's lead
+  })
+
+  test('full memory, used only for computer players on the server, keeps every trick', () => {
+    const phase = viewFor(afterThree().game, 0, 'full').phase
+    if (phase.kind !== 'trickPause') throw new Error(phase.kind)
+    expect(phase.tricks.map((trick) => trick.plays.length)).toEqual([4, 4, 4])
+  })
+
+  test('what a player may do is the same with either memory', () => {
+    const t = afterThree().endPause().play('9s')
+    for (const seat of [0, 1, 2, 3]) {
+      expect(availableActions(viewFor(t.game, seat))).toEqual(availableActions(viewFor(t.game, seat, 'full')))
+    }
+    expect(can(t, 0).challengePlay).toEqual([1, 3])
+  })
+})

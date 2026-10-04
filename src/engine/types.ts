@@ -258,6 +258,7 @@ export interface ViewPlay {
 }
 
 export interface ViewTrick {
+  /** Empty for all but the most recent trick in a player's view; see `Memory` in view.ts. */
   plays: ViewPlay[]
   winner: Seat
   half: 1 | 2
