@@ -20,8 +20,12 @@ export function wouldWin(phase: ViewPlaying, me: Seat, card: Card): boolean {
   return trickWinner([...phase.current, { seat: me, card }], phase.trump) === me
 }
 
-/** 1, plus a half each for being behind in balls and behind in card points this round. */
-export function mood(view: View): number {
+/**
+ * 1, plus a half each for being behind in balls and behind in card points this round.
+ * With `asOf`, card points count only tricks up to that index (balls do not change in a round),
+ * so a past moment can be judged as it was. Needs a full view: the tricks must show their cards.
+ */
+export function mood(view: View, asOf = Infinity): number {
   const me = view.seat
   if (me === null) return 1
   const team = teamOf(me)
@@ -29,7 +33,9 @@ export function mood(view: View): number {
   const phase = view.phase
   if (phase.kind === 'playing' || phase.kind === 'trickPause') {
     const points = [0, 0]
-    for (const t of phase.tricks) points[teamOf(t.winner)] += pointsOf(t.plays.map((p) => p.card))
+    phase.tricks.forEach((t, index) => {
+      if (index <= asOf) points[teamOf(t.winner)] += pointsOf(t.plays.map((p) => p.card))
+    })
     if (points[team] < points[1 - team]) m += 0.5
   }
   return m

@@ -148,12 +148,13 @@ function unplaced(phase: ViewPlaying, tricks: TrickRecord[], me: Seat, suit: Sui
 function hunch(view: View, mind: Mind, accuse: (accused: Seat, claim: number | null) => Action | null): Action | null {
   const traits = TRAITS[mind.persona]
   if (traits.hunchAt === null || view.seat === null) return null
-  const chance = traits.hunchChance * (traits.moody ? mood(view) : 1)
   const bySeat = new Map<Seat, Signal[]>()
   for (const s of findSignals(view)) bySeat.set(s.accused, [...(bySeat.get(s.accused) ?? []), s])
   for (const [seat, signals] of bySeat) {
     if (signals.length < traits.hunchAt) continue
     const latest = signals.reduce((a, b) => (b.at > a.at ? b : a))
+    // Judged in the mood of the moment, so a signal gets the same one look whenever it is weighed.
+    const chance = traits.hunchChance * (traits.moody ? mood(view, latest.at) : 1)
     if (roll(mind.salt, view.seat, `hunch:${latest.id}`) >= chance) continue
     const action = accuse(seat, latest.claim)
     if (action) return action

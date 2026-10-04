@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { type Persona, viewFor } from '../engine'
 import { Table } from '../engine/testing'
+import { mood } from './read'
 import { chooseChallenge, findProofs, findSignals, noticeOdds } from './suspicion'
 
 // Dealer 0: seat 1 is trumper (spades), seat 2 leads. Teams: 0+2 count, 1+3 trump.
@@ -171,6 +172,62 @@ describe('hunches', () => {
     expect(chooseChallengeFor(t, 2, 'wild')).toEqual({ type: 'challengePlay', seat: 1 })
     expect(rate(t, 2, 'sharp')).toBe(0)
     expect(rate(t, 2, 'straight')).toBe(0)
+  })
+})
+
+describe('hunch details', () => {
+  const decisions = (t: Table, seat: number, persona: Persona, salts = 500) =>
+    Array.from({ length: salts }, (_, i) => chooseChallenge(viewFor(t.game, seat, 'full'), { persona, salt: i + 1 }) !== null)
+  const ids = (t: Table, seat: number) => findSignals(viewFor(t.game, seat, 'full')).map((s) => s.id)
+
+  test('a hunch is judged in the mood of its moment: a later swing of points gives it no second look', () => {
+    // Trick 0 goes to seat 2's team (44-0), trick 1 is seat 1 trumping a 44-point heart trick (44-44, mood 1).
+    const afterSignal = () => start().play('Jc Qh 10c Qc').endPause().play('Ah Kh 9h 10s')
+    const before = afterSignal()
+    // Trick 2: seat 3 follows suit and wins 45 points, putting seat 2's team behind with no new signal.
+    const after = afterSignal().endPause().play('Kd 10h Jd Qd')
+    expect(ids(before, 2)).toEqual(['cut:1'])
+    expect(ids(after, 2)).toEqual(['cut:1'])
+    expect(mood(viewFor(before.game, 2, 'full'))).toBe(1)
+    expect(mood(viewFor(after.game, 2, 'full'))).toBe(1.5)
+    const was = decisions(before, 2, 'wild')
+    expect(decisions(after, 2, 'wild')).toEqual(was)
+    const rate = was.filter(Boolean).length / was.length
+    expect(rate).toBeGreaterThan(0.06)
+    expect(rate).toBeLessThan(0.18)
+  })
+
+  test('an opponent who cannot follow a suit the observer can barely place is a void signal', () => {
+    // Seat 2 leads its only diamond; seat 3 shows a void; seat 1 follows. Seat 2 can place two of six diamonds.
+    const VOID = ['Qh Jc 9c Ac 10c Kc', 'Js Jd 9d Ad 10d Kd', 'Qd Jh 9h Ah 10h Kh', 'Qc 9s As 10s Ks Qs']
+    const t = start(VOID).play('Qd Qc Qh Jd')
+    expect(findSignals(viewFor(t.game, 2, 'full'))).toEqual([{ id: 'void:0:3', accused: 3, claim: null, at: 0 }])
+    // Seat 3 cannot place them either, but only seat 0's void is an opponent's.
+    expect(ids(t, 3)).toEqual(['void:0:0'])
+  })
+
+  test('an opponent’s Jodhi worth 40 or more is a signal; a partner’s is not', () => {
+    // Seat 1 trumps a heart trick and claims the king and queen of trumps.
+    const CLAIM = ['Jh 9h As 10s 10c Qd', 'Js 9s Ks Qs Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']
+    const t = start(CLAIM).play('10h Kh 9h Js').do(1, { type: 'claimJodhi', suit: 'spades', withJack: false })
+    const claims = (seat: number) => findSignals(viewFor(t.game, seat, 'full')).filter((s) => s.id.startsWith('claim'))
+    expect(claims(2)).toEqual([{ id: 'claim:0', accused: 1, claim: 0, at: 0.5 }])
+    expect(claims(0)).toHaveLength(1)
+    expect(claims(3)).toEqual([])
+  })
+
+  test('Sharp acts on a hunch only from a third signal, at about its 0.3 chance', () => {
+    // Seat 1 trumps trick 0 (a cut, and a void when seat 2 can place two diamonds), takes a fair trick 1 lost,
+    // then trumps a 56-point heart trick: a second cut.
+    const SHARP = ['Qh 9h 10h Jc Qc 10s', 'Qs Ks Kc Js 9s As', 'Qd 9c Jh Ah Kh 10c', 'Jd 9d Ad 10d Kd Ac']
+    const two = start(SHARP).play('Qd Jd Qh Qs').endPause().play('Kc 9c Ac Qc')
+    expect(ids(two, 2)).toEqual(['cut:0', 'void:0:1'])
+    expect(decisions(two, 2, 'sharp').some(Boolean)).toBe(false)
+    const three = start(SHARP).play('Qd Jd Qh Qs').endPause().play('Kc 9c Ac Qc').endPause().play('Jh Kd 9h Ks')
+    expect(ids(three, 2)).toEqual(['cut:0', 'void:0:1', 'cut:2'])
+    const fired = decisions(three, 2, 'sharp', 2000).filter(Boolean).length / 2000
+    expect(fired).toBeGreaterThan(0.26)
+    expect(fired).toBeLessThan(0.34)
   })
 })
 

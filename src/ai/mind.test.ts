@@ -49,4 +49,14 @@ describe('minds', () => {
     t.game = { ...t.game, balls: [0, 3] }
     expect(mood(viewFor(t.game, 0, 'full'))).toBe(2)
   })
+
+  test('mood as of an earlier trick counts only the card points up to then', () => {
+    const t = start().play('Ah Qh 9h 10s').endPause().play('Js') // trick 0 is seat 1's team's; trick 1 is open
+    const view = viewFor(t.game, 0, 'full')
+    expect(mood(view, -1)).toBe(1)
+    expect(mood(view, 0)).toBe(1.5)
+    expect(mood(view)).toBe(1.5)
+    t.game = { ...t.game, balls: [0, 3] }
+    expect(mood(viewFor(t.game, 0, 'full'), -1)).toBe(1.5)
+  })
 })
