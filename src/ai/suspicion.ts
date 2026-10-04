@@ -69,6 +69,8 @@ export function findProofs(view: View): Proof[] {
 
   phase.jodhiClaims.forEach((claim, index) => {
     if (!opponent(claim.seat)) return
+    // The half the claim was made in: a claim always follows a won trick.
+    const claimHalf = phase.tricks[claim.trick - 1]?.half ?? 1
     const ranks: Card['rank'][] = claim.withJack ? ['K', 'Q', 'J'] : ['K', 'Q']
     for (const rank of ranks) {
       const card: Card = { suit: claim.suit, rank }
@@ -78,7 +80,7 @@ export function findProofs(view: View): Proof[] {
         continue
       }
       const elsewhere = (t: TrickRecord) =>
-        t.plays.some((p) => sameCard(p.card, card) && (p.seat !== claim.seat || (view.rules.jodhiCards === 'inHand' && t.index < claim.trick)))
+        t.plays.some((p) => sameCard(p.card, card) && (p.seat !== claim.seat || (t.index < claim.trick && (view.rules.jodhiCards === 'inHand' || t.half < claimHalf))))
       const shown = tricks.find(elsewhere)
       if (shown) out.push({ id, accused: claim.seat, claim: index, gap: Math.max(0, shown.index - claim.trick), salience: 1 })
     }

@@ -88,4 +88,65 @@ describe('proofs', () => {
     // (history() labels the current trick with phase.half; the cheat trick keeps half 1).
     expect(findProofs({ ...view, phase: { ...phase, half: 2 } })).toEqual([])
   })
+
+  const claimsOf = (t: Table) => {
+    const phase = t.game.phase
+    if (phase.kind !== 'playing' && phase.kind !== 'trickPause') throw new Error(phase.kind)
+    return phase.play.jodhiClaims
+  }
+
+  test('a Jodhi card another seat plays after the claim proves it false, with the tricks in between as the gap', () => {
+    // Seat 1 trumps trick 1 (no hearts) and claims clubs; Qc is its own but Kc is seat 2's, played in trick 3.
+    const t = start()
+      .play('10h Qh 9h Js')
+      .do(1, { type: 'claimJodhi', suit: 'clubs', withJack: false })
+      .play('As 9c Jd Ks  10s Kc Ad Qs')
+    expect(claimsOf(t).map((c) => c.valid)).toEqual([false])
+    expect(findProofs(viewFor(t.game, 0, 'full'))).toEqual([{ id: 'jodhi:0:K-clubs', accused: 1, claim: 0, gap: 1, salience: 1 }])
+  })
+
+  test('a Jodhi card the claimant played before claiming proves it false only when Jodhis need cards in hand', () => {
+    // Seat 1 holds Ks Qs, trumps trick 1 with Qs and claims spades.
+    const HANDS = ['Jh 9h Js 9s 10c Qd', 'Ks Qs As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']
+    const run = (jodhiCards: 'inHand' | 'dealt') =>
+      new Table(4, { redealIfNoTrumps: false, jodhiCards }).deal(HANDS).toPlay('spades').play('10h Qh 9h Qs').do(1, { type: 'claimJodhi', suit: 'spades', withJack: false })
+    const inHand = run('inHand')
+    expect(claimsOf(inHand).map((c) => c.valid)).toEqual([false])
+    expect(findProofs(viewFor(inHand.game, 0, 'full'))).toEqual([{ id: 'jodhi:0:Q-spades', accused: 1, claim: 0, gap: 0, salience: 1 }])
+    const dealt = run('dealt')
+    expect(claimsOf(dealt).map((c) => c.valid)).toEqual([true])
+    expect(findProofs(viewFor(dealt.game, 0, 'full'))).toEqual([])
+  })
+
+  describe('two players, dealt Jodhis', () => {
+    // Half 1 is played out; half 2 deals seat 0 Ad 10d Jc 9c Ac Kc and seat 1 Ah 10h Kh Qh Jd 9d, seat 0 to lead.
+    const HANDS = ['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc']
+    const half1 = (jodhiCards: 'inHand' | 'dealt') =>
+      new Table(2, { redealIfNoTrumps: false, jodhiCards, jodhiTiming: 'anyTrick' })
+        .deal(HANDS)
+        .toPlay('spades')
+        .play('Jh Js  9s Ks  As Qs  10s 9h  Kd Qd  Qc 10c')
+        .endPause()
+
+    test('a card the claimant played in the first half contradicts a second-half claim', () => {
+      // Seat 0 leads Jc, seat 1 has no clubs and wins nothing; seat 0 wins and claims spades (Ks, Qs went in half 1).
+      const t = half1('dealt').play('Jc 9d').do(0, { type: 'claimJodhi', suit: 'spades', withJack: false })
+      expect(claimsOf(t).map((c) => c.valid)).toEqual([false])
+      const proofs = findProofs(viewFor(t.game, 1, 'full'))
+      expect(proofs.map((p) => p.id).sort()).toEqual(['jodhi:0:K-spades', 'jodhi:0:Q-spades'])
+      expect(proofs.every((p) => p.accused === 0 && p.claim === 0)).toBe(true)
+    })
+
+    test('a card the claimant played earlier in the same half does not contradict a dealt claim', () => {
+      // Seat 1 discards Kh on seat 0's club, then wins with Jd and claims hearts: valid when dealt, spent when in hand.
+      const play = (jodhiCards: 'inHand' | 'dealt') =>
+        half1(jodhiCards).play('Jc Kh').endPause().play('Ad Jd').do(1, { type: 'claimJodhi', suit: 'hearts', withJack: false })
+      const dealt = play('dealt')
+      expect(claimsOf(dealt).map((c) => c.valid)).toEqual([true])
+      expect(findProofs(viewFor(dealt.game, 0, 'full'))).toEqual([])
+      const inHand = play('inHand')
+      expect(claimsOf(inHand).map((c) => c.valid)).toEqual([false])
+      expect(findProofs(viewFor(inHand.game, 0, 'full')).map((p) => p.id)).toEqual(['jodhi:0:K-hearts'])
+    })
+  })
 })
