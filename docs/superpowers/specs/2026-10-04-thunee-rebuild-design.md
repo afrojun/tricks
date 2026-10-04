@@ -1,7 +1,7 @@
 # Thunee Rebuild — Design
 
 Date: 2026-10-04
-Status: awaiting review
+Status: implemented on `rebuild`
 Branch: `rebuild`
 
 ## 1. Purpose
@@ -333,3 +333,15 @@ Each stage ends runnable and tested.
 4. **Themes and presets.** Modern Table and Minimal themes; preset storage, editor and share links.
 
 The old code stays in place until stage 3 replaces it, and remains in git history on `main`.
+
+## 9. Changes made during the build
+
+These differ from the sections above and are what the code does.
+
+- **Host (5.5).** The host role belongs to one seat and is not handed over on a disconnect. While the host is disconnected or played by the computer, the next connected human acts as host; the role returns when the host does. This stops a refresh in the lobby from giving the role away.
+- **Stalled seats (5.5).** The host can hand over any seat that is disconnected or has held the turn for 60 seconds. In addition, any seated player can hand over the host's own seat once it has stalled, so an idle host cannot freeze the game.
+- **Jodhi (4.6).** No claim opens after the last trick of a hand, or after the sixth trick of a two-player first half, because no further card will be led from that hand.
+- **Thunee (4.6).** When Thunee trump is the first card led, the caller always leads, whatever the leader setting.
+- **Lobby actions (4.4).** `clearSeat` replaces `removeAi` and can also remove a human in the lobby. `nextRound` may be sent by any seated human, not only the host.
+- **Connection.** The client pings the room every 5 seconds and reconnects after two unanswered pings, and reacts to the browser going offline and online.
+- **Simulation (7).** The default run is 30 games per configuration; `pnpm test:soak` runs 400.

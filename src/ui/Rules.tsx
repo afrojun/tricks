@@ -3,6 +3,7 @@ import { type RuleOverrides, type RuleSet, TRADITIONAL, diffRules, resolveRules 
 import { RULE_INFO, type RuleInfo, differenceCount, isTraditional, sameOverrides, valueLabel } from '../presets/describe'
 import { shareUrl } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
+import { copyText } from './text'
 
 /** One line saying which rules are in force. */
 export function rulesSummary(rules: RuleSet): string {
@@ -84,9 +85,10 @@ export function RulesEditor({ rules, onChange }: { rules: RuleSet; onChange: (ov
     }
   }
   const share = async () => {
-    await navigator.clipboard.writeText(shareUrl(active?.name ?? (name || 'House rules'), overrides))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (await copyText(shareUrl(active?.name ?? (name || 'House rules'), overrides))) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   return (

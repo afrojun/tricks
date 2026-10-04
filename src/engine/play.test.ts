@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { availableActions } from './available'
+import { availableActions, replaceableSeats } from './available'
 import { CLASSIC_APP_OVERRIDES, type RuleOverrides } from './rules'
 import { Table, card } from './testing'
 import type { Game } from './types'
@@ -429,5 +429,39 @@ describe('stalled seats', () => {
     expect(t.try(0, { type: 'replaceWithAi', seat: 3 })).toBe('notAllowed') // not the seat being waited on
     t.do(0, { type: 'replaceWithAi', seat: 2 })
     expect(t.game.seats[2].standIn).toBe(true)
+  })
+})
+
+describe('review fixes', () => {
+  test('no Jodhi claim opens after the sixth trick, even with any-trick timing', () => {
+    const t = start({ jodhiTiming: 'anyTrick', jodhiCards: 'dealt' }).play(D1_FULL)
+    expect(t.game.phase.kind).toBe('trickPause')
+    expect(playOf(t.game).jodhiOpenFor).toBeNull()
+    expect(t.try(3, { type: 'claimJodhi', suit: 'hearts', withJack: false })).toBe('notAllowed')
+  })
+
+  test('first-card trump makes the Thunee caller lead, whatever the leader setting', () => {
+    const t = new Table(4, { redealIfNoTrumps: false, thuneeLeader: 'afterCaller' }).deal(D1).advance(10_000)
+    t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' })
+    expect(t.game.phase).toMatchObject({ kind: 'playing', turn: 1 })
+  })
+
+  test('the host role returns to its owner when they reconnect', () => {
+    const t = start()
+    t.do('system', { type: 'setConnected', seat: 0, connected: false })
+    expect(viewFor(t.game, 1).host).toBe(1)
+    t.do('system', { type: 'setConnected', seat: 0, connected: true })
+    expect(viewFor(t.game, 1).host).toBe(0)
+  })
+
+  test('anyone seated may hand a stalled host seat to the computer', () => {
+    const t = start() // dealer 0, seat 2 leads
+    t.play('Jc Qh') // now seat 0, the host, is to play
+    expect(t.game.phase).toMatchObject({ kind: 'playing', turn: 0 })
+    t.now += 60_001
+    expect(replaceableSeats(viewFor(t.game, 3), t.now)).toEqual([0])
+    expect(t.try(3, { type: 'replaceWithAi', seat: 2 })).toBe('notHost')
+    t.do(3, { type: 'replaceWithAi', seat: 0 })
+    expect(t.game.seats[0].standIn).toBe(true)
   })
 })

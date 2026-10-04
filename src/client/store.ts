@@ -33,6 +33,7 @@ export class GameStore {
   private listeners = new Set<() => void>()
   private eventListeners = new Set<EventListener>()
   private lastEvent = 0
+  private rejections = 0
   /** After a (re)connect the next sync is taken as-is, whatever its version. */
   private awaitingFirstSync = true
   /** Server clock minus local clock, measured at the last sync. */
@@ -58,7 +59,7 @@ export class GameStore {
 
   receive(message: ServerMessage, localNow: number): void {
     if (message.type === 'rejected') {
-      this.update({ rejection: { reason: message.reason, id: (this.state.rejection?.id ?? 0) + 1 } })
+      this.update({ rejection: { reason: message.reason, id: ++this.rejections } })
       return
     }
     if (message.type === 'error') {

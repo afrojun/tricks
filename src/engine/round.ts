@@ -173,7 +173,8 @@ function startPlay(game: Game, phase: ThuneeWindow, thuneeCaller: Seat | null) {
   const leader =
     thuneeCaller === null
       ? next(phase.trumper, game.playerCount)
-      : game.rules.thuneeLeader === 'caller'
+      : // The caller's first card can only set trump if it is the card led.
+        game.rules.thuneeLeader === 'caller' || game.rules.thuneeTrump === 'firstCardLed'
         ? thuneeCaller
         : next(thuneeCaller, game.playerCount)
   game.phase = { kind: 'playing', play, turn: leader }
@@ -218,8 +219,11 @@ export function playCard(game: Game, play: RoundPlay, seat: Seat, card: Card, ct
   play.current = []
 
   const team = teamOf(winner)
-  const teamWins = play.tricks.filter((t) => t.half === play.half && teamOf(t.winner) === team).length
-  play.jodhiOpenFor = play.thunee === null && jodhiTimingOk(teamWins, game.rules) ? team : null
+  const thisHalf = play.tricks.filter((t) => t.half === play.half)
+  const teamWins = thisHalf.filter((t) => teamOf(t.winner) === team).length
+  // A claim must come before the next card is led, so the last trick of a hand opens none.
+  const moreToPlay = thisHalf.length < 6
+  play.jodhiOpenFor = play.thunee === null && moreToPlay && jodhiTimingOk(teamWins, game.rules) ? team : null
   game.phase = { kind: 'trickPause', play, deadline: ctx.now + TRICK_PAUSE_MS }
 }
 

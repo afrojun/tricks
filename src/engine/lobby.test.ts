@@ -90,13 +90,13 @@ describe('lobby', () => {
     game = run(game, null, { type: 'sit', seat: 1, name: 'B' })
     game = run(game, null, { type: 'sit', seat: 2, name: 'C' })
     const afterDrop = run(game, 'system', { type: 'setConnected', seat: 0, connected: false })
-    expect(afterDrop.host).toBe(1)
+    expect(viewFor(afterDrop, 1).host).toBe(1)
     const afterLeave = run(game, 0, { type: 'leaveSeat' })
     expect(afterLeave.host).toBe(1)
     expect(afterLeave.seats[0].kind).toBe('empty')
     // A lone host who disconnects keeps the role.
     const solo = run(createGame(), null, { type: 'sit', seat: 0, name: 'A' })
-    expect(run(solo, 'system', { type: 'setConnected', seat: 0, connected: false }).host).toBe(0)
+    expect(viewFor(run(solo, 'system', { type: 'setConnected', seat: 0, connected: false }), 0).host).toBe(0)
   })
 
   test('players cannot send system actions', () => {

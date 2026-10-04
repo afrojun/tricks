@@ -56,3 +56,14 @@ export function rejectionText(reason: RejectReason | 'malformed'): string {
 export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
+
+/** Copies to the clipboard, falling back to showing the text where the clipboard is unavailable. */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    window.prompt('Copy this link', text)
+    return false
+  }
+}

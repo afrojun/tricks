@@ -51,7 +51,11 @@ export function savePreset(name: string, overrides: RuleOverrides, store: Store 
   const clean = cleanPresetName(name)
   if (clean === null) return null
   const preset: Preset = { id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, name: clean, overrides, builtIn: false }
-  write(store, [...readSaved(store), preset])
+  try {
+    write(store, [...readSaved(store), preset])
+  } catch {
+    return null // storage is full or unavailable
+  }
   return preset
 }
 

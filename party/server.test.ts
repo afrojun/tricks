@@ -224,6 +224,16 @@ describe('timers', () => {
     expect(w.alarm).toBeNull()
   })
 
+  test('an alarm that fires early is re-armed instead of leaving the game with none', async () => {
+    const { w, conns } = await startedGame()
+    const deadline = w.alarm!
+    w.alarm = null
+    w.now = deadline - 5 // fired 5 ms early
+    await w.server.onAlarm()
+    expect(conns[0].view.phase.kind).toBe('calling')
+    expect(w.alarm).toBe(deadline)
+  })
+
   test('a restart in the middle of the call window resumes and closes it', async () => {
     const { w } = await startedGame()
     const deadline = w.alarm!

@@ -4,8 +4,18 @@ import { type GameSetup, setupKey } from './Home'
 import { RulesEditor, RulesList, rulesSummary } from './Rules'
 import { Sheet } from './Sheet'
 import { navigate, useSession } from './session'
+import { copyText } from './text'
 
 const NAME_KEY = 'thunee-name'
+
+function readSetup(room: string): GameSetup | null {
+  try {
+    const raw = sessionStorage.getItem(setupKey(room))
+    return raw ? (JSON.parse(raw) as GameSetup) : null
+  } catch {
+    return null
+  }
+}
 
 export function Lobby({ view, room }: { view: View; room: string }) {
   const { send } = useSession()
@@ -16,16 +26,20 @@ export function Lobby({ view, room }: { view: View; room: string }) {
   const isHost = me !== null && view.host === me
   const empty = view.seats.filter((s) => s.kind === 'empty').length
 
-  // The creator's choices from the home screen, applied once they hold the host seat.
+  // The creator's choices from the home screen. They apply only if the creator is the
+  // first to sit; if someone else already hosts, the lobby's settings stand.
+  const [setup, setSetup] = useState<GameSetup | null>(() => readSetup(room))
   useEffect(() => {
-    if (!isHost) return
-    const raw = sessionStorage.getItem(setupKey(room))
-    if (!raw) return
+    if (setup === null || view.owner === null) return
     sessionStorage.removeItem(setupKey(room))
-    const setup = JSON.parse(raw) as GameSetup
+    setSetup(null)
+    if (view.owner !== me) return
     if (setup.playerCount !== view.playerCount) send({ type: 'setPlayerCount', playerCount: setup.playerCount })
     send({ type: 'setRules', overrides: setup.overrides })
-  }, [isHost, room, send, view.playerCount])
+  }, [setup, view.owner, view.playerCount, me, room, send])
+  // Until that happens, offer only the seats the creator's game will have.
+  const seatLimit = setup?.playerCount ?? view.playerCount
+  const canShrink = view.seats.slice(2).every((s) => s.kind === 'empty')
 
   const sit = (seat: number) => {
     const clean = cleanName(name)
@@ -34,9 +48,10 @@ export function Lobby({ view, room }: { view: View; room: string }) {
     send({ type: 'sit', seat, name: clean })
   }
   const copyInvite = async () => {
-    await navigator.clipboard.writeText(`${location.origin}/game/${room}`)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (await copyText(`${location.origin}/game/${room}`)) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   return (
@@ -59,7 +74,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
           </label>
         )}
         <ul className="grid gap-2">
-          {view.seats.map((seat, i) => {
+          {view.seats.slice(0, seatLimit).map((seat, i) => {
             const team = teamOf(i)
             return (
               <li key={i} className="flex items-center gap-2 border-b border-line/40 pb-2">
@@ -119,7 +134,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
         {isHost && (
           <div className="flex gap-2">
             {([4, 2] as const).map((n) => (
-              <button key={n} className="btn btn-small flex-1" aria-pressed={view.playerCount === n} onClick={() => send({ type: 'setPlayerCount', playerCount: n })}>
+              <button key={n} className="btn btn-small flex-1" aria-pressed={view.playerCount === n} disabled={n === 2 && !canShrink} onClick={() => send({ type: 'setPlayerCount', playerCount: n })}>
                 {n} players
               </button>
             ))}

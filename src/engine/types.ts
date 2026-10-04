@@ -325,7 +325,10 @@ export interface View {
   /** The viewer's seat; null for a spectator. */
   seat: Seat | null
   seats: SeatInfo[]
+  /** Who may use the host's powers now: the owner, or a stand-in while they are away. */
   host: Seat | null
+  /** The seat the host role belongs to. */
+  owner: Seat | null
   playerCount: 2 | 4
   rules: RuleSet
   balls: [number, number]

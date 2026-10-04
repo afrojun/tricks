@@ -80,8 +80,12 @@ describe('game store', () => {
     const first = store.getState().rejection
     store.receive({ type: 'rejected', reason: 'notYourTurn' }, 5000)
     expect(store.getState().rejection).not.toEqual(first)
+    const second = store.getState().rejection!
     store.clearRejection()
     expect(store.getState().rejection).toBeNull()
     expect(notified).toBe(3)
+    // Ids keep rising after a clear, so a repeated rejection is a new toast.
+    store.receive({ type: 'rejected', reason: 'notYourTurn' }, 5000)
+    expect(store.getState().rejection!.id).toBeGreaterThan(second.id)
   })
 })

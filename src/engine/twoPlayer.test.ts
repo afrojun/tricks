@@ -32,6 +32,7 @@ describe('two-player game', () => {
     expect(t.game.phase).toMatchObject({ kind: 'playing', turn: lastWinner, play: { half: 2, trump: 'spades', stock: [] } })
     expect(playOf(t.game).hands.map((h) => h.length)).toEqual([6, 6])
     expect(t.events.filter((e) => e.type === 'dealt')).toHaveLength(2)
+    expect(playOf(t.game).jodhiOpenFor).toBeNull() // a claim never carries into the new hand
     expect(t.events.filter((e) => e.type === 'roundScored')).toHaveLength(0)
     checkInvariants(t.game)
   })

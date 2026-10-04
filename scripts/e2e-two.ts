@@ -68,7 +68,7 @@ const handOf = (page: Page) => page.locator('.hand .playing-card').evaluateAll((
 let dropped = false
 const started = Date.now()
 while (Date.now() - started < 3 * 60_000) {
-  if (await a.page.getByText(/take \d+ balls?|win the game/).first().isVisible()) break
+  if (await a.page.getByText(/takes? \d+ balls?|wins? the game/).first().isVisible()) break
   await act(a.page)
   await act(b.page)
 
@@ -92,8 +92,9 @@ while (Date.now() - started < 3 * 60_000) {
 }
 
 check(dropped, 'the drop-and-reconnect step ran')
-check(await a.page.getByText(/take \d+ balls?|win the game/).first().isVisible(), 'the round was played to a result')
-check(await b.page.getByText(/take \d+ balls?|win the game/).first().isVisible(), 'both players see the result')
+check(await a.page.getByText(/takes? \d+ balls?|wins? the game/).first().isVisible(), 'the round was played to a result')
+const bSees = await b.page.getByText(/takes? \d+ balls?|wins? the game/).first().waitFor({ timeout: 5000 }).then(() => true, () => false)
+check(bSees, 'both players see the result')
 await a.page.screenshot({ path: '/tmp/shots/two-player-result.png' })
 if (problems.length) console.log('PROBLEMS:\n' + problems.join('\n'))
 await browser.close()

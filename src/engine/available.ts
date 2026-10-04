@@ -126,11 +126,14 @@ export function canStart(view: View): boolean {
 export const STALL_MS = 60_000
 
 export function replaceableSeats(view: View, now: number): Seat[] {
-  if (view.seat === null || view.host !== view.seat) return []
+  if (view.seat === null || view.seats[view.seat].kind !== 'human') return []
   if (view.phase.kind === 'lobby' || view.phase.kind === 'gameOver') return []
+  const isHost = view.host === view.seat
   return view.seats.flatMap((s, seat) => {
     if (s.kind !== 'human' || s.standIn || seat === view.seat) return []
     const stalled = view.acting?.seat === seat && now - view.acting.since > STALL_MS
-    return !s.connected || stalled ? [seat] : []
+    // The host looks after everyone else; anyone may step in for a host who has stalled.
+    const mayReplace = isHost ? !s.connected || stalled : seat === view.owner && stalled
+    return mayReplace ? [seat] : []
   })
 }

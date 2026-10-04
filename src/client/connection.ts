@@ -7,7 +7,7 @@ import { GameStore } from './store'
 const HOST = import.meta.env.VITE_PARTYKIT_HOST || `${location.hostname}:1999`
 
 const PING_EVERY_MS = 5000
-const SILENCE_LIMIT_MS = 12_000
+const MAX_UNANSWERED_PINGS = 2
 
 export interface Session {
   store: GameStore
@@ -31,14 +31,18 @@ export function openSession(room: string): Session {
   socket.addEventListener('close', () => store.setConnection(everOpened ? 'reconnecting' : 'connecting'))
   // A phone that sleeps or changes network can leave a socket that looks open
   // but is dead. Ping the room and reconnect if it goes quiet.
-  let lastHeard = Date.now()
+  // Counting unanswered pings, not elapsed time, keeps a throttled background tab from reconnecting.
+  let unanswered = 0
   const heartbeat = setInterval(() => {
     if (socket.readyState !== WebSocket.OPEN) return
-    if (Date.now() - lastHeard > SILENCE_LIMIT_MS) {
+    if (unanswered >= MAX_UNANSWERED_PINGS) {
+      unanswered = 0
       store.setConnection('reconnecting')
       socket.reconnect()
-      lastHeard = Date.now()
-    } else socket.send(PING)
+      return
+    }
+    unanswered++
+    socket.send(PING)
   }, PING_EVERY_MS)
   const onOffline = () => {
     store.setConnection('reconnecting')
@@ -49,7 +53,7 @@ export function openSession(room: string): Session {
   addEventListener('online', onOnline)
 
   socket.addEventListener('message', (e) => {
-    lastHeard = Date.now()
+    unanswered = 0
     if (e.data === PONG) return
     let message: ServerMessage
     try {

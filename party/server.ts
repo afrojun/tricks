@@ -162,15 +162,17 @@ export default class ThuneeRoom implements Party.Server {
       }
       if (game.aiActAt !== null && game.aiActAt <= now) {
         const seat = seatsToAct(game).find((s) => isAiControlled(game, s))
-        if (seat === undefined) return
+        if (seat === undefined) break
         const view = viewFor(game, seat)
         if (!(await this.act(seat, chooseAction(view))) && !(await this.act(seat, fallbackAction(view)))) {
           throw new Error(`AI seat ${seat} has no acceptable action in ${phase.kind}`)
         }
         continue
       }
-      return
+      break
     }
+    // An alarm that fired early, or nothing due: make sure the next deadline still has one.
+    await this.armAlarm()
   }
 
   /** AI seats claim a Jodhi they really hold as soon as their team wins a trick. */

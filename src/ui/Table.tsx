@@ -47,7 +47,7 @@ export function Table({ view, room }: { view: View; room: string }) {
   }, [myTurn])
   useEffect(() => setSelected(null), [phase.kind, myTurn])
 
-  const others = view.seats.map((_, seat) => seat).filter((seat) => seat !== me || watching)
+  const others = view.seats.map((_, seat) => seat).filter((seat) => seat !== me)
   const at = (where: string) => others.find((seat) => position(seat, me, view.playerCount) === where)
   const hand = 'hand' in phase ? sortHand(phase.hand) : []
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
@@ -79,6 +79,19 @@ export function Table({ view, room }: { view: View; room: string }) {
         <p className="text-center px-3 min-h-6" aria-live="polite">
           {watching ? 'You are watching this game.' : <Hint view={view} can={can} selected={selected} />}
         </p>
+        {can.reclaimSeat && (
+          <div className="flex items-center justify-center gap-2 px-3 pb-1" role="status">
+            <span>The computer is playing for you.</span>
+            <button className="btn btn-primary btn-small" onClick={() => send({ type: 'reclaimSeat' })}>
+              Take over
+            </button>
+          </div>
+        )}
+        {watching && (
+          <div className="flex justify-center pb-3">
+            <SeatBadge view={view} seat={0} />
+          </div>
+        )}
         {!watching && (
           <>
             <div className="hand">
@@ -265,10 +278,11 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
       )}
       {can.calls.length > 0 && (
         <div className="grid gap-2">
+          <p className="text-center text-sm text-on-surface-muted">Call to choose trump. The other side starts that many points up.</p>
           <div className="flex flex-wrap justify-center gap-2">
-            {can.calls.slice(0, 4).map((amount) => (
+            {can.calls.map((amount) => (
               <button key={amount} className="btn btn-primary btn-small" onClick={() => send({ type: 'call', amount })}>
-                Call {amount}
+                {amount}
               </button>
             ))}
           </div>

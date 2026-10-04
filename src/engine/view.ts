@@ -1,3 +1,4 @@
+import { actingHost } from './lobby'
 import { ballsTarget } from './predicates'
 import type { Seat } from './seats'
 import type { Game, Phase, RoundPlay, ViewPhase, ViewPlaying, View } from './types'
@@ -7,7 +8,8 @@ export function viewFor(game: Game, seat: Seat | null): View {
   return {
     seat,
     seats: game.seats,
-    host: game.host,
+    host: actingHost(game),
+    owner: game.host,
     playerCount: game.playerCount,
     rules: game.rules,
     balls: game.balls,

@@ -1,5 +1,5 @@
 import { hasCard } from './cards'
-import { STALL_MS, availableActions } from './available'
+import { availableActions, replaceableSeats } from './available'
 import { emptySeats, fixHost, lobbyAction } from './lobby'
 import { mayCall } from './predicates'
 import { TRADITIONAL } from './rules'
@@ -217,12 +217,12 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       return null
 
     case 'replaceWithAi': {
-      if (game.host !== seat) return 'notHost'
       if (phase.kind === 'lobby' || phase.kind === 'gameOver') return 'wrongPhase'
       const target = game.seats[action.seat]
       if (!target || target.kind !== 'human' || target.standIn || action.seat === seat) return 'badSeat'
-      const stalled = game.acting?.seat === action.seat && ctx.now - game.acting.since > STALL_MS
-      if (target.connected && !stalled) return 'notAllowed'
+      if (!replaceableSeats(viewFor(game, seat), ctx.now).includes(action.seat)) {
+        return viewFor(game, seat).host === seat ? 'notAllowed' : 'notHost'
+      }
       target.standIn = true
       events.push({ type: 'seatChanged' })
       return null

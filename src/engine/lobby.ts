@@ -13,15 +13,24 @@ export function cleanName(raw: string): string | null {
   return name.length > 0 ? name : null
 }
 
-/** Keeps the host role on a connected human where one exists. */
+/** Gives the host role a new owner only when its seat is no longer a human's. */
 export function fixHost(game: Game): void {
   const isHuman = (s: Seat) => game.seats[s]?.kind === 'human'
-  if (game.host !== null && isHuman(game.host) && game.seats[game.host].connected) return
+  if (game.host !== null && isHuman(game.host)) return
   const from = game.host === null ? 0 : (game.host + 1) % game.playerCount
   const order = seatsFrom(from, game.playerCount)
-  const connected = order.find((s) => isHuman(s) && game.seats[s].connected)
-  if (connected !== undefined) game.host = connected
-  else if (game.host === null || !isHuman(game.host)) game.host = order.find(isHuman) ?? null
+  game.host = order.find((s) => isHuman(s) && game.seats[s].connected) ?? order.find(isHuman) ?? null
+}
+
+/**
+ * Who may use the host's powers right now: the host, or while they are
+ * disconnected the next connected human. The role returns when they do.
+ */
+export function actingHost(game: Pick<Game, 'host' | 'seats' | 'playerCount'>): Seat | null {
+  if (game.host === null) return null
+  const present = (s: Seat) => game.seats[s].kind === 'human' && game.seats[s].connected && !game.seats[s].standIn
+  if (present(game.host)) return game.host
+  return seatsFrom(game.host, game.playerCount).find(present) ?? game.host
 }
 
 type LobbyAction = Extract<
@@ -67,7 +76,7 @@ export function lobbyAction(game: Game, actor: Actor, action: LobbyAction, event
     return null
   }
 
-  if (game.host !== actor) return 'notHost'
+  if (actingHost(game) !== actor) return 'notHost'
 
   switch (action.type) {
     case 'addAi': {
