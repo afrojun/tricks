@@ -16,7 +16,7 @@ export type Memory = 'table' | 'full'
 export function viewFor(game: Game, seat: Seat | null, memory: Memory = 'table'): View {
   return {
     seat,
-    seats: game.seats,
+    seats: game.seats.map((s) => (s.personaHidden && game.phase.kind !== 'gameOver' ? { ...s, persona: null } : s)),
     host: actingHost(game),
     owner: game.host,
     playerCount: game.playerCount,

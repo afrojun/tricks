@@ -16,13 +16,24 @@ export type TrumpChoice = Suit | 'lastCard'
 
 // ── Seats ────────────────────────────────────────────────────────────────
 
+/** How a computer player behaves about cheating and challenging. */
+export const PERSONAS = ['straight', 'sharp', 'sly', 'wild'] as const
+export type Persona = (typeof PERSONAS)[number]
+
 export interface SeatInfo {
   name: string
   kind: 'empty' | 'human' | 'ai'
   connected: boolean
   /** A human seat temporarily played by the AI. */
   standIn: boolean
+  /** Only matters for computer seats; human and empty seats carry 'straight'. */
+  persona: Persona
+  /** Chosen by "Surprise me": kept out of views until the game is over. */
+  personaHidden: boolean
 }
+
+/** A seat as a view shows it: a hidden persona is null. */
+export type ViewSeat = Omit<SeatInfo, 'persona'> & { persona: Persona | null }
 
 // ── Game state ───────────────────────────────────────────────────────────
 
@@ -188,7 +199,7 @@ export type Action =
   | { type: 'sit'; seat: Seat; name: string }
   | { type: 'leaveSeat' }
   | { type: 'rename'; name: string }
-  | { type: 'addAi'; seat: Seat }
+  | { type: 'addAi'; seat: Seat; persona?: Persona | 'surprise' }
   | { type: 'clearSeat'; seat: Seat }
   | { type: 'setRules'; overrides: RuleOverrides }
   | { type: 'setPlayerCount'; playerCount: 2 | 4 }
@@ -325,7 +336,7 @@ export interface ViewPlaying {
 export interface View {
   /** The viewer's seat; null for a spectator. */
   seat: Seat | null
-  seats: SeatInfo[]
+  seats: ViewSeat[]
   /** Who may use the host's powers now: the owner, or a stand-in while they are away. */
   host: Seat | null
   /** The seat the host role belongs to. */

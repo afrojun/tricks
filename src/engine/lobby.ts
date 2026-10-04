@@ -1,11 +1,11 @@
 import { resolveRules } from './rules'
 import { type Seat, allSeats, seatsFrom } from './seats'
-import type { Action, Actor, Game, GameEvent, RejectReason, SeatInfo } from './types'
+import { type Action, type Actor, type Ctx, type Game, type GameEvent, PERSONAS, type RejectReason, type SeatInfo } from './types'
 
 export const MAX_NAME_LENGTH = 16
 const AI_NAMES = ['Bot Asha', 'Bot Bheki', 'Bot Chan', 'Bot Devi']
 
-export const EMPTY_SEAT: SeatInfo = { name: '', kind: 'empty', connected: false, standIn: false }
+export const EMPTY_SEAT: SeatInfo = { name: '', kind: 'empty', connected: false, standIn: false, persona: 'straight', personaHidden: false }
 
 /** Trims, collapses whitespace and caps the length; null if nothing is left. */
 export function cleanName(raw: string): string | null {
@@ -39,7 +39,7 @@ type LobbyAction = Extract<
 >
 
 /** Handles seat and lobby actions except `start`'s deal, which the caller performs. */
-export function lobbyAction(game: Game, actor: Actor, action: LobbyAction, events: GameEvent[]): RejectReason | null {
+export function lobbyAction(game: Game, actor: Actor, action: LobbyAction, ctx: Ctx, events: GameEvent[]): RejectReason | null {
   const inLobby = game.phase.kind === 'lobby'
   const validSeat = (s: Seat) => Number.isInteger(s) && s >= 0 && s < game.playerCount
 
@@ -60,7 +60,7 @@ export function lobbyAction(game: Game, actor: Actor, action: LobbyAction, event
     if (game.seats[action.seat].kind !== 'empty') return 'seatTaken'
     const name = cleanName(action.name)
     if (name === null) return 'badName'
-    game.seats[action.seat] = { name, kind: 'human', connected: true, standIn: false }
+    game.seats[action.seat] = { ...EMPTY_SEAT, name, kind: 'human', connected: true }
     fixHost(game)
     events.push({ type: 'seatChanged' })
     return null
@@ -84,7 +84,9 @@ export function lobbyAction(game: Game, actor: Actor, action: LobbyAction, event
       if (game.seats[action.seat].kind !== 'empty') return 'seatTaken'
       const used = new Set(game.seats.map((s) => s.name))
       const name = AI_NAMES.find((n) => !used.has(n)) ?? `Bot ${action.seat + 1}`
-      game.seats[action.seat] = { name, kind: 'ai', connected: true, standIn: false }
+      const surprise = action.persona === 'surprise'
+      const persona = action.persona === 'surprise' ? PERSONAS[Math.floor(ctx.rng() * PERSONAS.length)] : (action.persona ?? 'straight')
+      game.seats[action.seat] = { name, kind: 'ai', connected: true, standIn: false, persona, personaHidden: surprise }
       break
     }
     case 'clearSeat': {

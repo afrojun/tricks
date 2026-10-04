@@ -25,4 +25,11 @@ describe('wire schemas', () => {
     expect(ruleOverridesSchema.safeParse({ ballsToWin: 0 }).success).toBe(false)
     expect(ruleOverridesSchema.safeParse({ khanaak: 'loose' }).success).toBe(false)
   })
+
+  test('a computer may be added with a persona, a surprise, or neither', () => {
+    expect(actionSchema.safeParse({ type: 'addAi', seat: 1 }).success).toBe(true)
+    expect(actionSchema.safeParse({ type: 'addAi', seat: 1, persona: 'wild' }).success).toBe(true)
+    expect(actionSchema.safeParse({ type: 'addAi', seat: 1, persona: 'surprise' }).success).toBe(true)
+    expect(actionSchema.safeParse({ type: 'addAi', seat: 1, persona: 'evil' }).success).toBe(false)
+  })
 })

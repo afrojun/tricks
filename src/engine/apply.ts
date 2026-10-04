@@ -111,7 +111,7 @@ function dispatch(game: Game, actor: Actor, action: Action, ctx: Ctx, events: Ga
     case 'setRules':
     case 'setPlayerCount':
     case 'start': {
-      const rejected = lobbyAction(game, actor, action, events)
+      const rejected = lobbyAction(game, actor, action, ctx, events)
       if (rejected !== null) return rejected
       if (action.type === 'start') {
         game.balls = [0, 0]

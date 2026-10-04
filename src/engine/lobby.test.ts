@@ -3,7 +3,7 @@ import { apply, createGame } from './apply'
 import { canStart } from './available'
 import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL } from './rules'
 import { Table, deepFreeze, seededRng } from './testing'
-import type { Action, Actor, Game } from './types'
+import { type Action, type Actor, type Game, PERSONAS, type RoundSummary } from './types'
 import { viewFor } from './view'
 
 const ctx = { now: 0, rng: seededRng(1) }
@@ -109,5 +109,27 @@ describe('lobby', () => {
     const game = deepFreeze(new Table().game)
     expect(() => apply(game, 0, { type: 'start' }, ctx)).not.toThrow()
     expect(game.phase.kind).toBe('lobby')
+  })
+})
+
+describe('computer personas', () => {
+  const hosted = () => run(createGame(), null, { type: 'sit', seat: 0, name: 'Host' })
+
+  test('a computer is Straight unless the host picks another persona', () => {
+    let game = run(hosted(), 0, { type: 'addAi', seat: 1 })
+    game = run(game, 0, { type: 'addAi', seat: 2, persona: 'sly' })
+    expect(game.seats[1]).toMatchObject({ kind: 'ai', persona: 'straight', personaHidden: false })
+    expect(game.seats[2]).toMatchObject({ kind: 'ai', persona: 'sly', personaHidden: false })
+    expect(game.seats[0]).toMatchObject({ kind: 'human', persona: 'straight', personaHidden: false })
+    expect(viewFor(game, 0).seats[2].persona).toBe('sly')
+  })
+
+  test('a surprise persona is drawn at random and hidden from every view until the game is over', () => {
+    const game = run(hosted(), 0, { type: 'addAi', seat: 1, persona: 'surprise' })
+    expect(PERSONAS).toContain(game.seats[1].persona)
+    expect(game.seats[1].personaHidden).toBe(true)
+    for (const seat of [0, 1, null]) expect(viewFor(game, seat).seats[1].persona).toBeNull()
+    const over: Game = { ...game, phase: { kind: 'gameOver', winner: 0, summary: {} as RoundSummary } }
+    expect(viewFor(over, 0).seats[1].persona).toBe(game.seats[1].persona)
   })
 })

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { CALL_AMOUNTS } from './rules'
 import type { RuleOverrides } from './rules'
-import type { Action } from './types'
+import { type Action, PERSONAS } from './types'
 
 const suit = z.enum(['hearts', 'diamonds', 'clubs', 'spades'])
 const rank = z.enum(['J', '9', 'A', '10', 'K', 'Q'])
@@ -40,7 +40,7 @@ export const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('sit'), seat, name: z.string().max(200) }),
   z.object({ type: z.literal('leaveSeat') }),
   z.object({ type: z.literal('rename'), name: z.string().max(200) }),
-  z.object({ type: z.literal('addAi'), seat }),
+  z.object({ type: z.literal('addAi'), seat, persona: z.enum([...PERSONAS, 'surprise']).optional() }),
   z.object({ type: z.literal('clearSeat'), seat }),
   z.object({ type: z.literal('setRules'), overrides: ruleOverridesSchema }),
   z.object({ type: z.literal('setPlayerCount'), playerCount: z.union([z.literal(2), z.literal(4)]) }),
