@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { type Persona, viewFor } from '../engine'
 import { Table } from '../engine/testing'
-import { chooseChallenge, findProofs, noticeOdds } from './suspicion'
+import { chooseChallenge, findProofs, findSignals, noticeOdds } from './suspicion'
 
 // Dealer 0: seat 1 is trumper (spades), seat 2 leads. Teams: 0+2 count, 1+3 trump.
 // Seat 1 holds one club (Qc); seat 0 holds Qd.
@@ -150,3 +150,35 @@ describe('proofs', () => {
     })
   })
 })
+
+describe('hunches', () => {
+  /** Seat 1 legally trumps a 43-point heart trick. */
+  const trumped = () => start().play('Ah Qh 9h 10s')
+
+  test('winning a big trick off-suit, a big Jodhi and an unlikely void are signals', () => {
+    expect(findSignals(viewFor(trumped().game, 2, 'full'))).toEqual([{ id: 'cut:0', accused: 1, claim: null, at: 0 }])
+    // Seat 2 can place three of the six diamonds (Kd, Qd, Jd) by trick 1, so seat 1's void there is no surprise.
+    const ids = findSignals(viewFor(patient().game, 2, 'full')).map((s) => s.id)
+    expect(ids).toEqual(['cut:1'])
+  })
+
+  test('Wild sometimes accuses on one signal, more often when behind; Sharp and Straight do not', () => {
+    const t = trumped()
+    const wild = rate(t, 2, 'wild')
+    // 0.12 chance × mood 1.5 (behind 0–43 on points) = 0.18
+    expect(wild).toBeGreaterThan(0.14)
+    expect(wild).toBeLessThan(0.22)
+    expect(chooseChallengeFor(t, 2, 'wild')).toEqual({ type: 'challengePlay', seat: 1 })
+    expect(rate(t, 2, 'sharp')).toBe(0)
+    expect(rate(t, 2, 'straight')).toBe(0)
+  })
+})
+
+/** The first challenge Wild makes across salts, for checking its shape. */
+function chooseChallengeFor(t: Table, seat: number, persona: Persona) {
+  for (let salt = 1; salt <= 2000; salt++) {
+    const action = chooseChallenge(viewFor(t.game, seat, 'full'), { persona, salt })
+    if (action) return action
+  }
+  return null
+}

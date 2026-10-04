@@ -3,6 +3,7 @@ import {
   type Action,
   type Card,
   type Seat,
+  type Suit,
   type View,
   type ViewPlaying,
   availableActions,
@@ -13,7 +14,7 @@ import {
   teamOf,
 } from '../engine'
 import { type Mind, TRAITS, roll } from './mind'
-import { type TrickRecord, history } from './read'
+import { type TrickRecord, history, mood } from './read'
 
 /** A certain sign of cheating: a renege or undercut shown up by a later card, or an impossible Jodhi. */
 export interface Proof {
@@ -103,6 +104,63 @@ function playProof(id: string, accused: Seat, cheat: TrickRecord, reveal: Reveal
   return { id, accused, claim: null, gap: reveal.trick.index - cheat.index - 1, salience }
 }
 
+/** Something that looks like cheating but proves nothing. */
+export interface Signal {
+  id: string
+  accused: Seat
+  claim: number | null
+  /** When it happened, in tricks; a claim sits between the tricks around it. */
+  at: number
+}
+
+export function findSignals(view: View): Signal[] {
+  const phase = inPlay(view)
+  const me = view.seat
+  if (phase === null || me === null) return []
+  const opponent = (s: Seat) => teamOf(s) !== teamOf(me)
+  const tricks = history(phase)
+  const out: Signal[] = []
+  for (const t of tricks) {
+    const led = t.plays[0].card.suit
+    t.plays.forEach((p, i) => {
+      if (i === 0 || !opponent(p.seat) || p.card.suit === led) return
+      if (t.winner === p.seat && pointsOf(t.plays.map((q) => q.card)) >= 30) out.push({ id: `cut:${t.index}`, accused: p.seat, claim: null, at: t.index })
+      if (unplaced(phase, tricks, me, led, t.index) >= 4) out.push({ id: `void:${t.index}:${p.seat}`, accused: p.seat, claim: null, at: t.index })
+    })
+  }
+  phase.jodhiClaims.forEach((c, index) => {
+    if (opponent(c.seat) && c.points >= 40) out.push({ id: `claim:${index}`, accused: c.seat, claim: index, at: c.trick - 0.5 })
+  })
+  return out
+}
+
+/** Cards of `suit` the observer could not place by the end of trick `upTo`. */
+function unplaced(phase: ViewPlaying, tricks: TrickRecord[], me: Seat, suit: Suit, upTo: number): number {
+  const known = new Set<string>()
+  for (const c of phase.hand) if (c.suit === suit) known.add(cardId(c))
+  for (const t of tricks) {
+    for (const p of t.plays) if (p.card.suit === suit && (p.seat === me || t.index <= upTo)) known.add(cardId(p.card))
+  }
+  return 6 - known.size
+}
+
+/** A hunch gets one look per new signal, once a seat has drawn enough of them. */
+function hunch(view: View, mind: Mind, accuse: (accused: Seat, claim: number | null) => Action | null): Action | null {
+  const traits = TRAITS[mind.persona]
+  if (traits.hunchAt === null || view.seat === null) return null
+  const chance = traits.hunchChance * (traits.moody ? mood(view) : 1)
+  const bySeat = new Map<Seat, Signal[]>()
+  for (const s of findSignals(view)) bySeat.set(s.accused, [...(bySeat.get(s.accused) ?? []), s])
+  for (const [seat, signals] of bySeat) {
+    if (signals.length < traits.hunchAt) continue
+    const latest = signals.reduce((a, b) => (b.at > a.at ? b : a))
+    if (roll(mind.salt, view.seat, `hunch:${latest.id}`) >= chance) continue
+    const action = accuse(seat, latest.claim)
+    if (action) return action
+  }
+  return null
+}
+
 /**
  * The challenge this computer makes now, if any. Each proof gets one look:
  * the roll for it never changes, so a proof missed once stays missed.
@@ -121,5 +179,5 @@ export function chooseChallenge(view: View, mind: Mind): Action | null {
     const action = accuse(proof.accused, proof.claim)
     if (action) return action
   }
-  return null
+  return hunch(view, mind, accuse)
 }
