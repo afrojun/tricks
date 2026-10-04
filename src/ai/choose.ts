@@ -135,14 +135,16 @@ export function chooseJodhi(view: View, mind: Mind): Action | null {
     if (holdsJodhi(cards, suit, false)) return { type: 'claimJodhi', suit, withJack: holdsJodhi(cards, suit, true) }
   }
 
-  // A bluff needs one of the pair in hand and the other not yet seen.
+  // A bluff needs one of the pair in hand. Sly also needs the other unseen and bluffs once a round;
+  // Wild ignores the risk.
   const { cheats } = TRAITS[mind.persona]
   if (cheats === 'never') return null
-  if (cheats === 'careful' && phase.jodhiClaims.some((j) => j.seat === me)) return null
+  const careful = cheats === 'careful'
+  if (careful && phase.jodhiClaims.some((j) => j.seat === me)) return null
   const played = history(phase).flatMap((t) => t.plays.map((p) => p.card))
   for (const suit of open) {
     const pair = (c: Card) => c.suit === suit && (c.rank === 'K' || c.rank === 'Q')
-    if (phase.hand.filter(pair).length !== 1 || played.some(pair)) continue
+    if (phase.hand.filter(pair).length !== 1 || (careful && played.some(pair))) continue
     if (roll(mind.salt, me, `bluff:${phase.tricks.length}:${suit}`) < BLUFF_CHANCE) return { type: 'claimJodhi', suit, withJack: false }
   }
   return null

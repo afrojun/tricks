@@ -65,6 +65,25 @@ describe('false Jodhis', () => {
     expect(bluffs(won(), 'sharp')).toBe(0)
   })
 
+  test('Wild bluffs a Jodhi whose other card has been seen; Sly never does', () => {
+    // Seat 1 trumps a heart trick in which seat 0, void in hearts, throws the Qd; seat 1 holds Kd and Qc.
+    const SEEN = ['Ks Qs 10c Qd Jd 9d', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jh 9h Kh Qh Ad 10d']
+    const t = start(SEEN).play('Ah Qh Qd 10s')
+    const phase = t.game.phase
+    if (phase.kind !== 'trickPause') throw new Error(phase.kind)
+    expect(phase.play.tricks[0].plays.every((p) => p.legal)).toBe(true)
+    const diamonds = (persona: Persona) => {
+      let count = 0
+      for (let salt = 1; salt <= 400; salt++) {
+        const claim = chooseJodhi(viewFor(t.game, 1, 'full'), { persona, salt })
+        if (claim?.type === 'claimJodhi' && claim.suit === 'diamonds') count++
+      }
+      return count
+    }
+    expect(diamonds('wild')).toBeGreaterThan(0)
+    expect(diamonds('sly')).toBe(0)
+  })
+
   test('Sly bluffs at most once a round', () => {
     const t = won()
     let salt = 1
