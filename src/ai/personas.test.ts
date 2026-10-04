@@ -47,7 +47,7 @@ function playGame(personas: Persona[], seed: number) {
         const claim = chooseJodhi(viewFor(t.game, s, 'full'), mind(s))
         if (claim) act(s, claim)
       }
-      if (t.game.phase.kind === 'roundResult' || t.game.phase.kind === 'gameOver') continue // a claim was challenged
+      if (!inPlay()) continue // a claim was challenged
       t.now = nextDeadline(t.game)!
       t.do('system', { type: 'tick' })
       continue
