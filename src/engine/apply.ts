@@ -21,6 +21,7 @@ export function createGame(): Game {
     lastRoundWinner: null,
     roundNumber: 0,
     aiActAt: null,
+    aiSalt: 0,
     acting: null,
     phase: { kind: 'lobby' },
   }

@@ -2,7 +2,7 @@ import type { Card, Suit } from './cards'
 import type { RuleOverrides, RuleSet } from './rules'
 import type { Seat, Team } from './seats'
 
-export const FORMAT_VERSION = 1
+export const FORMAT_VERSION = 2
 
 /** Who is acting: a seated player, an unseated connection, or the server. */
 export type Actor = Seat | null | 'system'
@@ -50,6 +50,8 @@ export interface Game {
   roundNumber: number
   /** When the next AI-controlled seat should act, if any needs to. */
   aiActAt: number | null
+  /** Hidden: seeds the computer players' chance rolls for this round. Never in a view. */
+  aiSalt: number
   /** The single seat the game is waiting on, and since when. */
   acting: { seat: Seat; since: number } | null
   phase: Phase
@@ -136,6 +138,8 @@ export interface JodhiClaim {
   suit: Suit
   withJack: boolean
   points: number
+  /** Tricks completed when the claim was made. */
+  trick: number
   /** Hidden: whether the claimant really held the cards. */
   valid: boolean
 }
@@ -280,6 +284,8 @@ export interface ViewJodhi {
   suit: Suit
   withJack: boolean
   points: number
+  /** Tricks completed when the claim was made. */
+  trick: number
 }
 
 export type ViewPhase =

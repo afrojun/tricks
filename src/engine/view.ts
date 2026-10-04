@@ -106,7 +106,7 @@ function viewPlay(
     })),
     current: play.current.map((p) => ({ seat: p.seat, card: p.card })),
     turn,
-    jodhiClaims: play.jodhiClaims.map((j) => ({ seat: j.seat, suit: j.suit, withJack: j.withJack, points: j.points })),
+    jodhiClaims: play.jodhiClaims.map((j) => ({ seat: j.seat, suit: j.suit, withJack: j.withJack, points: j.points, trick: j.trick })),
     jodhiOpenFor: play.jodhiOpenFor,
     double: play.double,
     khanaak: play.khanaak,

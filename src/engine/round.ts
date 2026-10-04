@@ -37,6 +37,7 @@ export function beginRound(game: Game, ctx: Ctx, events: GameEvent[]): void {
   const stock = shuffle(createDeck(), ctx.rng)
   const hands: Card[][] = allSeats(game.playerCount).map(() => [])
   dealTo(hands, stock, 4, game)
+  game.aiSalt = Math.floor(ctx.rng() * 2 ** 32)
   game.phase = {
     kind: 'calling',
     hands,
@@ -265,6 +266,7 @@ export function claimJodhi(game: Game, play: RoundPlay, seat: Seat, action: Roun
   const points = jodhiPoints(action.suit, action.withJack, play.trump)
   play.jodhiClaims.push({
     seat,
+    trick: play.tricks.length,
     suit: action.suit,
     withJack: action.withJack,
     points,
