@@ -1,4 +1,4 @@
-import { Component, type ReactNode, useEffect, useState } from 'react'
+import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import type { Seat, Team, View } from '../engine'
 import type { NumberedEvent } from '../protocol'
 import { Lobby } from './Lobby'
@@ -7,6 +7,9 @@ import { BALL_STAGGER_MS, type BallBurst, Table } from './Table'
 import { SessionProvider, navigate, useClient, useSession } from './session'
 import { playSound } from './sound'
 import { SUIT_NAME, rejectionText, seatName } from './text'
+
+const CHALLENGE_BEAT_MS = 1000
+const VERDICT_BEAT_MS = 1300
 
 interface Presentation {
   toast?: string
@@ -56,7 +59,7 @@ function present(event: NumberedEvent, view: View, seat: Seat | null): Presentat
     case 'challengeResolved':
       playSound('challenge')
       return {
-        moments: [{ title: 'Challenge', detail: `${name(event.challenger)} ${verb(event.challenger, 'challenge', 'challenges')} ${seatName(view, event.accused)}`, tone: 'danger', ms: 1000 }],
+        moments: [{ title: 'Challenge', detail: `${name(event.challenger)} ${verb(event.challenger, 'challenge', 'challenges')} ${seatName(view, event.accused)}`, tone: 'danger', ms: CHALLENGE_BEAT_MS }],
       }
     case 'roundScored': {
       const c = event.summary.challenge
@@ -66,8 +69,8 @@ function present(event: NumberedEvent, view: View, seat: Seat | null): Presentat
       return {
         moments: [
           c.guilty
-            ? { title: 'Caught', detail: `${accused} ${c.kind === 'play' ? 'did not follow suit' : 'called a false Jodhi'}`, tone: 'danger', ms: 1300, card: c.card }
-            : { title: 'Fair play', detail: `${accused} ${what}`, tone: 'good', ms: 1300, card: c.card },
+            ? { title: 'Caught', detail: `${accused} ${c.kind === 'play' ? 'did not follow suit' : 'called a false Jodhi'}`, tone: 'danger', ms: VERDICT_BEAT_MS, card: c.card }
+            : { title: 'Fair play', detail: `${accused} ${what}`, tone: 'good', ms: VERDICT_BEAT_MS, card: c.card },
         ],
       }
     }
@@ -88,6 +91,14 @@ function Screen({ room }: { room: string }) {
   const moments = useMoments()
   const pushMoment = moments.push
 
+  // Delayed presentation steps, all cancelled if the screen goes away.
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const later = useCallback((run: () => void, ms: number) => {
+    if (ms <= 0) return run()
+    timers.current.push(setTimeout(run, ms))
+  }, [])
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+
   useEffect(
     () =>
       store.onEvent((event, view, seat) => {
@@ -95,14 +106,16 @@ function Screen({ room }: { room: string }) {
         if (shown.toast) setToast({ text: shown.toast, id: event.n })
         shown.moments?.forEach(pushMoment)
         if (event.type === 'roundScored') {
-          const { winner, balls, ballsAfter } = event.summary
-          setBurst({ team: winner, from: ballsAfter[winner] - balls, count: balls, id: event.n })
-          for (let i = 0; i < balls; i++) setTimeout(() => playSound('pip'), i * BALL_STAGGER_MS)
+          const { winner, balls, ballsAfter, challenge } = event.summary
+          // After a challenge, the balls wait for the verdict.
+          const wait = challenge ? CHALLENGE_BEAT_MS + VERDICT_BEAT_MS / 2 : 0
+          later(() => setBurst({ team: winner, from: ballsAfter[winner] - balls, count: balls, id: event.n }), wait)
+          for (let i = 0; i < balls; i++) later(() => playSound('pip'), wait + i * BALL_STAGGER_MS)
         }
         if (event.type === 'dealt') setBurst(null)
         if (event.type === 'gameOver') setCelebrate({ team: event.winner, id: event.n })
       }),
-    [store, pushMoment],
+    [store, pushMoment, later],
   )
   useEffect(() => {
     if (!celebrate) return

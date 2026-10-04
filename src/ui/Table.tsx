@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   type Available,
   type Seat,
@@ -304,9 +304,12 @@ function Centre({ view, can }: { view: View; can: Available }) {
 function Timer({ deadline, totalSeconds }: { deadline: number; totalSeconds: number }) {
   const { store } = useSession()
   const seconds = useCountdown(deadline)
-  // The bar runs on its own clock from where the countdown stands when it is first drawn.
-  const remaining = Math.max(0, deadline - store.serverNow(Date.now()))
-  const fraction = Math.min(1, remaining / (totalSeconds * 1000))
+  // The bar runs on its own clock from where the countdown stood when this deadline was first drawn.
+  // Frozen per deadline: changing a running animation's duration would make it race ahead.
+  const { remaining, fraction } = useMemo(() => {
+    const left = Math.max(0, deadline - store.serverNow(Date.now()))
+    return { remaining: left, fraction: Math.min(1, left / (totalSeconds * 1000)) }
+  }, [deadline, totalSeconds, store])
   return (
     <div className="grid gap-1">
       <p className={`display text-3xl text-center ${seconds <= 3 ? 'text-danger' : ''}`} aria-label={`${seconds} seconds left`}>

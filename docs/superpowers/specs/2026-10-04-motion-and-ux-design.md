@@ -1,7 +1,7 @@
 # Motion and UX Pass — Design
 
 Date: 2026-10-04
-Status: approved in conversation; review of this document waived by the user
+Status: implemented on `motion`
 Branch: `motion`
 
 ## Purpose
@@ -77,3 +77,11 @@ One overlay, fed by events, showing one moment at a time.
 - Existing unit, server and simulation tests unchanged and passing.
 - `scripts/e2e.ts` and `scripts/e2e-two.ts` updated for the new controls and passing in all three themes.
 - A recorded play-through per theme at 390x844, and one run with reduced motion emulated.
+
+## Changes made during the build
+
+- **Own actions.** When the player sends an action the queue shows everything waiting and stops holding, so the result of their own move is not kept back by an earlier dwell.
+- **Reset.** The queue is also cleared when the socket closes or goes offline, not only when it reopens.
+- **Challenge.** The balls and their sounds wait for the verdict beat, and the table is veiled while a moment is showing.
+- **Taps.** A drag of under 12 pixels counts as a tap.
+- **Not done.** The first deal of a game appears without the deal animation, because the table is first drawn at that moment; later rounds and rematches animate.

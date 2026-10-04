@@ -29,7 +29,10 @@ export function openSession(room: string): Session {
     }
   })
   const socket = new PartySocket({ host: HOST, room, query: { [TOKEN_PARAM]: deviceToken() } })
-  const send = (action: Action) => socket.send(JSON.stringify({ action }))
+  const send = (action: Action) => {
+    playback.release()
+    socket.send(JSON.stringify({ action }))
+  }
   let everOpened = false
   let justOpened = false
 
@@ -39,7 +42,10 @@ export function openSession(room: string): Session {
     playback.reset()
     store.setConnection('open')
   })
-  socket.addEventListener('close', () => store.setConnection(everOpened ? 'reconnecting' : 'connecting'))
+  socket.addEventListener('close', () => {
+    playback.reset() // nothing from the old connection may arrive after the store starts waiting for a fresh view
+    store.setConnection(everOpened ? 'reconnecting' : 'connecting')
+  })
   // A phone that sleeps or changes network can leave a socket that looks open
   // but is dead. Ping the room and reconnect if it goes quiet.
   // Counting unanswered pings, not elapsed time, keeps a throttled background tab from reconnecting.
@@ -48,6 +54,7 @@ export function openSession(room: string): Session {
     if (socket.readyState !== WebSocket.OPEN) return
     if (unanswered >= MAX_UNANSWERED_PINGS) {
       unanswered = 0
+      playback.reset()
       store.setConnection('reconnecting')
       socket.reconnect()
       return
@@ -56,6 +63,7 @@ export function openSession(room: string): Session {
     socket.send(PING)
   }, PING_EVERY_MS)
   const onOffline = () => {
+    playback.reset()
     store.setConnection('reconnecting')
     socket.close()
   }

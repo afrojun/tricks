@@ -20,13 +20,17 @@ interface HandProps {
 }
 
 const DRAG_TO_PLAY_PX = 70
+const TAP_SLOP_PX = 12
 
 export function Hand({ cards, playable, legal, dealFrom, onPlay }: HandProps) {
   // An illegal card needs a second, explicit confirmation.
   const [pending, setPending] = useState<Card | null>(null)
   const [shake, setShake] = useState(0)
   const dragged = useRef(false)
-  useEffect(() => setPending(null), [playable, cards.length])
+  useEffect(() => {
+    setPending(null)
+    dragged.current = false // a drag cut short by the turn ending must not block later taps
+  }, [playable, cards.length])
 
   const attempt = (card: Card) => {
     if (!playable) return
@@ -43,7 +47,7 @@ export function Hand({ cards, playable, legal, dealFrom, onPlay }: HandProps) {
   const overlap = cards.length >= 6 ? -0.16 : cards.length === 5 ? -0.1 : -0.04
 
   return (
-    <div className="hand" style={{ '--overlap': overlap } as React.CSSProperties} onClick={() => setPending(null)}>
+    <div className="hand" style={{ '--overlap': overlap } as React.CSSProperties} onClick={() => !dragged.current && setPending(null)}>
       <AnimatePresence initial={false}>
         {cards.map((card, i) => {
           const isLegal = legal.some((c) => sameCard(c, card))
@@ -68,7 +72,9 @@ export function Hand({ cards, playable, legal, dealFrom, onPlay }: HandProps) {
               dragSnapToOrigin
               onDragStart={() => (dragged.current = true)}
               onDragEnd={(_, info) => {
-                if (info.offset.y < -DRAG_TO_PLAY_PX) attempt(card)
+                const moved = Math.hypot(info.offset.x, info.offset.y)
+                // A finger rarely lands perfectly still: a tiny drag is a tap.
+                if (info.offset.y < -DRAG_TO_PLAY_PX || moved < TAP_SLOP_PX) attempt(card)
                 // The click that ends a drag must not count as a tap.
                 setTimeout(() => (dragged.current = false), 0)
               }}

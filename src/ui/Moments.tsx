@@ -27,7 +27,7 @@ export function useMoments() {
 
 export function MomentOverlay({ moment }: { moment: (Moment & { id: number }) | null }) {
   return (
-    <div className="moment-layer" aria-live="assertive">
+    <div className="moment-layer" data-active={moment !== null} aria-live="assertive">
       <AnimatePresence mode="wait">
         {moment && (
           <motion.div

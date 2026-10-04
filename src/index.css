@@ -494,6 +494,13 @@ button:disabled {
   place-items: center;
   pointer-events: none;
 }
+.moment-layer {
+  transition: background-color 150ms;
+}
+/* While a moment plays, what is underneath (such as a result it leads up to) is veiled. */
+.moment-layer[data-active='true'] {
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+}
 .moment {
   display: flex;
   align-items: center;

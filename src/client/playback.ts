@@ -62,6 +62,16 @@ export class Playback {
     this.drain()
   }
 
+  /**
+   * Show anything waiting now and stop holding. Called when the player acts,
+   * so the result of their own action is never kept back by an earlier dwell.
+   */
+  release(): void {
+    this.heldUntil = 0
+    this.drain()
+    this.heldUntil = 0
+  }
+
   /** Forget everything in flight, for a fresh connection. */
   reset(): void {
     this.waiting = []

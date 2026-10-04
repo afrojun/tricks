@@ -111,6 +111,20 @@ describe('playback', () => {
     expect(h.versions()).toEqual([1, MAX_WAITING + 2])
   })
 
+  test('release shows everything waiting at once, so the reply to the player’s own action is not held', () => {
+    const h = harness()
+    h.playback.push(sync(1, thunee)) // would hold for 1800
+    h.advance(100)
+    h.playback.release() // the player acts
+    h.playback.push(sync(2, played)) // the server's reply
+    expect(h.delivered.map((d) => d.at)).toEqual([1000, 1100])
+    h.playback.push(sync(3, played)) // the next player's move is paced again
+    h.advance(449)
+    expect(h.versions()).toEqual([1, 2])
+    h.advance(1)
+    expect(h.versions()).toEqual([1, 2, 3])
+  })
+
   test('reset drops what is waiting and delivers the next message at once', () => {
     const h = harness()
     h.playback.push(sync(1, thunee))

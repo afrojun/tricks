@@ -9,7 +9,7 @@ pnpm party          # PartyKit game server (localhost:1999)
 pnpm check          # type check
 pnpm test           # unit, server and simulation tests (Vitest)
 pnpm test:soak      # 400 simulated games per configuration
-pnpm e2e            # browser games (needs dev + party running, and Chromium)
+pnpm e2e            # browser games and hand controls (needs dev + party running, and Chromium)
 pnpm e2e:sockets    # a full game over real sockets (needs party running)
 pnpm build          # production build
 pnpm party:deploy   # deploy PartyKit to production
@@ -53,6 +53,7 @@ Dependency direction: `ui -> client -> engine`; `party -> engine, ai`; `ai -> en
 - **Shared validation.** `apply` checks round actions against `availableActions(viewFor(game, seat))`, the same function the UI uses to decide what to show. Add a new action there first.
 - **Views hide information.** Clients only receive `viewFor(game, seat)`. Never send `Game`. Other hands, the stock, `handBefore`, `legal`, Jodhi `valid`, tokens, and unrevealed trump must not appear in a view; the simulation test checks this.
 - **Identity is a secret token, not a connection.** The browser's token maps to a seat on the server. Clients only see seat numbers.
+- **Paced playback.** `src/client/playback.ts` holds each server message on screen for a dwell set by its events, and skips ahead when a backlog builds. Sending an action releases the hold. A new event type that should be seen needs a dwell there.
 - **Events, not diffs.** Sounds, toasts and celebrations are driven by numbered events from the server (`store.onEvent`), never by comparing one view with the last.
 - **Rules are data.** Every variant is a field of `RuleSet` (`src/engine/rules.ts`), frozen into the game at start. Traditional is the default; a preset stores only its differences. A new rule needs: the field and its Traditional value, the engine branch, a line in `src/presets/describe.ts`, a line in `ruleOverridesSchema`, and tests under each value.
 - **Themes are tokens.** Components use token-backed classes (`bg-surface`, `text-accent`, `.btn`, `.panel`) and never fixed colours or font families. A new theme is a block in `src/themes/tokens.css` plus an entry in `src/themes/index.ts`.
