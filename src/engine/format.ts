@@ -17,7 +17,11 @@ export function upgradeGame(stored: unknown, salt: number): Game | null {
   game.aiSalt = salt
   const phase = game.phase
   if (phase.kind === 'playing' || phase.kind === 'trickPause') {
-    for (const claim of phase.play.jodhiClaims) claim.trick ??= phase.play.tricks.length
+    // When a legacy claim was made is unknown. 0 is the most conservative guess: the
+    // checks for a card the claimant played before claiming, or in an earlier half, can
+    // never fire, so an honest claim is never disproved; a claimed card in the observer's
+    // own hand or played by another seat still proves it, and gaps only grow (less noticed).
+    for (const claim of phase.play.jodhiClaims) claim.trick ??= 0
   }
   game.formatVersion = FORMAT_VERSION
   return game

@@ -46,7 +46,7 @@ describe('saved state for computer players', () => {
     expect(game.aiSalt).toBe(77)
     expect(game.seats.every((s) => s.persona === 'straight' && !s.personaHidden)).toBe(true)
     if (game.phase.kind !== 'trickPause') throw new Error(game.phase.kind)
-    expect(game.phase.play.jodhiClaims[0].trick).toBe(1)
+    expect(game.phase.play.jodhiClaims[0].trick).toBe(0) // unknown, so the most conservative value
     expect(() => checkInvariants(game)).not.toThrow()
 
     expect(upgradeGame({ ...old, formatVersion: 0 }, 1)).toBeNull()
