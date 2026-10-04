@@ -49,7 +49,7 @@ notice = attention × memory × salience     (capped at 1)
 ```
 
 - **attention** — from the persona: Sharp 0.95, Straight and Sly 0.6, Wild 0.35.
-- **memory** — `0.5 ^ (gap / 2)`, where `gap` is the number of completed tricks between the cheat and the reveal. Same or next trick ≈ 1; trick 1 to trick 6 ≈ 0.18. For a false Jodhi, `gap` counts from the claim to the contradicting card; a card in the computer's own hand at the moment of the claim has gap 0.
+- **memory** — `0.5 ^ (gap / 2)`, where `gap` is the number of tricks strictly between the cheat and the reveal. Revealed on the next trick: 1; cheat on trick 1, revealed on trick 6: 0.25. For a false Jodhi, `gap` counts the tricks from the claim to the contradicting card; a card in the computer's own hand, or played before the claim, has gap 0.
 - **salience** — starts at 1 and is multiplied up for each that applies: the cheater won the reneged trick (×1.3); that trick carried 30 or more points (×1.3); the revealing card is a J or 9 (×1.2); the computer's team led the reneged suit (×1.2). A false Jodhi contradicted by the computer's own hand gets ×1.5.
 
 The roll is `hash(aiSalt, observer, proofId)` mapped to [0, 1). Because it is a pure function of saved state, re-evaluating the same proof gives the same answer, a server restart cannot grant a second look, and nothing about it lives in server memory.
