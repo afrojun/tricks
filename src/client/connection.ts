@@ -2,6 +2,7 @@ import PartySocket from 'partysocket'
 import type { Action } from '../engine'
 import { PING, PONG, type ServerMessage, TOKEN_PARAM } from '../protocol'
 import { deviceToken } from './identity'
+import { Playback } from './playback'
 import { GameStore } from './store'
 
 // Production names the PartyKit host; in development Vite proxies /parties on the page's own origin.
@@ -19,6 +20,14 @@ export interface Session {
 /** Opens a socket to a room and feeds everything it receives into a store. */
 export function openSession(room: string): Session {
   const store = new GameStore()
+  const playback = new Playback((message, receivedAt) => {
+    store.receive(message, receivedAt)
+    // Coming back to a seat the AI was minding: take it back straight away.
+    if (justOpened && message.type === 'sync') {
+      justOpened = false
+      if (message.seat !== null && message.view.seats[message.seat].standIn) send({ type: 'reclaimSeat' })
+    }
+  })
   const socket = new PartySocket({ host: HOST, room, query: { [TOKEN_PARAM]: deviceToken() } })
   const send = (action: Action) => socket.send(JSON.stringify({ action }))
   let everOpened = false
@@ -27,6 +36,7 @@ export function openSession(room: string): Session {
   socket.addEventListener('open', () => {
     everOpened = true
     justOpened = true
+    playback.reset()
     store.setConnection('open')
   })
   socket.addEventListener('close', () => store.setConnection(everOpened ? 'reconnecting' : 'connecting'))
@@ -62,16 +72,12 @@ export function openSession(room: string): Session {
     } catch {
       return
     }
-    store.receive(message, Date.now())
-    // Coming back to a seat the AI was minding: take it back straight away.
-    if (justOpened && message.type === 'sync') {
-      justOpened = false
-      if (message.seat !== null && message.view.seats[message.seat].standIn) send({ type: 'reclaimSeat' })
-    }
+    playback.push(message)
   })
 
   const close = () => {
     clearInterval(heartbeat)
+    playback.reset()
     removeEventListener('offline', onOffline)
     removeEventListener('online', onOnline)
     socket.close()

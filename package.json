@@ -17,6 +17,7 @@
     "e2e:sockets": "tsx scripts/play.ts"
   },
   "dependencies": {
+    "motion": "^14.0.0",
     "partysocket": "^1.3.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
