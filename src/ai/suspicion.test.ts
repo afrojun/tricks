@@ -253,9 +253,22 @@ describe('hunch details', () => {
     // Seat 2 leads its only diamond; seat 3 shows a void; seat 1 follows. Seat 2 can place two of six diamonds.
     const VOID = ['Qh Jc 9c Ac 10c Kc', 'Js Jd 9d Ad 10d Kd', 'Qd Jh 9h Ah 10h Kh', 'Qc 9s As 10s Ks Qs']
     const t = start(VOID).play('Qd Qc Qh Jd')
-    expect(findSignals(viewFor(t.game, 2, 'full'))).toEqual([{ id: 'void:0:3', accused: 3, claim: null, at: 0 }])
+    expect(findSignals(viewFor(t.game, 2, 'full'))).toEqual([{ id: 'void:0:3', accused: 3, claim: null, at: -0.25 }])
     // Seat 3 cannot place them either, but only seat 0's void is an opponent's.
     expect(ids(t, 3)).toEqual(['void:0:0'])
+  })
+
+  test('a void hunch gets the same one look before and after its trick completes', () => {
+    const VOID = ['Qh Jc 9c Ac 10c Kc', 'Js Jd 9d Ad 10d Kd', 'Qd Jh 9h Ah 10h Kh', 'Qc 9s As 10s Ks Qs']
+    const during = start(VOID).play('Qd Qc')
+    // Seat 1 takes the trick with Jd, putting seat 2's team behind on points.
+    const after = start(VOID).play('Qd Qc Qh Jd')
+    expect(ids(during, 2)).toEqual(['void:0:3'])
+    expect(ids(after, 2)).toEqual(['void:0:3'])
+    expect(mood(viewFor(after.game, 2, 'full'))).toBe(1.5)
+    const was = decisions(during, 2, 'wild')
+    expect(decisions(after, 2, 'wild')).toEqual(was)
+    expect(was.some(Boolean)).toBe(true)
   })
 
   test('an opponent’s Jodhi worth 40 or more is a signal; a partner’s is not', () => {

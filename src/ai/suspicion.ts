@@ -125,7 +125,9 @@ export function findSignals(view: View): Signal[] {
     t.plays.forEach((p, i) => {
       if (i === 0 || !opponent(p.seat) || p.card.suit === led) return
       if (t.winner === p.seat && pointsOf(t.plays.map((q) => q.card)) >= 30) out.push({ id: `cut:${t.index}`, accused: p.seat, claim: null, at: t.index })
-      if (unplaced(phase, tricks, me, led, t.index) >= 4) out.push({ id: `void:${t.index}:${p.seat}`, accused: p.seat, claim: null, at: t.index })
+      // Dated during its trick (claim t-0.5 < void t-0.25 < cut t), so its mood never counts the trick's own points,
+      // whether or not the trick has finished.
+      if (unplaced(phase, tricks, me, led, t.index) >= 4) out.push({ id: `void:${t.index}:${p.seat}`, accused: p.seat, claim: null, at: t.index - 0.25 })
     })
   }
   phase.jodhiClaims.forEach((c, index) => {
