@@ -23,7 +23,8 @@ export function route(path: string): Route {
   if (rest === undefined) return { screen: 'home', game }
   // Before a code: cleaned, "practice" would read as the code PRACTI.
   if (rest === 'practice') return { screen: 'practice', game }
-  // cleanCode keeps letters only, so a malformed or escaped code simply fails to match a room.
+  // Read like a typed code, as `/game/<x>` was: upper-cased, letters only, the first six kept.
+  // So ABCDEFG and ab-cd-ef both open ABCDEF; fewer than six letters lead to the game's home.
   const code = cleanCode(rest)
   return code.length === CODE_LENGTH ? { screen: 'room', game, code } : { screen: 'home', game }
 }

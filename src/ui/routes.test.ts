@@ -21,8 +21,15 @@ describe('routes', () => {
     expect(route('/thunee/practice/')).toEqual({ screen: 'practice', game: 'thunee' })
   })
 
-  test('a code that is not six letters leads back to the game’s home', () => {
+  test('a segment is read like a typed code: letters only, upper-cased, the first six kept', () => {
+    expect(route('/thunee/ABCDEFG')).toEqual({ screen: 'room', game: 'thunee', code: 'ABCDEF' })
+    expect(route('/thunee/ab-cd%20ef')).toEqual({ screen: 'room', game: 'thunee', code: 'ABCDEF' })
+    expect(route('/thunee/A1B2C3D4E5F6G7')).toEqual({ screen: 'room', game: 'thunee', code: 'ABCDEF' })
+  })
+
+  test('a segment with fewer than six letters leads back to the game’s home', () => {
     expect(route('/thunee/ABC')).toEqual({ screen: 'home', game: 'thunee' })
+    expect(route('/thunee/AB12CD34E')).toEqual({ screen: 'home', game: 'thunee' })
   })
 
   test('old addresses and unknown games show the Tricks home', () => {
