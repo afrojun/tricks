@@ -11,6 +11,8 @@ export default defineConfig({
       'src/presets/**/*.test.ts',
       'src/practice/**/*.test.ts',
       'src/coach/**/*.test.ts',
+      'src/kit/**/*.test.ts',
+      'src/games/**/*.test.ts',
       'party/server.test.ts',
     ],
   },
