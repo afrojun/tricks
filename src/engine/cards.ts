@@ -54,3 +54,11 @@ export function cardId(card: Card): string {
 export function pointsOf(cards: readonly Card[]): number {
   return cards.reduce((sum, c) => sum + CARD_POINTS[c.rank], 0)
 }
+
+export const SUIT_SYMBOL: Record<Suit, string> = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' }
+export const SUIT_NAME: Record<Suit, string> = { hearts: 'Hearts', diamonds: 'Diamonds', clubs: 'Clubs', spades: 'Spades' }
+
+/** `J♥`, `10♠`. */
+export function cardText(card: Card): string {
+  return `${card.rank}${SUIT_SYMBOL[card.suit]}`
+}
