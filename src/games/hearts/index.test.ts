@@ -38,6 +38,33 @@ describe('the Hearts module', () => {
     expect(game.seats[0].kind).toBe('empty')
   })
 
+  test('a message that is not an action at all is refused, never thrown, in every phase and from every actor', () => {
+    const ctx = { now: 0, rng: () => 0.5 }
+    const lobby = hearts.createGame()
+    const passing = new Table().deal(VOID).game
+    const playing = new Table({ passing: 'none' }).deal(VOID).game
+    const paused = new Table({ passing: 'none' }).deal(VOID).play('2c 4d 9c Ac').game
+    const result = new Table({ passing: 'none' }).deal(VOID).autoPlay('roundResult').game
+    const envelopes: unknown[] = [null, undefined, 0, 7, 'start', '', true, Symbol('x'), () => 1, [], ['tick'], {}, { type: 5 }, { type: null }, { type: undefined }, { type: {} }, { kind: 'start' }]
+    for (const game of [lobby, passing, playing, paused, result]) {
+      for (const actor of [0, 2, null, 'system'] as const) {
+        for (const bad of envelopes) {
+          expect(() => hearts.apply(game, actor, bad as never, ctx)).not.toThrow()
+          expect(hearts.apply(game, actor, bad as never, ctx)).toEqual({ rejected: 'notAllowed' })
+        }
+      }
+    }
+  })
+
+  test('the system’s own actions still work', () => {
+    const t = new Table({ passing: 'none' }).deal(VOID).play('2c 4d 9c Ac')
+    const deadline = (t.game.phase as { deadline: number }).deadline
+    const ticked = hearts.apply(t.game, 'system', { type: 'tick' }, { now: deadline, rng: () => 0.5 })
+    expect(ticked).toHaveProperty('game.phase.kind', 'playing')
+    const dropped = hearts.apply(t.game, 'system', { type: 'setConnected', seat: 1, connected: false }, { now: deadline, rng: () => 0.5 })
+    expect(dropped).toHaveProperty('game.seats.1.connected', false)
+  })
+
   test('nor on malformed cards in the middle of a round', () => {
     const passing = new Table().deal(VOID).game
     const playing = new Table({ passing: 'none' }).deal(VOID).game

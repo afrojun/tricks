@@ -1,5 +1,5 @@
 import { hasCard, sameCard } from '../../../kit/cards'
-import { type Actor, type Ctx, type Seat, allSeats, checkLobbyHost, emptySeats, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
+import { type Actor, type Ctx, type Seat, allSeats, checkLobbyHost, emptySeats, isAction, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
 import { availableActions } from './available'
 import type { Card } from './cards'
 import { PASS_SIZE, PLAYERS, SEAT_COUNTS, STANDARD, resolveRules } from './rules'
@@ -28,6 +28,8 @@ export function createGame(): Game {
  * player input.
  */
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
+  // Checked before any field is read: a client could send anything at all.
+  if (!isAction(action)) return { rejected: 'notAllowed' }
   const draft = structuredClone(game)
   const events: GameEvent[] = []
   const rejected = dispatch(draft, actor, action, ctx, events)

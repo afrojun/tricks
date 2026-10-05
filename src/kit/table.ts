@@ -109,8 +109,17 @@ const TABLE_ACTIONS: readonly string[] = [
   'setConnected',
 ] satisfies TableAction['type'][]
 
-export function isTableAction(action: { type: string }): action is TableAction {
-  return TABLE_ACTIONS.includes(action.type)
+/**
+ * Whether a value has an action's envelope: an object with a string `type`.
+ * A game checks this before reading anything else, so `apply` refuses rather
+ * than throws whatever a client sends.
+ */
+export function isAction(value: unknown): value is { type: string } {
+  return typeof value === 'object' && value !== null && typeof (value as { type?: unknown }).type === 'string'
+}
+
+export function isTableAction(action: unknown): action is TableAction {
+  return isAction(action) && TABLE_ACTIONS.includes(action.type)
 }
 
 // ── Seats ────────────────────────────────────────────────────────────────

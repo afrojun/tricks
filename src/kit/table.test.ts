@@ -15,6 +15,7 @@ import {
   checkLobbyHost,
   cleanName,
   emptySeats,
+  isAction,
   isAiControlled,
   isTableAction,
   nextSeat,
@@ -368,6 +369,14 @@ describe('seats', () => {
       expect(isTableAction({ type })).toBe(true)
     }
     for (const type of ['setRules', 'nextRound', 'rematch', 'playCard']) expect(isTableAction({ type })).toBe(false)
+  })
+
+  test('only an object with a string type is an action', () => {
+    for (const bad of [null, undefined, 0, 'sit', true, [], ['sit'], {}, { type: 5 }, { type: null }, { kind: 'sit' }]) {
+      expect(isAction(bad)).toBe(false)
+      expect(isTableAction(bad)).toBe(false)
+    }
+    expect(isAction({ type: 'anything' })).toBe(true)
   })
 })
 
