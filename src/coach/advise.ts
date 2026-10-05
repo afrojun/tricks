@@ -132,6 +132,8 @@ function explain(view: View, action: Action, reason: Reason): string {
       return `${partnerText(view, phase)} already has this trick and you play last, so give them your most valuable card: ${card(reason.card)} is worth ${points([reason.card])}.`
     case 'holdUnderPartner':
       return `${partnerText(view, phase)} is winning, but someone still plays after you. Keep your good cards and play your cheapest.`
+    case 'cheapOvertake':
+      return `${partnerText(view, phase)} is winning, and ${card(reason.card)}, your cheapest card, beats them. That is fine: the trick stays with your side.`
     case 'cheapestWinner': {
       const led = phase?.current[0]?.card.suit
       const trumping = phase !== null && phase.trump !== null && reason.card.suit === phase.trump && led !== phase.trump

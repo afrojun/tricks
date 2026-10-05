@@ -4,6 +4,8 @@ import { seededRng } from '../engine/testing'
 import { PRACTICE_FORMAT, PracticeGame } from './game'
 import { rng } from './rng'
 import { playPractice } from './testing'
+import { decide } from '../ai/choose'
+import { HONEST } from '../ai/mind'
 
 describe('rng', () => {
   test('draws what the test generator draws, and its state carries on', () => {
@@ -93,7 +95,30 @@ describe('saving', () => {
     expect(PracticeGame.load(JSON.stringify({ ...saved, format: PRACTICE_FORMAT + 1 }))).toBeNull()
     expect(PracticeGame.load(JSON.stringify({ ...saved, game: { ...saved.game, formatVersion: -1 } }))).toBeNull()
     expect(PracticeGame.load('{oops')).toBeNull()
+    const { phase: _phase, ...noPhase } = saved.game
+    expect(PracticeGame.load(JSON.stringify({ ...saved, game: noPhase }))).toBeNull()
+    const { eventCount: _count, ...noCount } = saved
+    expect(PracticeGame.load(JSON.stringify(noCount))).toBeNull()
     expect(PracticeGame.load(null)).toBeNull()
+  })
+})
+
+describe('the round log', () => {
+  test('a redealt hand leaves no decision behind', () => {
+    // Four players, seed 44: following the advice, seat 0's trump choice leaves the counting side without trumps.
+    const p = PracticeGame.start(4, 44, 'Ann')
+    let redealt = false
+    playPractice(p, 3000, undefined, (g) => {
+      const phase = g.game.phase
+      if (phase.kind !== 'trumpSelection' || phase.trumper !== 0) return false
+      const before = g.game.roundNumber
+      const { action } = decide(g.coachView(), HONEST)
+      g.act(action, action)
+      redealt = g.game.phase.kind === 'calling' && g.game.roundNumber === before
+      return true
+    })
+    expect(redealt).toBe(true)
+    expect(p.round.decisions).toEqual([])
   })
 })
 

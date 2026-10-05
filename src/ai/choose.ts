@@ -73,7 +73,8 @@ function chooseCard(view: View, phase: ViewPlaying, legal: readonly Card[]): Car
   if (partnerWinning) {
     // Feed points to a partner who has the trick, but only when it is safe.
     if (last) return as('feedPartner', [...legal].sort((a, b) => CARD_POINTS[b.rank] - CARD_POINTS[a.rank])[0])
-    return as('holdUnderPartner', lowest(legal))
+    const cheapest = lowest(legal)
+    return as(wouldWin(phase, me, cheapest) ? 'cheapOvertake' : 'holdUnderPartner', cheapest)
   }
   const winners = legal.filter((c) => wouldWin(phase, me, c))
   if (winners.length > 0) return as('cheapestWinner', [...winners].sort((a, b) => rankStrength(a.rank) - rankStrength(b.rank))[0])

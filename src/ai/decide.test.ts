@@ -66,4 +66,10 @@ describe('playing', () => {
     t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000)
     expect(decideFor(t.game, 1)).toMatchObject({ reason: { code: 'thuneeLeadHigh', card: card('Js') } })
   })
+
+  test('a cheapest card that still beats the partner says so', () => {
+    // Partner (seat 2) leads A♥, seat 3 follows Q♥; seat 0 holds only J♥ and 9♥ in hearts — both beat the ace.
+    const t = table(['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Ah Jc 9c Ac Kc 10h', 'Jd 9d Ad 10d Kh Qh']).toPlay('spades').play('Ah Qh')
+    expect(decideFor(t.game)).toMatchObject({ action: { type: 'playCard', card: card('9h') }, reason: { code: 'cheapOvertake', card: card('9h') } })
+  })
 })

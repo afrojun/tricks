@@ -77,8 +77,13 @@ export class PracticeGame {
     try {
       const s = JSON.parse(json) as Saved
       if (s.format !== PRACTICE_FORMAT || s.game?.formatVersion !== FORMAT_VERSION) return null
-      if (typeof s.rng !== 'number' || typeof s.virtualNow !== 'number' || !Array.isArray(s.round?.decisions)) return null
-      return new PracticeGame(s.game, s.rng, s.virtualNow, s.eventCount, s.round, s.continued)
+      const numbers = [s.rng, s.virtualNow, s.eventCount].every((n) => typeof n === 'number' && Number.isFinite(n))
+      if (!numbers || !Array.isArray(s.round?.decisions) || !Array.isArray(s.round?.dealt)) return null
+      if (typeof s.game.phase?.kind !== 'string' || !Array.isArray(s.game.seats)) return null
+      // Anything the engine would reject, or could not show, is a broken save.
+      checkInvariants(s.game)
+      viewFor(s.game, 0, 'full')
+      return new PracticeGame(s.game, s.rng, s.virtualNow, s.eventCount, s.round, s.continued ?? null)
     } catch {
       return null
     }
@@ -114,9 +119,11 @@ export class PracticeGame {
   /** The player's action, recorded with the advice they had. */
   act(action: Action, advised: Action | null): { rejected: RejectReason } | Applied {
     const before = this.coachView()
+    const round = this.round
     const result = this.apply(this.you, action)
     if (!Array.isArray(result)) return result
-    if (isRoundDecision(action)) this.round.decisions.push({ view: before, advised, taken: action } satisfies DecisionRecord)
+    // A redeal starts a new log; a decision about the cards thrown in does not belong in it.
+    if (isRoundDecision(action) && this.round === round) this.round.decisions.push({ view: before, advised, taken: action } satisfies DecisionRecord)
     return { events: this.number(result) }
   }
 

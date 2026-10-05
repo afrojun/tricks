@@ -14,6 +14,7 @@ export type Reason =
   | { code: 'thuneeLeadHigh'; card: Card }
   | { code: 'feedPartner'; card: Card }
   | { code: 'holdUnderPartner'; card: Card }
+  | { code: 'cheapOvertake'; card: Card }
   | { code: 'cheapestWinner'; card: Card }
   | { code: 'cannotWin'; card: Card }
   | { code: 'sureDouble' }
