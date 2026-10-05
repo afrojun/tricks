@@ -7,7 +7,7 @@ import type { RuleOverrides } from '../engine/rules'
 import { Table, playOf } from '../engine/testing'
 import type { Action } from '../engine/types'
 import { viewFor } from '../engine/view'
-import { chooseChallenge } from './catch'
+import { chooseChallenge, findProofs } from './catch'
 import { decide } from './choose'
 
 /** Raise with SIM_GAMES=100 for a soak run. */
@@ -18,18 +18,43 @@ interface Tally {
   cheats: number
   guilty: number
   innocent: number
+  /** Proofs this persona held, counted after every card, each naming a rule the accused really broke. */
+  proofs: number
+}
+
+const EMPTY: Tally = { cheats: 0, guilty: 0, innocent: 0, proofs: 0 }
+
+/**
+ * Every proof any seat holds names a rule its accused broke with the card the
+ * proof is about, as the engine recorded it. Returns how many each seat holds.
+ */
+function soundProofs(t: Table): number[] {
+  const phase = t.game.phase
+  if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return [0, 0, 0, 0]
+  const { tricks, current } = phase.play
+  return [0, 1, 2, 3].map((observer) => {
+    const proofs = findProofs(viewFor(t.game, observer, 'full'))
+    for (const proof of proofs) {
+      // Proof ids are `<rule>:<seat>:<trick>:<what shows it>`.
+      const trick = Number(proof.id.split(':')[2])
+      const plays = trick < tricks.length ? tricks[trick].plays : current
+      expect(plays.find((p) => p.seat === proof.accused)!.broke).toContain(proof.rule)
+    }
+    return proofs.length
+  })
 }
 
 /**
  * A whole game in which every seat is a computer with the given persona, all
  * watching each other after every card. With `watch` off nobody accuses, so
- * every cheat stands. Checks that every cheat is a renege that dodges points.
+ * every cheat stands. Checks that every cheat is a renege that dodges points,
+ * and that every proof any seat holds is sound.
  */
 function playGame(personas: Persona[], seed: number, overrides: RuleOverrides = {}, watch = true) {
   const t = new Table(overrides, seed).do(0, { type: 'start' })
   const seats = personas.map((persona) => ({ persona, standIn: false }))
   const mind = (seat: number) => mindFor({ seats, aiSalt: t.game.aiSalt, rules: t.game.rules }, seat)
-  const tally = new Map<Persona, Tally>(personas.map((p) => [p, { cheats: 0, guilty: 0, innocent: 0 }]))
+  const tally = new Map<Persona, Tally>(personas.map((p) => [p, { ...EMPTY }]))
   const inPlay = () => t.game.phase.kind === 'playing' || t.game.phase.kind === 'trickPause'
   const proofless: Action[] = []
 
@@ -38,6 +63,7 @@ function playGame(personas: Persona[], seed: number, overrides: RuleOverrides = 
     const { action, reason } = decision
     const illegal = action.type === 'playCard' && !hasCard(availableActions(viewFor(t.game, seat)).legal, action.card)
     t.do(seat, action)
+    soundProofs(t).forEach((n, observer) => (tally.get(personas[observer])!.proofs += n))
     if (illegal) {
       tally.get(personas[seat])!.cheats++
       expect(reason).toMatchObject({ code: 'renege' })
@@ -74,8 +100,8 @@ function total(runs: Map<Persona, Tally>[]): Map<Persona, Tally> {
   const out = new Map<Persona, Tally>()
   for (const run of runs) {
     for (const [p, n] of run) {
-      const t = out.get(p) ?? { cheats: 0, guilty: 0, innocent: 0 }
-      out.set(p, { cheats: t.cheats + n.cheats, guilty: t.guilty + n.guilty, innocent: t.innocent + n.innocent })
+      const t = out.get(p) ?? EMPTY
+      out.set(p, { cheats: t.cheats + n.cheats, guilty: t.guilty + n.guilty, innocent: t.innocent + n.innocent, proofs: t.proofs + n.proofs })
     }
   }
   return out
@@ -92,6 +118,8 @@ describe('personas in whole games', () => {
     expect(all.get('wild')!.cheats).toBeGreaterThan(all.get('sly')!.cheats)
     const guilty = [...all.values()].reduce((n, t) => n + t.guilty, 0)
     expect(guilty).toBeGreaterThan(0)
+    // Each watched and held proofs, every one sound. Wild, the only cheat here, has nobody to prove anything against.
+    for (const persona of ['straight', 'sly', 'sharp'] as const) expect(all.get(persona)!.proofs).toBeGreaterThan(0)
   }, Math.max(120_000, GAMES * 30_000))
 
   test(`${GAMES} games where nobody accuses: Sly's careful cheats stand, and Wild cheats more`, () => {
@@ -99,6 +127,7 @@ describe('personas in whole games', () => {
     console.log('unwatched:', JSON.stringify(Object.fromEntries(all)))
     expect(all.get('sly')!.cheats).toBeGreaterThan(0)
     expect(all.get('wild')!.cheats).toBeGreaterThan(all.get('sly')!.cheats)
+    for (const persona of ['sly', 'wild'] as const) expect(all.get(persona)!.proofs).toBeGreaterThan(0)
   }, Math.max(120_000, GAMES * 30_000))
 
   test('Straight and Sharp at an honest table never cheat, and Straight never sees a proof that is not there', () => {
@@ -118,6 +147,7 @@ describe('personas in whole games', () => {
         if (p.kind === 'playing' || p.kind === 'trickPause') {
           expect([...p.play.tricks.flatMap((x) => x.plays), ...p.play.current].every((r) => r.broke.length === 0)).toBe(true)
           for (const seat of [0, 2]) expect(chooseChallenge(viewFor(t.game, seat, 'full'), mind(seat))).toBeNull()
+          expect(soundProofs(t)).toEqual([0, 0, 0, 0])
         }
       }
       expect(t.game.phase.kind).toBe('gameOver')
@@ -126,6 +156,6 @@ describe('personas in whole games', () => {
 
   test('with cheating off every persona plays straight: nobody cheats or accuses', () => {
     const all = total(range(GAMES).map((seed) => playGame(['sly', 'wild', 'sharp', 'straight'], seed, { allowCheating: false })))
-    for (const tally of all.values()) expect(tally).toEqual({ cheats: 0, guilty: 0, innocent: 0 })
+    for (const tally of all.values()) expect(tally).toEqual(EMPTY)
   }, Math.max(120_000, GAMES * 30_000))
 })
