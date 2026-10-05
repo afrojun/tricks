@@ -28,6 +28,8 @@ export function Lobby({ view, room }: { view: View; room: string }) {
   const me = view.seat
   const isHost = me !== null && view.host === me
   const empty = view.seats.filter((s) => s.kind === 'empty').length
+  // With cheating off every computer plays as Straight, so there is no persona to choose or show.
+  const personas = view.rules.allowCheating
 
   // The creator's choices from the home screen. They apply only if the creator is the
   // first to sit; if someone else already hosts, the lobby's settings stand.
@@ -89,7 +91,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
                   </p>
                   <p className="text-sm text-on-surface-muted">
                     {view.playerCount === 4 ? `Team ${team + 1}` : `Player ${i + 1}`}
-                    {seat.kind === 'ai' && `, computer: ${seat.persona === null ? 'secret' : PERSONA_NAMES[seat.persona]}`}
+                    {seat.kind === 'ai' && (personas ? `, computer: ${seat.persona === null ? 'secret' : PERSONA_NAMES[seat.persona]}` : ', computer')}
                     {view.host === i && ', host'}
                     {seat.kind === 'human' && !seat.connected && ', disconnected'}
                   </p>
@@ -100,7 +102,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
                   </button>
                 )}
                 {seat.kind === 'empty' && isHost && (
-                  <button className="btn btn-small" onClick={() => setPicking(i)}>
+                  <button className="btn btn-small" onClick={() => (personas ? setPicking(i) : send({ type: 'addAi', seat: i }))}>
                     Add computer
                   </button>
                 )}
@@ -165,7 +167,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
           <RulesEditor rules={view.rules} onChange={(overrides) => send({ type: 'setRules', overrides })} />
         </Sheet>
       )}
-      {picking !== null && (
+      {picking !== null && personas && (
         <Sheet title="Choose a computer player" onClose={() => setPicking(null)}>
           <ul className="grid gap-2">
             {PERSONA_CHOICES.map((choice) => (

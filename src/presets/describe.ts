@@ -33,6 +33,7 @@ export const RULE_INFO: RuleInfo[] = [
   { key: 'khanaakRaisesTarget', label: 'A Khanaak call makes it a 13-ball game', choices: onOff('Yes', 'No') as never },
   { key: 'double', label: 'Double', choices: onOff('Allowed', 'Not played') },
   { key: 'undercutRestriction', label: 'Undercutting a trump', choices: onOff('Only with a hand of trumps', 'Always allowed') as never },
+  { key: 'allowCheating', label: 'Cheating', choices: onOff('Allowed, and can be challenged', 'Not allowed') as never },
   { key: 'redealIfNoTrumps', label: 'Counting team holds no trump', choices: onOff('Redeal', 'Play on') as never },
   { key: 'ballsToWin', label: 'Balls to win', range: { min: 1, max: 30, unit: 'balls' } },
   { key: 'twoToClear', label: 'Must win by two balls', choices: onOff('Yes', 'No') as never },

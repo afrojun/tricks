@@ -11,7 +11,7 @@ export interface Available {
   preselect: TrumpChoice[]
   chooseTrump: TrumpChoice[]
   callThunee: boolean
-  /** Cards the engine will accept, including rule-breaking ones. */
+  /** Cards the engine will accept, including rule-breaking ones when cheating is allowed. */
   play: Card[]
   /** The subset of `play` that obeys the rules. */
   legal: Card[]
@@ -79,13 +79,13 @@ export function availableActions(view: View): Available {
       const special = phase.thunee !== null || phase.double !== null || phase.khanaak !== null
 
       if (phase.kind === 'playing' && phase.turn === me) {
-        out.play = phase.hand
         out.legal = legalPlays(
           phase.hand,
           phase.current.map((p) => p.card),
           phase.trump,
           view.rules,
         )
+        out.play = view.rules.allowCheating ? phase.hand : out.legal
         const lastTrick = view.playerCount === 4 && tricksThisHalf.length === 5 && !special
         if (lastTrick) {
           const wonAllFive = tricksThisHalf.every((t) => teamOf(t.winner) === myTeam)
@@ -100,10 +100,12 @@ export function availableActions(view: View): Available {
         out.claimJodhi = SUITS.filter((s) => !mine.includes(s))
       }
 
-      // Once a trick has been completed, every seat has played a card this round.
-      const played = phase.tricks.length > 0 ? view.seats.map((_, seat) => seat) : phase.current.map((p) => p.seat)
-      out.challengePlay = played.filter((s) => teamOf(s) !== myTeam).sort()
-      out.challengeJodhi = phase.jodhiClaims.flatMap((j, i) => (teamOf(j.seat) !== myTeam ? [i] : []))
+      if (view.rules.allowCheating) {
+        // Once a trick has been completed, every seat has played a card this round.
+        const played = phase.tricks.length > 0 ? view.seats.map((_, seat) => seat) : phase.current.map((p) => p.seat)
+        out.challengePlay = played.filter((s) => teamOf(s) !== myTeam).sort()
+        out.challengeJodhi = phase.jodhiClaims.flatMap((j, i) => (teamOf(j.seat) !== myTeam ? [i] : []))
+      }
       break
     }
     case 'roundResult':

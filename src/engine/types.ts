@@ -181,7 +181,8 @@ export type Action =
   | { type: 'nextRound' }
   | { type: 'rematch' }
 
-export type RejectReason = TableReject | 'notYourTurn' | 'badAmount' | 'cardNotInHand'
+/** `illegalCard` and `falseClaim` are refused only with cheating off. */
+export type RejectReason = TableReject | 'notYourTurn' | 'badAmount' | 'cardNotInHand' | 'illegalCard' | 'falseClaim'
 
 // ── Events ───────────────────────────────────────────────────────────────
 

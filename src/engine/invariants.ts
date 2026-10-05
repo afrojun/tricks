@@ -32,6 +32,11 @@ export function checkInvariants(game: Game): void {
       if (hand.length !== 6 - tricksThisHalf - played) fail(`seat ${seat} holds ${hand.length} cards`)
     })
     if (play.tricks.some((t) => t.plays.length !== n)) fail('incomplete trick recorded')
+    if (!game.rules.allowCheating) {
+      const records = [...play.tricks.flatMap((t) => t.plays), ...play.current]
+      if (records.some((r) => r.broke.length > 0)) fail('a rule-breaking card was accepted with cheating off')
+      if (play.jodhiClaims.some((j) => !j.valid)) fail('a false Jodhi was accepted with cheating off')
+    }
   }
 
   switch (phase.kind) {

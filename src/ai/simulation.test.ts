@@ -7,6 +7,7 @@ import {
   actionSchema,
   availableActions,
   checkInvariants,
+  hasCard,
   nextDeadline,
   sameCard,
   seatsToAct,
@@ -15,7 +16,7 @@ import {
 } from '../engine'
 import { Table, collectCards, seededRng } from '../engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
-import { HONEST } from './mind'
+import { HONEST } from '../kit/mind'
 import { chooseChallenge } from './suspicion'
 
 /** Raise with SIM_GAMES=2000 for a soak run. */
@@ -47,7 +48,7 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
   const t = new Table(playerCount, overrides, seed)
   const chaos = seededRng(seed * 7919 + 1)
   const pick = <T,>(items: readonly T[]) => items[Math.floor(chaos() * items.length)]
-  const stats = { rounds: 0, reasons: new Set<string>(), actions: 0 }
+  const stats = { rounds: 0, reasons: new Set<string>(), actions: 0, refused: 0 }
   t.do(0, { type: 'start' })
 
   const step = (seat: number | null, action: Parameters<Table['do']>[1], mustSucceed: boolean) => {
@@ -56,11 +57,13 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
     if (mustSucceed && rejected !== null) {
       throw new Error(`seed ${seed}: ${JSON.stringify(action)} by ${seat} rejected (${rejected}) in ${t.game.phase.kind}`)
     }
-    if (rejected === null) {
+    if (rejected !== null) stats.refused++
+    else {
       stats.actions++
       checkInvariants(t.game)
       expectNoLeak(t.game, pick([0, 1, null]))
     }
+    return rejected
   }
 
   for (let guard = 0; guard < 20_000; guard++) {
@@ -118,7 +121,10 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
     const view = viewFor(t.game, seat, 'full')
     expect(availableActions(view)).toEqual(availableActions(viewFor(t.game, seat)))
     if (current.kind === 'playing' && chaos() < 0.03) {
-      step(seat, { type: 'playCard', card: pick(availableActions(view).play) }, true) // possibly a cheat
+      // Possibly a cheat, accepted only while cheating is allowed; the invariants check nothing breaks a rule otherwise.
+      const card = pick(current.play.hands[seat])
+      const accepted = hasCard(availableActions(view).play, card)
+      expect(step(seat, { type: 'playCard', card }, accepted)).toBe(accepted ? null : 'illegalCard')
     } else if (current.kind === 'playing' && chaos() < 0.05 && availableActions(view).callKhanaak) {
       step(seat, { type: 'callKhanaak' }, true)
     } else if (current.kind === 'playing' && chaos() < 0.3 && availableActions(view).callDouble) {
@@ -141,20 +147,29 @@ describe('simulation', () => {
     ['2P traditional', 2, {}],
     ['2P classic', 2, CLASSIC_APP_OVERRIDES],
     ['4P two to clear, short game', 4, { twoToClear: true, ballsToWin: 5, thuneeWindowSeconds: 0 }],
+    ['4P traditional, cheating off', 4, { allowCheating: false }],
+    ['2P classic, cheating off', 2, { ...CLASSIC_APP_OVERRIDES, allowCheating: false }],
   ]
   for (const [name, playerCount, overrides] of configs) {
     test(`${GAMES} seeded games finish with every invariant intact: ${name}`, () => {
       const reasons = new Set<string>()
       let actions = 0
+      let refused = 0
       for (let seed = 1; seed <= GAMES; seed++) {
         const stats = playGame(playerCount, overrides, seed)
         stats.reasons.forEach((r) => reasons.add(r))
         actions += stats.actions
+        refused += stats.refused
       }
       expect(actions).toBeGreaterThan(GAMES * 50)
       // The chaos must actually reach the unusual endings, or this test proves little.
-      console.log(`${name}: ${actions} actions, endings: ${[...reasons].sort().join(', ')}`)
-      expect([...reasons]).toEqual(expect.arrayContaining(['normal', 'challenge']))
+      console.log(`${name}: ${actions} actions, ${refused} refused, endings: ${[...reasons].sort().join(', ')}`)
+      if (overrides.allowCheating === false) {
+        // Nobody may accuse, and the chaos's rule-breaking cards and false claims were all refused.
+        expect([...reasons]).toContain('normal')
+        expect([...reasons]).not.toContain('challenge')
+        expect(refused).toBeGreaterThan(0)
+      } else expect([...reasons]).toEqual(expect.arrayContaining(['normal', 'challenge']))
     }, 120_000)
   }
 

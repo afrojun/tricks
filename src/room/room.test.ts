@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { chooseAction, chooseJodhi } from '../ai/choose'
-import { HONEST } from '../ai/mind'
+import { HONEST } from '../kit/mind'
 import type { Action, View } from '../engine'
 import { type Game, createGame } from '../engine'
 import { Table, card, seededRng } from '../engine/testing'

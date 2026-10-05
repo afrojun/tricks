@@ -12,6 +12,7 @@ const trumpChoice = z.union([suit, z.literal('lastCard')])
 /** Rule overrides as they arrive from a client or a share link. Unknown keys are dropped. */
 export const ruleOverridesSchema = z
   .object({
+    allowCheating: z.boolean(),
     thuneeCaller: z.enum(['anyone', 'trumperOnly']),
     thuneeTrump: z.enum(['firstCardLed', 'noTrump']),
     thuneeLeader: z.enum(['caller', 'afterCaller']),

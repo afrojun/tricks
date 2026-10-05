@@ -5,7 +5,7 @@ import { PRACTICE_FORMAT, PracticeGame } from './game'
 import { rng } from './rng'
 import { playPractice } from './testing'
 import { decide } from '../ai/choose'
-import { HONEST } from '../ai/mind'
+import { HONEST } from '../kit/mind'
 
 describe('rng', () => {
   test('draws what the test generator draws, and its state carries on', () => {

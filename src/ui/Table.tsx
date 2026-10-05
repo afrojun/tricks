@@ -132,12 +132,13 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
               cards={hand}
               playable={myTurn}
               legal={can.legal}
+              anyway={view.rules.allowCheating}
               dealFrom={TOWARD[position(view.dealer, me, view.playerCount)]}
               onPlay={(card) => send({ type: 'playCard', card })}
               suggested={advised?.type === 'playCard' ? advised.card : null}
               explain={coached ? (card) => check(view, { type: 'playCard', card })?.body ?? null : undefined}
             />
-            <ActionBar can={can} playing={playing} onSheet={setSheet} />
+            <ActionBar can={can} playing={playing} accuse={view.rules.allowCheating} onSheet={setSheet} />
           </>
         )}
       </div>
@@ -161,7 +162,7 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
       )}
       {sheet === 'jodhi' && playing && (
         <Sheet title="Call Jodhi" onClose={() => setSheet(null)}>
-          <JodhiSheet can={can} trump={playing.trump} onDone={() => setSheet(null)} />
+          <JodhiSheet can={can} trump={playing.trump} challenged={view.rules.allowCheating} onDone={() => setSheet(null)} />
         </Sheet>
       )}
       {sheet === 'challenge' && playing && (
@@ -308,7 +309,7 @@ function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: 'left'
   const count = 'handCounts' in phase ? phase.handCounts[seat] : 0
   const turn = (phase.kind === 'playing' && phase.turn === seat) || (phase.kind === 'trumpSelection' && phase.trumper === seat)
   const away = info.kind === 'human' && !info.connected
-  const persona = personaLabel(info)
+  const persona = personaLabel(info, view.rules.allowCheating)
   return (
     <div className="flex flex-col items-center gap-1 max-w-24" data-side={side}>
       <p className="seat-name truncate max-w-full text-sm" data-turn={turn}>
@@ -538,7 +539,8 @@ function Hint({ view, can }: { view: View; can: Available }) {
   return null
 }
 
-function ActionBar({ can, playing, onSheet }: { can: Available; playing: ViewPlaying | null; onSheet: (s: SheetName) => void }) {
+/** `accuse`: whether accusations are part of this game; with cheating off there is no Challenge button. */
+function ActionBar({ can, playing, accuse, onSheet }: { can: Available; playing: ViewPlaying | null; accuse: boolean; onSheet: (s: SheetName) => void }) {
   const { send } = useSession()
   if (!playing) return <div className="h-12" />
   const canChallenge = can.challengePlay.length > 0 || can.challengeJodhi.length > 0
@@ -559,16 +561,18 @@ function ActionBar({ can, playing, onSheet }: { can: Available; playing: ViewPla
           Call Khanaak
         </button>
       )}
-      <button className="btn btn-quiet btn-small" disabled={!canChallenge} onClick={() => onSheet('challenge')}>
-        Challenge
-      </button>
+      {accuse && (
+        <button className="btn btn-quiet btn-small" disabled={!canChallenge} onClick={() => onSheet('challenge')}>
+          Challenge
+        </button>
+      )}
     </div>
   )
 }
 
 // ── Sheets ───────────────────────────────────────────────────────────────
 
-function JodhiSheet({ can, trump, onDone }: { can: Available; trump: Suit | null; onDone: () => void }) {
+function JodhiSheet({ can, trump, challenged, onDone }: { can: Available; trump: Suit | null; challenged: boolean; onDone: () => void }) {
   const { send } = useSession()
   const claim = (suit: Suit, withJack: boolean) => {
     send({ type: 'claimJodhi', suit, withJack })
@@ -576,7 +580,7 @@ function JodhiSheet({ can, trump, onDone }: { can: Available; trump: Suit | null
   }
   return (
     <div className="grid gap-3">
-      <p>Name the suit you hold the King and Queen of. Opponents can challenge a false call for 4 balls.</p>
+      <p>Name the suit you hold the King and Queen of.{challenged && ' Opponents can challenge a false call for 4 balls.'}</p>
       {can.claimJodhi.map((suit) => (
         <div key={suit} className="flex items-center gap-2">
           <span className={`text-2xl w-8 text-center ${isRed(suit) ? 'text-danger' : ''}`} aria-label={SUIT_NAME[suit]}>

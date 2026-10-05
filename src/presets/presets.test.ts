@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL, resolveRules } from '../engine'
+import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL, resolveRules, ruleOverridesSchema } from '../engine'
+import { RULE_INFO, differenceCount, valueLabel } from './describe'
 import { decodeShare, encodeShare, shareUrl } from './share'
 import { BUILT_IN_PRESETS, deletePreset, listPresets, renamePreset, savePreset } from './storage'
 
@@ -46,6 +47,23 @@ describe('preset storage', () => {
       null,
     ])
     expect(listPresets(memoryStore(mixed)).map((p) => p.name)).toEqual(['Traditional', 'Classic app', 'Fine'])
+  })
+})
+
+describe('descriptions', () => {
+  test('every rule has a description', () => {
+    expect(RULE_INFO.map((info) => info.key).sort()).toEqual(Object.keys(TRADITIONAL).sort())
+  })
+
+  test('cheating is a house rule like any other: described, counted, checked and shared', () => {
+    const info = RULE_INFO.find((i) => i.key === 'allowCheating')!
+    expect(info.label).toBe('Cheating')
+    expect(valueLabel(info, true)).toBe('Allowed, and can be challenged')
+    expect(valueLabel(info, false)).toBe('Not allowed')
+    expect(differenceCount(resolveRules({ allowCheating: false }))).toBe(1)
+    expect(ruleOverridesSchema.safeParse({ allowCheating: false }).success).toBe(true)
+    expect(ruleOverridesSchema.safeParse({ allowCheating: 'no' }).success).toBe(false)
+    expect(decodeShare(encodeShare('Honest', { allowCheating: false }))).toEqual({ ok: true, name: 'Honest', overrides: { allowCheating: false } })
   })
 })
 

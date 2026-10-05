@@ -137,13 +137,16 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
     case 'playCard':
       if (phase.kind !== 'playing') return 'wrongPhase'
       if (phase.turn !== seat) return 'notYourTurn'
-      if (!hasCard(can.play, action.card)) return 'cardNotInHand'
+      if (!hasCard(phase.play.hands[seat], action.card)) return 'cardNotInHand'
+      if (!hasCard(can.play, action.card)) return 'illegalCard'
       round.playCard(game, phase.play, seat, action.card, ctx, events)
       return null
 
     case 'claimJodhi':
       if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return 'wrongPhase'
       if (!can.claimJodhi.includes(action.suit)) return 'notAllowed'
+      // The claimant's own cards decide it; with cheating off only a true claim is accepted.
+      if (!game.rules.allowCheating && !round.holdsClaim(game, phase.play, seat, action)) return 'falseClaim'
       round.claimJodhi(game, phase.play, seat, action, events)
       return null
 

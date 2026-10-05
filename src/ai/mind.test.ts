@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { viewFor } from '../engine'
 import { Table } from '../engine/testing'
-import { mindFor, roll } from './mind'
+import { mindFor, roll } from '../kit/mind'
 import { history, mood } from './read'
 
 const D1 = ['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']

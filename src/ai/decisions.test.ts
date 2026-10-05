@@ -3,7 +3,7 @@ import { type Action, type Actor, type Persona, type RuleOverrides, CLASSIC_APP_
 import { Table, seededRng } from '../engine/testing'
 import { chooseAction } from './choose'
 import { dueStep, reactions } from './drive'
-import { HONEST } from './mind'
+import { HONEST } from '../kit/mind'
 
 /**
  * Pins what computers decide. Seeded whole games: computers of every persona driven only

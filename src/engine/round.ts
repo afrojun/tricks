@@ -262,8 +262,13 @@ export function afterTrick(game: Game, play: RoundPlay, events: GameEvent[]) {
 
 // ── Claims and special calls ─────────────────────────────────────────────
 
-export function claimJodhi(game: Game, play: RoundPlay, seat: Seat, action: RoundAction<'claimJodhi'>, events: GameEvent[]) {
+/** Whether `seat` holds the cards a claim names: in hand now, or dealt this half, as the rules say. */
+export function holdsClaim(game: Game, play: RoundPlay, seat: Seat, claim: RoundAction<'claimJodhi'>): boolean {
   const cards = game.rules.jodhiCards === 'inHand' ? play.hands[seat] : play.dealt[seat]
+  return holdsJodhi(cards, claim.suit, claim.withJack)
+}
+
+export function claimJodhi(game: Game, play: RoundPlay, seat: Seat, action: RoundAction<'claimJodhi'>, events: GameEvent[]) {
   const points = jodhiPoints(action.suit, action.withJack, play.trump)
   play.jodhiClaims.push({
     seat,
@@ -271,7 +276,7 @@ export function claimJodhi(game: Game, play: RoundPlay, seat: Seat, action: Roun
     suit: action.suit,
     withJack: action.withJack,
     points,
-    valid: holdsJodhi(cards, action.suit, action.withJack),
+    valid: holdsClaim(game, play, seat, action),
   })
   events.push({ type: 'jodhiClaimed', seat, suit: action.suit, withJack: action.withJack, points })
 }
