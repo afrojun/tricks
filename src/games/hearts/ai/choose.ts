@@ -1,11 +1,12 @@
 /** The hand-written Hearts player. It sees only a seat's view; whether it cheats depends on its persona. */
 import { SUITS, type Suit, sameCard } from '../../../kit/cards'
-import type { Mind } from '../../../kit/mind'
+import { type Mind, TRAITS } from '../../../kit/mind'
 import { availableActions } from '../engine/available'
 import { type Card, JACK_OF_DIAMONDS, QUEEN_OF_SPADES, type Rank, penaltyPoints, strength } from '../engine/cards'
 import { isOpeningLead } from '../engine/excuses'
 import { PASS_SIZE, PLAYERS } from '../engine/rules'
 import type { Action, View, ViewPlaying } from '../engine/types'
+import { chooseCheat, holdBack } from './cheat'
 import { moonThreat, queenOut, unseen, winningPlay, wouldWin } from './read'
 import type { Decision, PassWhy, Reason } from './reasons'
 
@@ -182,14 +183,22 @@ function chooseDiscard(view: View, phase: ViewPlaying, legal: readonly Card[]): 
 
 // ── The decision ─────────────────────────────────────────────────────────
 
-/** What this seat does now, and why; null when it has nothing to decide. Needs a `full` view. */
-export function decide(view: View, _mind: Mind): Decision | null {
+/**
+ * What this seat does now, and why; null when it has nothing to decide. The
+ * honest choice comes first, from cards a careful cheat can play without
+ * showing itself up; a cheating persona may then renege instead. Needs a
+ * `full` view.
+ */
+export function decide(view: View, mind: Mind): Decision | null {
   if (view.seat === null) return null
   const can = availableActions(view)
   const phase = view.phase
   if (phase.kind === 'passing') return can.pass.length > 0 ? choosePass(view, can.pass) : null
   if (phase.kind !== 'playing' || can.legal.length === 0) return null
-  const choice = chooseCard(view, phase, can.legal)
+  const careful = TRAITS[mind.persona].cheats === 'careful'
+  const honest = chooseCard(view, phase, careful ? holdBack(view, can.legal) : can.legal)
+  const cheat = chooseCheat(view, phase, honest.card, mind, can.play, (cards) => chooseDiscard(view, phase, cards).card)
+  const choice: CardChoice = cheat ? { card: cheat.card, reason: { code: 'renege', card: cheat.card, honest: honest.card, dodges: cheat.dodges } } : honest
   return { action: { type: 'playCard', card: choice.card }, reason: choice.reason }
 }
 
