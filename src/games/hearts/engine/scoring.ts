@@ -46,7 +46,8 @@ export function gameWinner(scores: readonly number[], rules: Pick<HeartsRules, '
 export function finishRound(game: Game, play: RoundPlay, outcome: Outcome, events: GameEvent[]): void {
   let summary: RoundSummary
   if (outcome.kind === 'challenge') {
-    // Tricks taken this round do not count, and nobody shoots the moon.
+    // As in Thunee, an accusation ends the round with no other score: tricks taken do not count,
+    // a jack of diamonds already taken scores nothing, and nobody shoots the moon.
     const loser = outcome.guilty ? outcome.accused : outcome.challenger
     const points = allSeats(PLAYERS).map((seat) => (seat === loser ? CHALLENGE_POINTS : 0))
     const { challenger, accused, guilty, rule, card } = outcome

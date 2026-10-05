@@ -88,6 +88,43 @@ describe('accusations', () => {
     expect(t.try(0, { type: 'challengePlay', seat: 1 })).toBe('notAllowed')
   })
 
+  describe('with the jack of diamonds already taken', () => {
+    // Seat 2 holds clubs but throws the jack of diamonds on the opening trick; seat 3 takes it with the ace.
+    const jackTaken = (scores = [0, 0, 0, 0]) => {
+      const t = new Table({ passing: 'none', jackOfDiamonds: true }).do(0, { type: 'start' })
+      t.game = { ...t.game, scores }
+      t.deal(VOID).play('2c 4d Jd Ac')
+      expect(t.events).toContainEqual({ type: 'trickWon', seat: 3, points: -10 })
+      expect(viewFor(t.game, 0).phase).toMatchObject({ taken: [0, 0, 0, -10] })
+      return t
+    }
+
+    test('a guilty verdict scores only the penalty: the jack scores nothing', () => {
+      const t = jackTaken().do(1, { type: 'challengePlay', seat: 2 })
+      expect(summaryOf(t.game)).toMatchObject({
+        reason: 'challenge',
+        points: [0, 0, 26, 0],
+        challenge: { accused: 2, guilty: true, rule: 'followSuit', card: card('Jd') },
+      })
+    })
+
+    test('a not-guilty verdict scores only the penalty too', () => {
+      const t = jackTaken().do(0, { type: 'challengePlay', seat: 1 })
+      expect(summaryOf(t.game)).toMatchObject({ reason: 'challenge', points: [26, 0, 0, 0], challenge: { guilty: false } })
+    })
+
+    test('even when the jack’s taker is the seat penalised', () => {
+      const t = jackTaken().do(3, { type: 'challengePlay', seat: 1 })
+      expect(summaryOf(t.game).points).toEqual([0, 0, 0, 26])
+    })
+
+    test('so the end of the game is judged on the penalty alone', () => {
+      const t = jackTaken([90, 50, 60, 55]).do(0, { type: 'challengePlay', seat: 1 })
+      expect(t.game.scores).toEqual([116, 50, 60, 55])
+      expect(t.game.phase).toMatchObject({ kind: 'gameOver', winner: 1 })
+    })
+  })
+
   test('a challenge can end the game', () => {
     // Seat 0 holds clubs but throws a diamond on seat 3's club lead.
     const t = new Table({ passing: 'none' }).do(0, { type: 'start' })
