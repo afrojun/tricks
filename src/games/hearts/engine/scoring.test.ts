@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { availableActions } from './available'
-import { MOON, SPREAD, VOID } from './deals'
+import { MOON, MOON_JACK, MOON_JACK_PLAY, SPREAD, VOID } from './deals'
 import type { RuleOverrides } from './rules'
 import { Table } from './testing'
 import type { Game } from './types'
@@ -54,11 +54,27 @@ describe('scoring a round', () => {
     expect(jack.points.filter((p, seat) => p !== plain.points[seat])).toHaveLength(1)
   })
 
-  test('the jack of diamonds does not count toward the moon, and its taker keeps it whatever happens', () => {
+  test('the jack of diamonds does not count toward the moon, and a shooter who takes it keeps its -10', () => {
     expect(summaryOf(round(MOON, { jackOfDiamonds: true }).game)).toMatchObject({ reason: 'moon', moon: 0, points: [-10, 26, 26, 26] })
     // Scores may go below zero.
     const below = summaryOf(round(MOON, { jackOfDiamonds: true, moon: 'shooterSubtracts' }).game)
     expect(below).toMatchObject({ points: [-36, 0, 0, 0], scoresAfter: [-36, 0, 0, 0] })
+  })
+})
+
+describe('the moon and a jack of diamonds taken by someone else', () => {
+  // Every card is legal, so cheating is off to prove it.
+  const moonJack = (overrides: RuleOverrides) =>
+    new Table({ passing: 'none', jackOfDiamonds: true, allowCheating: false, ...overrides }).deal(MOON_JACK).play(MOON_JACK_PLAY).endPause()
+
+  test('everyone else scores 26, and the jack’s taker -10 on top', () => {
+    const t = moonJack({})
+    expect(t.events).toContainEqual({ type: 'trickWon', seat: 1, points: -10 })
+    expect(summaryOf(t.game)).toMatchObject({ reason: 'moon', moon: 3, points: [26, 16, 26, 0] })
+  })
+
+  test('with the shooter subtracting, the shooter scores -26 and the jack’s taker -10', () => {
+    expect(summaryOf(moonJack({ moon: 'shooterSubtracts' }).game)).toMatchObject({ reason: 'moon', moon: 3, points: [0, -10, 0, -26] })
   })
 })
 

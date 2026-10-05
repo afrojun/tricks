@@ -5,7 +5,7 @@ import { apply, createGame } from './apply'
 import { availableActions } from './available'
 import { VOID } from './deals'
 import { Table, cards, playOf } from './testing'
-import type { Game } from './types'
+import type { Action, Game } from './types'
 import { viewFor } from './view'
 
 /** VOID without passing: seat 3 wins the first trick; on the second, seat 1 throws a heart and seat 2 reneges. */
@@ -63,6 +63,41 @@ describe('views', () => {
       const text = JSON.stringify(view)
       for (const secret of ['"handBefore":', '"broke":', '"aiSalt":']) expect(text).not.toContain(secret)
     }
+  })
+
+  test('no event carries a card still in a hand, a choice of cards to pass, or an earlier trick', () => {
+    // Events go to every seat, so the only cards they may carry are one just played, or one a verdict names.
+    const t = new Table().deal(VOID)
+    const hands = (g: Game) => (g.phase.kind === 'passing' ? g.phase.hands : g.phase.kind === 'playing' || g.phase.kind === 'trickPause' ? g.phase.play.hands : [])
+    const played = (g: Game) =>
+      g.phase.kind === 'playing' || g.phase.kind === 'trickPause' ? [...g.phase.play.tricks.flatMap((x) => x.plays), ...g.phase.play.current].map((p) => p.card) : []
+    const act = (actor: number | 'system', action: Action) => {
+      const before = t.game
+      const from = t.events.length
+      t.do(actor, action)
+      const events = t.events.slice(from)
+      const sent = collectCards(events)
+      const own = action.type === 'playCard' ? [action.card] : []
+      const verdict = events.some((e) => e.type === 'challengeResolved')
+      for (const c of sent) expect(own.some((o) => sameCard(o, c)) || (verdict && played(before).some((p) => sameCard(p, c)))).toBe(true)
+      const held = [...hands(before), ...hands(t.game)].flat().filter((h) => !own.some((o) => sameCard(o, h)))
+      expect(sent.filter((c) => held.some((h) => sameCard(h, c)))).toEqual([])
+      return events
+    }
+    ;['2c 3c 4c', '4d 5d 6d', '9c 10c Jc', 'Qc Kc Ac'].forEach((text, seat) => act(seat, { type: 'choosePass', cards: cards(text) }))
+    for (let n = 0; n < 9; n++) {
+      if (t.game.phase.kind === 'trickPause') {
+        t.now += 2000
+        act('system', { type: 'tick' })
+      }
+      const can = availableActions(viewFor(t.game, t.turn))
+      const cheat = can.play.find((c) => !can.legal.some((l) => sameCard(l, c)))
+      act(t.turn, { type: 'playCard', card: n >= 5 && cheat ? cheat : can.legal[0] })
+    }
+    const accused = playOf(t.game).current[0]?.seat ?? playOf(t.game).tricks[playOf(t.game).tricks.length - 1].winner
+    const events = act((accused + 1) % 4, { type: 'challengePlay', seat: accused })
+    expect(events.some((e) => e.type === 'roundScored')).toBe(true)
+    expect(collectCards(events)).toHaveLength(1)
   })
 
   test('the viewer sees what it gave and received all round; a spectator sees neither', () => {

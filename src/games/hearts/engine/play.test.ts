@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { availableActions } from './available'
-import { ALL_HEARTS, ALL_POINTS, LEAD, VOID } from './deals'
+import { ALL_HEARTS, ALL_POINTS, LEAD, MOON, QUEEN_AND_HEARTS, VOID } from './deals'
 import type { RuleOverrides } from './rules'
 import { Table, card, cards, playOf } from './testing'
 import { viewFor } from './view'
@@ -101,6 +101,16 @@ describe('the first trick', () => {
     expect(can(t, 1).legal).toHaveLength(12)
     expect(last(t.play('Qs')).broke).toEqual([])
   })
+
+  test('the jack of diamonds is no point card: a void player may throw it on the first trick, with cheating off', () => {
+    // Seat 1 holds nothing but diamonds.
+    const t = start(MOON, { jackOfDiamonds: true, allowCheating: false }).play('2c')
+    expect(can(t, 1).legal).toContainEqual(card('Jd'))
+    t.play('Jd')
+    expect(last(t)).toMatchObject({ seat: 1, card: card('Jd'), broke: [] })
+    t.play('2s 2h')
+    expect(t.events).toContainEqual({ type: 'trickWon', seat: 0, points: -9 })
+  })
 })
 
 describe('breaking hearts', () => {
@@ -132,6 +142,16 @@ describe('breaking hearts', () => {
     expect(t.turn).toBe(1)
     expect(can(t, 1).legal).toHaveLength(12)
     expect(last(t.play('2h')).broke).toEqual([])
+  })
+
+  test('a hand of hearts and the queen of spades must lead the queen before hearts are broken', () => {
+    const t = start(QUEEN_AND_HEARTS).play('2c Ac Kc 2s').endPause()
+    expect(t.turn).toBe(1)
+    expect(can(t, 1).legal).toEqual([card('Qs')])
+    expect(last(start(QUEEN_AND_HEARTS).play('2c Ac Kc 2s  Qs')).broke).toEqual([])
+    expect(last(start(QUEEN_AND_HEARTS).play('2c Ac Kc 2s  2h')).broke).toEqual(['heartsLead'])
+    const off = start(QUEEN_AND_HEARTS, { allowCheating: false }).play('2c Ac Kc 2s').endPause()
+    expect(off.try(1, { type: 'playCard', card: card('2h') })).toBe('illegalCard')
   })
 
   test('the queen of spades may be led at any time, and breaks hearts only under its rule', () => {
