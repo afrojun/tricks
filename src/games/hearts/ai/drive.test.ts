@@ -1,3 +1,4 @@
+import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { hasCard } from '../../../kit/cards'
 import { mindFor } from '../../../kit/mind'
@@ -6,12 +7,13 @@ import { createGame } from '../engine/apply'
 import { availableActions } from '../engine/available'
 import { VOID } from '../engine/deals'
 import type { RuleOverrides } from '../engine/rules'
-import { Table, playOf } from '../engine/testing'
+import { Table, card, playOf } from '../engine/testing'
 import type { Action, Game, GameEvent } from '../engine/types'
 import { viewFor } from '../engine/view'
 import { chooseChallenge } from './catch'
+import { decide, fallbackAction } from './choose'
 import { dueStep, reactions } from './drive'
-import { chooseAction, fallbackAction } from './random'
+import { chooseAction, fallbackAction as randomFallback } from './random'
 
 /** One human at seat 0 and computers elsewhere, just dealt. */
 function withComputers(overrides: RuleOverrides = {}, seed = 3): Table {
@@ -91,6 +93,16 @@ describe('dueStep', () => {
     expect(t.game.phase.kind).toBe('roundResult')
   })
 
+  test('a computer plays the hand-written player’s card for its persona, with the plainest legal card to fall back on', () => {
+    const t = withComputers({ passing: 'none' }, 5)
+    t.game = { ...t.game, seats: t.game.seats.map((s, seat) => (seat === 0 ? s : { ...s, persona: 'wild' })) }
+    t.deal(VOID).play('2c')
+    const step = dueStep(t.game, t.game.aiActAt!)!
+    const view = viewFor(t.game, 1, 'full')
+    expect(step).toEqual({ actor: 1, action: decide(view, { persona: 'wild', salt: t.game.aiSalt })!.action, fallback: fallbackAction(view) })
+    expect(decide(view, mindFor(t.game, 1))?.reason).toEqual({ code: 'dumpHigh', card: card('7d') })
+  })
+
   test('a stand-in plays for a human who has been replaced', () => {
     const t = new Table({ passing: 'none' }).deal(VOID)
     t.do('system', { type: 'setConnected', seat: 0, connected: false })
@@ -118,8 +130,8 @@ describe('the random player', () => {
   test('nothing to do is nothing chosen', () => {
     const t = new Table({ passing: 'none' }).deal(VOID)
     expect(chooseAction(viewFor(t.game, 1, 'full'), mindFor(t.game, 1))).toBeNull()
-    expect(fallbackAction(viewFor(t.game, 1, 'full'))).toBeNull()
-    expect(fallbackAction(viewFor(t.game, 0, 'full'))).toEqual({ type: 'playCard', card: { suit: 'clubs', rank: '2' } })
+    expect(randomFallback(viewFor(t.game, 1, 'full'))).toBeNull()
+    expect(randomFallback(viewFor(t.game, 0, 'full'))).toEqual({ type: 'playCard', card: { suit: 'clubs', rank: '2' } })
   })
 })
 
@@ -180,5 +192,17 @@ describe('reactions', () => {
       }
     }
     expect(playOf(honest.game).tricks.flatMap((x) => x.plays).every((p) => p.broke.length === 0)).toBe(true)
+  })
+})
+
+describe('the computer players', () => {
+  test('decide from a view: only the driver touches the game, to make views', () => {
+    const dir = new URL('.', import.meta.url)
+    const sources = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+    expect(sources).toContain('choose.ts')
+    for (const file of sources) {
+      const code = readFileSync(new URL(file, dir), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+      expect({ file, game: /\bGame\b/.test(code), views: /\bviewFor\b/.test(code) }).toEqual({ file, game: file === 'drive.ts', views: file === 'drive.ts' })
+    }
   })
 })
