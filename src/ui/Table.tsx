@@ -25,6 +25,7 @@ import { RulesList, rulesSummary } from './Rules'
 import { Sheet } from './Sheet'
 import { ThemePicker } from './ThemePicker'
 import { personaLabel } from './personas'
+import { gamePath } from './routes'
 import { navigate, useCountdown, useSession } from './session'
 import { isMuted, playSound, setMuted } from './sound'
 import { SUIT_NAME, SUIT_SYMBOL, isRed, plural, seatName, sortHand, teamName } from './text'
@@ -705,7 +706,7 @@ function MenuSheet({ view, room, onSheet, now }: { view: View; room: string; onS
           ))}
         </div>
       )}
-      <button className="btn btn-danger" onClick={() => navigate('/')}>
+      <button className="btn btn-danger" onClick={() => navigate(gamePath('thunee'))}>
         Leave game
       </button>
     </div>

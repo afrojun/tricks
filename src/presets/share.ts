@@ -43,6 +43,7 @@ export function decodeShare(code: string): Decoded {
   return { ok: true, name: name ?? 'Shared rules', overrides: overrides.data }
 }
 
+/** Opens Thunee's home, which offers to save the preset. */
 export function shareUrl(name: string, overrides: RuleOverrides, origin: string = location.origin): string {
-  return `${origin}/?${SHARE_PARAM}=${encodeShare(name, overrides)}`
+  return `${origin}/thunee?${SHARE_PARAM}=${encodeShare(name, overrides)}`
 }

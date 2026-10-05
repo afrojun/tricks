@@ -1,18 +1,18 @@
-import type * as Party from 'partykit/server'
 import { describe, expect, test } from 'vitest'
-import { chooseAction, chooseJodhi } from '../src/ai/choose'
-import { HONEST } from '../src/ai/mind'
-import type { Action, View } from '../src/engine'
-import { type Game, createGame } from '../src/engine'
-import { Table, card, seededRng } from '../src/engine/testing'
-import type { ServerMessage } from '../src/protocol'
-import ThuneeRoom from './server'
+import { chooseAction, chooseJodhi } from '../ai/choose'
+import { HONEST } from '../ai/mind'
+import type { Action, View } from '../engine'
+import { type Game, createGame } from '../engine'
+import { Table, card, seededRng } from '../engine/testing'
+import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, isRoomName, roomName } from '../protocol'
+import { type RoomConnection, type RoomHost, TableRoom } from './room'
 
 type Sync = Extract<ServerMessage, { type: 'sync' }>
 
-class FakeConn {
+class FakeConn implements RoomConnection {
   state: { token: string } | null = null
   inbox: ServerMessage[] = []
+  closed: { code: number; reason: string } | null = null
   constructor(
     readonly id: string,
     readonly token: string,
@@ -20,6 +20,9 @@ class FakeConn {
   setState(s: { token: string }) {
     this.state = s
     return s
+  }
+  close(code: number, reason: string) {
+    this.closed = { code, reason }
   }
   raw: string[] = []
   send(raw: string) {
@@ -37,20 +40,20 @@ class FakeConn {
   }
 }
 
-/** A stand-in for a PartyKit room: storage, an alarm, a clock, and connections. */
+/** A stand-in for the room's host: storage, an alarm, a clock, and connections. */
 class World {
   data = new Map<string, unknown>()
   alarm: number | null = null
   now = 1_000_000
   conns: FakeConn[] = []
   writes: string[] = []
-  server!: ThuneeRoom
+  server!: TableRoom
   private nextId = 0
 
-  room = {
-    id: 'TEST',
+  host: RoomHost = {
+    name: 'thunee-TESTAB',
     storage: {
-      get: async (key: string) => structuredClone(this.data.get(key)),
+      get: async <T>(key: string) => structuredClone(this.data.get(key)) as T | undefined,
       put: async (key: string, value: unknown) => {
         this.writes.push('put')
         this.data.set(key, structuredClone(value))
@@ -58,15 +61,25 @@ class World {
       setAlarm: async (at: number) => void (this.alarm = at),
       deleteAlarm: async () => void (this.alarm = null),
     },
-    getConnections: () => this.conns,
-  } as unknown as Party.Room
+    connections: () => this.conns,
+  }
 
-  /** Builds a new server instance over the same storage, as after a restart. */
+  /** Builds a new server instance over the same storage, as after a restart: every socket is gone. */
   async boot() {
     this.conns = []
-    this.server = new ThuneeRoom(this.room, { now: () => this.now, rng: seededRng(42) })
+    return this.wake()
+  }
+
+  /** Builds a new server instance over the same storage and the same open sockets, as after hibernation. */
+  async wake() {
+    this.server = new TableRoom(this.host, { now: () => this.now, rng: seededRng(42) })
     await this.server.onStart()
     return this
+  }
+
+  /** A socket that goes away without the room hearing of it, as while the room sleeps. */
+  lose(conn: FakeConn) {
+    this.conns = this.conns.filter((c) => c !== conn)
   }
 
   async connect(token: string) {
@@ -77,18 +90,17 @@ class World {
       original(raw)
     }
     this.conns.push(conn)
-    const url = `https://x/parties/main/TEST?token=${token}`
-    await this.server.onConnect(conn as never, { request: { url } } as never)
+    await this.server.onConnect(conn, `https://x/parties/room/${this.host.name}?token=${token}`)
     return conn
   }
 
   async close(conn: FakeConn) {
     this.conns = this.conns.filter((c) => c !== conn)
-    await this.server.onClose(conn as never)
+    await this.server.onClose(conn)
   }
 
   send(conn: FakeConn, action: Action | object) {
-    return this.server.onMessage(JSON.stringify({ action }), conn as never)
+    return this.server.onMessage(JSON.stringify({ action }), conn)
   }
 
   async fireAlarm() {
@@ -113,6 +125,27 @@ async function startedGame() {
   await w.send(conns[0], { type: 'start' })
   return { w, conns }
 }
+
+describe('room names', () => {
+  test('a room is named by a known game and a six-letter code', () => {
+    expect(roomName('thunee', 'ABCDEF')).toBe('thunee-ABCDEF')
+    expect(isRoomName('thunee-ABCDEF')).toBe(true)
+    for (const name of ['thunee-ABCDE', 'thunee-ABCDEFG', 'thunee-abcdef', 'thunee_ABCDEF', 'hearts-ABCDEF', 'ABCDEF', 'main', '']) {
+      expect(isRoomName(name)).toBe(false)
+    }
+  })
+
+  test('a connection to a room with any other name is closed and sent nothing', async () => {
+    const w = new World()
+    w.host = { ...w.host, name: 'SIM123' }
+    await w.boot()
+    const conn = await w.connect(TOKENS[0])
+    expect(conn.closed).toEqual({ code: UNKNOWN_ROOM_CLOSE_CODE, reason: expect.any(String) })
+    expect(conn.raw).toEqual([])
+    await w.send(conn, { type: 'sit', seat: 0, name: 'Nobody' })
+    expect(w.data.size).toBe(0)
+  })
+})
 
 describe('identity', () => {
   test('a new connection gets the current view with no events', async () => {
@@ -183,7 +216,7 @@ describe('messages', () => {
     const { w, conns } = await startedGame()
     conns[0].take()
     for (const raw of ['{not json', '{"action":{"type":"nope"}}', '{"action":{"type":"tick"}}', '[]', 'x'.repeat(5000)]) {
-      await w.server.onMessage(raw, conns[0] as never)
+      await w.server.onMessage(raw, conns[0])
     }
     expect(conns[0].take()).toEqual(Array(5).fill({ type: 'rejected', reason: 'malformed' }))
   })
@@ -192,7 +225,7 @@ describe('messages', () => {
     const { w, conns } = await startedGame()
     const version = conns[0].sync.version
     conns[0].take()
-    await w.server.onMessage('ping', conns[0] as never)
+    await w.server.onMessage('ping', conns[0])
     expect(conns[0].raw.at(-1)).toBe('pong')
     expect(conns[0].take()).toEqual([])
     expect((await w.connect('p'.repeat(20))).sync.version).toBe(version)
@@ -273,6 +306,62 @@ describe('timers', () => {
     const me = await w.connect(TOKENS[0])
     expect(me.sync).toMatchObject({ seat: null, version: 0, view: { phase: { kind: 'lobby' } } })
     expect(me.view.seats.every((x) => x.kind === 'empty')).toBe(true)
+  })
+})
+
+describe('waking from hibernation', () => {
+  test('a wake with the sockets still open leaves their seats connected, and they play on', async () => {
+    const { w, conns } = await startedGame()
+    const version = conns[0].sync.version
+    await w.wake()
+    const watcher = await w.connect('w'.repeat(20))
+    expect(watcher.view.seats.map((s) => s.connected)).toEqual([true, true, true, true])
+    expect(watcher.sync.version).toBe(version)
+
+    conns.forEach((c) => c.take())
+    await w.send(conns[2], { type: 'pass' }) // the token is read back from the socket's state
+    expect(conns[2].inbox.filter((m) => m.type === 'rejected')).toEqual([])
+    expect(conns[0].sync.version).toBe(version + 1)
+  })
+
+  test('a wake with nothing changed writes nothing and sends nothing', async () => {
+    const { w } = await startedGame()
+    w.writes.length = 0
+    await w.wake()
+    expect(w.writes).toEqual([])
+  })
+
+  test('a restart of a room everyone had already left writes nothing', async () => {
+    const { w, conns } = await startedGame()
+    for (const conn of conns) await w.close(conn)
+    w.writes.length = 0
+    await w.boot()
+    expect(w.writes).toEqual([])
+  })
+
+  test('a seat whose only socket went away while the room slept is disconnected on wake, and the table is told', async () => {
+    const { w, conns } = await startedGame()
+    const secondTab = await w.connect(TOKENS[1])
+    w.lose(conns[3])
+    w.lose(conns[1]) // seat 1 still has its second tab
+    const version = conns[0].sync.version
+    await w.wake()
+    expect(conns[0].sync).toMatchObject({ version: version + 1, events: [] })
+    expect(conns[0].view.seats.map((s) => s.connected)).toEqual([true, true, true, false])
+    expect(secondTab.sync.seat).toBe(1)
+    expect(w.data.get('state')).toMatchObject({ version: version + 1 })
+  })
+
+  test('a close that wakes the room is not applied a second time', async () => {
+    const { w, conns } = await startedGame()
+    w.lose(conns[3]) // a closing socket is no longer open when the room wakes for its close
+    await w.wake()
+    expect(conns[0].view.seats[3].connected).toBe(false)
+    const version = conns[0].sync.version
+    w.writes.length = 0
+    await w.server.onClose(conns[3])
+    expect(w.writes).toEqual([])
+    expect(conns[0].sync.version).toBe(version)
   })
 })
 

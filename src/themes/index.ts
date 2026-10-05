@@ -43,8 +43,8 @@ export const THEMES: Theme[] = [
   },
 ]
 
-const THEME_KEY = 'thunee-theme'
-const BACK_KEY = 'thunee-card-back'
+const THEME_KEY = 'tricks-theme'
+const BACK_KEY = 'tricks-card-back'
 
 export function currentTheme(): Theme {
   return THEMES.find((t) => t.id === localStorage.getItem(THEME_KEY)) ?? THEMES[0]

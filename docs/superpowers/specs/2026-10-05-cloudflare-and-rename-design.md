@@ -112,7 +112,7 @@ Nothing else may be assumed to survive in memory. `saved` is reloaded in `onStar
 ## 4. The client
 
 - `openSession(game, code)` connects with `new PartySocket({ host: location.host, party: 'room', room: `${game}-${code}`, query })`. `VITE_PARTYKIT_HOST` is removed: the app and the rooms always share an origin.
-- `TableRoom` checks `host.name` on connect. A name that is not a known game id (only `thunee` for now), then `-`, then six capital letters is refused with a close code. The game is always read from the name and never saved.
+- A name that is not a known game id (only `thunee` for now), then `-`, then six capital letters is unknown. The Worker refuses an unknown name before any Durable Object is created: a socket is accepted and closed with the same close code `TableRoom` uses (`UNKNOWN_ROOM_CLOSE_CODE`), and a plain request gets a 404. `TableRoom` also checks `host.name` on connect and refuses an unknown name with that close code. The game is always read from the name and never saved.
 
 ## 5. The rename
 

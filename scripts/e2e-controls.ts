@@ -1,14 +1,14 @@
 /**
  * Hand controls in a real browser: a short drag does nothing, a long drag
  * plays one card, and an illegal card asks before it is played.
- * Needs `pnpm dev` and `pnpm party`.
+ * Needs `pnpm dev`.
  */
 import { type Locator, chromium } from 'playwright-core'
 
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
-await context.addInitScript(() => localStorage.setItem('thunee-muted', '1'))
+await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
 const page = await context.newPage()
 const problems: string[] = []
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
@@ -21,7 +21,7 @@ const handCount = () => page.locator('.hand .playing-card').count()
 const legal = () => page.locator('.hand .playing-card[data-dim="false"]').first()
 const illegal = () => page.locator('.hand .playing-card[data-dim="true"]').first()
 
-await page.goto(base)
+await page.goto(`${base}/thunee`)
 await page.getByRole('button', { name: 'Create game' }).click()
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()

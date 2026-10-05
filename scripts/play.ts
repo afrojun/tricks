@@ -1,17 +1,21 @@
 /**
- * Plays a whole game against a running PartyKit dev server over real sockets:
- * two scripted humans and two AI seats, with one human dropping and
- * reconnecting mid-game. Usage: pnpm party (in another terminal), then
- * pnpm tsx scripts/play.ts
+ * Plays a whole game against the running app over real sockets: two scripted
+ * humans and two AI seats, with one human dropping and reconnecting mid-game.
+ * First checks that a socket to a name that is not a room is closed with the
+ * room's close code. The rooms share the app's origin. Usage: pnpm dev (in another terminal), then
+ * pnpm e2e:sockets, with APP_URL set if the app is not on http://localhost:5173.
  */
 import PartySocket from 'partysocket'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
 import { HONEST } from '../src/ai/mind'
 import { type Action, type View, availableActions } from '../src/engine'
-import type { ServerMessage } from '../src/protocol'
+import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../src/protocol'
 
-const host = process.env.PARTYKIT_HOST ?? 'localhost:1999'
-const room = `SIM${Math.floor(Math.random() * 900 + 100)}`
+const app = new URL(process.env.APP_URL ?? 'http://localhost:5173')
+const host = app.host
+const protocol = app.protocol === 'https:' ? 'wss' : 'ws'
+const code = Array.from({ length: 6 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('')
+const room = roomName('thunee', code)
 
 class Player {
   socket!: PartySocket
@@ -27,7 +31,7 @@ class Player {
     this.connect()
   }
   connect() {
-    this.socket = new PartySocket({ host, room, query: { token: this.token } })
+    this.socket = new PartySocket({ host, protocol, party: 'room', room, query: { token: this.token } })
     this.socket.addEventListener('message', (e) => {
       const msg = JSON.parse(e.data as string) as ServerMessage
       if (msg.type === 'sync') {
@@ -51,6 +55,26 @@ async function until(what: string, check: () => boolean, ms = 15_000) {
     await sleep(25)
   }
 }
+
+/** The close code a plain WebSocket sees when it connects to `name`. */
+function closeCodeFor(name: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(`${protocol}://${host}/parties/room/${name}?token=script-token-zzzzzzzzzzzz`)
+    const timer = setTimeout(() => {
+      socket.close()
+      reject(new Error(`a socket to ${name} was not closed within 5 seconds`))
+    }, 5000)
+    socket.addEventListener('close', (e) => {
+      clearTimeout(timer)
+      resolve(e.code)
+    })
+  })
+}
+for (const name of ['SIM123', 'thunee-abcdef', 'hearts-ABCDEF']) {
+  const closed = await closeCodeFor(name)
+  if (closed !== UNKNOWN_ROOM_CLOSE_CODE) throw new Error(`a socket to ${name} closed with ${closed}, not ${UNKNOWN_ROOM_CLOSE_CODE}`)
+}
+console.log(`sockets to unknown room names closed with ${UNKNOWN_ROOM_CLOSE_CODE}`)
 
 const a = new Player('Asha', 'script-token-aaaaaaaaaaaa')
 const b = new Player('Bheki', 'script-token-bbbbbbbbbbbb')

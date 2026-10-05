@@ -5,19 +5,14 @@ import { type Preset, listPresets, savePreset } from '../presets/storage'
 import { RulesList } from './Rules'
 import { PRACTICE_KEY, PracticeGame } from '../practice/game'
 import { ThemePicker } from './ThemePicker'
+import { CODE_LENGTH, cleanCode, practicePath, roomPath } from './routes'
 import { navigate } from './session'
 
-const CODE_LENGTH = 6
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // no I or O
 
 export function newGameCode(): string {
   const values = crypto.getRandomValues(new Uint8Array(CODE_LENGTH))
   return [...values].map((v) => CODE_LETTERS[v % CODE_LETTERS.length]).join('')
-}
-
-/** Room codes are letters only, upper-cased, whatever was typed or pasted. */
-export function cleanCode(raw: string): string {
-  return raw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, CODE_LENGTH)
 }
 
 export interface GameSetup {
@@ -26,7 +21,7 @@ export interface GameSetup {
 }
 
 export function setupKey(code: string): string {
-  return `thunee-setup-${code}`
+  return `tricks-thunee-setup-${code}`
 }
 
 function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
@@ -67,13 +62,13 @@ function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
 
 function LearnToPlay() {
   const [saved] = useState(() => PracticeGame.load(localStorage.getItem(PRACTICE_KEY)) !== null)
-  const start = (players: 2 | 4) => navigate(`/practice?players=${players}`)
+  const start = (players: 2 | 4) => navigate(practicePath('thunee', players))
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">
       <h2 className="display text-lg">Learn to play</h2>
       <p>Play against the computer with a coach who explains every move, gives hints, and warns you before a mistake.</p>
       {saved && (
-        <button className="btn btn-primary" onClick={() => navigate('/practice')}>
+        <button className="btn btn-primary" onClick={() => navigate(practicePath('thunee'))}>
           Continue practice
         </button>
       )}
@@ -100,7 +95,7 @@ export function Home() {
     const code = newGameCode()
     const overrides = presets.find((p) => p.id === presetId)?.overrides ?? {}
     sessionStorage.setItem(setupKey(code), JSON.stringify({ playerCount, overrides } satisfies GameSetup))
-    navigate(`/game/${code}`)
+    navigate(roomPath('thunee', code))
   }
 
   return (
@@ -157,7 +152,7 @@ export function Home() {
         className="panel p-4 w-full max-w-sm grid gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          if (joinCode.length === CODE_LENGTH) navigate(`/game/${joinCode}`)
+          if (joinCode.length === CODE_LENGTH) navigate(roomPath('thunee', joinCode))
         }}
       >
         <h2 className="display text-lg">Join a game</h2>

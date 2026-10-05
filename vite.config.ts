@@ -1,21 +1,21 @@
+import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 import { defineConfig } from 'vite'
 
 /**
- * In development the page and the game server share one origin: Vite proxies
- * /parties (including WebSockets) to PartyKit. That keeps a single URL working
- * over localhost, a LAN address, or an HTTPS tunnel such as Tailscale Serve.
+ * The Cloudflare plugin runs the Worker (rooms included) inside Vite, so the page and the rooms
+ * share one origin: a single URL works over localhost, a LAN address, or an HTTPS tunnel such as
+ * Tailscale Serve. Vitest has its own config and never loads this plugin.
  */
 const server = {
   host: '127.0.0.1', // where Tailscale Serve and the e2e scripts look
   allowedHosts: ['.ts.net'],
-  proxy: { '/parties': { target: 'http://127.0.0.1:1999', ws: true } },
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cloudflare()],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
   server,
   preview: server,

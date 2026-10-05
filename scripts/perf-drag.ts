@@ -1,6 +1,6 @@
 /**
  * Measures frame pacing while a card is carried around and dropped, in
- * Firefox or Chromium. Needs `pnpm dev` and `pnpm party`.
+ * Firefox or Chromium. Needs `pnpm dev`.
  * Usage: pnpm tsx scripts/perf-drag.ts [firefox|chromium] [theme]
  */
 import { chromium, firefox } from 'playwright-core'
@@ -10,11 +10,11 @@ const theme = process.argv[3] ?? 'modern'
 const browser = engine === 'firefox' ? await firefox.launch() : await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
 await context.addInitScript((t) => {
-  localStorage.setItem('thunee-theme', t)
-  localStorage.setItem('thunee-muted', '1')
+  localStorage.setItem('tricks-theme', t)
+  localStorage.setItem('tricks-muted', '1')
 }, theme)
 const page = await context.newPage()
-await page.goto(process.env.APP_URL ?? 'http://localhost:5173')
+await page.goto(`${process.env.APP_URL ?? 'http://localhost:5173'}/thunee`)
 await page.getByRole('button', { name: 'Create game' }).click()
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()

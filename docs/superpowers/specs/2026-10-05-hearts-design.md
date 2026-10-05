@@ -57,7 +57,7 @@ Standard is the default. A preset stores only its differences. One more preset i
 
 `gameEndsAt` replaces the 100 in section 2. With `moon: 'shooterSubtracts'`, the shooter scores -26 and everyone else scores nothing.
 
-With the jack of diamonds in play: it is not a point card for the first-trick rule, it does not count toward shooting the moon, and its holder scores -10 whatever else happens. Scores may go below zero.
+With the jack of diamonds in play: it is not a point card for the first-trick rule, it does not count toward shooting the moon, and whoever takes it scores -10 however the rest of the round is scored. The one exception is a round ended by an accusation, which scores only the penalty (section 6). Scores may go below zero.
 
 ## 4. State, actions and events
 
@@ -121,7 +121,7 @@ There are no declarations in Hearts, so there are no false claims.
 - **Guilty:** the accused scores 26 for the round and everyone else scores nothing.
 - **Not guilty:** the accuser scores 26 and everyone else scores nothing.
 
-Tricks already taken that round do not count, and nobody shoots the moon. An unchallenged cheat stands.
+As in Thunee, an accusation ends the round with no other score: tricks already taken do not count, a jack of diamonds already taken scores nothing, and nobody shoots the moon. An unchallenged cheat stands.
 
 ## 7. Computer players
 
@@ -136,7 +136,7 @@ Either way the honest choice comes first and the persona sits on top, as in Thun
 - **Catching** uses the kit's `playProofs` and `noticed`. A proof is more salient when the cheat dodged the queen of spades.
 - **Suspicion signals:** a void shown so early it is unlikely (`chanceOfVoid`), and a discard that dodges the queen.
 
-Until then sub-project C supplies a random legal player, for the simulation and as a stopgap.
+Until then sub-project C supplies a random legal player, for the simulation and as a stopgap, and an honest catcher: a computer that accuses only when it holds a proof, so that cheating is never free.
 
 ## 8. Screens
 

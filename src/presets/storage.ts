@@ -13,7 +13,7 @@ export const BUILT_IN_PRESETS: Preset[] = [
   { id: 'classic-app', name: 'Classic app', overrides: CLASSIC_APP_OVERRIDES, builtIn: true },
 ]
 
-const KEY = 'thunee-presets'
+const KEY = 'tricks-thunee-presets'
 export const MAX_PRESET_NAME = 30
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>

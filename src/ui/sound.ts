@@ -1,7 +1,7 @@
 /** Small synthesised sound effects. No audio files. */
 export type Sound = 'cardPlay' | 'deal' | 'trickWin' | 'yourTurn' | 'call' | 'challenge' | 'ball' | 'pip' | 'gameOver'
 
-const MUTE_KEY = 'thunee-muted'
+const MUTE_KEY = 'tricks-muted'
 let context: AudioContext | null = null
 
 export function isMuted(): boolean {

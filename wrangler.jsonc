@@ -1,0 +1,19 @@
+// One Worker for the whole app: static assets for the pages, one Durable Object class for rooms.
+// Only what local development needs; deployment is configured separately.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tricks",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    // Any path that is not a file is the app (/, /thunee, /thunee/ABCDEF, ...).
+    "not_found_handling": "single-page-application",
+    // Room sockets go to the Worker before any asset lookup.
+    "run_worker_first": ["/parties/*"]
+  },
+  "durable_objects": {
+    // routePartykitRequest names the URL segment after the binding: /parties/room/<game>-<CODE>.
+    "bindings": [{ "name": "Room", "class_name": "Room" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
+}

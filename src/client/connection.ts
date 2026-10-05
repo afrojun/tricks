@@ -1,12 +1,9 @@
 import PartySocket from 'partysocket'
 import type { Action } from '../engine'
-import { PING, PONG, type ServerMessage, TOKEN_PARAM } from '../protocol'
+import { type GameId, PING, PONG, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
 import { deviceToken } from './identity'
 import { Playback } from './playback'
 import { GameStore } from './store'
-
-// Production names the PartyKit host; in development Vite proxies /parties on the page's own origin.
-const HOST = import.meta.env.VITE_PARTYKIT_HOST || location.host
 
 const PING_EVERY_MS = 5000
 const MAX_UNANSWERED_PINGS = 2
@@ -17,8 +14,8 @@ export interface Session {
   close: () => void
 }
 
-/** Opens a socket to a room and feeds everything it receives into a store. */
-export function openSession(room: string): Session {
+/** Opens a socket to a game's room and feeds everything it receives into a store. */
+export function openSession(game: GameId, code: string): Session {
   const store = new GameStore()
   const playback = new Playback((message, receivedAt) => {
     store.receive(message, receivedAt)
@@ -28,7 +25,14 @@ export function openSession(room: string): Session {
       if (message.seat !== null && message.view.seats[message.seat].standIn) send({ type: 'reclaimSeat' })
     }
   })
-  const socket = new PartySocket({ host: HOST, room, query: { [TOKEN_PARAM]: deviceToken() } })
+  // The rooms are served by the same Worker as the page, so they share its origin.
+  const socket = new PartySocket({
+    host: location.host,
+    protocol: location.protocol === 'https:' ? 'wss' : 'ws',
+    party: 'room',
+    room: roomName(game, code),
+    query: { [TOKEN_PARAM]: deviceToken() },
+  })
   const send = (action: Action) => {
     playback.release()
     socket.send(JSON.stringify({ action }))

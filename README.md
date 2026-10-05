@@ -1,12 +1,13 @@
-# Thunee
+# Tricks
 
-A multiplayer South African card game for two or four players, built with React, TypeScript and PartyKit.
+Trick-taking card games to play with friends or the computer, built with React, TypeScript and Cloudflare Workers. The first game is Thunee, the South African card game for two or four players, at `/thunee`.
 
 ## Features
 
-- Two-player and four-player games, with computer players to fill seats
+- Two-player and four-player Thunee, with computer players to fill seats
 - Traditional rules by default, with house rules as named presets you can save and share by link
 - Timed calling, Thunee, Jodhi, Double, Khanaak and 4-ball challenges
+- Practice games against the computer with a coach
 - Reconnects to your seat after a refresh or a dropped connection
 - Three themes: Retro, Modern table and Minimal
 
@@ -14,28 +15,21 @@ A multiplayer South African card game for two or four players, built with React,
 
 ```bash
 pnpm install
-
-# Terminal 1: game server
-pnpm party
-
-# Terminal 2: frontend
 pnpm dev
 ```
 
-Open http://localhost:5173. To play alone, create a game, sit down, and add computer players to the other seats.
+Open http://localhost:5173 and choose Thunee. `pnpm dev` runs the whole app: the pages, and the game rooms as a Cloudflare Worker inside Vite. To play alone, create a game, sit down, and add computer players to the other seats.
 
 ```bash
-pnpm check   # type check
+pnpm check   # type check the app and the Worker
 pnpm test    # tests
-pnpm e2e     # browser games; needs both servers running and Chromium installed
+pnpm e2e     # browser games; needs pnpm dev running and Chromium installed
 ```
 
 ## Deployment
 
-1. Deploy the PartyKit server: `pnpm exec partykit login`, then `pnpm party:deploy`. Note the URL, `tuscan-thunee.YOUR_USERNAME.partykit.dev`.
-2. Deploy the frontend to any static host (Vercel, Cloudflare Pages, Netlify) with `pnpm build`, serving `dist/` and rewriting all paths to `/`.
-3. Set the `VITE_PARTYKIT_HOST` environment variable on the frontend host to the PartyKit URL and redeploy.
+Pending. The app and its rooms will deploy together as one Cloudflare Worker; see `docs/superpowers/specs/2026-10-05-deploy-design.md`.
 
 ## How it is built
 
-See `AGENTS.md` for the architecture and `docs/superpowers/specs/2026-10-04-thunee-rebuild-design.md` for the design, including every rule and setting.
+See `AGENTS.md` for the architecture, `docs/superpowers/specs/2026-10-05-tricks-overview-design.md` for where Tricks is going, and `docs/superpowers/specs/2026-10-04-thunee-rebuild-design.md` for Thunee's design, including every rule and setting.
