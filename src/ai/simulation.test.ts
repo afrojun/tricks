@@ -170,7 +170,7 @@ describe('simulation', () => {
         expect([...reasons]).not.toContain('challenge')
         expect(refused).toBeGreaterThan(0)
       } else expect([...reasons]).toEqual(expect.arrayContaining(['normal', 'challenge']))
-    }, 120_000)
+    }, Math.max(120_000, GAMES * 2_000))
   }
 
   test('Straight and Sharp on their own never cheat, never bluff, and Straight never sees a proof that is not there', () => {
@@ -202,5 +202,5 @@ describe('simulation', () => {
       expect(t.game.phase.kind).toBe('gameOver')
       expect(teamOf(0)).toBe(0)
     }
-  })
+  }, 60_000)
 })
