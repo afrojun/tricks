@@ -1,6 +1,5 @@
 /** What a computer player brings to a decision besides its view: a persona and the round's salt. */
-/** Seats are numbered in play order. */
-type Seat = number
+import type { Seat } from './table'
 
 /** How a computer player behaves about cheating and accusing. */
 export const PERSONAS = ['straight', 'sharp', 'sly', 'wild'] as const
