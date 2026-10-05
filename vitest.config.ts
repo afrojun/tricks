@@ -11,7 +11,7 @@ export default defineConfig({
       'src/presets/**/*.test.ts',
       'src/practice/**/*.test.ts',
       'src/coach/**/*.test.ts',
-      'party/server.test.ts',
+      'src/room/**/*.test.ts',
     ],
   },
 })

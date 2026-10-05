@@ -1,16 +1,15 @@
-import type * as Party from 'partykit/server'
 import { describe, expect, test } from 'vitest'
-import { chooseAction, chooseJodhi } from '../src/ai/choose'
-import { HONEST } from '../src/ai/mind'
-import type { Action, View } from '../src/engine'
-import { type Game, createGame } from '../src/engine'
-import { Table, card, seededRng } from '../src/engine/testing'
-import type { ServerMessage } from '../src/protocol'
-import ThuneeRoom from './server'
+import { chooseAction, chooseJodhi } from '../ai/choose'
+import { HONEST } from '../ai/mind'
+import type { Action, View } from '../engine'
+import { type Game, createGame } from '../engine'
+import { Table, card, seededRng } from '../engine/testing'
+import type { ServerMessage } from '../protocol'
+import { type RoomConnection, type RoomHost, TableRoom } from './room'
 
 type Sync = Extract<ServerMessage, { type: 'sync' }>
 
-class FakeConn {
+class FakeConn implements RoomConnection {
   state: { token: string } | null = null
   inbox: ServerMessage[] = []
   constructor(
@@ -37,20 +36,20 @@ class FakeConn {
   }
 }
 
-/** A stand-in for a PartyKit room: storage, an alarm, a clock, and connections. */
+/** A stand-in for the room's host: storage, an alarm, a clock, and connections. */
 class World {
   data = new Map<string, unknown>()
   alarm: number | null = null
   now = 1_000_000
   conns: FakeConn[] = []
   writes: string[] = []
-  server!: ThuneeRoom
+  server!: TableRoom
   private nextId = 0
 
-  room = {
-    id: 'TEST',
+  host: RoomHost = {
+    name: 'thunee-TESTAB',
     storage: {
-      get: async (key: string) => structuredClone(this.data.get(key)),
+      get: async <T>(key: string) => structuredClone(this.data.get(key)) as T | undefined,
       put: async (key: string, value: unknown) => {
         this.writes.push('put')
         this.data.set(key, structuredClone(value))
@@ -58,13 +57,13 @@ class World {
       setAlarm: async (at: number) => void (this.alarm = at),
       deleteAlarm: async () => void (this.alarm = null),
     },
-    getConnections: () => this.conns,
-  } as unknown as Party.Room
+    connections: () => this.conns,
+  }
 
   /** Builds a new server instance over the same storage, as after a restart. */
   async boot() {
     this.conns = []
-    this.server = new ThuneeRoom(this.room, { now: () => this.now, rng: seededRng(42) })
+    this.server = new TableRoom(this.host, { now: () => this.now, rng: seededRng(42) })
     await this.server.onStart()
     return this
   }
@@ -77,18 +76,17 @@ class World {
       original(raw)
     }
     this.conns.push(conn)
-    const url = `https://x/parties/main/TEST?token=${token}`
-    await this.server.onConnect(conn as never, { request: { url } } as never)
+    await this.server.onConnect(conn, `https://x/parties/room/${this.host.name}?token=${token}`)
     return conn
   }
 
   async close(conn: FakeConn) {
     this.conns = this.conns.filter((c) => c !== conn)
-    await this.server.onClose(conn as never)
+    await this.server.onClose(conn)
   }
 
   send(conn: FakeConn, action: Action | object) {
-    return this.server.onMessage(JSON.stringify({ action }), conn as never)
+    return this.server.onMessage(JSON.stringify({ action }), conn)
   }
 
   async fireAlarm() {
@@ -183,7 +181,7 @@ describe('messages', () => {
     const { w, conns } = await startedGame()
     conns[0].take()
     for (const raw of ['{not json', '{"action":{"type":"nope"}}', '{"action":{"type":"tick"}}', '[]', 'x'.repeat(5000)]) {
-      await w.server.onMessage(raw, conns[0] as never)
+      await w.server.onMessage(raw, conns[0])
     }
     expect(conns[0].take()).toEqual(Array(5).fill({ type: 'rejected', reason: 'malformed' }))
   })
@@ -192,7 +190,7 @@ describe('messages', () => {
     const { w, conns } = await startedGame()
     const version = conns[0].sync.version
     conns[0].take()
-    await w.server.onMessage('ping', conns[0] as never)
+    await w.server.onMessage('ping', conns[0])
     expect(conns[0].raw.at(-1)).toBe('pong')
     expect(conns[0].take()).toEqual([])
     expect((await w.connect('p'.repeat(20))).sync.version).toBe(version)
