@@ -177,6 +177,23 @@ describe('lobby', () => {
     }
   })
 
+  test('a rule override of the right type is the engine’s to judge, whatever the wire’s bounds', () => {
+    const game = deepFreeze(run(run(createGame(), null, { type: 'sit', seat: 0, name: 'Host' }), null, { type: 'sit', seat: 1, name: 'Guest' }))
+    // Outside the bounds a share link or the room would accept, but of the right type: stored as sent, as before.
+    const odd = { ballsToWin: 31, twoPlayerTarget: 1000, callTimerSeconds: 1, thuneeWindowSeconds: 0.5, thuneePartnerCatchBalls: 0 }
+    expect(run(game, 0, { type: 'setRules', overrides: odd }).rules).toEqual({ ...TRADITIONAL, ...odd })
+    expect(reject(game, 1, { type: 'setRules', overrides: odd })).toBe('notHost')
+    expect(reject(game, null, { type: 'setRules', overrides: odd })).toBe('notSeated')
+    const started = deepFreeze(new Table(4).do(0, { type: 'start' }).game)
+    expect(reject(started, 0, { type: 'setRules', overrides: odd })).toBe('wrongPhase')
+    // Of the wrong type: refused before anything reads it.
+    for (const overrides of [{ ballsToWin: 'x' }, { double: 1 }, { thuneeCaller: 'nobody' }, null, 'x', 5]) {
+      for (const g of [game, started]) {
+        expect(apply(g, 0, { type: 'setRules', overrides } as unknown as Action, ctx)).toEqual({ rejected: 'notAllowed' })
+      }
+    }
+  })
+
   test('the system’s own actions are not held to the players’ schema', () => {
     const t = new Table(4, { redealIfNoTrumps: false }).do(0, { type: 'start' })
     t.do('system', { type: 'setConnected', seat: 2, connected: false })
