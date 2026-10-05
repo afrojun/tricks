@@ -1,8 +1,11 @@
 /**
  * Section 3.2: milliseconds per decision, and where the time goes.
  *   ./node_modules/.bin/tsx src/spike/search/speed.ts [--rounds 20] [--earlyRounds 5] [--budgets 10,30,100] [--policies random,heuristic]
+ *     [--repeat 1] [--only perDecision|cloning]
+ * With `--repeat k` each decision is timed k times and the fastest kept, to see past other load on the machine.
+ * `--only perDecision` stops after the first table; `--only cloning` runs only the cloning comparison.
  */
-import { type Action, type Ctx, type Game, type Seat, apply, availableActions } from '../../engine'
+import { type Action, type Ctx, type Game, type Seat, type View, apply, availableActions } from '../../engine'
 import { seededRng } from '../../engine/testing'
 import { applyInPlace } from './applyInPlace'
 import { searchEarly } from './early'
@@ -17,6 +20,7 @@ const rounds = Number(opts.rounds ?? 20)
 const budgets = (opts.budgets ?? '10,30,100').split(',').map(Number)
 const policies = (opts.policies ?? 'random,heuristic').split(',') as RolloutPolicy[]
 const views = decisionViews(rounds)
+const only = opts.only ?? 'all'
 console.log(`${views.length} decisions with two or more legal cards, from ${rounds} heuristic rounds (seeds 1-${rounds})`)
 const legalCounts = views.map((v) => availableActions(v).legal.length)
 console.log(`legal cards per decision: mean ${fmt(mean(legalCounts), 2)}, max ${Math.max(...legalCounts)}`)
@@ -29,27 +33,31 @@ const time = (run: () => void) => {
   run()
   return performance.now() - started
 }
+const repeat = Number(opts.repeat ?? 1)
+const fastest = (run: () => void) => Math.min(...Array.from({ length: repeat }, () => time(run)))
 
-console.log('\n## Per decision, in place (no cloning)\n')
-console.log('| Policy | Worlds | Median ms | p95 ms | Max ms |')
-console.log('|---|---|---|---|---|')
-for (const policy of policies) {
-  for (const worlds of budgets) {
-    const ms = views.map((v, i) => time(() => search(v, { worlds, policy, seed: i })))
-    console.log(`| ${policy} | ${worlds} | ${fmt(quantile(ms, 0.5), 1)} | ${fmt(quantile(ms, 0.95), 1)} | ${fmt(Math.max(...ms), 1)} |`)
+/** One row per policy and budget: median, 95th percentile and slowest decision. */
+function timingTable(title: string, decisions: View[], run: (v: View, opts: { worlds: number; policy: RolloutPolicy; seed: number }) => unknown, timer = time) {
+  console.log(`\n## ${title}\n`)
+  console.log('| Policy | Worlds | Median ms | p95 ms | Max ms |')
+  console.log('|---|---|---|---|---|')
+  for (const policy of policies) {
+    for (const worlds of budgets) {
+      const ms = decisions.map((v, i) => timer(() => run(v, { worlds, policy, seed: i })))
+      console.log(`| ${policy} | ${worlds} | ${fmt(quantile(ms, 0.5), 1)} | ${fmt(quantile(ms, 0.95), 1)} | ${fmt(Math.max(...ms), 1)} |`)
+    }
   }
 }
 
+if (only === 'all' || only === 'perDecision') {
+  timingTable(`Per decision, in place (no cloning)${repeat > 1 ? `, fastest of ${repeat}` : ''}`, views, search, fastest)
+}
+if (only === 'perDecision') process.exit(0)
+
 // Calling, trump and Thunee by search (the optional extension): each candidate is played out from before card play.
-const early = decisionViews(Number(opts.earlyRounds ?? 5), 1, true)
-console.log(`\n## Calling, trump and Thunee by search, in place: ${early.length} decisions\n`)
-console.log('| Policy | Worlds | Median ms | p95 ms | Max ms |')
-console.log('|---|---|---|---|---|')
-for (const policy of policies) {
-  for (const worlds of budgets) {
-    const ms = early.map((v, i) => time(() => searchEarly(v, { worlds, policy, seed: i })))
-    console.log(`| ${policy} | ${worlds} | ${fmt(quantile(ms, 0.5), 1)} | ${fmt(quantile(ms, 0.95), 1)} | ${fmt(Math.max(...ms), 1)} |`)
-  }
+if (only === 'all') {
+  const early = decisionViews(Number(opts.earlyRounds ?? 5), 1, true)
+  timingTable(`Calling, trump and Thunee by search, in place: ${early.length} decisions`, early, searchEarly)
 }
 
 // The engine's apply as it is: one structuredClone per action. Time the clones by wrapping the global.
@@ -83,6 +91,8 @@ for (const policy of policies) {
     )
   }
 }
+
+if (only === 'cloning') process.exit(0)
 
 // Where an in-place search spends its time, at 30 worlds; and the rollouts three ways.
 console.log('\n## Where the time goes, 30 worlds\n')
