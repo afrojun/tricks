@@ -1,6 +1,7 @@
 import { hasCard, sameCard } from '../../../kit/cards'
 import { type Actor, type Ctx, type Seat, allSeats, checkLobbyHost, emptySeats, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
 import { availableActions } from './available'
+import type { Card } from './cards'
 import { PASS_SIZE, PLAYERS, SEAT_COUNTS, STANDARD, resolveRules } from './rules'
 import * as round from './round'
 import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type RejectReason } from './types'
@@ -92,7 +93,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
     case 'choosePass': {
       if (phase.kind !== 'passing') return 'wrongPhase'
       if (can.pass.length === 0) return 'notAllowed'
-      const cards = Array.isArray(action.cards) ? action.cards : []
+      const cards = Array.isArray(action.cards) && action.cards.every(isCard) ? action.cards : []
       const distinct = cards.every((c, i) => !cards.slice(0, i).some((d) => sameCard(c, d)))
       if (cards.length !== PASS_SIZE || !distinct || !cards.every((c) => hasCard(can.pass, c))) return 'badChoice'
       round.choosePass(game, phase, seat, cards.map((c) => ({ suit: c.suit, rank: c.rank })), events)
@@ -103,7 +104,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       if (phase.kind !== 'playing') return 'wrongPhase'
       if (phase.turn !== seat) return 'notYourTurn'
       const card = action.card
-      if (!hasCard(phase.play.hands[seat], card)) return 'cardNotInHand'
+      if (!isCard(card) || !hasCard(phase.play.hands[seat], card)) return 'cardNotInHand'
       if (!hasCard(can.play, card)) return 'illegalCard'
       round.playCard(game, phase.play, seat, { suit: card.suit, rank: card.rank }, ctx, events)
       return null
@@ -133,6 +134,11 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
     default:
       return 'notAllowed'
   }
+}
+
+/** Whether a value from a client is shaped like a card; the wire schema checks this too. */
+function isCard(value: unknown): value is Card {
+  return typeof value === 'object' && value !== null && typeof (value as Card).suit === 'string' && typeof (value as Card).rank === 'string'
 }
 
 /** Resolves a phase deadline that has passed. Computer turns are driven by the host. */

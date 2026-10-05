@@ -133,6 +133,7 @@ describe('lobby', () => {
     expect(t.do(0, { type: 'rename', name: ' Bheki ' }).game.seats[0].name).toBe('Bheki')
     expect(cleanName('  a  b  ')).toBe('a b')
     expect(cleanName('    ')).toBeNull()
+    expect(cleanName(undefined as never)).toBeNull()
   })
 
   test('only the host may add a computer, clear a seat, set rules, set the player count or start', () => {

@@ -145,6 +145,7 @@ export function isAiControlled(game: Pick<TableState, 'seats'>, seat: Seat): boo
 
 /** Trims, collapses whitespace and caps the length; null if nothing is left. */
 export function cleanName(raw: string): string | null {
+  if (typeof raw !== 'string') return null
   const name = [...raw.replace(/\s+/g, ' ').trim()].slice(0, MAX_NAME_LENGTH).join('').trim()
   return name.length > 0 ? name : null
 }

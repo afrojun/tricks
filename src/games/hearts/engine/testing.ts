@@ -1,6 +1,6 @@
 /** Helpers for tests and simulations. Not used by the app. */
 import { type Suit, cardId, hasCard } from '../../../kit/cards'
-import { type Actor, type Ctx, type Seat, allSeats } from '../../../kit/table'
+import { type Actor, type Ctx, type Seat, allSeats, settle } from '../../../kit/table'
 import { deepFreeze, seededRng } from '../../../kit/testing'
 import { apply, createGame } from './apply'
 import { availableActions } from './available'
@@ -87,11 +87,9 @@ export class Table {
       this.game = { ...this.game, phase: { ...phase, hands: dealt } }
     } else if (phase.kind === 'playing') {
       const turn = dealt.findIndex((h) => hasCard(h, TWO_OF_CLUBS))
-      this.game = {
-        ...this.game,
-        waiting: [{ seat: turn, since: this.now }],
-        phase: { ...phase, play: { ...phase.play, hands: dealt }, turn },
-      }
+      const game: Game = structuredClone({ ...this.game, waiting: [], phase: { ...phase, play: { ...phase.play, hands: dealt }, turn } })
+      settle(game, this.ctx, [turn], [turn])
+      this.game = game
     } else throw new Error(`cannot deal in ${phase.kind}`)
     checkInvariants(this.game)
     return this
