@@ -1,15 +1,22 @@
 import { GameScreen } from './ui/GameScreen'
-import { Home, cleanCode } from './ui/Home'
+import { Home } from './ui/Home'
 import { PracticeScreen } from './ui/PracticeScreen'
+import { TricksHome } from './ui/TricksHome'
+import { route } from './ui/routes'
 import { ThemeProvider, usePath } from './ui/session'
 
 function Routes() {
-  const path = usePath()
-  if (/^\/practice\/?$/.test(path)) return <PracticeScreen />
-  const match = /^\/game\/([^/]+)\/?$/.exec(path)
-  // cleanCode keeps letters only, so a malformed or escaped path simply fails to match a room.
-  const room = match ? cleanCode(match[1]) : ''
-  return room.length === 6 ? <GameScreen room={room} /> : <Home />
+  const at = route(usePath())
+  switch (at.screen) {
+    case 'practice':
+      return <PracticeScreen />
+    case 'room':
+      return <GameScreen room={at.code} />
+    case 'home':
+      return <Home />
+    case 'tricks':
+      return <TricksHome />
+  }
 }
 
 export function App() {

@@ -12,6 +12,7 @@ export default defineConfig({
       'src/practice/**/*.test.ts',
       'src/coach/**/*.test.ts',
       'src/room/**/*.test.ts',
+      'src/ui/**/*.test.ts',
     ],
   },
 })

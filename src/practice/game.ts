@@ -21,7 +21,7 @@ import { type Rng, rng } from './rng'
 
 export type { DecisionRecord, RoundLog }
 
-export const PRACTICE_KEY = 'thunee-practice'
+export const PRACTICE_KEY = 'tricks-thunee-practice'
 /** Raise when the saved shape changes; older saves are discarded. */
 export const PRACTICE_FORMAT = 1
 

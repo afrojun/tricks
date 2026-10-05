@@ -16,7 +16,7 @@ import type { Action, Card, GameEvent } from '../engine'
 import type { NumberedEvent } from '../protocol'
 import { PRACTICE_KEY, PracticeGame } from './game'
 
-export const SEEN_KEY = 'thunee-coach-seen'
+export const SEEN_KEY = 'tricks-thunee-coach-seen'
 const LOG_LIMIT = 60
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>

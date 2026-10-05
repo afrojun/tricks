@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { type View, canStart, cleanName, teamOf } from '../engine'
 import { type GameSetup, setupKey } from './Home'
 import { RulesEditor, RulesList, rulesSummary } from './Rules'
+import { gamePath, roomPath } from './routes'
 import { PERSONA_CHOICES, PERSONA_NAMES } from './personas'
 import { Sheet } from './Sheet'
 import { navigate, useSession } from './session'
 import { copyText } from './text'
 
-const NAME_KEY = 'thunee-name'
+const NAME_KEY = 'tricks-name'
 
 function readSetup(room: string): GameSetup | null {
   try {
@@ -50,7 +51,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
     send({ type: 'sit', seat, name: clean })
   }
   const copyInvite = async () => {
-    if (await copyText(`${location.origin}/game/${room}`)) {
+    if (await copyText(`${location.origin}${roomPath('thunee', room)}`)) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -59,7 +60,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
   return (
     <main className="min-h-full flex flex-col items-center gap-4 p-4 pb-10">
       <header className="w-full max-w-sm flex items-center justify-between mt-2">
-        <button className="btn btn-quiet btn-small" onClick={() => navigate('/')}>
+        <button className="btn btn-quiet btn-small" onClick={() => navigate(gamePath('thunee'))}>
           Leave
         </button>
         <button className="btn btn-quiet btn-small" onClick={copyInvite} aria-label="Copy invite link">

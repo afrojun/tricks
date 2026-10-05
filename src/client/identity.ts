@@ -1,4 +1,4 @@
-const KEY = 'thunee-device-token'
+const KEY = 'tricks-device-token'
 
 /** This device's secret, created once. It proves who owns a seat and is never shown to other players. */
 export function deviceToken(): string {

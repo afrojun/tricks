@@ -4,6 +4,7 @@ import type { NumberedEvent } from '../protocol'
 import { Lobby } from './Lobby'
 import { Celebration, type Moment, MomentOverlay, useMoments } from './Moments'
 import { BALL_STAGGER_MS, type BallBurst, Table } from './Table'
+import { gamePath } from './routes'
 import { SessionProvider, navigate, useClient, useSession } from './session'
 import { playSound } from './sound'
 import { SUIT_NAME, rejectionText, seatName } from './text'
@@ -178,7 +179,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
           <button className="btn btn-primary" onClick={() => location.reload()}>
             Reload
           </button>
-          <button className="btn" onClick={() => navigate('/')}>
+          <button className="btn" onClick={() => navigate(gamePath('thunee'))}>
             Leave game
           </button>
         </section>

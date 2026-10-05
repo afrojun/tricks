@@ -4,7 +4,7 @@ import { decodeShare, encodeShare, shareUrl } from './share'
 import { BUILT_IN_PRESETS, deletePreset, listPresets, renamePreset, savePreset } from './storage'
 
 function memoryStore(initial?: string) {
-  const data = new Map<string, string>(initial === undefined ? [] : [['thunee-presets', initial]])
+  const data = new Map<string, string>(initial === undefined ? [] : [['tricks-thunee-presets', initial]])
   return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) }
 }
 
@@ -53,7 +53,8 @@ describe('share links', () => {
   test('a preset round-trips, including names with non-Latin characters', () => {
     const decoded = decodeShare(encodeShare('Thunee தமிழ் 🃏', CLASSIC_APP_OVERRIDES))
     expect(decoded).toEqual({ ok: true, name: 'Thunee தமிழ் 🃏', overrides: CLASSIC_APP_OVERRIDES })
-    const url = new URL(shareUrl('X', { double: false }, 'https://thunee.example'))
+    const url = new URL(shareUrl('X', { double: false }, 'https://tricks.example'))
+    expect(url.pathname).toBe('/thunee')
     expect(decodeShare(url.searchParams.get('rules')!)).toMatchObject({ ok: true, overrides: { double: false } })
   })
 
