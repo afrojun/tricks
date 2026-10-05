@@ -88,12 +88,29 @@ export class TableRoom {
     const stored = await this.host.storage.get<Saved>(STORAGE_KEY)
     if (stored && stored.game?.formatVersion === FORMAT_VERSION) {
       this.saved = stored
-      // Nobody is connected to a room that has just started.
-      for (const seat of this.saved.game.seats) if (seat.kind === 'human') seat.connected = false
-      this.saved.emptySince = emptySince(this.saved.game, stored.emptySince ?? null, this.deps.now())
-      await this.host.storage.put(STORAGE_KEY, this.saved)
+      await this.matchConnections()
     }
     await this.armAlarm()
+  }
+
+  /**
+   * A human seat is connected exactly when an open socket's token maps to it. After a restart
+   * there are no sockets, so every human seat is disconnected; after a wake from hibernation the
+   * sockets are still open and their seats stay connected. Writes and tells the table only on a change.
+   */
+  private async matchConnections(): Promise<void> {
+    const present = new Set([...this.host.connections()].map((conn) => this.seatOf(conn)))
+    let changed = false
+    this.saved.game.seats.forEach((seat, i) => {
+      if (seat.kind !== 'human' || seat.connected === present.has(i)) return
+      seat.connected = present.has(i)
+      changed = true
+    })
+    const since = emptySince(this.saved.game, this.saved.emptySince ?? null, this.deps.now())
+    if (!changed && since === this.saved.emptySince) return
+    this.saved = { ...this.saved, emptySince: since, version: this.saved.version + 1 }
+    await this.host.storage.put(STORAGE_KEY, this.saved)
+    for (const conn of this.host.connections()) this.send(conn, [])
   }
 
   onConnect(conn: RoomConnection, url: string): Promise<void> {

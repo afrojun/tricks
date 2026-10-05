@@ -60,12 +60,22 @@ class World {
     connections: () => this.conns,
   }
 
-  /** Builds a new server instance over the same storage, as after a restart. */
+  /** Builds a new server instance over the same storage, as after a restart: every socket is gone. */
   async boot() {
     this.conns = []
+    return this.wake()
+  }
+
+  /** Builds a new server instance over the same storage and the same open sockets, as after hibernation. */
+  async wake() {
     this.server = new TableRoom(this.host, { now: () => this.now, rng: seededRng(42) })
     await this.server.onStart()
     return this
+  }
+
+  /** A socket that goes away without the room hearing of it, as while the room sleeps. */
+  lose(conn: FakeConn) {
+    this.conns = this.conns.filter((c) => c !== conn)
   }
 
   async connect(token: string) {
@@ -271,6 +281,50 @@ describe('timers', () => {
     const me = await w.connect(TOKENS[0])
     expect(me.sync).toMatchObject({ seat: null, version: 0, view: { phase: { kind: 'lobby' } } })
     expect(me.view.seats.every((x) => x.kind === 'empty')).toBe(true)
+  })
+})
+
+describe('waking from hibernation', () => {
+  test('a wake with the sockets still open leaves their seats connected, and they play on', async () => {
+    const { w, conns } = await startedGame()
+    const version = conns[0].sync.version
+    await w.wake()
+    const watcher = await w.connect('w'.repeat(20))
+    expect(watcher.view.seats.map((s) => s.connected)).toEqual([true, true, true, true])
+    expect(watcher.sync.version).toBe(version)
+
+    conns.forEach((c) => c.take())
+    await w.send(conns[2], { type: 'pass' }) // the token is read back from the socket's state
+    expect(conns[2].inbox.filter((m) => m.type === 'rejected')).toEqual([])
+    expect(conns[0].sync.version).toBe(version + 1)
+  })
+
+  test('a wake with nothing changed writes nothing and sends nothing', async () => {
+    const { w } = await startedGame()
+    w.writes.length = 0
+    await w.wake()
+    expect(w.writes).toEqual([])
+  })
+
+  test('a restart of a room everyone had already left writes nothing', async () => {
+    const { w, conns } = await startedGame()
+    for (const conn of conns) await w.close(conn)
+    w.writes.length = 0
+    await w.boot()
+    expect(w.writes).toEqual([])
+  })
+
+  test('a seat whose only socket went away while the room slept is disconnected on wake, and the table is told', async () => {
+    const { w, conns } = await startedGame()
+    const secondTab = await w.connect(TOKENS[1])
+    w.lose(conns[3])
+    w.lose(conns[1]) // seat 1 still has its second tab
+    const version = conns[0].sync.version
+    await w.wake()
+    expect(conns[0].sync).toMatchObject({ version: version + 1, events: [] })
+    expect(conns[0].view.seats.map((s) => s.connected)).toEqual([true, true, true, false])
+    expect(secondTab.sync.seat).toBe(1)
+    expect(w.data.get('state')).toMatchObject({ version: version + 1 })
   })
 })
 
