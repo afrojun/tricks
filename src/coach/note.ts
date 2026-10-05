@@ -14,3 +14,33 @@ export interface RoundLog {
   dealt: Card[][][]
   decisions: DecisionRecord[]
 }
+
+export type TopicId =
+  | 'cards'
+  | 'calling'
+  | 'trump'
+  | 'following'
+  | 'counting'
+  | 'lastTrick'
+  | 'balls'
+  | 'jodhi'
+  | 'thunee'
+  | 'double'
+  | 'khanaak'
+  | 'challenge'
+  | 'twoPlayer'
+
+/** The mistakes `check` warns about. */
+export type WarningRule = 'illegal' | 'overtakePartner' | 'givePoints' | 'overcall' | 'thunee' | 'jodhiUnclaimed' | 'challenge'
+
+/** Everything the coach says. */
+export interface Note {
+  tone: 'info' | 'suggest' | 'warn'
+  title: string
+  body: string
+  /** Cards to highlight in the hand or on the table. */
+  cards?: Card[]
+  seats?: number[]
+  topic?: TopicId
+  rule?: WarningRule
+}
