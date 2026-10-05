@@ -22,6 +22,8 @@ const LOG_LIMIT = 60
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 export interface CoachState {
+  /** The table sync this describes; always the one the table is showing. */
+  version: number
   /** Whether the table is waiting on the player; countdowns stand still while it is. */
   waiting: boolean
   situation: Note | null
@@ -49,9 +51,15 @@ export interface Coach {
   cancel(): void
   dismissTopic(): void
   continueTrick(): void
-  /** Opens or closes a sheet the player is reading; the table waits while one is open. */
-  setReading(open: boolean): void
+  /** Opens or closes a sheet the player is reading, by name; the table waits while any is open. */
+  setReading(source: string, open: boolean): void
   restart(playerCount: 2 | 4): void
+}
+
+interface Snapshot {
+  said: Note[]
+  newRound: boolean
+  rest: Partial<CoachState>
 }
 
 export interface PracticeSession extends Session {
@@ -77,14 +85,26 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
   const isNew = saved === null
 
   const store = new GameStore()
-  const playback = new Playback((message, receivedAt) => store.receive(message, receivedAt))
+  /** Coach snapshots waiting for the table sync they describe, by version. */
+  const pending = new Map<number, Snapshot>()
+  const playback = new Playback((message, receivedAt) => {
+    store.receive(message, receivedAt)
+    if (message.type === 'sync') show(message.version)
+  })
   let version = 0
+  /** Event numbers keep rising across restarts, so the store never mistakes new events for old. */
+  let eventN = 0
   let timer: ReturnType<typeof setTimeout> | undefined
-  let reading = false
+  /** Sheets the player is reading, by name; any one holds the clock. */
+  const holds = new Set<string>()
+  /** The topic and warning hold the clock from the moment they are decided, before they are drawn. */
+  let topic: TopicId | null = null
+  let reviewed: { round: number; notes: Note[] } | null = null
   let closed = false
 
   const listeners = new Set<() => void>()
   let state: CoachState = {
+    version: 0,
     waiting: false,
     situation: null,
     advice: null,
@@ -110,7 +130,7 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
     }
   }
   const nextTopic = (events: readonly (GameEvent | null)[]): TopicId | null => {
-    if (state.topic !== null) return state.topic
+    if (topic !== null) return topic
     const already = seen()
     const view = game.coachView()
     for (const e of events) {
@@ -120,36 +140,70 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
     return null
   }
 
-  const sheetOpen = () => reading || state.topic !== null || state.warning !== null
+  const sheetOpen = () => holds.size > 0 || topic !== null || state.warning !== null
 
-  /** Recomputes everything derived from the game and re-arms the clock. */
-  const refresh = (events: readonly GameEvent[]) => {
+  /** What the coach says about the game as it stands now, to be shown with the matching table sync. */
+  const snapshot = (events: readonly GameEvent[]): Snapshot => {
     const view = game.coachView()
-    const said = events.map((e) => narrate(e, view)).filter((n): n is Note => n !== null)
-    // A finished round shows its review, however the screen got here (including a reload).
     const over = view.phase.kind === 'roundResult' || view.phase.kind === 'gameOver' ? view.phase.summary : null
-    const newRound = events.some((e) => e.type === 'dealt' && e.half === 1)
-    const log = newRound ? said.reverse() : [...said.reverse(), ...state.log].slice(0, LOG_LIMIT)
-    const topic = nextTopic([...events, null])
-    update({
-      log,
-      latest: said.length > 0 ? log[0] : state.latest,
-      situation: situation(view),
-      advice: advise(view),
-      showHint: false,
-      topic,
-      trickPaused: view.phase.kind === 'trickPause' && game.waiting(false),
-      review: over ? (state.review ?? review({ decisions: game.round.decisions, summary: over, dealt: game.round.dealt, you: game.you, view })) : null,
-      dealt: over ? game.round.dealt.map((half) => half.map((hand) => [...hand])) : null,
-    })
-    update({ waiting: game.waiting(sheetOpen()) })
+    if (over && reviewed?.round !== over.roundNumber) {
+      reviewed = { round: over.roundNumber, notes: review({ decisions: game.round.decisions, summary: over, dealt: game.round.dealt, you: game.you, view }) }
+    }
+    return {
+      said: events.map((e) => narrate(e, view)).filter((n): n is Note => n !== null),
+      newRound: events.some((e) => e.type === 'dealt' && e.half === 1),
+      rest: {
+        situation: situation(view),
+        advice: advise(view),
+        showHint: false,
+        trickPaused: view.phase.kind === 'trickPause' && game.waiting(false),
+        review: over ? reviewed!.notes : null,
+        dealt: over ? game.round.dealt.map((half) => half.map((hand) => [...hand])) : null,
+      },
+    }
+  }
+
+  /** Brings the coach up to the table sync being shown, in order, so it never speaks ahead of the table. */
+  const show = (shown: number) => {
+    for (const v of [...pending.keys()].sort((a, b) => a - b)) {
+      if (v > shown) break
+      const snap = pending.get(v)!
+      pending.delete(v)
+      const said = [...snap.said].reverse()
+      const log = snap.newRound ? said : [...said, ...state.log].slice(0, LOG_LIMIT)
+      update({ ...snap.rest, version: v, log, latest: said.length > 0 ? log[0] : state.latest, topic })
+    }
+  }
+
+  /** Sends the table a view, with the coach's words for it. */
+  const sync = (events: readonly GameEvent[], snap: Snapshot | null) => {
+    version++
+    pending.set(version, snap ?? { said: [], newRound: false, rest: {} })
+    const numbered: NumberedEvent[] = events.map((e) => ({ ...e, n: ++eventN }))
+    playback.push({ type: 'sync', version, now: game.virtualNow, seat: game.you, view: game.view(), events: numbered })
+  }
+
+  /** After anything that changes what holds the clock: restart its display if it resumed, and re-arm it. */
+  const holdsChanged = () => {
+    const was = state.waiting
+    const now = game.waiting(sheetOpen())
+    update({ waiting: now })
+    // Countdowns run on real time from the last sync; time spent waiting must not count against them.
+    if (was && !now) sync([], null)
     arm()
   }
 
-  const publish = (events: NumberedEvent[]) => {
-    playback.push({ type: 'sync', version: ++version, now: game.virtualNow, seat: game.you, view: game.view(), events })
+  const publish = (events: readonly GameEvent[], extra: GameEvent[] = []) => {
+    topic = nextTopic([...extra, ...events, null])
+    const snap = snapshot(events)
+    if (extra.length > 0) {
+      snap.said = [...extra.map((e) => narrate(e, game.coachView())).filter((n): n is Note => n !== null), ...snap.said]
+      snap.newRound = true
+    }
+    sync(events, snap)
     storage.setItem(PRACTICE_KEY, game.save())
-    refresh(events)
+    update({ waiting: game.waiting(sheetOpen()) })
+    arm()
   }
 
   const arm = () => {
@@ -176,8 +230,7 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
     playback.release()
     const warning = check(game.coachView(), action)
     if (shouldHold(warning)) {
-      update({ warning: { note: warning!, action } })
-      update({ waiting: true })
+      update({ warning: { note: warning!, action }, waiting: true })
       clearTimeout(timer)
       return
     }
@@ -185,10 +238,15 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
   }
 
   const doContinue = () => {
+    playback.release()
     game.continueTrick()
     update({ trickPaused: false })
     publish(game.advance(0, sheetOpen()).events)
   }
+
+  /** The deal that starts a game happens before anyone is listening; it is narrated when the game opens. */
+  const opening = (): GameEvent => ({ type: 'dealt', roundNumber: game.game.roundNumber, dealer: game.game.dealer, half: 1 })
+  const untouched = () => game.game.roundNumber === 1 && game.round.decisions.length === 0
 
   const coach: Coach = {
     getState: () => state,
@@ -206,54 +264,51 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
     },
     cancel() {
       update({ warning: null })
-      refresh([])
+      holdsChanged()
     },
     dismissTopic() {
-      if (state.topic === null) return
+      if (topic === null) return
       const already = seen()
-      already.add(state.topic)
+      already.add(topic)
       storage.setItem(SEEN_KEY, JSON.stringify([...already]))
-      update({ topic: null })
-      update({ topic: nextTopic(isNew && version <= 1 ? [opening(), null] : [null]) })
-      refresh([])
+      topic = null
+      topic = nextTopic(untouched() ? [opening(), null] : [null])
+      update({ topic })
+      holdsChanged()
     },
     continueTrick() {
       const warning = check(game.coachView(), { type: 'tick' })
       if (shouldHold(warning)) {
         update({ warning: { note: warning!, action: { type: 'tick' } }, waiting: true })
+        clearTimeout(timer)
         return
       }
       doContinue()
     },
-    setReading(open) {
-      reading = open
-      update({ waiting: game.waiting(sheetOpen()) })
-      arm()
+    setReading(source, open) {
+      if (open) holds.add(source)
+      else holds.delete(source)
+      holdsChanged()
     },
     restart(n) {
       clearTimeout(timer)
+      playback.reset()
+      pending.clear()
       game = PracticeGame.start(n, newSeed(), 'You')
-      update({ log: [], latest: null, review: null, dealt: null, warning: null, topic: null })
-      playback.push({ type: 'sync', version: ++version, now: game.virtualNow, seat: game.you, view: game.view(), events: [] })
-      storage.setItem(PRACTICE_KEY, game.save())
-      opened()
+      topic = null
+      reviewed = null
+      update({ log: [], latest: null, warning: null, showHint: false })
+      publish([], [opening()])
     },
   }
 
-  /** The deal that started a new game happened before anyone was listening; narrate it now. */
-  const opening = (): GameEvent => ({ type: 'dealt', roundNumber: game.game.roundNumber, dealer: game.game.dealer, half: 1 })
-  const opened = () => {
-    const first = narrate(opening(), game.coachView())
-    update({ log: first ? [first] : [], latest: first })
-    update({ topic: nextTopic([opening(), null]) })
-    refresh([])
-  }
-
   store.setConnection('open')
-  playback.push({ type: 'sync', version: ++version, now: game.virtualNow, seat: game.you, view: game.view(), events: [] })
-  storage.setItem(PRACTICE_KEY, game.save())
-  if (isNew) opened()
-  else refresh([])
+  if (isNew) publish([], [opening()])
+  else {
+    // A game reopened before anything was played still owes its opening lessons.
+    topic = nextTopic(untouched() ? [opening(), null] : [null])
+    publish([])
+  }
 
   return {
     store,

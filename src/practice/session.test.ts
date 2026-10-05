@@ -117,4 +117,84 @@ describe('the coach state', () => {
     expect(s.coach.getState().review?.length).toBeGreaterThan(0)
     expect(s.coach.getState().dealt?.length).toBeGreaterThan(0)
   })
+
 })
+
+describe('checkpoint C', () => {
+  test('two open sheets hold the clock until both close', () => {
+    const { s } = callingSession()
+    s.coach.dismissTopic()
+    s.coach.dismissTopic()
+    s.send({ type: 'pass' })
+    s.coach.setReading('menu', true)
+    s.coach.setReading('log', true)
+    s.coach.setReading('menu', false)
+    expect(s.coach.getState().waiting).toBe(true)
+    s.coach.setReading('log', false)
+    expect(s.coach.getState().waiting).toBe(false)
+  })
+
+  test('a new game after a restart still plays its events', () => {
+    const { s } = callingSession()
+    let heard = 0
+    s.store.onEvent(() => heard++)
+    const drive = () => {
+      const c = s.coach.getState()
+      if (c.topic) s.coach.dismissTopic()
+      else if (c.warning) s.coach.confirm()
+      else if (c.trickPaused) s.coach.continueTrick()
+      else if (c.advice) s.send(c.advice.action)
+      else if (s.store.getState().view?.phase.kind === 'roundResult') s.send({ type: 'nextRound' })
+      vi.advanceTimersByTime(2000)
+    }
+    // Play long enough that the first game's event numbers are well ahead of a fresh game's.
+    for (let i = 0; i < 300 && heard < 60; i++) drive()
+    expect(heard).toBeGreaterThanOrEqual(60)
+    heard = 0
+    s.coach.restart(4)
+    vi.runOnlyPendingTimers()
+    for (let i = 0; i < 20; i++) drive()
+    expect(heard).toBeGreaterThan(5)
+    expect(heard).toBeGreaterThan(0)
+  })
+
+  test('the coach always speaks about the state the table is showing', () => {
+    const { s } = callingSession()
+    for (let i = 0; i < 300; i++) {
+      expect(s.coach.getState().version).toBe(s.store.getState().version)
+      const c = s.coach.getState()
+      if (c.topic) s.coach.dismissTopic()
+      else if (c.warning) s.coach.confirm()
+      else if (c.trickPaused) s.coach.continueTrick()
+      else if (c.advice) s.send(c.advice.action)
+      vi.advanceTimersByTime(137)
+    }
+  })
+
+  test('reopening a game nobody has started learning from shows the opening topics', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(PRACTICE_KEY, PracticeGame.start(4, 3, 'You').save())
+    const s = openPracticeSession({ playerCount: null, storage })
+    open.push(s)
+    expect(s.coach.getState().topic).toBe('cards')
+  })
+
+  test('time spent reading is not taken off a running countdown', () => {
+    const { s } = callingSession()
+    s.coach.dismissTopic()
+    s.coach.dismissTopic()
+    s.send({ type: 'pass' })
+    vi.runOnlyPendingTimers()
+    const left = () => {
+      const phase = s.store.getState().view!.phase
+      return 'deadline' in phase && phase.deadline !== null ? phase.deadline - s.store.serverNow(Date.now()) : null
+    }
+    const before = left()
+    if (before === null) return
+    s.coach.setReading('log', true)
+    vi.advanceTimersByTime(60_000)
+    s.coach.setReading('log', false)
+    expect(Math.abs(left()! - before)).toBeLessThan(50)
+  })
+})
+

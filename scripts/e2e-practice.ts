@@ -37,16 +37,17 @@ while (Date.now() - started < 4 * 60_000) {
   if (await page.getByRole('heading', { name: 'Coach’s review' }).isVisible()) break
   if (await showing('Got it')) {
     await shot('2-topic')
-    await button('Got it').click()
+    await button('Got it').click({ timeout: 1500 }).catch(() => {})
   } else if (await showing('Do it anyway')) {
     await shot('6-warning')
-    await button('Do it anyway').click()
+    await button('Do it anyway').click({ timeout: 1500 }).catch(() => {})
   } else if (await showing('Continue')) {
     await shot('5-trick-pause')
-    await button('Continue').click()
+    await button('Continue').click({ timeout: 1500 }).catch(() => {})
   } else if (await showing('Hint')) {
     await shot(hints === 0 ? '3-decision' : `3-decision-${hints}`)
-    await button('Hint').click()
+    // A topic sheet can open just as Hint is tapped; the next pass of the loop dismisses it.
+    if (!(await button('Hint').click({ timeout: 1500 }).then(() => true, () => false))) continue
     const hint = page.getByRole('dialog', { name: 'Hint' })
     // A topic introduction may arrive first; the loop deals with it and comes back.
     if (!(await hint.waitFor({ timeout: 1500 }).then(() => true, () => false))) continue

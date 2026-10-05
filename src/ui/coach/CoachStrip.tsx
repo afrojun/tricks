@@ -13,7 +13,7 @@ export function CoachStrip() {
   const coach = coached?.coach
   const reading = hintOpen || logOpen
   useEffect(() => {
-    coach?.setReading(reading)
+    coach?.setReading('strip', reading)
   }, [coach, reading])
   if (!coached) return null
   const { state } = coached

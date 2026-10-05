@@ -65,6 +65,11 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
   const myTurn = phase.kind === 'playing' && phase.turn === view.seat
   const coached = useCoach()
   const advised = coached?.state.showHint ? coached.state.advice?.action : undefined
+  const coach = coached?.coach
+  // In practice the table waits while the player reads any sheet.
+  useEffect(() => {
+    coach?.setReading('table', sheet !== null)
+  }, [coach, sheet])
 
   useEffect(() => {
     if (!myTurn) return
