@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react'
 import type { GameId } from '../protocol'
 import { ThemePicker } from './ThemePicker'
-import { gamePath } from './routes'
+import { gamePath, opensInPlace } from './routes'
 import { navigate } from './session'
 
 interface GameCard {
@@ -14,7 +14,9 @@ const GAMES: GameCard[] = [{ id: 'thunee', name: 'Thunee', blurb: 'Jack high, tw
 
 /** `/`: the games, and the look that every game shares. */
 export function TricksHome() {
+  // A modified or middle click keeps the link's own behaviour, such as opening a new tab.
   const open = (game: GameId) => (e: MouseEvent) => {
+    if (!opensInPlace(e)) return
     e.preventDefault()
     navigate(gamePath(game))
   }

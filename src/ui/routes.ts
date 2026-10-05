@@ -36,6 +36,21 @@ export function roomPath(game: GameId, code: string): string {
   return `/${game}/${code}`
 }
 
+/** The parts of a click that decide where a link opens. */
+export interface LinkClick {
+  button: number
+  metaKey: boolean
+  ctrlKey: boolean
+  shiftKey: boolean
+  altKey: boolean
+  defaultPrevented: boolean
+}
+
+/** Whether a click on an in-app link should navigate in place; any other click keeps the browser's own behaviour (new tab, window, download). */
+export function opensInPlace(click: LinkClick): boolean {
+  return click.button === 0 && !click.metaKey && !click.ctrlKey && !click.shiftKey && !click.altKey && !click.defaultPrevented
+}
+
 /** With a player count, a new practice game; without, the saved one. */
 export function practicePath(game: GameId, players?: 2 | 4): string {
   return `/${game}/practice${players === undefined ? '' : `?players=${players}`}`
