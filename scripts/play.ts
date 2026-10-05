@@ -1,17 +1,20 @@
 /**
- * Plays a whole game against a running PartyKit dev server over real sockets:
- * two scripted humans and two AI seats, with one human dropping and
- * reconnecting mid-game. Usage: pnpm party (in another terminal), then
- * pnpm tsx scripts/play.ts
+ * Plays a whole game against the running app over real sockets: two scripted
+ * humans and two AI seats, with one human dropping and reconnecting mid-game.
+ * The rooms share the app's origin. Usage: pnpm dev (in another terminal), then
+ * pnpm e2e:sockets, with APP_URL set if the app is not on http://localhost:5173.
  */
 import PartySocket from 'partysocket'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
 import { HONEST } from '../src/ai/mind'
 import { type Action, type View, availableActions } from '../src/engine'
-import type { ServerMessage } from '../src/protocol'
+import { type ServerMessage, roomName } from '../src/protocol'
 
-const host = process.env.PARTYKIT_HOST ?? 'localhost:1999'
-const room = `SIM${Math.floor(Math.random() * 900 + 100)}`
+const app = new URL(process.env.APP_URL ?? 'http://localhost:5173')
+const host = app.host
+const protocol = app.protocol === 'https:' ? 'wss' : 'ws'
+const code = Array.from({ length: 6 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('')
+const room = roomName('thunee', code)
 
 class Player {
   socket!: PartySocket
@@ -27,7 +30,7 @@ class Player {
     this.connect()
   }
   connect() {
-    this.socket = new PartySocket({ host, room, query: { token: this.token } })
+    this.socket = new PartySocket({ host, protocol, party: 'room', room, query: { token: this.token } })
     this.socket.addEventListener('message', (e) => {
       const msg = JSON.parse(e.data as string) as ServerMessage
       if (msg.type === 'sync') {

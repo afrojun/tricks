@@ -19,7 +19,9 @@ import {
   PING,
   PONG,
   TOKEN_PARAM,
+  UNKNOWN_ROOM_CLOSE_CODE,
   clientMessageSchema,
+  isRoomName,
 } from '../protocol'
 
 /** One socket to the room. Its state holds the device token and must survive the host sleeping. */
@@ -28,6 +30,7 @@ export interface RoomConnection {
   state: { token: string } | null
   setState(state: { token: string }): void
   send(text: string): void
+  close(code: number, reason: string): void
 }
 
 /** What the room needs from wherever it runs: Cloudflare, or a test. */
@@ -114,6 +117,11 @@ export class TableRoom {
   }
 
   onConnect(conn: RoomConnection, url: string): Promise<void> {
+    // The game is read from the name, so a room that names none is refused outright.
+    if (!this.named()) {
+      conn.close(UNKNOWN_ROOM_CLOSE_CODE, 'Unknown room')
+      return Promise.resolve()
+    }
     const given = new URL(url).searchParams.get(TOKEN_PARAM) ?? ''
     const valid = given.length >= MIN_TOKEN_LENGTH && given.length <= MAX_TOKEN_LENGTH
     // A connection without a usable token is an anonymous spectator.
@@ -139,6 +147,7 @@ export class TableRoom {
 
   onMessage(message: string | ArrayBuffer | ArrayBufferView, sender: RoomConnection): Promise<void> | void {
     if (message === PING) return void sender.send(PONG)
+    if (!this.named()) return
     return this.enqueue(async () => {
       const parsed = parse(message)
       if (parsed === null) return this.sendTo(sender, { type: 'rejected', reason: 'malformed' })
@@ -152,6 +161,11 @@ export class TableRoom {
   }
 
   // ── Core ───────────────────────────────────────────────────────────────
+
+  /** Whether this room's name is a known game and a code. */
+  private named(): boolean {
+    return isRoomName(this.host.name)
+  }
 
   private enqueue(work: () => Promise<void> | void): Promise<void> {
     this.queue = this.queue.then(work).catch((error) => {

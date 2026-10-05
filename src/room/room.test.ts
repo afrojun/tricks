@@ -4,7 +4,7 @@ import { HONEST } from '../ai/mind'
 import type { Action, View } from '../engine'
 import { type Game, createGame } from '../engine'
 import { Table, card, seededRng } from '../engine/testing'
-import type { ServerMessage } from '../protocol'
+import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, isRoomName, roomName } from '../protocol'
 import { type RoomConnection, type RoomHost, TableRoom } from './room'
 
 type Sync = Extract<ServerMessage, { type: 'sync' }>
@@ -12,6 +12,7 @@ type Sync = Extract<ServerMessage, { type: 'sync' }>
 class FakeConn implements RoomConnection {
   state: { token: string } | null = null
   inbox: ServerMessage[] = []
+  closed: { code: number; reason: string } | null = null
   constructor(
     readonly id: string,
     readonly token: string,
@@ -19,6 +20,9 @@ class FakeConn implements RoomConnection {
   setState(s: { token: string }) {
     this.state = s
     return s
+  }
+  close(code: number, reason: string) {
+    this.closed = { code, reason }
   }
   raw: string[] = []
   send(raw: string) {
@@ -121,6 +125,27 @@ async function startedGame() {
   await w.send(conns[0], { type: 'start' })
   return { w, conns }
 }
+
+describe('room names', () => {
+  test('a room is named by a known game and a six-letter code', () => {
+    expect(roomName('thunee', 'ABCDEF')).toBe('thunee-ABCDEF')
+    expect(isRoomName('thunee-ABCDEF')).toBe(true)
+    for (const name of ['thunee-ABCDE', 'thunee-ABCDEFG', 'thunee-abcdef', 'thunee_ABCDEF', 'hearts-ABCDEF', 'ABCDEF', 'main', '']) {
+      expect(isRoomName(name)).toBe(false)
+    }
+  })
+
+  test('a connection to a room with any other name is closed and sent nothing', async () => {
+    const w = new World()
+    w.host = { ...w.host, name: 'SIM123' }
+    await w.boot()
+    const conn = await w.connect(TOKENS[0])
+    expect(conn.closed).toEqual({ code: UNKNOWN_ROOM_CLOSE_CODE, reason: expect.any(String) })
+    expect(conn.raw).toEqual([])
+    await w.send(conn, { type: 'sit', seat: 0, name: 'Nobody' })
+    expect(w.data.size).toBe(0)
+  })
+})
 
 describe('identity', () => {
   test('a new connection gets the current view with no events', async () => {

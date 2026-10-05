@@ -1,8 +1,7 @@
 node_modules/
 dist/
-.partykit/
+.wrangler/
 *.tsbuildinfo
 .DS_Store
 .env*
-.vercel
 .superpowers/

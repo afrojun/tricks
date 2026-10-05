@@ -10,7 +10,7 @@ export const SessionContext = createContext<Session | null>(null)
 export function SessionProvider({ room, children }: { room: string; children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   useEffect(() => {
-    const opened = openSession(room)
+    const opened = openSession('thunee', room)
     setSession(opened)
     return () => opened.close()
   }, [room])
