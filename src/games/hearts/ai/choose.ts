@@ -122,10 +122,11 @@ function chooseFollow(view: View, phase: ViewPlaying, legal: readonly Card[]): C
   const me = view.seat!
   const following = legal.filter((c) => c.suit === phase.current[0].card.suit)
   if (following.length === 0) return chooseDiscard(view, phase, legal)
-  if (phase.tricks.length === 0 && !view.rules.pointsOnFirstTrick) return as('firstTrickHigh', highest(following))
-
   const onTable = phase.current.map((p) => p.card)
   const points = penaltyPoints(onTable)
+  // Safe only while the trick holds no points: a cheat, or a hand of nothing but points, can put one there.
+  if (phase.tricks.length === 0 && !view.rules.pointsOnFirstTrick && points === 0) return as('firstTrickHigh', highest(following))
+
   const last = phase.current.length === PLAYERS - 1
   const winner = winningPlay(phase.current)
   const wins = (c: Card) => wouldWin(phase.current, me, c)

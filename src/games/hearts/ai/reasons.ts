@@ -21,7 +21,7 @@ export type Reason =
   /** The two of clubs must lead the first trick. */
   | { code: 'openingLead'; card: Card }
   | { code: 'onlyCard'; card: Card }
-  /** The highest club to the first trick, where no points can fall. */
+  /** The highest club to the first trick, which holds no points and where none may be played. */
   | { code: 'firstTrickHigh'; card: Card }
   /** A spade below the queen, to draw her out while she is unseen. */
   | { code: 'fishForQueen'; card: Card }

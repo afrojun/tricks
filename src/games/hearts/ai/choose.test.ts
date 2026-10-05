@@ -136,6 +136,12 @@ describe('the first trick', () => {
     expect(decideFor(noPass(VOID).play('2c 4d 9c'))?.reason).toEqual({ code: 'firstTrickHigh', card: card('Ac') })
   })
 
+  test('once a point has fallen on it after all, it is played as any other trick', () => {
+    // Seat 1 throws a heart on the opening lead against the rules: the highest club would now take a point.
+    expect(decideFor(noPass(VOID).play('2c 4h'))?.reason).toEqual({ code: 'playLow', card: card('9c') })
+    expect(decideFor(noPass(VOID).play('2c 4h 9c'))?.reason).toEqual({ code: 'playLow', card: card('Qc') })
+  })
+
   test('void in clubs: the highest card, from the shorter suit, keeping the spades that hide the queen', () => {
     // Seat 1 holds 4d 5d 6d 7d and 4s 5s 6s 7s Qs; the queen and hearts may not be played to the first trick.
     expect(decideFor(noPass(VOID).play('2c'))?.reason).toEqual({ code: 'dumpHigh', card: card('7d') })

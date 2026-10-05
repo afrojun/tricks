@@ -43,10 +43,10 @@ describe('cheating', () => {
   })
 
   test('a renege breaks no rule but following suit', () => {
-    // Seat 1 throws the queen on the first trick against the rules; seat 2 would take it with its jack of clubs.
+    // Seat 1 throws the queen on the first trick against the rules; seat 2's lowest club would still take her.
     const t = new Table({ passing: 'none' }).deal(VOID).play('2c Qs')
     const decision = playFor(t, 'wild')
-    expect(decision?.reason).toMatchObject({ code: 'renege', honest: card('Jc'), dodges: 13 })
+    expect(decision?.reason).toMatchObject({ code: 'renege', honest: card('9c'), dodges: 13 })
     t.do(2, decision!.action)
     expect(playOf(t.game).current.at(-1)!.broke).toEqual(['followSuit'])
   })
