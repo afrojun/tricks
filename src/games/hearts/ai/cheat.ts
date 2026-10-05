@@ -88,7 +88,8 @@ function showUpRisk(view: View, phase: ViewPlaying, card: Card, held: readonly C
   for (const seat of allSeats(PLAYERS)) {
     if (seat === me) continue
     const knows = given && seat === passer
-    const salience = (queen ? QUEEN_DODGE : 1) * (seat === winner ? LANDED : 1) * (knows ? GIVEN : 1)
+    // As the catcher judges it: a passer's proof comes at once, before anyone has taken the trick.
+    const salience = (queen ? QUEEN_DODGE : 1) * (knows ? GIVEN : seat === winner ? LANDED : 1)
     unnoticed *= 1 - noticeOdds(ASSUMED_ATTENTION, knows ? 0 : gap, salience)
   }
   return 1 - unnoticed

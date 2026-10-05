@@ -1,11 +1,16 @@
 import { describe, expect, test } from 'vitest'
+import { hasCard } from '../../../kit/cards'
 import { noticed } from '../../../kit/integrity'
 import type { Persona } from '../../../kit/mind'
+import { allSeats } from '../../../kit/table'
+import type { Card } from '../engine/cards'
 import { VOID } from '../engine/deals'
-import { Table } from '../engine/testing'
+import { beginRound } from '../engine/round'
+import { PLAYERS, type PassDirection, type RuleOverrides, passTarget } from '../engine/rules'
+import { Table, cards } from '../engine/testing'
 import { viewFor } from '../engine/view'
 import { chooseChallenge, findProofs, findSignals } from './catch'
-import { SLY, SLY_BEFORE_PASSING, SLY_PASSES, SUSPECT, SUSPECT_PLAY, TO_THE_QUEEN } from './deals'
+import { GIVEN, GIVEN_PASSES, GIVEN_TO_THREE, SLY, SLY_BEFORE_PASSING, SLY_PASSES, SUSPECT, SUSPECT_PLAY, TO_THE_QUEEN } from './deals'
 
 /** Seat 1 reneges with the king of diamonds rather than take the queen, then shows the ace of spades on the next trick. */
 const dodged = () => new Table({ passing: 'none' }).deal(SLY).play(`${TO_THE_QUEEN} Kd 5h  7c 3c As`)
@@ -19,6 +24,31 @@ const SUSPECT_BEFORE_PASSING = [
   'Ac 7d 8d 9d 10d Jd Qd Kd Ad Ah 2d 3d 4d',
 ]
 const SUSPECT_PASSES = ['5s 6s 7s', '6h 7h 8h', 'Jc Qc Kc', '2d 3d 4d']
+
+type Passing = Exclude<PassDirection, 'none'>
+const ROUND: Record<Passing, number> = { left: 1, right: 2, across: 3 }
+const text = (c: Card) => `${c.rank}${c.suit[0]}`
+
+/** The hands before passing that become `after` once each seat passes `passes[seat]` in `direction`. */
+function beforePassing(after: string[], passes: string[], direction: Passing): string[] {
+  return after.map((hand, seat) => {
+    const from = allSeats(PLAYERS).find((s) => passTarget(s, direction) === seat)!
+    const received = cards(passes[from])
+    return [...cards(hand).filter((c) => !hasCard(received, c)), ...cards(passes[seat])].map(text).join(' ')
+  })
+}
+
+/** The round of a rotating game that passes `direction`, dealt and passed so the hands are `after`. */
+function passed(after: string[], passes: string[], direction: Passing, overrides: RuleOverrides = {}): Table {
+  const t = new Table(overrides).do(0, { type: 'start' })
+  const game = structuredClone(t.game)
+  game.roundNumber = ROUND[direction]
+  beginRound(game, t.ctx, [])
+  t.game = game
+  return t.deal(beforePassing(after, passes, direction)).pass(passes)
+}
+
+const full = (t: Table, seat: number) => viewFor(t.game, seat, 'full')
 
 const rate = (t: Table, seat: number, persona: Persona, salts = 2000) => {
   let caught = 0
@@ -78,6 +108,28 @@ describe('proofs', () => {
       if (was === null) missed++
     }
     expect(missed).toBeGreaterThan(0)
+  })
+})
+
+describe('a proof from a passed card', () => {
+  // Seat 0 passes seat 1 its only club and leads the two; seat 1 throws the king of diamonds.
+  const given = { id: 'followSuit:1:0:given', accused: 1, rule: 'followSuit', claim: null, gap: 0, salience: 1.5 }
+
+  test('keeps the salience it had when the accused card was played, so a miss stays missed', () => {
+    // Then seat 2 throws the queen; seat 0 takes her with its two (GIVEN), or seat 3 overtakes with the three (GIVEN_TO_THREE).
+    for (const [after, last] of [[GIVEN, '2s'], [GIVEN_TO_THREE, '3c']] as const) {
+      const at = (plays: string) => passed([...after], GIVEN_PASSES.left, 'left', { pointsOnFirstTrick: true }).play(plays)
+      const moments = [at('2c Kd'), at('2c Kd Qs'), at(`2c Kd Qs ${last}`), at(`2c Kd Qs ${last}`).endPause()]
+      for (const t of moments) expect(findProofs(full(t, 0))).toEqual([given])
+      let missed = 0
+      for (let salt = 1; salt <= 400; salt++) {
+        if (chooseChallenge(full(moments[0], 0), { persona: 'straight', salt }) !== null) continue
+        missed++
+        for (const t of moments.slice(1)) expect(chooseChallenge(full(t, 0), { persona: 'straight', salt })).toBeNull()
+      }
+      expect(missed).toBeGreaterThan(0)
+      expect(chooseChallenge(full(moments[0], 0), { persona: 'straight', salt: 8 })).toBeNull()
+    }
   })
 })
 

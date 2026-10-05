@@ -10,7 +10,7 @@ import { availableActions } from '../engine/available'
 import { type Card, QUEEN_OF_SPADES, RANKS, penaltyPoints } from '../engine/cards'
 import { seenPlays } from '../engine/excuses'
 import { HAND_SIZE, PASS_SIZE, PLAYERS, passTarget } from '../engine/rules'
-import type { Action, View, ViewPlaying } from '../engine/types'
+import type { Action, View, ViewPlay, ViewPlaying } from '../engine/types'
 import { type TrickRecord, history, inPlay, mood, winningPlay } from './read'
 
 /** How much more a cheat stands out when it dodged the queen of spades. */
@@ -36,23 +36,32 @@ export function findProofs(view: View): Proof[] {
   const out: Proof[] = []
   for (const cheat of plays) {
     if (cheat.seat === me || cheat.excuses.length === 0) continue
-    const salience = standsOut(phase, cheat, me)
-    // The seat's later cards, as reveals of this play's excuses only.
-    const later = plays.filter((p) => p.seat === cheat.seat && p.trick > cheat.trick).map((p) => ({ ...p, excuses: [] }))
-    for (const proof of playProofs([cheat, ...later], () => true)) out.push({ ...proof, salience })
-    for (const proof of givenProofs(view, phase, plays, cheat)) out.push({ ...proof, salience: salience * GIVEN })
+    const done = cheat.trick < phase.tricks.length ? phase.tricks[cheat.trick] : null
+    // A later card comes in a later trick, so the cheat's trick is over and how much it stands out is settled.
+    if (done) {
+      const later = plays.filter((p) => p.seat === cheat.seat && p.trick > cheat.trick).map((p) => ({ ...p, excuses: [] }))
+      const salience = standsOut(done.plays, done.winner, cheat.seat, me)
+      for (const proof of playProofs([cheat, ...later], () => true)) out.push({ ...proof, salience })
+    }
+    // A passed card proves the cheat as it is played. It is judged on the trick as it stood then, and on later
+    // calls on that same prefix, so cards played after it never change its one look.
+    const trick = done ? done.plays : phase.current
+    const then = trick.slice(0, trick.findIndex((p) => p.seat === cheat.seat) + 1)
+    const salience = standsOut(then, winningPlay(then).seat, cheat.seat, null) * GIVEN
+    for (const proof of givenProofs(view, phase, plays, cheat)) out.push({ ...proof, salience })
   }
   return out
 }
 
-/** How much a cheat stands out: more when it dodged the queen of spades, more again when what it dodged landed on the observer. */
-function standsOut(phase: ViewPlaying, cheat: SeenPlay<Card>, me: Seat): number {
-  const done = cheat.trick < phase.tricks.length ? phase.tricks[cheat.trick] : null
-  const plays = done ? done.plays : phase.current
-  const winner = done ? done.winner : winningPlay(phase.current).seat
+/**
+ * How much a cheat stands out, judged on the cards of its trick and who won
+ * them: more when it dodged the queen of spades, more again when what it
+ * dodged landed on the observer (only once the trick is over: pass null before).
+ */
+function standsOut(trick: readonly ViewPlay[], winner: Seat, cheater: Seat, observer: Seat | null): number {
   let salience = 1
-  if (winner !== cheat.seat && plays.some((p) => sameCard(p.card, QUEEN_OF_SPADES))) salience *= QUEEN_DODGE
-  if (done && done.winner === me && penaltyPoints(plays.map((p) => p.card)) > 0) salience *= LANDED
+  if (winner !== cheater && trick.some((p) => sameCard(p.card, QUEEN_OF_SPADES))) salience *= QUEEN_DODGE
+  if (winner === observer && penaltyPoints(trick.map((p) => p.card)) > 0) salience *= LANDED
   return salience
 }
 
