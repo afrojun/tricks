@@ -9,11 +9,13 @@ import { HONEST } from '../kit/mind'
  * Pins what computers decide. Seeded whole games: computers of every persona driven only
  * through `dueStep` and `reactions`, as a host drives them, and one human at seat 0 who takes
  * the honest choice and now and then breaks a rule, bluffs a Jodhi or accuses someone. Every
- * applied action is folded into one hash, so a refactor that changes a single choice, roll or
- * deadline fails here. A deliberate change to how computers play changes the hash too: make
- * sure the change was meant, then update it.
+ * accepted action, with its actor, is folded into one hash: a change to which actions are taken,
+ * or in what order, fails here. Times are not hashed, so a change of computer delay that keeps
+ * the order passes. A refused computer decision would let a fallback stand in for it, so the
+ * test also requires that none is refused. A deliberate change to how computers play changes
+ * the hash too: make sure the change was meant, then update it.
  */
-function playGame(playerCount: 2 | 4, personas: (Persona | 'surprise')[], overrides: RuleOverrides, seed: number): string[] {
+function playGame(playerCount: 2 | 4, personas: (Persona | 'surprise')[], overrides: RuleOverrides, seed: number) {
   const t = new Table(4, { ...overrides, ballsToWin: 6 }, seed)
   t.game = { ...createGame(), rules: t.game.rules }
   t.do(null, { type: 'sit', seat: 0, name: 'You' })
@@ -22,6 +24,8 @@ function playGame(playerCount: 2 | 4, personas: (Persona | 'surprise')[], overri
   const chaos = seededRng(seed * 7919 + 1)
   const pick = <T,>(items: readonly T[]) => items[Math.floor(chaos() * items.length)]
   const log: string[] = []
+  /** Computer decisions the engine refused: a primary choice from `dueStep`, or a reaction. */
+  let refused = 0
 
   /** Applies an action and then every computer reaction to it, as a host does. */
   const act = (actor: Actor, action: Action): boolean => {
@@ -30,7 +34,7 @@ function playGame(playerCount: 2 | 4, personas: (Persona | 'surprise')[], overri
     log.push(`${actor}:${JSON.stringify(action)}`)
     for (const ask of reactions(t.game, t.events.slice(before))) {
       const step = ask(t.game)
-      if (step) act(step.actor, step.action)
+      if (step && !act(step.actor, step.action)) refused++
     }
     return true
   }
@@ -39,7 +43,9 @@ function playGame(playerCount: 2 | 4, personas: (Persona | 'surprise')[], overri
   for (let guard = 0; guard < 20_000 && t.game.phase.kind !== 'gameOver'; guard++) {
     const step = dueStep(t.game, t.now)
     if (step) {
-      if (!act(step.actor, step.action) && step.fallback) act(step.actor, step.fallback)
+      if (act(step.actor, step.action)) continue
+      if (step.actor !== 'system') refused++
+      if (step.fallback) act(step.actor, step.fallback)
       continue
     }
     const phase = t.game.phase
@@ -65,7 +71,7 @@ function playGame(playerCount: 2 | 4, personas: (Persona | 'surprise')[], overri
     t.now = Math.max(t.now, next)
   }
   expect(t.game.phase.kind).toBe('gameOver')
-  return log
+  return { log, refused }
 }
 
 /** FNV-1a over every line, as an unsigned hex string. */
@@ -93,12 +99,19 @@ describe('what computers decide', () => {
   test('are the same as before Thunee moved onto the shared kit', () => {
     const lines: string[] = []
     const hashes: Record<string, string> = {}
+    let refused = 0
     for (const [name, playerCount, personas, overrides, games] of configs) {
       const mine: string[] = []
-      for (let seed = 1; seed <= games; seed++) mine.push(...playGame(playerCount, personas, overrides, seed))
+      for (let seed = 1; seed <= games; seed++) {
+        const game = playGame(playerCount, personas, overrides, seed)
+        mine.push(...game.log)
+        refused += game.refused
+      }
       hashes[name] = hash(mine)
       lines.push(...mine)
     }
+    // Every computer decision was accepted as made: no fallback ever stood in for one.
+    expect(refused).toBe(0)
     // The games must reach the computers' accusations, or this pins little.
     expect(lines.filter((l) => l.includes('"challenge') && !l.startsWith('0:')).length).toBeGreaterThan(20)
     expect({ actions: lines.length, hashes }).toEqual({
