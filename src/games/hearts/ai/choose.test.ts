@@ -150,13 +150,15 @@ describe('the first trick', () => {
 })
 
 describe('leading', () => {
-  test('a spade below the queen while the queen is out and no higher spade is held', () => {
+  test('the lowest spade below the queen while she is out', () => {
     expect(decideFor(noPass(H).play('2c Ac Jc Kc'))?.reason).toEqual({ code: 'fishForQueen', card: card('2s') })
+    // Seat 3 holds the ace and king as well, and still fishes with the ten.
+    expect(decideFor(noPass(H).play('2c Ac Jc Kc  2s 5s 9s Ad'))?.reason).toEqual({ code: 'fishForQueen', card: card('10s') })
   })
 
   test('a low card from the suit where the most of what is out is higher', () => {
-    // Seat 3 holds the ace and king of spades with the queen out, two sure club winners, and 8d 9d under four higher diamonds.
-    const t = noPass(H).play('2c Ac Jc Kc  2s 5s 9s Ad')
+    // Seat 3 has taken the queen. It holds sure winners in clubs and spades, and 8d 9d under four of the ten diamonds out.
+    const t = noPass(H).play('2c Ac Jc Kc  2s Qs As Ad')
     expect(decideFor(t)?.reason).toEqual({ code: 'leadLow', card: card('8d'), higher: 4 })
   })
 
@@ -200,11 +202,9 @@ describe('void in the suit led', () => {
     expect(decideFor(noPass(H).play('2c Ac Jc Kc  2s 5s 9s'))?.reason).toEqual({ code: 'dumpHigh', card: card('Ad') })
   })
 
-  test('no points for a seat that has taken every point so far and could take them all', () => {
+  test('points go even to a seat that has taken every point so far: holding them back costs more than the rare moon', () => {
     // Seat 0 takes the ace of spades, a heart and the queen on the first trick: 14 points, all of them.
-    const t = noPass(DISCARDS, points).play('2c As 8h Qs  3c Ad')
-    expect(decideFor(t)?.reason).toEqual({ code: 'starveMoon', card: card('7d'), shooter: 0 })
-    expect(decideFor(t.play('7d'))?.reason).toEqual({ code: 'starveMoon', card: card('Js'), shooter: 0 })
+    expect(decideFor(noPass(DISCARDS, points).play('2c As 8h Qs  3c Ad'))?.reason).toEqual({ code: 'dumpHeart', card: card('7h') })
   })
 })
 
@@ -248,7 +248,7 @@ describe('the jack of diamonds', () => {
 
 describe('every decision', () => {
   test('is the same for the same view, and for the hand in any order', () => {
-    const t = noPass(H).play('2c Ac Jc Kc  2s 5s 9s Ad').endPause()
+    const t = noPass(H).play('2c Ac Jc Kc  2s Qs As Ad').endPause()
     const view = viewFor(t.game, 3, 'full')
     if (view.phase.kind !== 'playing') throw new Error(view.phase.kind)
     const once = decide(view, HONEST)

@@ -47,8 +47,6 @@ export type Reason =
   | { code: 'dumpHeart'; card: Card }
   /** Void: the highest card. */
   | { code: 'dumpHigh'; card: Card }
-  /** Void, but no points to `shooter`, who is winning the trick and has every point so far. */
-  | { code: 'starveMoon'; card: Card; shooter: Seat }
   /** A cheat: off suit while holding the suit led, so as not to take the `dodges` points `honest` would. */
   | { code: 'renege'; card: Card; honest: Card; dodges: number }
 

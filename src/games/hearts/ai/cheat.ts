@@ -8,10 +8,12 @@ import { excusesFor, seenPlays, situation } from '../engine/excuses'
 import { CHALLENGE_POINTS, PLAYERS, passTarget } from '../engine/rules'
 import type { View, ViewPlaying } from '../engine/types'
 import { GIVEN, LANDED, QUEEN_DODGE } from './catch'
-import { mood, unseen, winningPlay, wouldWin } from './read'
+import { mood, winningPlay, wouldWin } from './read'
 
 /** The attention Sly assumes of each seat watching it. */
 const ASSUMED_ATTENTION = 0.6
+/** The fewest points Sly reneges to dodge. */
+const SLY_PRIZE = 5
 /** The points Wild reneges to dodge, before its mood. */
 const WILD_PRIZE = 4
 
@@ -59,8 +61,9 @@ export function chooseCheat(
   const card = discard(reneges)
 
   if (careful) {
+    // Not for a heart or two, and only when the points outweigh the risk of taking the penalty instead.
     const risk = showUpRisk(view, phase, card, held)
-    return (1 - risk) * dodges > risk * CHALLENGE_POINTS ? { card, dodges } : null
+    return dodges >= SLY_PRIZE && (1 - risk) * dodges > risk * CHALLENGE_POINTS ? { card, dodges } : null
   }
   return dodges * (moody ? mood(view) : 1) >= WILD_PRIZE ? { card, dodges } : null
 }
@@ -68,14 +71,14 @@ export function chooseCheat(
 /**
  * Sly's estimate of the chance that some seat notices a renege of the suit of
  * `held`. Each watches with the attention Sly assumes until the first card of
- * that suit must come out: after the rest of the hand if nobody else can lead
- * the suit, otherwise after about half of it. The seat that passed to this one
- * knows the cards it gave, and sees through a renege of their suit at once.
+ * that suit must come out, which Sly expects only once the rest of its hand is
+ * gone: it does not count on the suit being led again first, which is how it
+ * gets caught. The seat that passed to this one knows the cards it gave, and
+ * sees through a renege of their suit at once.
  */
 function showUpRisk(view: View, phase: ViewPlaying, card: Card, held: readonly Card[]): number {
   const me = view.seat!
-  const rest = phase.hand.length - 1 - held.length
-  const gap = unseen(phase).some((c) => c.suit === held[0].suit) ? Math.floor(rest / 2) : rest
+  const gap = phase.hand.length - 1 - held.length
   const queen = sameCard(card, QUEEN_OF_SPADES) || phase.current.some((p) => sameCard(p.card, QUEEN_OF_SPADES))
   const winner = winningPlay(phase.current).seat
   const direction = view.direction

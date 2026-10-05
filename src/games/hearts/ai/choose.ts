@@ -97,8 +97,8 @@ function chooseLead(phase: ViewPlaying, legal: readonly Card[]): CardChoice {
   const above = (c: Card) => out.filter((o) => o.suit === c.suit && strength(o) > strength(c)).length
   const below = (c: Card) => out.filter((o) => o.suit === c.suit && strength(o) < strength(c)).length
   const queen = queenOut(phase)
-  // Draw the queen out with spades that cannot win against her, unless a spade above her would be left to catch her.
-  if (queen && !phase.hand.some(isTopSpade)) {
+  // Draw the queen out with spades that cannot win against her.
+  if (queen) {
     const fish = legal.filter(isLowSpade)
     if (fish.length > 0) return as('fishForQueen', lowest(fish))
   }
@@ -164,12 +164,6 @@ function chooseFollow(view: View, phase: ViewPlaying, legal: readonly Card[]): C
 
 function chooseDiscard(view: View, phase: ViewPlaying, legal: readonly Card[]): CardChoice {
   const keep = (c: Card) => view.rules.jackOfDiamonds && sameCard(c, JACK_OF_DIAMONDS)
-  const shooter = moonThreat(view, phase)
-  const harmless = legal.filter((c) => penaltyPoints([c]) === 0 && !keep(c))
-  if (shooter !== null && winningPlay(phase.current).seat === shooter && harmless.length > 0) {
-    const card = highestTowardsVoid(harmless, phase.hand)
-    return { card, reason: { code: 'starveMoon', card, shooter } }
-  }
   const queen = legal.find(isQueen)
   if (queen) return as('dumpQueen', queen)
   const top = legal.filter(isTopSpade)

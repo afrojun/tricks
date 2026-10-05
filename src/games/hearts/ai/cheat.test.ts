@@ -19,7 +19,7 @@ const playFor = (t: Table, persona: Persona, seat = t.turn) => decide(viewFor(t.
 const atTheQueen = (overrides: RuleOverrides = {}) => new Table({ passing: 'none', ...overrides }).deal(SLY).play(TO_THE_QUEEN)
 
 describe('cheating', () => {
-  test('Sly and Wild renege rather than take the queen when nobody else can hold the suit; Straight and Sharp never do', () => {
+  test('Sly and Wild renege rather than take the queen when the giveaway can wait seven tricks; Straight and Sharp never do', () => {
     const t = atTheQueen()
     const renege = { action: { type: 'playCard', card: card('Kd') }, reason: { code: 'renege', card: card('Kd'), honest: card('As'), dodges: 13 } }
     expect(playFor(t, 'sly')).toEqual(renege)
@@ -59,12 +59,11 @@ describe('cheating', () => {
 
 describe('holding back', () => {
   // After reneging with the king of diamonds, seat 1 is void in clubs and holds the ace of spades, its highest card.
-  // Seat 3 has every point so far, so a void seat throws it its highest harmless card.
   const afterRenege = () => atTheQueen().play('Kd 5h  7c 3c')
 
   test('after a renege, Sly keeps the giveaway back while it has another card; Wild does not', () => {
     const t = afterRenege()
-    expect(playFor(t, 'sly')).toEqual({ action: { type: 'playCard', card: card('Qd') }, reason: { code: 'starveMoon', card: card('Qd'), shooter: 3 } })
+    expect(playFor(t, 'sly')).toEqual({ action: { type: 'playCard', card: card('Qd') }, reason: { code: 'dumpHigh', card: card('Qd') } })
     expect(playFor(t, 'wild')?.action).toEqual({ type: 'playCard', card: card('As') })
   })
 
