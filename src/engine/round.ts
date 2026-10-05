@@ -1,3 +1,4 @@
+import { firstCheat, recordPlay } from '../kit/integrity'
 import { type Card, createDeck, pointsOf, removeCard, shuffle } from './cards'
 import {
   holdsJodhi,
@@ -10,7 +11,7 @@ import {
 import { TRICK_PAUSE_MS } from './rules'
 import { type Seat, allSeats, next, seatsFrom, teamOf } from './seats'
 import { type Outcome, finishRound, thuneeTrickResult } from './scoring'
-import { isLegalPlay, trickWinner } from './tricks'
+import { excusesFor, trickWinner } from './tricks'
 import type { Action, Calling, Ctx, Game, GameEvent, RoundPlay, ThuneeWindow, TrumpChoice } from './types'
 
 type RoundAction<T extends Action['type']> = Extract<Action, { type: T }>
@@ -186,11 +187,11 @@ function startPlay(game: Game, phase: ThuneeWindow, thuneeCaller: Seat | null) {
 export function playCard(game: Game, play: RoundPlay, seat: Seat, card: Card, ctx: Ctx, events: GameEvent[]) {
   const hand = play.hands[seat]
   const trickSoFar = play.current.map((p) => p.card)
-  const legal = isLegalPlay(card, hand, trickSoFar, play.trump, game.rules)
+  const record = recordPlay(seat, card, hand, excusesFor(card, trickSoFar, play.trump, game.rules))
   const firstCardOfRound = play.tricks.length === 0 && play.current.length === 0
 
   if (play.current.length === 0) play.jodhiOpenFor = null
-  play.current.push({ seat, card, handBefore: [...hand], legal })
+  play.current.push(record)
   play.hands[seat] = removeCard(hand, card)
   events.push({ type: 'cardPlayed', seat, card })
 
@@ -289,15 +290,17 @@ export function callKhanaak(game: Game, play: RoundPlay, seat: Seat, events: Gam
 // ── Challenges ───────────────────────────────────────────────────────────
 
 export function challengePlay(game: Game, play: RoundPlay, challenger: Seat, accused: Seat, events: GameEvent[]) {
-  const plays = [...play.tricks.flatMap((t) => t.plays), ...play.current].filter((p) => p.seat === accused)
-  const cheat = plays.find((p) => !p.legal)
+  const plays = [...play.tricks.flatMap((t) => t.plays), ...play.current]
+  const cheat = firstCheat(plays, accused)
+  const own = plays.filter((p) => p.seat === accused)
   const outcome: Outcome = {
     kind: 'challenge',
     challenger,
     accused,
     about: 'play',
-    guilty: cheat !== undefined,
-    card: (cheat ?? plays[plays.length - 1]).card,
+    guilty: cheat !== null,
+    card: (cheat ?? own[own.length - 1]).card,
+    rule: cheat?.broke[0],
   }
   events.push({ type: 'challengeResolved', challenger, accused, guilty: outcome.guilty })
   finishRound(game, play, outcome, events)

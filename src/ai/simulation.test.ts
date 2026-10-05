@@ -32,7 +32,7 @@ function expectNoLeak(game: Game, seat: number | null) {
   const leaked = collectCards(viewFor(game, seat)).filter((c) => hidden.some((h) => sameCard(h, c)))
   if (leaked.length > 0) throw new Error(`view for ${seat} leaks ${JSON.stringify(leaked)} in ${phase.kind}`)
   const text = JSON.stringify(viewFor(game, seat))
-  for (const secret of ['"handBefore":', '"legal":', '"valid":', '"stock":', '"dealt":', '"aiSalt":']) {
+  for (const secret of ['"handBefore":', '"broke":', '"valid":', '"stock":', '"dealt":', '"aiSalt":']) {
     if (text.includes(secret)) throw new Error(`view contains ${secret}`)
   }
   if ((phase.kind === 'playing' || phase.kind === 'trickPause') && !phase.play.trumpRevealed) {
@@ -179,7 +179,7 @@ describe('simulation', () => {
         }
         const p = t.game.phase
         if (p.kind === 'playing' || p.kind === 'trickPause') {
-          expect(p.play.current.every((r) => r.legal)).toBe(true)
+          expect(p.play.current.every((r) => r.broke.length === 0)).toBe(true)
           expect(p.play.jodhiClaims.every((j) => j.valid)).toBe(true)
           for (const seat of [0, 2]) expect(chooseChallenge(viewFor(t.game, seat, 'full'), mind(seat))).toBeNull()
         }

@@ -256,7 +256,7 @@ function checkFair(hands: string[], t: Table) {
   const phase = t.game.phase
   if (phase.kind !== 'playing' && phase.kind !== 'trickPause') throw new Error(phase.kind)
   const plays = [...phase.play.tricks.flatMap((x) => x.plays), ...phase.play.current]
-  expect(plays.every((p) => p.legal)).toBe(true)
+  expect(plays.every((p) => p.broke.length === 0)).toBe(true)
 }
 
 describe('void odds', () => {

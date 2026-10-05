@@ -71,7 +71,7 @@ describe('false Jodhis', () => {
     const t = start(SEEN).play('Ah Qh Qd 10s')
     const phase = t.game.phase
     if (phase.kind !== 'trickPause') throw new Error(phase.kind)
-    expect(phase.play.tricks[0].plays.every((p) => p.legal)).toBe(true)
+    expect(phase.play.tricks[0].plays.every((p) => p.broke.length === 0)).toBe(true)
     const diamonds = (persona: Persona) => {
       let count = 0
       for (let salt = 1; salt <= 400; salt++) {

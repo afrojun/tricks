@@ -67,10 +67,10 @@ describe('playing a trick', () => {
   test('an illegal play is accepted and recorded, but never shown in a view', () => {
     const t = start().play('Jc Qh Jh') // seat 0 holds the 10 of clubs
     const record = playOf(t.game).current[2]
-    expect(record).toMatchObject({ seat: 0, legal: false })
+    expect(record).toMatchObject({ seat: 0, broke: ['renege'] })
     expect(record.handBefore).toHaveLength(6)
     const seen = JSON.stringify(viewFor(t.game, 1))
-    expect(seen).not.toContain('legal')
+    expect(seen).not.toContain('broke')
     expect(seen).not.toContain('handBefore')
     expect(can(t, 0).legal).toEqual([])
     t.play('Qc').endPause()

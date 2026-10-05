@@ -17,6 +17,7 @@ export type Outcome =
       guilty: boolean
       card?: Card
       suit?: Suit
+      rule?: string
     }
 
 export function cardPointsByTeam(play: RoundPlay): [number, number] {
@@ -67,6 +68,7 @@ export function finishRound(game: Game, play: RoundPlay, outcome: Outcome, event
         guilty: outcome.guilty,
         card: outcome.card,
         suit: outcome.suit,
+        rule: outcome.rule,
       }
       break
     }

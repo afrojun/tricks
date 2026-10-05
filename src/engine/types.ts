@@ -1,3 +1,4 @@
+import type { PlayRecord as KitPlayRecord } from '../kit/integrity'
 import type { TableAction, TableEvent, TableReject, TableState, TableView } from '../kit/table'
 import type { Card, Suit } from './cards'
 import type { RuleOverrides, RuleSet } from './rules'
@@ -85,14 +86,8 @@ export interface GameOver {
   summary: RoundSummary
 }
 
-export interface PlayRecord {
-  seat: Seat
-  card: Card
-  /** Hidden: the hand the card was played from. */
-  handBefore: Card[]
-  /** Hidden: whether the play obeyed the rules. */
-  legal: boolean
-}
+/** A card played, with the hidden hand it came from and the rules it broke (`renege`, `undercut`). */
+export type PlayRecord = KitPlayRecord<Card>
 
 export interface CompletedTrick {
   plays: PlayRecord[]
@@ -160,6 +155,8 @@ export interface RoundSummary {
     guilty: boolean
     card?: Card
     suit?: Suit
+    /** For a guilty play: the first rule it broke. */
+    rule?: string
   }
 }
 
