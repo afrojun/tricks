@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { availableActions } from '../engine'
 import type { Note } from '../coach/note'
-import { PRACTICE_KEY } from './game'
+import { PRACTICE_KEY, PracticeGame } from './game'
+import { playPractice } from './testing'
 import { type PracticeSession, openPracticeSession, shouldHold } from './session'
 
 class MemoryStorage {
@@ -104,5 +105,16 @@ describe('the coach state', () => {
   test('the game is saved for the next visit', () => {
     const { storage } = callingSession()
     expect(storage.getItem(PRACTICE_KEY)).not.toBeNull()
+  })
+
+  test('reopening on a round result still shows the review and the hands', () => {
+    const storage = new MemoryStorage()
+    const p = PracticeGame.start(4, 5, 'You')
+    playPractice(p, 3000, undefined, (g) => g.game.phase.kind === 'roundResult')
+    storage.setItem(PRACTICE_KEY, p.save())
+    const s = openPracticeSession({ playerCount: null, storage })
+    open.push(s)
+    expect(s.coach.getState().review?.length).toBeGreaterThan(0)
+    expect(s.coach.getState().dealt?.length).toBeGreaterThan(0)
   })
 })

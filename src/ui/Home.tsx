@@ -3,6 +3,7 @@ import { type RuleOverrides, resolveRules } from '../engine'
 import { SHARE_PARAM, decodeShare } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
 import { RulesList } from './Rules'
+import { PRACTICE_KEY, PracticeGame } from '../practice/game'
 import { ThemePicker } from './ThemePicker'
 import { navigate } from './session'
 
@@ -64,6 +65,30 @@ function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
   )
 }
 
+function LearnToPlay() {
+  const [saved] = useState(() => PracticeGame.load(localStorage.getItem(PRACTICE_KEY)) !== null)
+  const start = (players: 2 | 4) => navigate(`/practice?players=${players}`)
+  return (
+    <section className="panel p-4 w-full max-w-sm grid gap-3">
+      <h2 className="display text-lg">Learn to play</h2>
+      <p>Play against the computer with a coach who explains every move, gives hints, and warns you before a mistake.</p>
+      {saved && (
+        <button className="btn btn-primary" onClick={() => navigate('/practice')}>
+          Continue practice
+        </button>
+      )}
+      <div className="flex gap-2">
+        <button className={`btn flex-1 ${saved ? '' : 'btn-primary'}`} onClick={() => start(4)}>
+          {saved ? 'New: four players' : 'Practice with four'}
+        </button>
+        <button className="btn flex-1" onClick={() => start(2)}>
+          {saved ? 'New: two players' : 'Practice with two'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
 export function Home() {
   const [playerCount, setPlayerCount] = useState<2 | 4>(4)
   const [presets, setPresets] = useState<Preset[]>(listPresets)
@@ -97,6 +122,8 @@ export function Home() {
           />
         </div>
       )}
+
+      <LearnToPlay />
 
       <section className="panel p-4 w-full max-w-sm grid gap-4">
         <h2 className="display text-lg">New game</h2>

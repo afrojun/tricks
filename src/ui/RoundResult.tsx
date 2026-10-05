@@ -1,4 +1,5 @@
 import { type Available, type RoundSummary, type ScoreLine, type Team, type View, teamOf } from '../engine'
+import { CoachReview } from './coach/CoachReview'
 import { useSession } from './session'
 import { SUIT_NAME, cardText, plural, seatName, teamName } from './text'
 
@@ -74,6 +75,8 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
       <p className="text-on-surface-muted">
         Balls: {teamName(view, 0)} {summary.ballsAfter[0]}, {teamName(view, 1)} {summary.ballsAfter[1]}. First to {view.ballsTarget}.
       </p>
+
+      <CoachReview view={view} />
 
       {winner === null ? (
         can.nextRound ? (

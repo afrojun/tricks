@@ -126,7 +126,8 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
   const refresh = (events: readonly GameEvent[]) => {
     const view = game.coachView()
     const said = events.map((e) => narrate(e, view)).filter((n): n is Note => n !== null)
-    const scored = events.find((e) => e.type === 'roundScored')
+    // A finished round shows its review, however the screen got here (including a reload).
+    const over = view.phase.kind === 'roundResult' || view.phase.kind === 'gameOver' ? view.phase.summary : null
     const newRound = events.some((e) => e.type === 'dealt' && e.half === 1)
     const log = newRound ? said.reverse() : [...said.reverse(), ...state.log].slice(0, LOG_LIMIT)
     const topic = nextTopic([...events, null])
@@ -138,10 +139,8 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
       showHint: false,
       topic,
       trickPaused: view.phase.kind === 'trickPause' && game.waiting(false),
-      review: scored && scored.type === 'roundScored'
-        ? review({ decisions: game.round.decisions, summary: scored.summary, dealt: game.round.dealt, you: game.you, view })
-        : newRound ? null : state.review,
-      dealt: scored ? game.round.dealt.map((half) => half.map((hand) => [...hand])) : newRound ? null : state.dealt,
+      review: over ? (state.review ?? review({ decisions: game.round.decisions, summary: over, dealt: game.round.dealt, you: game.you, view })) : null,
+      dealt: over ? game.round.dealt.map((half) => half.map((hand) => [...hand])) : null,
     })
     update({ waiting: game.waiting(sheetOpen()) })
     arm()

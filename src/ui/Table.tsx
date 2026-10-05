@@ -16,6 +16,10 @@ import {
 } from '../engine'
 import { CardBack, PlayingCard } from './Card'
 import { Hand, cardLayoutId } from './Hand'
+import { check } from '../coach/check'
+import { CoachStrip } from './coach/CoachStrip'
+import { HowToPlaySheet } from './coach/CoachSheets'
+import { useCoach } from './coach/context'
 import { RoundResult } from './RoundResult'
 import { RulesList, rulesSummary } from './Rules'
 import { Sheet } from './Sheet'
@@ -25,7 +29,7 @@ import { navigate, useCountdown, useSession } from './session'
 import { isMuted, playSound, setMuted } from './sound'
 import { SUIT_NAME, SUIT_SYMBOL, isRed, plural, seatName, sortHand, teamName } from './text'
 
-type SheetName = 'menu' | 'history' | 'rules' | 'jodhi' | 'challenge' | null
+type SheetName = 'menu' | 'history' | 'rules' | 'jodhi' | 'challenge' | 'howto' | null
 type Where = 'bottom' | 'right' | 'top' | 'left'
 
 /** Where a seat sits on screen relative to the viewer, who is always at the bottom. */
@@ -59,6 +63,8 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
   const phase = view.phase
   const can = availableActions(view)
   const myTurn = phase.kind === 'playing' && phase.turn === view.seat
+  const coached = useCoach()
+  const advised = coached?.state.showHint ? coached.state.advice?.action : undefined
 
   useEffect(() => {
     if (!myTurn) return
@@ -90,6 +96,7 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
       </div>
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
+        {coached && <CoachStrip />}
         <div className="flex items-center justify-center gap-2 px-3 min-h-7" aria-live="polite">
           {!watching && <RoleBadges view={view} seat={me} />}
           {!watching &&
@@ -98,7 +105,7 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
                 {text}
               </span>
             ))}
-          <span className="text-center">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>
+          {!coached && <span className="text-center">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>}
         </div>
         {can.reclaimSeat && (
           <div className="flex items-center justify-center gap-2 px-3 pb-1" role="status">
@@ -121,6 +128,8 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
               legal={can.legal}
               dealFrom={TOWARD[position(view.dealer, me, view.playerCount)]}
               onPlay={(card) => send({ type: 'playCard', card })}
+              suggested={advised?.type === 'playCard' ? advised.card : null}
+              explain={coached ? (card) => check(view, { type: 'playCard', card })?.body ?? null : undefined}
             />
             <ActionBar can={can} playing={playing} onSheet={setSheet} />
           </>
@@ -138,6 +147,7 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
           <RulesList rules={view.rules} />
         </Sheet>
       )}
+      {sheet === 'howto' && <HowToPlaySheet onClose={() => setSheet(null)} />}
       {sheet === 'history' && (
         <Sheet title="Last trick" onClose={() => setSheet(null)}>
           <LastTrick view={view} playing={playing} />
@@ -344,12 +354,15 @@ function Centre({ view, can }: { view: View; can: Available }) {
 function Timer({ deadline, totalSeconds }: { deadline: number; totalSeconds: number }) {
   const { store } = useSession()
   const seconds = useCountdown(deadline)
+  const coached = useCoach()
   // The bar runs on its own clock from where the countdown stood when this deadline was first drawn.
   // Frozen per deadline: changing a running animation's duration would make it race ahead.
   const { remaining, fraction } = useMemo(() => {
     const left = Math.max(0, deadline - store.serverNow(Date.now()))
     return { remaining: left, fraction: Math.min(1, left / (totalSeconds * 1000)) }
   }, [deadline, totalSeconds, store])
+  // Practice time stands still while the table waits for the player.
+  if (coached?.state.waiting) return <p className="text-center text-on-surface-muted">No rush: the table waits for you.</p>
   return (
     <div className="grid gap-1">
       <p className={`display text-3xl text-center ${seconds <= 3 ? 'text-danger' : ''}`} aria-label={`${seconds} seconds left`}>
@@ -635,12 +648,29 @@ function LastTrick({ view, playing }: { view: View; playing: ViewPlaying | null 
 function MenuSheet({ view, room, onSheet, now }: { view: View; room: string; onSheet: (s: SheetName) => void; now: number }) {
   const { send } = useSession()
   const [muted, setMutedState] = useState(isMuted)
-  const replaceable = replaceableSeats(view, now)
+  const coached = useCoach()
+  const replaceable = coached ? [] : replaceableSeats(view, now)
   return (
     <div className="grid gap-4">
       <p className="text-on-surface-muted">
-        Game {room}, round {view.roundNumber}. {rulesSummary(view.rules)}.
+        {coached ? 'Practice game' : `Game ${room}`}, round {view.roundNumber}. {rulesSummary(view.rules)}.
       </p>
+      {coached && (
+        <div className="flex flex-wrap gap-2">
+          <button className="btn btn-small" onClick={() => onSheet('howto')}>
+            How to play
+          </button>
+          <button
+            className="btn btn-small"
+            onClick={() => {
+              coached.coach.restart(view.playerCount)
+              onSheet(null)
+            }}
+          >
+            New practice game
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-small" onClick={() => onSheet('rules')}>
           Rules in this game
