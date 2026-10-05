@@ -20,7 +20,7 @@ Success: Thunee plays at `tricks.afrojun.dev/thunee` exactly as it does today, H
 | Old data | No backwards compatibility. Rooms in progress, saved presets, practice games and device tokens are dropped. Nothing is copied or migrated. |
 | Second game | Hearts, four players. |
 | Cheating | A house rule in every game. Offered wherever the app can judge it with certainty; see `2026-10-05-game-modules-design.md` section 5. |
-| Computer players | Decided by a spike: one search player for every game if it holds up, hand-written players per game if not. |
+| Computer players | Hand-written for Thunee and, first, for Hearts. A shared search player is built in the kit and adopted game by game, where it beats that game's hand-written player. The spike found it stronger at Thunee card play but did not establish it for every game (spike spec, section 7). |
 | Coach | Two tiers: hints and warnings for every game, written lessons added game by game. |
 | Deploy configuration | Last, after the code is in place. |
 
@@ -40,15 +40,19 @@ Accounts, matchmaking, chat, games beyond Hearts, Hearts for three or five playe
 
 | | Sub-project | Spec | Depends on |
 |---|---|---|---|
-| A | Cloudflare hosting and the rename | `2026-10-05-cloudflare-and-rename-design.md` | nothing |
-| B | Search-player spike (throwaway) | `2026-10-05-search-player-spike-design.md` | nothing |
-| C | Shared kit and the Hearts engine | `2026-10-05-game-modules-design.md` sections 3 to 5, `2026-10-05-hearts-design.md` sections 2 to 6 | nothing: new folders only |
-| D | Game modules: Thunee behind the seam, generic room, client, practice and shell, the cheating option | `2026-10-05-game-modules-design.md` | A, C |
-| E | Hearts as a full game: screens, computer players, practice, presets | `2026-10-05-hearts-design.md` sections 7 to 10 | B, D |
-| F | Coach in two tiers | `2026-10-05-coach-tiers-design.md` | B, D |
+| A | Cloudflare hosting and the rename | `2026-10-05-cloudflare-and-rename-design.md` | nothing. **Merged.** |
+| B | Search-player spike (throwaway) | `2026-10-05-search-player-spike-design.md` | nothing. **Run and reviewed.** |
+| C | Shared kit and the Hearts engine | `2026-10-05-game-modules-design.md` sections 3 to 5, `2026-10-05-hearts-design.md` sections 2 to 6 | nothing. **Merged.** |
+| D1 | Thunee's engine and computer players onto the kit, and the cheating option | `2026-10-05-game-modules-design.md`, build steps 3 and 4 | A, C |
+| D2 | The module contract for Thunee; a room, protocol, client and practice for any game | the same, steps 5 and 7 | D1 |
+| D3 | Folder moves, the screens contract, the shell, on-demand loading, Hearts in the list | the same, steps 6 and 8 | D2 |
+| E1 | Hearts' hand-written computer players and personas | `2026-10-05-hearts-design.md` sections 7.1 and 7.2 | C. New files in the Hearts folder, so it runs beside D. |
+| E2 | The search player in the kit, gated on Hearts | `2026-10-05-hearts-design.md` section 7.3 | E1 |
+| E3 | Hearts' screens, practice and presets | `2026-10-05-hearts-design.md` sections 8 and 9 | D3, E1 |
+| F | Coach in two tiers | `2026-10-05-coach-tiers-design.md` | D2, E1 |
 | G | Deploy configuration | `2026-10-05-deploy-design.md` | everything |
 
-A, B and C touch different files and run in parallel. D is the one step that moves Thunee's files, so nothing else runs beside it.
+A, B and C touched different files and ran in parallel. D is split in three so each part can be reviewed well; it is the work that moves Thunee's files, so only work in other folders runs beside it.
 
 ## 3. Target layout
 

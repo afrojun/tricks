@@ -1,7 +1,7 @@
 # The coach in two tiers — Design
 
 Date: 2026-10-05
-Status: outline. Section 3 is settled once the search spike reports.
+Status: ready to build after sub-project D. Section 3 is settled by the search spike (its spec, section 7).
 Depends on: `2026-10-05-search-player-spike-design.md`, `2026-10-05-game-modules-design.md`
 
 ## 1. Purpose
@@ -56,9 +56,9 @@ What the kit can say without knowing the game:
 | `topicsFor` | Nothing. |
 | `review` | The decisions where the player's choice differed from the advice and was much worse, each with the advice it had. |
 
-The explanation of a hint, and "much worse", depend on the computer player the spike chooses.
+The explanation of a hint, and "much worse", depend on the computer player a game uses. Thunee and Hearts start with hand-written players, so tier 1 is built first in the second form below. A game that adopts the search player through its gate moves to the first.
 
-- **With the search player.** The search already has the numbers. The explanation states them in the game's own unit: "In the deals this could be, playing the 9 of spades costs you 1 point on average. The queen costs 9." *Much worse* is a gap above a threshold the game sets. This is honest by construction, since the search samples only from the player's view.
+- **With the search player.** The search already has the numbers. The explanation states them in the game's own unit: "In the deals this could be, playing the 9 of spades costs you 1 point on average. The queen costs 9." *Much worse* is a gap above a threshold the game sets. This is honest by construction, since the search samples only from the player's view. Two cautions from the spike's review: these numbers are estimates from imagined deals and the hint must say so; and a gap of two standard errors was not enough to call a move much worse, so the threshold is validated on fresh samples before that warning ships.
 - **With hand-written players.** The player returns a reason code with each decision, as Thunee's does, and the game supplies a short phrase for each code. There is no *much worse* warning and the review lists only rule-breaking plays, because a heuristic has no measure of how bad the alternative was.
 
 ## 4. Tier 2

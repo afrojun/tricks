@@ -1,7 +1,7 @@
 # Hearts — Design
 
 Date: 2026-10-05
-Status: sections 2 to 6 ready to build (sub-project C); sections 7 to 9 follow sub-projects B and D (sub-project E)
+Status: sections 2 to 6 built (sub-project C). 7.1 and 7.2 ready to build (E1); 7.3 follows them (E2); 8 and 9 follow sub-project D (E3)
 Depends on: `2026-10-05-game-modules-design.md`
 
 ## 1. Purpose
@@ -125,18 +125,44 @@ As in Thunee, an accusation ends the round with no other score: tricks already t
 
 ## 7. Computer players
 
-How Hearts gets its opponents depends on the search spike (`2026-10-05-search-player-spike-design.md`).
+The search spike's answer (`2026-10-05-search-player-spike-design.md`, section 7) sets the order: a hand-written player first, then a search player that must beat it.
 
-- **If search is adopted:** Hearts supplies "rebuild a game from a view" and a value for a round's result (points taken, lower is better, with shooting the moon scored as the rules say). Passing is decided by search as well: the candidates are the hand's three-card sets, pruned to the likely ones.
-- **If not:** a hand-written player. Passing: give away the queen, king and ace of spades unless well covered by low spades; then high hearts; then cards that empty a short suit. Play: lead low; duck when it can; when void, throw the queen of spades, then high hearts, then high cards; never take a trick holding the queen of spades when a lower card avoids it; stop a player who has every point so far from taking the rest.
+### 7.1 The hand-written player
 
-Either way the honest choice comes first and the persona sits on top, as in Thunee:
-- **A cheat** is a renege that avoids taking points the honest card would take, above all the queen of spades.
+`decide(view, mind)` returns an action and a reason code, as Thunee's does. The coach's first tier puts those reasons into words. Every chance is `roll(aiSalt, seat, id)`, so a decision never changes on re-evaluation.
+
+**Passing.** Choose three, in this order of priority:
+1. the queen, king and ace of spades, when the hand holds fewer than five spades;
+2. the ace, king and queen of hearts;
+3. cards that empty a suit of two or fewer clubs or diamonds, highest first;
+4. the highest cards left.
+
+**Play.**
+- **The first trick:** the highest club, since no points can fall. With `pointsOnFirstTrick` on, play it as any other trick.
+- **Leading:** a low card from a suit where it is unlikely to win. Lead spades below the queen while the queen is unseen and not held. Never lead the queen of spades or a high heart unless nothing else is left.
+- **Following:** the highest card that stays under the card winning the trick. If every card would win, and the trick holds no points and this seat plays last, win with the highest. Otherwise the lowest.
+- **Void in the suit led:** the queen of spades; then the ace or king of spades while the queen is unseen; then the highest heart; then the highest card.
+- **Stopping a moon:** when one player has taken every point so far and at least half of them, take a trick with points if it is cheap to do so.
+- **With the jack of diamonds in play:** win it when the trick holds no other points.
+
+This is a starting point. The implementer may refine it, and must show that the player clearly beats the random legal player on duplicate deals with every seat taken in turn.
+
+### 7.2 Personas
+
+The honest choice comes first and the persona sits on top, as in Thunee:
+- **A cheat** is a renege that avoids taking points the honest card would take, above all the queen of spades. Sly weighs the chance of being shown up; Wild does not.
 - **Holding back** uses the kit's `exposes`.
-- **Catching** uses the kit's `playProofs` and `noticed`. A proof is more salient when the cheat dodged the queen of spades.
-- **Suspicion signals:** a void shown so early it is unlikely (`chanceOfVoid`), and a discard that dodges the queen.
+- **Catching** uses the kit's `playProofs` and `noticed`. A proof is more salient when the cheat dodged the queen of spades. Sub-project C already supplies the honest catcher; this adds attention by persona.
+- **Suspicion signals**, for the personas that act on a hunch: a void shown so early it is unlikely (`chanceOfVoid`), and a discard that dodges the queen.
+- With `allowCheating` off, every persona plays as Straight.
 
-Until then sub-project C supplies a random legal player, for the simulation and as a stopgap, and an honest catcher: a computer that accuses only when it holds a proof, so that cheating is never free.
+### 7.3 The search player
+
+Built afterwards, as its own sub-project, in `src/kit/search/` with a Hearts adapter. It follows the four conditions in the spike spec's decision: one in-place step shared with `apply`; hard rules of the deal kept apart from soft evidence; seeding from the salt, the seat and the decision; a fixed number of worlds.
+
+Hearts supplies: what a seat knows about the hidden cards (its own hand, cards played, the three it gave and to whom, shown voids as soft evidence), "rebuild a game from a view", and the value of a finished round to one seat (its own points, lower is better, with a moon scored as the rules say). Passing is searched over a pruned set of candidate passes, not all 286.
+
+**The gate.** Hearts adopts the search player only if, on duplicate deals with every seat taken in turn and every pass direction, it takes fewer points per round than the hand-written player with a 95% interval clear of zero, and a decision fits a budget measured in a browser and in a room. Otherwise Hearts keeps the hand-written player.
 
 ## 8. Screens
 
@@ -170,4 +196,8 @@ Practice works as it does for Thunee: one person, three honest computers, a cloc
 
 Sub-project C: sections 2 to 6, as `src/games/hearts/engine/` and a module in `src/games/hearts/index.ts`, with the random legal player.
 
-Sub-project E: computer players (7), screens (8), practice and presets (9).
+Sub-project E1: the hand-written player and personas (7.1, 7.2), in `src/games/hearts/ai/` only.
+
+Sub-project E2: the search player and its gate (7.3).
+
+Sub-project E3: screens (8), practice and presets (9).
