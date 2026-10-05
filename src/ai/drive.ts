@@ -1,15 +1,14 @@
 /** What happens without a person acting: deadlines, computer turns, and computers' reactions. Shared by every host. */
-import { type Action, type Actor, type Game, type GameEvent, isAiControlled, seatsToAct, teamOf, viewFor } from '../engine'
+import type { Ask as KitAsk, Step as KitStep } from '../kit/module'
+import { type Action, type Game, type GameEvent, isAiControlled, seatsToAct, teamOf, viewFor } from '../engine'
 import { chooseAction, chooseJodhi, fallbackAction } from './choose'
-import { mindFor } from './mind'
+import { mindFor } from '../kit/mind'
 import { chooseChallenge } from './suspicion'
 
-export interface Step {
-  actor: Actor
-  action: Action
-  /** Tried if `action` is rejected. */
-  fallback?: Action
-}
+/** Something to apply without a person acting: the kit's `Step`, for Thunee. */
+export type Step = KitStep<Action>
+/** One question put to a computer seat: the kit's `Ask`, for Thunee. */
+export type Ask = KitAsk<Game, Action>
 
 /** A passed phase deadline, or a computer turn whose time has come. Null when nothing is due. */
 export function dueStep(game: Game, now: number): Step | null {
@@ -21,9 +20,6 @@ export function dueStep(game: Game, now: number): Step | null {
   const view = viewFor(game, seat, 'full')
   return { actor: seat, action: chooseAction(view, mindFor(game, seat)), fallback: fallbackAction(view) }
 }
-
-/** One question put to a computer seat, asked of the game as it stands when its turn comes. */
-export type Ask = (game: Game) => Step | null
 
 /**
  * The questions to put to computer seats after an applied action, in order:

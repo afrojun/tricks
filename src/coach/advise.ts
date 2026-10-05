@@ -1,7 +1,7 @@
 /** The suggested move for the player's decision, and why: the honest computer's choice, put into words. */
 import { type Action, type Card, type View, type ViewPlaying, SUIT_NAME, availableActions, jodhiPoints, sameCard } from '../engine'
 import { decide, chooseJodhi } from '../ai/choose'
-import { HONEST } from '../ai/mind'
+import { HONEST } from '../kit/mind'
 import { wouldWin } from '../ai/read'
 import type { Reason } from '../ai/reasons'
 import { findProofs, inPlay } from '../ai/suspicion'

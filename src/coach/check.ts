@@ -4,7 +4,7 @@
  */
 import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, SUIT_NAME, availableActions, hasCard, rankStrength, teamOf, trickWinner } from '../engine'
 import { callLimit, chooseJodhi, decide } from '../ai/choose'
-import { HONEST } from '../ai/mind'
+import { HONEST } from '../kit/mind'
 import { wouldWin } from '../ai/read'
 import { findProofs, inPlay } from '../ai/suspicion'
 import type { Note, WarningRule } from './note'

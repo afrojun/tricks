@@ -10,8 +10,11 @@ export const PERSONA_CHOICES: { value: Persona | 'surprise'; label: string; text
   { value: 'surprise', label: 'Surprise me', text: 'One of the four, kept secret until the game ends.' },
 ]
 
-/** A computer seat's persona as shown at the table: "?" while it is a secret. */
-export function personaLabel(seat: ViewSeat): string | null {
-  if (seat.kind !== 'ai') return null
+/**
+ * A computer seat's persona as shown at the table: "?" while it is a secret.
+ * None with cheating off, when every computer plays as Straight.
+ */
+export function personaLabel(seat: ViewSeat, allowCheating: boolean): string | null {
+  if (seat.kind !== 'ai' || !allowCheating) return null
   return seat.persona === null ? '?' : PERSONA_NAMES[seat.persona]
 }

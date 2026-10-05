@@ -7,7 +7,7 @@
  */
 import PartySocket from 'partysocket'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
-import { HONEST } from '../src/ai/mind'
+import { HONEST } from '../src/kit/mind'
 import { type Action, type View, availableActions } from '../src/engine'
 import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../src/protocol'
 

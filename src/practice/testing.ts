@@ -1,7 +1,7 @@
 /** Plays a practice game forward the way an attentive learner would: always taking the advice. */
 import { seatsToAct } from '../engine'
 import { decide } from '../ai/choose'
-import { HONEST } from '../ai/mind'
+import { HONEST } from '../kit/mind'
 import type { PracticeGame } from './game'
 
 /**

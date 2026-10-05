@@ -40,6 +40,8 @@ const REJECTIONS: Record<RejectReason | 'malformed', string> = {
   seatsNotFilled: 'Fill every seat before starting.',
   badAmount: 'Call higher than the current call.',
   cardNotInHand: "That card isn't in your hand.",
+  illegalCard: 'That card breaks the rules, and cheating is off.',
+  falseClaim: 'Cheating is off, so you can only call a Jodhi you have.',
   badChoice: "You can't choose that.",
   malformed: "The server didn't understand that. Reload and try again.",
 }

@@ -15,7 +15,7 @@ import {
   trickWinner,
 } from '../engine'
 import { chooseCheat, holdBack } from './cheat'
-import { type Mind, TRAITS, roll } from './mind'
+import { type Mind, TRAITS, roll } from '../kit/mind'
 import { history, wouldWin } from './read'
 import type { Decision, Reason } from './reasons'
 

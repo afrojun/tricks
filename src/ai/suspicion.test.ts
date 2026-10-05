@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest'
+import { chanceOfVoid, noticeOdds } from '../kit/integrity'
 import { type Persona, viewFor } from '../engine'
 import { Table, cards } from '../engine/testing'
 import { mood } from './read'
-import { VOID_DOUBT, chanceOfVoid, chooseChallenge, findProofs, findSignals, noticeOdds } from './suspicion'
+import { VOID_DOUBT, chooseChallenge, findProofs, findSignals } from './suspicion'
 
 // Dealer 0: seat 1 is trumper (spades), seat 2 leads. Teams: 0+2 count, 1+3 trump.
 // Seat 1 holds one club (Qc); seat 0 holds Qd.
@@ -60,7 +61,7 @@ describe('proofs', () => {
   test('a Jodhi disproved by the observer’s own hand stands out; an observer without the card sees nothing', () => {
     const t = falseJodhi()
     const proofs = findProofs(viewFor(t.game, 0, 'full'))
-    expect(proofs).toEqual([{ id: 'jodhi:0:Q-diamonds', accused: 1, claim: 0, gap: 0, salience: 1.5 }])
+    expect(proofs).toEqual([{ id: 'jodhi:0:Q-diamonds', accused: 1, rule: null, claim: 0, gap: 0, salience: 1.5 }])
     expect(findProofs(viewFor(t.game, 2, 'full'))).toEqual([])
     for (let salt = 1; salt <= 50; salt++) {
       expect(chooseChallenge(viewFor(t.game, 0, 'full'), { persona: 'sharp', salt })).toEqual({ type: 'challengeJodhi', claim: 0 })
@@ -105,7 +106,7 @@ describe('proofs', () => {
       .do(1, { type: 'claimJodhi', suit: 'clubs', withJack: false })
       .play('As 9c Jd Ks  10s Kc Ad Qs')
     expect(claimsOf(t).map((c) => c.valid)).toEqual([false])
-    expect(findProofs(viewFor(t.game, 0, 'full'))).toEqual([{ id: 'jodhi:0:K-clubs', accused: 1, claim: 0, gap: 1, salience: 1 }])
+    expect(findProofs(viewFor(t.game, 0, 'full'))).toEqual([{ id: 'jodhi:0:K-clubs', accused: 1, rule: null, claim: 0, gap: 1, salience: 1 }])
   })
 
   test('a Jodhi card the claimant played before claiming proves it false only when Jodhis need cards in hand', () => {
@@ -115,7 +116,7 @@ describe('proofs', () => {
       new Table(4, { redealIfNoTrumps: false, jodhiCards }).deal(HANDS).toPlay('spades').play('10h Qh 9h Qs').do(1, { type: 'claimJodhi', suit: 'spades', withJack: false })
     const inHand = run('inHand')
     expect(claimsOf(inHand).map((c) => c.valid)).toEqual([false])
-    expect(findProofs(viewFor(inHand.game, 0, 'full'))).toEqual([{ id: 'jodhi:0:Q-spades', accused: 1, claim: 0, gap: 0, salience: 1 }])
+    expect(findProofs(viewFor(inHand.game, 0, 'full'))).toEqual([{ id: 'jodhi:0:Q-spades', accused: 1, rule: null, claim: 0, gap: 0, salience: 1 }])
     const dealt = run('dealt')
     expect(claimsOf(dealt).map((c) => c.valid)).toEqual([true])
     expect(findProofs(viewFor(dealt.game, 0, 'full'))).toEqual([])
@@ -256,7 +257,7 @@ function checkFair(hands: string[], t: Table) {
   const phase = t.game.phase
   if (phase.kind !== 'playing' && phase.kind !== 'trickPause') throw new Error(phase.kind)
   const plays = [...phase.play.tricks.flatMap((x) => x.plays), ...phase.play.current]
-  expect(plays.every((p) => p.legal)).toBe(true)
+  expect(plays.every((p) => p.broke.length === 0)).toBe(true)
 }
 
 describe('void odds', () => {

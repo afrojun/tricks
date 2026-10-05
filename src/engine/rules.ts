@@ -1,4 +1,9 @@
-export interface RuleSet {
+import { type CommonRules, diff, resolve } from '../kit/rules'
+
+export { TRICK_PAUSE_MS } from '../kit/rules'
+
+/** `allowCheating` comes from the kit: with it off, a rule-breaking card or a false Jodhi is refused and nobody may accuse. */
+export interface RuleSet extends CommonRules {
   thuneeCaller: 'anyone' | 'trumperOnly'
   thuneeTrump: 'firstCardLed' | 'noTrump'
   thuneeLeader: 'caller' | 'afterCaller'
@@ -24,6 +29,7 @@ export interface RuleSet {
 export type RuleOverrides = Partial<RuleSet>
 
 export const TRADITIONAL: RuleSet = {
+  allowCheating: true,
   thuneeCaller: 'anyone',
   thuneeTrump: 'firstCardLed',
   thuneeLeader: 'caller',
@@ -67,22 +73,19 @@ export const CLASSIC_APP_OVERRIDES: RuleOverrides = {
 }
 
 export function resolveRules(overrides: RuleOverrides): RuleSet {
-  return { ...TRADITIONAL, ...overrides }
+  return resolve(TRADITIONAL, overrides)
 }
 
 export const CLASSIC_APP: RuleSet = resolveRules(CLASSIC_APP_OVERRIDES)
 
 /** The settings in `rules` that differ from Traditional. */
 export function diffRules(rules: RuleSet): RuleOverrides {
-  const out: Record<string, unknown> = {}
-  for (const key of Object.keys(TRADITIONAL) as (keyof RuleSet)[]) {
-    if (rules[key] !== TRADITIONAL[key]) out[key] = rules[key]
-  }
-  return out as RuleOverrides
+  return diff(TRADITIONAL, rules)
 }
 
+/** Thunee is played by two or four. */
+export const SEAT_COUNTS = [2, 4] as const
 /** Four-player counting target; fixed for every rule set. */
 export const FOUR_PLAYER_TARGET = 105
 export const CHALLENGE_BALLS = 4
-export const TRICK_PAUSE_MS = 2000
 export const CALL_AMOUNTS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 104] as const

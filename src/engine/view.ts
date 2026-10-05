@@ -1,31 +1,19 @@
-import { actingHost } from './lobby'
+import type { Memory } from '../kit/module'
+import { tableView } from '../kit/table'
 import { ballsTarget } from './predicates'
 import type { Seat } from './seats'
 import type { Game, Phase, RoundPlay, ViewPhase, ViewPlaying, View } from './types'
 
-/**
- * How much of the round's play a view carries.
- * - `table`: what someone at the table can still see or picture: the current
- *   trick, the last completed one, and who won each earlier trick.
- * - `full`: every card played. Only for computer players, which run on the
- *   server and stand in for a player who remembers the whole round.
- */
-export type Memory = 'table' | 'full'
-
-/** What one seat (or a spectator, `null`) is allowed to know about the game. */
+/** What one seat (or a spectator, `null`) is allowed to know about the game, remembering as much as `memory` says. */
 export function viewFor(game: Game, seat: Seat | null, memory: Memory = 'table'): View {
   return {
-    seat,
-    seats: game.seats.map((s) => (s.personaHidden && game.phase.kind !== 'gameOver' ? { ...s, persona: null } : s)),
-    host: actingHost(game),
-    owner: game.host,
+    ...tableView(game, seat),
     playerCount: game.playerCount,
     rules: game.rules,
     balls: game.balls,
     ballsTarget: ballsTarget(game.rules, game.khanaakCalled),
     dealer: game.dealer,
     roundNumber: game.roundNumber,
-    acting: game.acting,
     phase: viewPhase(game.phase, seat, memory),
   }
 }

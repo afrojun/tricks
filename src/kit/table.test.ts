@@ -411,6 +411,31 @@ describe('wire schemas', () => {
     }
   })
 
+  test('unbounded, they check only that each field has its type, and leave the values to tableAction', () => {
+    const shape = z.discriminatedUnion('type', [...tableActionSchemas([2, 4], { bounded: false })])
+    for (const good of [
+      { type: 'sit', seat: 9, name: 'x'.repeat(500) },
+      { type: 'clearSeat', seat: -1 },
+      { type: 'setPlayerCount', playerCount: 3 },
+      { type: 'replaceWithAi', seat: 1.5 },
+    ]) {
+      expect(shape.safeParse(good).success).toBe(true)
+    }
+    for (const bad of [
+      { type: 'sit', seat: null, name: 'x' },
+      { type: 'sit', seat: 0 },
+      { type: 'rename', name: 5 },
+      { type: 'addAi', seat: '1' },
+      { type: 'addAi', seat: 1, persona: 'evil' },
+      { type: 'clearSeat', seat: null },
+      { type: 'setPlayerCount', playerCount: '2' },
+      { type: 'replaceWithAi' },
+      { type: 'tick' },
+    ]) {
+      expect(shape.safeParse(bad).success).toBe(false)
+    }
+  })
+
   test('a computer may be added with a persona, a surprise, or neither', () => {
     expect(schema.safeParse({ type: 'addAi', seat: 1 }).success).toBe(true)
     expect(schema.safeParse({ type: 'addAi', seat: 1, persona: 'wild' }).success).toBe(true)

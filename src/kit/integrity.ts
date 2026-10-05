@@ -79,9 +79,14 @@ export interface Proof {
  * Every excuse a suspect's later card shows to be false: a card from the same
  * deal, played to a later trick, that matches the excuse's `without`. Needs
  * only the public play history, so a computer catches a cheat with the same
- * information a person has.
+ * information a person has. `salience` lets a game weigh each proof by the
+ * cheat and the card that shows it up.
  */
-export function playProofs<C>(plays: readonly SeenPlay<C>[], suspect: (seat: Seat) => boolean): Proof[] {
+export function playProofs<C>(
+  plays: readonly SeenPlay<C>[],
+  suspect: (seat: Seat) => boolean,
+  salience: (cheat: SeenPlay<C>, reveal: SeenPlay<C>) => number = () => 1,
+): Proof[] {
   const out: Proof[] = []
   for (const cheat of plays) {
     if (!suspect(cheat.seat)) continue
@@ -95,7 +100,7 @@ export function playProofs<C>(plays: readonly SeenPlay<C>[], suspect: (seat: Sea
           rule: excuse.rule,
           claim: null,
           gap: reveal.trick - cheat.trick - 1,
-          salience: 1,
+          salience: salience(cheat, reveal),
         })
       }
     }

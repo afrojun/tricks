@@ -14,6 +14,8 @@ interface HandProps {
   /** Whether it is this player's turn to play a card. */
   playable: boolean
   legal: Card[]
+  /** Whether a rule-breaking card may still be played, after a second tap: only while cheating is allowed. */
+  anyway: boolean
   /** Where newly dealt cards come from, as an offset in pixels. */
   dealFrom: { x: number; y: number }
   onPlay: (card: Card) => void
@@ -29,7 +31,7 @@ const TAP_SLOP_PX = 12
 /** If a dropped card has not left the hand by now, the play was refused: bring it back. */
 const RETURN_AFTER_MS = 1200
 
-export function Hand({ cards, playable, legal, dealFrom, onPlay, suggested = null, explain }: HandProps) {
+export function Hand({ cards, playable, legal, anyway, dealFrom, onPlay, suggested = null, explain }: HandProps) {
   // An illegal card needs a second, explicit confirmation.
   const [pending, setPending] = useState<Card | null>(null)
   const [shake, setShake] = useState(0)
@@ -48,6 +50,7 @@ export function Hand({ cards, playable, legal, dealFrom, onPlay, suggested = nul
       onPlay(card)
       return true
     }
+    if (!anyway) return false
     setPending(card)
     setShake((n) => n + 1)
     return false

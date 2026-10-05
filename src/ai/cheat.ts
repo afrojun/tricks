@@ -1,8 +1,8 @@
 /** When a computer persona breaks the rules, and how it covers its tracks. */
-import { type Card, type Suit, type View, type ViewPlaying, pointsOf, rankStrength, teamOf, trickWinner } from '../engine'
-import { type Mind, TRAITS } from './mind'
-import { history, mood, wouldWin } from './read'
-import { noticeOdds } from './suspicion'
+import { exposes, noticeOdds } from '../kit/integrity'
+import { type Mind, TRAITS } from '../kit/mind'
+import { type Card, type View, type ViewPlaying, pointsOf, rankStrength, seenPlays, teamOf, trickWinner } from '../engine'
+import { mood, wouldWin } from './read'
 
 /** The attention Sly assumes of whoever is watching. */
 const ASSUMED_ATTENTION = 0.6
@@ -41,15 +41,9 @@ export function chooseCheat(view: View, phase: ViewPlaying, honest: Card, mind: 
   return wins.find((c) => prize(c) >= 20 / m || flashy || done === 5) ?? null
 }
 
-/** Leaves out cards that would show up an earlier renege this half, while anything else may be played. */
+/** Leaves out cards that would show up one of its own excuses this half, while anything else may be played. */
 export function holdBack(view: View, phase: ViewPlaying, legal: readonly Card[]): readonly Card[] {
-  const me = view.seat
-  const shownVoid = new Set<Suit>()
-  for (const t of history(phase)) {
-    if (t.half !== phase.half) continue
-    const led = t.plays[0].card.suit
-    t.plays.forEach((p, i) => i > 0 && p.seat === me && p.card.suit !== led && shownVoid.add(led))
-  }
-  const safe = legal.filter((c) => !shownVoid.has(c.suit))
+  const own = seenPlays(view).filter((p) => p.seat === view.seat && p.deal === phase.half)
+  const safe = legal.filter((c) => !exposes(c, own))
   return safe.length > 0 ? safe : legal
 }

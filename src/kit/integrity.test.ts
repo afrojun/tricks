@@ -159,6 +159,20 @@ describe('proofs', () => {
     }
   })
 
+  test('a game may weigh each proof by the cheat and the card that shows it up; without that, salience is 1', () => {
+    const plays = patient()
+    const weighed: [number, number, string][] = []
+    const salience = (cheat: SeenPlay<Card>, reveal: SeenPlay<Card>) => {
+      weighed.push([cheat.trick, reveal.trick, `${reveal.card.rank}${reveal.card.suit}`])
+      return reveal.card.rank === 'Q' ? 1.2 : 1
+    }
+    expect(playProofs(plays, () => true, salience)).toEqual([
+      { id: 'followSuit:1:0:5', accused: 1, rule: 'followSuit', claim: null, gap: 4, salience: 1.2 },
+    ])
+    expect(weighed).toEqual([[0, 5, 'Qclubs']])
+    expect(playProofs(plays, () => true)[0].salience).toBe(1)
+  })
+
   test('a card exposes an earlier excuse of one’s own', () => {
     const own = clumsy().filter((p) => p.seat === 1 && p.trick === 0)
     expect(exposes(card('Ac'), own)).toBe(true)
