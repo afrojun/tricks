@@ -1,5 +1,5 @@
 import type * as Party from 'partykit/server'
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
 import { HONEST } from '../src/ai/mind'
 import type { Action, View } from '../src/engine'
@@ -264,19 +264,15 @@ describe('timers', () => {
     expect((await w.connect(TOKENS[0])).sync).toMatchObject({ version: 0, view: { phase: { kind: 'lobby' } } })
   })
 
-  test('a format 1 save that cannot be upgraded is logged and replaced by a fresh lobby', async () => {
-    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      const { seats: _, ...old } = createGame() as unknown as Record<string, unknown>
-      const w = new World()
-      w.data.set('state', { game: { ...old, formatVersion: 1 }, tokens: { [TOKENS[0]]: 0 }, version: 3, eventCount: 0, emptySince: null })
-      await w.boot()
-      expect(quiet).toHaveBeenCalledWith('Discarding a saved game that could not be loaded', expect.any(TypeError))
-      const watcher = await w.connect('w'.repeat(20))
-      expect(watcher.sync).toMatchObject({ version: 0, view: { phase: { kind: 'lobby' } } })
-    } finally {
-      quiet.mockRestore()
-    }
+  test('a format 1 save is discarded and replaced by an empty lobby', async () => {
+    const w = new World()
+    const old = { ...createGame(), formatVersion: 1 }
+    old.seats[0] = { ...old.seats[0], name: 'Old', kind: 'human', connected: true }
+    w.data.set('state', { game: old, tokens: { [TOKENS[0]]: 0 }, version: 3, eventCount: 0, emptySince: null })
+    await w.boot()
+    const me = await w.connect(TOKENS[0])
+    expect(me.sync).toMatchObject({ seat: null, version: 0, view: { phase: { kind: 'lobby' } } })
+    expect(me.view.seats.every((x) => x.kind === 'empty')).toBe(true)
   })
 })
 
@@ -431,16 +427,5 @@ describe('computer personas', () => {
     await w.send(me, { type: 'playCard', card: card('Qc') })
     expect(me.view.phase).toMatchObject({ kind: 'roundResult', summary: { reason: 'challenge', challenge: { accused: 1, guilty: true } } })
     expect(me.inbox.some((m) => m.type === 'error')).toBe(false)
-  })
-
-  test('a room saved before personas existed keeps its players', async () => {
-    const old = createGame() as unknown as Record<string, unknown>
-    const seats = [{ name: 'Old', kind: 'human', connected: true, standIn: false }, ...(old.seats as object[]).slice(1)]
-    const w = new World()
-    w.data.set('state', { game: { ...old, formatVersion: 1, seats, host: 0, aiSalt: undefined }, tokens: { [TOKENS[0]]: 0 }, version: 3, eventCount: 0, emptySince: null })
-    await w.boot()
-    const me = await w.connect(TOKENS[0])
-    expect(me.sync.seat).toBe(0)
-    expect(me.view.seats[0]).toMatchObject({ name: 'Old', persona: 'straight' })
   })
 })

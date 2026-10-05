@@ -82,7 +82,7 @@ All cheating is limited by what the engine already allows: `play` is the whole h
 - `addAi` takes an optional `persona: Persona | 'surprise'`, defaulting to `straight`. For `surprise` the engine picks with `ctx.rng` and sets `personaHidden`.
 - `Game` gains `aiSalt: number`, drawn with `ctx.rng` at every deal.
 - `viewFor` masks a hidden persona (shown as `null`) until `gameOver`, and never includes `aiSalt`.
-- `formatVersion` rises; loading an older save fills in `straight`, `false` and a new salt.
+- `formatVersion` rises to 2; rooms saved in an older format reset to an empty lobby, as before.
 - `schema.ts` validates the new `addAi` field.
 
 The engine stays pure: all randomness is `ctx.rng` or the salt.
@@ -113,7 +113,7 @@ The challenge lands at once. The client's paced playback keeps the card on scree
 - **Stand-in:** a stand-in in a Wild seat never cheats.
 - **Simulation:** the existing honest-AI test runs with Straight and Sharp only and still asserts every play is legal. A new simulation seats all four personas, finishes every game under both presets, and sees both guilty and innocent challenges.
 - **Secrecy:** the simulation's view check also rejects `aiSalt` and a hidden persona before game over.
-- **Schema and save migration:** `addAi` with and without a persona; an old save loads.
+- **Schema:** `addAi` with and without a persona; an old save is discarded.
 
 ## Out of scope
 

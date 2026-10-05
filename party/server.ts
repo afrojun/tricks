@@ -9,13 +9,13 @@ import {
   type GameEvent,
   type Seat,
   apply,
+  FORMAT_VERSION,
   checkInvariants,
   createGame,
   isAiControlled,
   nextDeadline,
   seatsToAct,
   teamOf,
-  upgradeGame,
   viewFor,
 } from '../src/engine'
 import {
@@ -68,17 +68,8 @@ export default class ThuneeRoom implements Party.Server {
 
   async onStart() {
     const stored = await this.room.storage.get<Saved>(STORAGE_KEY)
-    let game: Game | null = null
-    if (stored) {
-      try {
-        game = upgradeGame(stored.game, Math.floor(this.deps.rng() * 2 ** 32))
-      } catch (error) {
-        console.error('Discarding a saved game that could not be loaded', error)
-        game = null // a malformed save is as unusable as an old one
-      }
-    }
-    if (stored && game) {
-      this.saved = { ...stored, game }
+    if (stored && stored.game?.formatVersion === FORMAT_VERSION) {
+      this.saved = stored
       // Nobody is connected to a room that has just started.
       for (const seat of this.saved.game.seats) if (seat.kind === 'human') seat.connected = false
       this.saved.emptySince = emptySince(this.saved.game, stored.emptySince ?? null, this.deps.now())

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { type Game, type Persona, upgradeGame, viewFor } from '../engine'
+import { type Persona, viewFor } from '../engine'
 import { Table } from '../engine/testing'
 import { mood } from './read'
 import { chooseChallenge, findProofs, findSignals, noticeOdds } from './suspicion'
@@ -149,58 +149,6 @@ describe('proofs', () => {
       expect(claimsOf(inHand).map((c) => c.valid)).toEqual([false])
       expect(findProofs(viewFor(inHand.game, 0, 'full')).map((p) => p.id)).toEqual(['jodhi:0:K-hearts'])
     })
-  })
-})
-
-describe('saves from before claims recorded their trick', () => {
-  /** The game as a format 1 save would hold it, then loaded again. */
-  const reloaded = (game: Game): Game => {
-    const old: any = structuredClone(game)
-    old.formatVersion = 1
-    delete old.aiSalt
-    for (const seat of old.seats) {
-      delete seat.persona
-      delete seat.personaHidden
-    }
-    for (const claim of old.phase.play.jodhiClaims) delete claim.trick
-    return upgradeGame(old, 5)!
-  }
-  const validity = (game: Game) => {
-    const phase = game.phase
-    if (phase.kind !== 'playing' && phase.kind !== 'trickPause') throw new Error(phase.kind)
-    return phase.play.jodhiClaims.map((c) => c.valid)
-  }
-
-  test('a claimed card the claimant plays after an honest claim proves nothing', () => {
-    // Seat 1 trumps a heart trick and claims spades with Ks Qs, then leads its Qs.
-    const CLAIM = ['Jh 9h As 10s 10c Qd', 'Js 9s Ks Qs Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']
-    const t = start(CLAIM).play('10h Kh 9h Js').do(1, { type: 'claimJodhi', suit: 'spades', withJack: false }).endPause().play('Qs Kc 9d 10s')
-    expect(validity(t.game)).toEqual([true])
-    const game = reloaded(t.game)
-    for (const seat of [0, 2]) {
-      expect(findProofs(viewFor(game, seat, 'full'))).toEqual([])
-      for (const persona of ['straight', 'sharp', 'sly', 'wild'] as Persona[]) {
-        for (let salt = 1; salt <= 200; salt++) expect(chooseChallenge(viewFor(game, seat, 'full'), { persona, salt })?.type).not.toBe('challengeJodhi')
-      }
-    }
-  })
-
-  test('a two-player claim from the first half, loaded in the second, proves nothing', () => {
-    // Seat 0 wins trick 1 with 10c and claims spades, then plays its Ks and Qs later in half 1.
-    for (const jodhiCards of ['inHand', 'dealt'] as const) {
-      const t = new Table(2, { redealIfNoTrumps: false, jodhiCards, jodhiTiming: 'anyTrick' })
-        .deal(['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc'])
-        .toPlay('spades')
-        .play('10c Qc')
-        .do(0, { type: 'claimJodhi', suit: 'spades', withJack: false })
-        .play('Ks Js  9s Qs  As 9h  10s Jh  Kd Qd')
-        .endPause()
-        .play('Jd Ad') // seat 1 won the last trick of half 1, so leads half 2
-      expect(validity(t.game)).toEqual([true])
-      if (t.game.phase.kind !== 'trickPause' && t.game.phase.kind !== 'playing') throw new Error(t.game.phase.kind)
-      expect(t.game.phase.play.half).toBe(2)
-      expect(findProofs(viewFor(reloaded(t.game), 1, 'full'))).toEqual([])
-    }
   })
 })
 
