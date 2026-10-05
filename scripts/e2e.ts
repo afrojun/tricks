@@ -1,7 +1,7 @@
 /**
- * Drives the real app in a browser at phone size: one human against three
- * computers, with a page refresh mid-hand. Needs `pnpm dev` and `pnpm party`
- * running. Usage: pnpm tsx scripts/e2e.ts [theme] [shots-dir]
+ * Drives the real app in a browser at phone size: from the Tricks home into
+ * Thunee, one human against three computers, with a page refresh mid-hand.
+ * Needs `pnpm dev` running. Usage: pnpm tsx scripts/e2e.ts [theme] [shots-dir]
  */
 import { chromium } from 'playwright-core'
 
@@ -18,8 +18,8 @@ const context = await browser.newContext({
   recordVideo: process.env.VIDEO ? { dir: process.env.VIDEO, size: { width: 390, height: 844 } } : undefined,
 })
 await context.addInitScript((t) => {
-  localStorage.setItem('thunee-theme', t)
-  localStorage.setItem('thunee-muted', '1')
+  localStorage.setItem('tricks-theme', t)
+  localStorage.setItem('tricks-muted', '1')
 }, theme)
 const page = await context.newPage()
 const problems: string[] = []
@@ -29,8 +29,13 @@ const shot = (name: string) => page.screenshot({ path: `${shots}/${theme}-${name
 const visible = (name: string | RegExp) => page.getByRole('button', { name }).first().isVisible()
 
 await page.goto(base)
+await shot('0-tricks-home')
+await page.getByRole('link', { name: /^Thunee/ }).click()
+await page.getByRole('heading', { name: 'Thunee' }).waitFor()
+if (!page.url().endsWith('/thunee')) problems.push(`the Thunee card led to ${page.url()}`)
 await shot('1-home')
 await page.getByRole('button', { name: 'Create game' }).click()
+await page.waitForURL(/\/thunee\/[A-Z]{6}$/)
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()
 for (let i = 0; i < 3; i++) {
@@ -91,6 +96,10 @@ await shot('9-game-over')
 const finished = await page.getByText(/win the game/).isVisible()
 await page.getByRole('button', { name: 'Open menu' }).click().catch(() => {})
 await shot('10-menu')
+// Old addresses are not redirected: they show the Tricks home.
+await page.goto(`${base}/game/ABCDEF`)
+const tricksHome = await page.getByRole('heading', { name: 'Tricks' }).waitFor({ timeout: 5000 }).then(() => true, () => false)
+if (!tricksHome) problems.push('an old /game address did not show the Tricks home')
 console.log(`${theme}${reduced ? ' (reduced motion)' : ''}: finished=${finished} refreshed=${refreshed} screens=${[...seen].sort().join(',')}`)
 if (problems.length) console.log('PROBLEMS:\n' + [...new Set(problems)].join('\n'))
 await context.close() // flushes the video, if one is being recorded

@@ -1,6 +1,6 @@
 /**
  * Two browsers in one two-player game: join by code, play, then one loses
- * its connection mid-hand and comes back. Needs `pnpm dev` and `pnpm party`.
+ * its connection mid-hand and comes back. Needs `pnpm dev`.
  */
 import { type Page, chromium } from 'playwright-core'
 
@@ -10,7 +10,7 @@ const problems: string[] = []
 
 async function open(name: string) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
-  await context.addInitScript(() => localStorage.setItem('thunee-muted', '1'))
+  await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
   const page = await context.newPage()
   page.on('pageerror', (e) => problems.push(`${name} pageerror: ${e.message}`))
   return { context, page }
@@ -24,7 +24,7 @@ const a = await open('A')
 const b = await open('B')
 
 // A creates a two-player game with short timers.
-await a.page.goto(base)
+await a.page.goto(`${base}/thunee`)
 await a.page.getByRole('button', { name: 'Two', exact: true }).click()
 await a.page.getByRole('button', { name: 'Create game' }).click()
 await a.page.getByPlaceholder('Name').fill('Asha')
@@ -34,12 +34,12 @@ const code = a.page.url().split('/').pop()!
 check((await a.page.locator('li').count()) === 2, 'two-player choice from the home screen reached the lobby')
 
 // B joins by typing the code in lower case.
-await b.page.goto(base)
+await b.page.goto(`${base}/thunee`)
 await b.page.getByPlaceholder('ABCDEF').fill(code.toLowerCase())
 await b.page.getByRole('button', { name: 'Join game' }).click()
 await b.page.getByPlaceholder('Name').fill('Bheki')
 await b.page.getByRole('button', { name: 'Sit here' }).first().click()
-check(b.page.url().endsWith(code), 'lower-case code joined the same room')
+check(b.page.url().endsWith(`/thunee/${code}`), 'lower-case code joined the same room')
 check(!(await b.page.getByRole('button', { name: 'Start game' }).isVisible()), 'guest cannot start the game')
 await a.page.getByRole('button', { name: 'Start game' }).click()
 await b.page.getByText(/unless someone calls/).waitFor()
