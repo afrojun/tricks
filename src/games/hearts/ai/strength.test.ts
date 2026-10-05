@@ -70,69 +70,98 @@ function playRound(start: Game, players: Player[], salt: number): number[] {
   throw new Error('the round did not finish')
 }
 
-/** Mean and 95% interval half-width of a sample. */
-function interval(xs: readonly number[]): { mean: number; half: number } {
-  const mean = xs.reduce((a, b) => a + b, 0) / xs.length
-  const variance = xs.reduce((a, b) => a + (b - mean) ** 2, 0) / (xs.length - 1)
-  return { mean, half: 1.96 * Math.sqrt(variance / xs.length) }
+const mean = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
+
+/**
+ * Mean and 95% interval half-width of independent observations. Rounds of one
+ * deal are related, so callers pass one observation per deal. `z` widens it
+ * for several comparisons at once.
+ */
+function interval(xs: readonly number[], z = 1.96): { mean: number; half: number } {
+  const m = mean(xs)
+  const variance = xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)
+  return { mean: m, half: z * Math.sqrt(variance / xs.length) }
 }
+
+/** z for four two-sided comparisons at an overall 95%: 0.05 / 4 each (Bonferroni). */
+const Z_FOUR = 2.498
 
 const show = ({ mean, half }: { mean: number; half: number }) => `${mean.toFixed(3)} [${(mean - half).toFixed(3)}, ${(mean + half).toFixed(3)}]`
 
 describe('strength on duplicate deals', () => {
   test(`${DEALS} deals: the hand-written player at each seat in turn against three random players`, () => {
+    // One observation per deal for each figure: the mean of its rounds.
     const byDeal: number[] = []
-    const byDirection = new Map<PassDirection, number[]>(DIRECTIONS.map((d) => [d, []]))
     const written: number[] = []
     const random: number[] = []
+    const byDirection = new Map<PassDirection, number[]>(DIRECTIONS.map((d) => [d, []]))
     for (let deal = 1; deal <= DEALS; deal++) {
       const hands = handsOf(deal)
-      let sum = 0
+      const differences: number[] = []
+      const mine: number[] = []
+      const theirs: number[] = []
       for (const direction of DIRECTIONS) {
         const start = dealt(hands, direction)
         const base = playRound(start, [RANDOM, RANDOM, RANDOM, RANDOM], deal)
+        const here: number[] = []
         for (let seat = 0; seat < PLAYERS; seat++) {
           const players = [RANDOM, RANDOM, RANDOM, RANDOM]
           players[seat] = WRITTEN
           const points = playRound(start, players, deal)[seat]
-          written.push(points)
-          random.push(base[seat])
-          byDirection.get(direction)!.push(points - base[seat])
-          sum += points - base[seat]
+          mine.push(points)
+          theirs.push(base[seat])
+          here.push(points - base[seat])
         }
+        byDirection.get(direction)!.push(mean(here))
+        differences.push(...here)
       }
-      byDeal.push(sum / (DIRECTIONS.length * PLAYERS))
+      byDeal.push(mean(differences))
+      written.push(mean(mine))
+      random.push(mean(theirs))
     }
     const difference = interval(byDeal)
     console.log(
-      `strength, ${DEALS} deals x ${DIRECTIONS.length} directions x ${PLAYERS} seats: ` +
+      `strength, ${DEALS} deals x ${DIRECTIONS.length} directions x ${PLAYERS} seats, intervals over deals: ` +
         `hand-written ${show(interval(written))}, random ${show(interval(random))} points per round; ` +
-        `difference ${show(difference)} paired by deal; by direction: ` +
-        DIRECTIONS.map((d) => `${d} ${interval(byDirection.get(d)!).mean.toFixed(2)}`).join(', '),
+        `difference ${show(difference)}; by direction: ` +
+        DIRECTIONS.map((d) => `${d} ${show(interval(byDirection.get(d)!))}`).join(', '),
     )
     expect(difference.mean + difference.half).toBeLessThan(-1)
   }, 600_000)
 
-  test(`${DEALS} deals: four hand-written players take 6.5 points per round each`, () => {
+  test(`${DEALS} deals: four hand-written players take 6.5 points per round each, and no seat bias is detected`, () => {
+    // By deal: the table's mean points per seat per round, and each seat's mean minus the table's.
+    const table: number[] = []
     const bySeat: number[][] = Array.from({ length: PLAYERS }, () => [])
+    let rounds = 0
     let moons = 0
+    let total = 0
     for (let deal = 1; deal <= DEALS; deal++) {
       const hands = handsOf(deal)
+      const sums = Array.from({ length: PLAYERS }, () => 0)
       for (const direction of DIRECTIONS) {
         const points = playRound(dealt(hands, direction), [WRITTEN, WRITTEN, WRITTEN, WRITTEN], deal)
-        if (points.reduce((a, b) => a + b, 0) !== MOON_POINTS) moons++
-        points.forEach((p, seat) => bySeat[seat].push(p))
+        const sum = points.reduce((a, b) => a + b, 0)
+        if (sum !== MOON_POINTS) moons++
+        rounds++
+        total += sum
+        points.forEach((p, seat) => (sums[seat] += p))
       }
+      const here = mean(sums) / DIRECTIONS.length
+      table.push(here)
+      sums.forEach((sum, seat) => bySeat[seat].push(sum / DIRECTIONS.length - here))
     }
-    const rounds = bySeat[0].length
-    const all = interval(bySeat.flat())
     console.log(
-      `self-play, ${rounds} rounds: ${show(all)} points per seat per round, ${moons} moons; ` +
-        `by seat: ${bySeat.map((xs) => show(interval(xs))).join(', ')}`,
+      `self-play, ${rounds} rounds in ${DEALS} deals: ${show(interval(table))} points per seat per round over deals, ${moons} moons; ` +
+        `each seat minus the table, over deals, intervals for four seats at once: ${bySeat.map((xs) => show(interval(xs, Z_FOUR))).join(', ')}`,
     )
     // 26 points a round, a quarter to each seat; a moon (others add) puts 78 on the table instead.
-    expect(all.mean).toBeCloseTo((MOON_POINTS * rounds + 2 * MOON_POINTS * moons) / (PLAYERS * rounds), 9)
+    expect(total / (PLAYERS * rounds)).toBeCloseTo((MOON_POINTS * rounds + 2 * MOON_POINTS * moons) / (PLAYERS * rounds), 9)
     expect(moons / rounds).toBeLessThan(0.05)
-    for (const xs of bySeat) expect(Math.abs(interval(xs).mean - 6.5)).toBeLessThan(interval(xs).half + 1)
+    // No seat bias detected: every seat's interval, taken four at once, includes zero. This does not prove there is none.
+    for (const xs of bySeat) {
+      const { mean, half } = interval(xs, Z_FOUR)
+      expect(Math.abs(mean)).toBeLessThan(half)
+    }
   }, 600_000)
 })
