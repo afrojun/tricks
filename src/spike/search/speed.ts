@@ -1,10 +1,11 @@
 /**
  * Section 3.2: milliseconds per decision, and where the time goes.
- *   ./node_modules/.bin/tsx src/spike/search/speed.ts [--rounds 20] [--budgets 10,30,100] [--policies random,heuristic]
+ *   ./node_modules/.bin/tsx src/spike/search/speed.ts [--rounds 20] [--earlyRounds 5] [--budgets 10,30,100] [--policies random,heuristic]
  */
 import { type Action, type Ctx, type Game, type Seat, apply, availableActions } from '../../engine'
 import { seededRng } from '../../engine/testing'
 import { applyInPlace } from './applyInPlace'
+import { searchEarly } from './early'
 import { decisionViews } from './decisions'
 import { rebuild } from './rebuild'
 import { knowledge, sampleWorld } from './sample'
@@ -35,6 +36,18 @@ console.log('|---|---|---|---|---|')
 for (const policy of policies) {
   for (const worlds of budgets) {
     const ms = views.map((v, i) => time(() => search(v, { worlds, policy, seed: i })))
+    console.log(`| ${policy} | ${worlds} | ${fmt(quantile(ms, 0.5), 1)} | ${fmt(quantile(ms, 0.95), 1)} | ${fmt(Math.max(...ms), 1)} |`)
+  }
+}
+
+// Calling, trump and Thunee by search (the optional extension): each candidate is played out from before card play.
+const early = decisionViews(Number(opts.earlyRounds ?? 5), 1, true)
+console.log(`\n## Calling, trump and Thunee by search, in place: ${early.length} decisions\n`)
+console.log('| Policy | Worlds | Median ms | p95 ms | Max ms |')
+console.log('|---|---|---|---|---|')
+for (const policy of policies) {
+  for (const worlds of budgets) {
+    const ms = early.map((v, i) => time(() => searchEarly(v, { worlds, policy, seed: i })))
     console.log(`| ${policy} | ${worlds} | ${fmt(quantile(ms, 0.5), 1)} | ${fmt(quantile(ms, 0.95), 1)} | ${fmt(Math.max(...ms), 1)} |`)
   }
 }

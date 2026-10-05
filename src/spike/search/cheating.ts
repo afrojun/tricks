@@ -3,6 +3,9 @@
  * The same deals are played with search at 0 and 2, and with the heuristic (Straight, not challenging) at 0 and 2.
  * Every world the search rebuilds is checked against the invariants and the view.
  *   ./node_modules/.bin/tsx src/spike/search/cheating.ts --a search:random:30 [--rounds 1000] [--first 20001] [--shards 6]
+ *     [--personas straight,wild,straight,sly] [--cheatsChallenge false] [--tag name]
+ * With `--cheatsChallenge false` nobody challenges, so every round is decided by play. With all four
+ * personas `straight` it is the honest control for the same design.
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import type { Persona } from '../../engine'
@@ -12,7 +15,8 @@ import { sampleStats } from './sample'
 import { inChild, runShards } from './shards'
 import { args, ci95, fmt } from './stats'
 
-const PERSONAS: Persona[] = ['straight', 'wild', 'straight', 'sly']
+const opts = args()
+const PERSONAS = (opts.personas ?? 'straight,wild,straight,sly').split(',') as Persona[]
 
 interface Side {
   /** Balls the honest side and the cheats gained. */
@@ -31,9 +35,10 @@ interface RoundOut {
   /** Searched decisions where at least one constraint was dropped, and drops by kind. */
   withDrops: number
   drops: Record<string, number>
+  /** Distinct constraints dropped at any point in the round. */
+  distinctDrops: number
 }
 
-const opts = args()
 const rounds = Number(opts.rounds ?? 1000)
 const first = Number(opts.first ?? 20001)
 const child = inChild()
@@ -45,12 +50,12 @@ function side(r: RoundRecord): Side {
 if (child) {
   const [, policy, worlds] = opts.a.split(':')
   const search = searchPlayer({ policy: policy as RolloutPolicy, worlds: Number(worlds), check: true }, opts.a)
-  const cheat = heuristicPlayer(true)
+  const cheat = heuristicPlayer(opts.cheatsChallenge !== 'false')
   const straight = heuristicPlayer(false)
   const out: RoundOut[] = []
   for (let seed = first; seed < first + rounds; seed++) {
     if ((seed - first) % child.of !== child.shard) continue
-    const row: RoundOut = { seed, search: { crash: '' }, heuristic: { crash: '' }, searched: 0, withDrops: 0, drops: {} }
+    const row: RoundOut = { seed, search: { crash: '' }, heuristic: { crash: '' }, searched: 0, withDrops: 0, drops: {}, distinctDrops: 0 }
     const run = (players: Player[]) => {
       try {
         return playRound(seed, players, PERSONAS)
@@ -68,6 +73,7 @@ if (child) {
         if (d.searched.result.dropped.length > 0) row.withDrops++
         for (const x of d.searched.result.dropped) row.drops[x.kind] = (row.drops[x.kind] ?? 0) + 1
       }
+      row.distinctDrops = new Set(s.decisions.flatMap((d) => d.searched.result.dropped.map((x) => `${x.seat}:${x.kind}:${x.suit}`))).size
     }
     out.push(row)
   }
@@ -81,6 +87,8 @@ if (child) {
   const ok = rows.filter((r): r is RoundOut & { search: Side; heuristic: Side } => !('crash' in r.search) && !('crash' in r.heuristic))
   const net = (x: Side) => x.us - x.them
   const diff = ci95(ok.map((r) => net(r.search) - net(r.heuristic)))
+  const byPlay = ok.filter((r) => r.search.reason !== 'challenge' && r.heuristic.reason !== 'challenge')
+  const diffByPlay = ci95(byPlay.map((r) => net(r.search) - net(r.heuristic)))
   const per = (f: (r: (typeof ok)[number]) => number) => ok.reduce((a, r) => a + f(r), 0) / ok.length
   const searched = rows.reduce((a, r) => a + r.searched, 0)
   const withDrops = rows.reduce((a, r) => a + r.withDrops, 0)
@@ -101,6 +109,10 @@ if (child) {
     search: { us: per((r) => r.search.us), them: per((r) => r.search.them), reneges: per((r) => r.search.reneges), bluffs: per((r) => r.search.bluffs), endings: reasons((r) => r.search) },
     heuristic: { us: per((r) => r.heuristic.us), them: per((r) => r.heuristic.them), reneges: per((r) => r.heuristic.reneges), bluffs: per((r) => r.heuristic.bluffs), endings: reasons((r) => r.heuristic) },
     netDiff: diff,
+    decidedByPlayInBoth: byPlay.length,
+    netDiffDecidedByPlay: diffByPlay,
+    roundsWithDrops: rows.filter((r) => r.distinctDrops > 0).length / rows.length,
+    distinctDropsPerRound: rows.reduce((a, r) => a + r.distinctDrops, 0) / rows.length,
     searched,
     withDrops,
     dropShare: withDrops / searched,
@@ -109,9 +121,10 @@ if (child) {
     seconds: (Date.now() - started) / 1000,
   }
   mkdirSync(new URL('./results/', import.meta.url), { recursive: true })
-  writeFileSync(new URL(`./results/cheating-${opts.a.replace(/:/g, '_')}-${first}-${rounds}.json`, import.meta.url), JSON.stringify(summary, null, 2) + '\n')
+  const name = `cheating-${opts.tag ? opts.tag + '-' : ''}${opts.a.replace(/:/g, '_')}-${first}-${rounds}`
+  writeFileSync(new URL(`./results/${name}.json`, import.meta.url), JSON.stringify({ ...summary, rows }, null, 1) + '\n')
   console.log(JSON.stringify(summary, null, 2))
   console.log(
-    `| ${opts.a} | ${rows.length} | ${crashes.length} | ${fmt(summary.search.us)} - ${fmt(summary.search.them)} | ${fmt(summary.heuristic.us)} - ${fmt(summary.heuristic.them)} | ${fmt(diff.mean)} [${fmt(diff.lo)}, ${fmt(diff.hi)}] | ${fmt(100 * summary.dropShare, 1)}% | ${fmt(100 * summary.sampler.fallbackShare, 2)}% |`,
+    `| ${opts.tag ?? 'cheats'} | ${opts.a} | ${rows.length} | ${crashes.length} | ${fmt(summary.search.us)} - ${fmt(summary.search.them)} | ${fmt(summary.heuristic.us)} - ${fmt(summary.heuristic.them)} | ${fmt(diff.mean)} [${fmt(diff.lo)}, ${fmt(diff.hi)}] | ${fmt(diffByPlay.mean)} [${fmt(diffByPlay.lo)}, ${fmt(diffByPlay.hi)}] (${byPlay.length}) | ${fmt(100 * summary.dropShare, 1)}% / ${fmt(100 * summary.roundsWithDrops, 1)}% | ${fmt(100 * summary.sampler.fallbackShare, 2)}% |`,
   )
 }

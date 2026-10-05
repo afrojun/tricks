@@ -8,7 +8,6 @@ import {
   type View,
   apply,
   availableActions,
-  cardId,
   checkInvariants,
   nextDeadline,
   seatsToAct,
@@ -169,5 +168,3 @@ export function checkWorld(view: View, game: Game): void {
   const again = JSON.stringify(viewFor(game, view.seat, 'full'))
   if (again !== JSON.stringify(view)) throw new Error(`rebuilt view differs\n${again}\n${JSON.stringify(view)}`)
 }
-
-export const sameCardId = (a: Card, b: Card) => cardId(a) === cardId(b)
