@@ -34,6 +34,8 @@ export interface SearchOptions {
   check?: boolean
   /** Break ties in balls by the card-point margin (on by default). */
   tiebreak?: boolean
+  /** Keep each world's result per card, for explanations. */
+  keep?: boolean
 }
 
 export interface CardStat {
@@ -45,6 +47,9 @@ export interface CardStat {
   /** Share of worlds in which this card won the current trick for the seat itself, and for its team. */
   wonByMe: number
   wonByTeam: number
+  /** Each world's balls and margin, when asked to keep them. */
+  values?: number[]
+  margins?: number[]
 }
 
 export interface SearchResult {
@@ -123,7 +128,7 @@ export function search(view: View, opts: SearchOptions): SearchResult {
   const rng = seededRng(opts.seed)
   const step = opts.cloning ? cloningStep : inPlaceStep
   const watch = phase.tricks.length
-  const sum = candidates.map(() => ({ value: 0, margin: 0, me: 0, team: 0 }))
+  const sum = candidates.map(() => ({ value: 0, margin: 0, me: 0, team: 0, values: [] as number[], margins: [] as number[] }))
 
   for (let w = 0; w < opts.worlds; w++) {
     const world = sampleWorld(k, rng)
@@ -134,6 +139,10 @@ export function search(view: View, opts: SearchOptions): SearchResult {
       const r = playOut(start, me, watch, opts.policy, seededRng(rolloutSeed), step)
       sum[i].value += r.value
       sum[i].margin += r.margin
+      if (opts.keep) {
+        sum[i].values.push(r.value)
+        sum[i].margins.push(r.margin)
+      }
       if (r.watched === me) sum[i].me++
       if (r.watched !== null && teamOf(r.watched) === teamOf(me)) sum[i].team++
     })
@@ -146,6 +155,7 @@ export function search(view: View, opts: SearchOptions): SearchResult {
     margin: sum[i].margin / n,
     wonByMe: sum[i].me / n,
     wonByTeam: sum[i].team / n,
+    ...(opts.keep ? { values: sum[i].values, margins: sum[i].margins } : {}),
   }))
   // Lexicographic on averages: 1e-5 x at most ~400 points stays below the smallest step in balls (1/worlds).
   const score = (s: CardStat) => s.mean + (opts.tiebreak === false ? 0 : 1e-5 * s.margin)

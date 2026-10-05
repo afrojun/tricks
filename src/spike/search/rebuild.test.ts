@@ -23,6 +23,7 @@ import { applyInPlace } from './applyInPlace'
 import { type World, rebuild } from './rebuild'
 import { knowledge, sampleWorld } from './sample'
 import { checkWorld, playOut, search } from './search'
+import { earlyCandidates, earlyKnowledge, isEarly, rebuildEarly, searchEarly } from './early'
 
 const playOf = (g: Game): RoundPlay => (g.phase as Extract<Game['phase'], { kind: 'playing' | 'trickPause' }>).play
 const inPlay = (g: Game) => g.phase.kind === 'playing' || g.phase.kind === 'trickPause'
@@ -169,5 +170,40 @@ describe('the search', () => {
       n++
     }
     expect(n).toBeGreaterThan(20)
+  })
+})
+
+describe('rebuild before card play (the optional extension)', () => {
+  test.each(CONFIGS)('%s: sampled worlds pass the invariants and give back the view; the search returns a candidate', (_name, playerCount, overrides) => {
+    let checked = 0
+    let searched = 0
+    const rng = seededRng(7)
+    for (let seed = 1; seed <= 40; seed++) {
+      const t = new Table(playerCount, overrides, seed).do(0, { type: 'start' })
+      for (let guard = 0; guard < 100 && !inPlay(t.game); guard++) {
+        for (let seat = 0; seat < playerCount; seat++) {
+          const view = viewFor(t.game, seat, 'full')
+          if (!isEarly(view)) continue
+          for (let i = 0; i < 3; i++) {
+            checkWorld(view, rebuildEarly(view, sampleWorld(earlyKnowledge(view), rng)))
+            checked++
+          }
+          if (seatsToAct(t.game).includes(seat) && searched < 40) {
+            const r = searchEarly(view, { worlds: 4, policy: 'random', seed })
+            if (r) {
+              expect(earlyCandidates(view)).toContainEqual(r.action)
+              searched++
+            }
+          }
+        }
+        const waiting = seatsToAct(t.game)
+        if (waiting.length === 0) {
+          t.now = nextDeadline(t.game)!
+          t.do('system', { type: 'tick' })
+        } else t.do(waiting[0], chooseAction(viewFor(t.game, waiting[0], 'full'), { persona: 'straight', salt: 0 }))
+      }
+    }
+    expect(checked).toBeGreaterThan(500)
+    expect(searched).toBeGreaterThan(10)
   })
 })

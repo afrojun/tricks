@@ -18,6 +18,7 @@ import { chooseAction, chooseJodhi, decide, fallbackAction } from '../../ai/choo
 import { HONEST, type Mind } from '../../ai/mind'
 import { chooseChallenge } from '../../ai/suspicion'
 import { type SearchOptions, type SearchResult, search } from './search'
+import { searchEarly } from './early'
 
 export interface Decision {
   action: Action
@@ -31,6 +32,8 @@ export interface Player {
   act(view: View, mind: Mind, seed: number): Decision
   /** Whether this seat challenges (as its persona would). */
   challenges: boolean
+  /** Calling, trump and Thunee; the heuristic's when absent or null. */
+  early?(view: View, mind: Mind, seed: number): Action | null
 }
 
 export const heuristicPlayer = (challenges = true): Player => ({
@@ -48,10 +51,11 @@ export const randomPlayer = (label = 'random'): Player => ({
   },
 })
 
-/** Search for card play; Double and Khanaak, like calling, stay with the heuristic. */
-export const searchPlayer = (opts: Omit<SearchOptions, 'seed'>, label = `search-${opts.policy}-${opts.worlds}`): Player => ({
+/** Search for card play; Double and Khanaak, like calling, stay with the heuristic. With `early`, calling, trump and Thunee by search too. */
+export const searchPlayer = (opts: Omit<SearchOptions, 'seed'> & { early?: boolean }, label = `search-${opts.policy}-${opts.worlds}`): Player => ({
   label,
   challenges: false,
+  early: opts.early ? (view, _mind, seed) => searchEarly(view, { worlds: opts.worlds, policy: opts.policy, seed })?.action ?? null : undefined,
   act: (view, _mind, seed) => {
     const honest = decide(view, HONEST).action
     if (honest.type === 'callDouble' || honest.type === 'callKhanaak') return { action: honest }
@@ -73,6 +77,10 @@ export interface RoundRecord {
   /** Plays that broke the rules, and Jodhi claims that were bluffs. */
   reneges: number
   bluffs: number
+  /** The six cards each seat held when card play began, and who chose trump. */
+  dealt: string
+  /** Decisions before card play made by a player's own `early`, and how many differed from the heuristic's. */
+  early: { kind: string; differs: boolean }[]
 }
 
 /** Mixes a few numbers into one 32-bit seed. */
@@ -95,8 +103,9 @@ export function playRound(seed: number, players: Player[], personas: Persona[] =
   const t = new Table(4, {}, seed)
   t.do(0, { type: 'start' })
   const mind = (s: Seat): Mind => ({ persona: personas[s], salt: t.game.aiSalt })
-  const record: RoundRecord = { summary: null!, gained: [0, 0], decisions: [], reneges: 0, bluffs: 0 }
+  const record: RoundRecord = { summary: null!, gained: [0, 0], decisions: [], reneges: 0, bluffs: 0, dealt: '', early: [] }
   let decisionIndex = 0
+  let earlyIndex = 0
 
   const act = (seat: Seat, action: Action, fallback?: Action) => {
     const before = t.events.length
@@ -145,8 +154,12 @@ export function playRound(seed: number, players: Player[], personas: Persona[] =
     }
     const seat = waiting[0]
     const view = viewFor(t.game, seat, 'full')
+    if (phase.kind === 'playing' && record.dealt === '') record.dealt = JSON.stringify([phase.play.dealt, phase.play.trumper, phase.play.trump, phase.play.thunee])
     if (phase.kind !== 'playing') {
-      act(seat, chooseAction(view, mind(seat)), fallbackAction(view))
+      const honest = chooseAction(view, mind(seat))
+      const own = players[seat].early?.(view, mind(seat), mix(seed, copy, 1000 + earlyIndex++, seat)) ?? null
+      if (own) record.early.push({ kind: phase.kind, differs: JSON.stringify(own) !== JSON.stringify(honest) })
+      act(seat, own ?? honest, fallbackAction(view))
       continue
     }
     const decision = players[seat].act(view, mind(seat), mix(seed, copy, decisionIndex++, seat))
@@ -168,6 +181,9 @@ export interface PairRecord {
 export function playPair(seed: number, a: Player, b: Player): PairRecord {
   const first = playRound(seed, [a, b, a, b], undefined, 0)
   const second = playRound(seed, [b, a, b, a], undefined, 1)
+  // Duplicate only cancels the luck of the deal if both copies reach card play identically
+  // (not to be expected when a side makes its own calls).
+  if (!a.early && !b.early && first.dealt !== second.dealt) throw new Error(`seed ${seed}: the two copies were dealt differently`)
   return {
     seed,
     a: first.gained[0] + second.gained[1],
