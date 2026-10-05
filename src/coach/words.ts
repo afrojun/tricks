@@ -1,5 +1,5 @@
 /** Small pieces of wording the coach shares. */
-import { type Card, type Seat, type Suit, type View, CARD_POINTS, SUIT_NAME, cardText, teamOf } from '../engine'
+import { type Card, type Seat, type Suit, type View, CARD_POINTS, FOUR_PLAYER_TARGET, SUIT_NAME, cardText, teamOf } from '../engine'
 
 export const card = cardText
 
@@ -48,4 +48,14 @@ export function count(n: number, one: string, many = `${one}s`): string {
 
 export function sentence(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/** "trick 3"; in the two-player game, "trick 1 of the second half". `index` counts from 0 within the half. */
+export function trickLabel(playerCount: number, half: 1 | 2, index: number): string {
+  return playerCount === 2 ? `trick ${index + 1} of the ${half === 1 ? 'first' : 'second'} half` : `trick ${index + 1}`
+}
+
+/** What the counting side needs: 105, or 125 with two players. */
+export function target(view: View): number {
+  return view.playerCount === 2 ? view.rules.twoPlayerTarget : FOUR_PLAYER_TARGET
 }

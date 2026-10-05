@@ -2,7 +2,8 @@
 import { type View, type ViewPlaying, SUIT_NAME, availableActions, teamOf, trickWinner } from '../engine'
 import type { Note } from './note'
 import { reads, trickPoints } from './reads'
-import { card, isPartner, partnerName, suitPlural, who } from './words'
+import { highestTrump } from './check'
+import { card, isPartner, partnerName, suitPlural, trickLabel, who } from './words'
 
 export function situation(view: View): Note | null {
   const me = view.seat
@@ -34,10 +35,10 @@ export function situation(view: View): Note | null {
 
 function playing(view: View, phase: ViewPlaying): Note {
   const me = view.seat!
-  const trickNo = phase.tricks.filter((t) => t.half === phase.half).length + 1
+  const trick = trickLabel(view.playerCount, phase.half, phase.tricks.filter((t) => t.half === phase.half).length)
   const parts: string[] = []
   if (phase.current.length === 0) {
-    parts.push(`You lead trick ${trickNo}.`)
+    parts.push(`You lead ${trick}.`)
     if (phase.thunee?.caller === me) parts.push('In your Thunee, the first card you lead sets trump.')
     else if (phase.trump !== null) parts.push(`Trump is ${SUIT_NAME[phase.trump]}.`)
     const voids = reads(view).filter((r) => teamOf(r.seat) !== teamOf(me))
@@ -54,7 +55,11 @@ function playing(view: View, phase: ViewPlaying): Note {
   parts.push(`This trick is worth ${trickPoints(phase)} so far.`)
   const led = phase.current[0].card.suit
   if (phase.hand.some((c) => c.suit === led)) parts.push(`${SUIT_NAME[led]} were led and you have some, so you must follow.`)
-  else parts.push(`You have no ${suitPlural(led)}, so you may play anything.`)
+  else {
+    const top = highestTrump(phase)
+    const under = top !== null && phase.hand.some((c) => c.suit === top.suit) && phase.hand.some((c) => c.suit !== top.suit)
+    parts.push(`You have no ${suitPlural(led)}, so you may play anything${under ? ` except a trump lower than ${card(top)}` : ''}.`)
+  }
   return { tone: 'info', title: 'Your turn', body: parts.join(' '), seats: [winner], cards: [winning], topic: 'following' }
 }
 

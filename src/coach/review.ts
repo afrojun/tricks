@@ -3,7 +3,8 @@ import { type Action, type Card, type RoundSummary, type ScoreLine, type Seat, t
 import { inPlay } from '../ai/suspicion'
 import { advise } from './advise'
 import type { DecisionRecord, Note } from './note'
-import { card, suitPlural, who } from './words'
+import { illegalKind } from './check'
+import { card, suitPlural, trickLabel, who } from './words'
 
 export interface ReviewInput {
   decisions: readonly DecisionRecord[]
@@ -33,18 +34,18 @@ function lineText(line: ScoreLine): string {
     case 'jodhi':
       return `${signed(line.value)} Jodhi`
     case 'opponentJodhi':
-      return `${signed(-line.value)} for the other side's Jodhi`
+      return `${signed(line.value)} for the trumping side's Jodhi`
   }
 }
 
-function score({ summary: s, view, you }: ReviewInput): Note {
+function score({ summary: s, view, you, decisions }: ReviewInput): Note {
   const ours = (team: number) => team === teamOf(you)
   const sideName = (team: number) => (ours(team) ? 'Your side' : 'The other side')
   const balls = `${s.balls} ball${s.balls === 1 ? '' : 's'}`
   let body: string
   if (s.challenge) {
     const c = s.challenge
-    const what = c.kind === 'play' ? 'not following suit' : 'a false Jodhi'
+    const what = c.kind === 'jodhi' ? 'calling a false Jodhi' : playOffence(decisions, c.accused === you ? c.card : undefined)
     body = c.guilty
       ? `The round ended with a challenge: ${who(view, c.challenger)} caught ${c.accused === you ? 'you' : who(view, c.accused)} ${what}. That is 4 balls to ${sideName(s.winner).toLowerCase()}.`
       : `The round ended with a challenge that was wrong: ${who(view, c.accused)} had played fairly, so 4 balls go to ${sideName(s.winner).toLowerCase()}.`
@@ -76,9 +77,21 @@ function stake(d: DecisionRecord): number {
   return 0
 }
 
-function trickNumber(view: View): number {
+function trickName(view: View): string {
   const phase = inPlay(view)
-  return phase ? phase.tricks.filter((t) => t.half === phase.half).length + 1 : 0
+  return phase ? trickLabel(view.playerCount, phase.half, phase.tricks.filter((t) => t.half === phase.half).length) : 'a trick'
+}
+
+/** How one of the player's own illegal plays broke the rules, when the record shows it. */
+function playOffence(decisions: readonly DecisionRecord[], played: Card | undefined): string {
+  const d = played && decisions.find((x) => x.taken.type === 'playCard' && sameCard(x.taken.card, played))
+  const phase = d ? inPlay(d.view) : null
+  if (!phase) return played ? 'breaking a play rule' : 'not following suit'
+  return illegalKind(phase) === 'follow' ? 'not following suit' : 'playing a trump under a higher trump while holding another suit'
+}
+
+function capital(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 function describe(action: Action): string {
@@ -104,7 +117,7 @@ function moments({ decisions }: ReviewInput): Note[] {
     .map((d) => {
       const why = advise(d.view)
       const reason = why && same(why.action, d.advised!) ? ` ${why.note.body}` : ''
-      const where = d.taken.type === 'playCard' ? `Trick ${trickNumber(d.view)}` : 'Calling'
+      const where = d.taken.type === 'playCard' ? capital(trickName(d.view)) : 'Calling'
       return {
         tone: 'suggest' as const,
         title: `${where}: you chose ${describe(d.taken)}`,
@@ -119,11 +132,16 @@ function uncaught({ decisions, summary, you }: ReviewInput): Note[] {
   return decisions
     .filter((d) => d.taken.type === 'playCard' && !hasCard(availableActions(d.view).legal, d.taken.card))
     .map((d) => {
-      const led = inPlay(d.view)?.current[0]?.card.suit
+      const phase = inPlay(d.view)
+      const led = phase?.current[0]?.card.suit
+      const what =
+        phase && led && illegalKind(phase) === 'follow'
+          ? `You did not follow ${suitPlural(led)} when you could have.`
+          : 'You played a trump under a higher trump while holding cards of another suit.'
       return {
         tone: 'warn' as const,
-        title: `Trick ${trickNumber(d.view)}: a rule broken`,
-        body: `${led ? `You did not follow ${suitPlural(led)} when you could have.` : 'That card broke the rules.'} Nobody challenged this time, but a challenge would have cost your side 4 balls.`,
+        title: `${capital(trickName(d.view))}: a rule broken`,
+        body: `${what} Nobody challenged this time, but a challenge would have cost your side 4 balls.`,
         topic: 'challenge' as const,
       }
     })

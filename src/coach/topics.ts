@@ -23,7 +23,7 @@ export const TOPICS: Record<TopicId, Topic> = {
     title: 'Calling',
     paragraphs: [
       'After four cards each, players may call for the right to choose trump: 10, 20, 30 and so on. Each call must be higher than the last. If nobody calls, the player to the right of the dealer chooses.',
-      'The side that chooses trump defends. The other side, the counting side, tries to reach 105 points, and the amount called is added to their total. So a call makes the other side’s job easier: only call with a strong hand, like two jacks or a jack with another high card of its suit.',
+      'The side that chooses trump defends. The other side, the counting side, tries to reach 105 points (125 in the two-player game), and the amount called is added to their total. So a call makes the other side’s job easier: only call with a strong hand, like two jacks or a jack with another high card of its suit.',
     ],
   },
   trump: {
@@ -36,7 +36,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   following: {
     title: 'Following suit',
     paragraphs: [
-      'Whoever leads a trick may play any card. Everyone else must play the same suit if they have it. With none of that suit, you may play anything, including a trump.',
+      'Whoever leads a trick may play any card. Everyone else must play the same suit if they have it. With none of that suit you may play any card, with one limit: you may not play a trump lower than a trump already in the trick, unless you hold nothing but trumps.',
       'The highest trump wins the trick; with no trump in it, the highest card of the suit led wins. The winner leads the next trick.',
       'The app lets you break this rule, but an opponent who spots it can challenge and win 4 balls.',
     ],
@@ -44,13 +44,13 @@ export const TOPICS: Record<TopicId, Topic> = {
   counting: {
     title: 'The counting side and 105',
     paragraphs: [
-      'The side that did not choose trump is the counting side. They need 105 points from the cards in the tricks they win, plus the call, plus or minus Jodhi and the last trick.',
+      'The side that did not choose trump is the counting side. They need 105 points (125 in the two-player game) from the cards in the tricks they win, plus the call, plus their Jodhi, minus the trumping side’s Jodhi, plus or minus 10 for the last trick.',
       'If they reach it they win the round; if not, the trumping side does. All the cards together are worth 304.',
     ],
   },
   lastTrick: {
     title: 'The last trick',
-    paragraphs: ['The sixth trick is worth 10 extra points to the counting side: they gain 10 if they win it and lose 10 if they do not.'],
+    paragraphs: ['The last trick of the round, the sixth with four players or the twelfth with two, moves 10 points: the counting side gains 10 if they win it and loses 10 if they do not.'],
   },
   balls: {
     title: 'Balls',
@@ -62,7 +62,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   jodhi: {
     title: 'Jodhi',
     paragraphs: [
-      'A Jodhi is the king and queen of one suit in your hand. Right after your side wins its first or third trick, you may call it.',
+      'A Jodhi is the king and queen of one suit in your hand. Right after your side wins its first or third trick, you may call it. There is no Jodhi during a Thunee.',
       'It adds 20 points to your side, 40 if the suit is trump, and 10 more if you also hold the jack. Only call one you really hold: a false Jodhi can be challenged.',
     ],
     example: c('spades', 'K', 'Q'),
@@ -70,20 +70,21 @@ export const TOPICS: Record<TopicId, Topic> = {
   thunee: {
     title: 'Thunee',
     paragraphs: [
-      'Once trump is chosen and everyone has six cards, anyone may call Thunee: a promise to win all six tricks alone. The caller leads, and the first card led becomes trump.',
-      'Winning every trick is worth 4 balls. Losing one gives the other side 4 balls, or 8 if it was the caller’s own partner who won it.',
+      'Once trump is chosen and everyone has six cards, anyone may call Thunee, except a player holding six cards of one suit. It is a promise to win all six tricks alone. The caller leads, and the first card led becomes trump.',
+      'Winning every trick is worth 4 balls. Losing one gives the other side 4 balls, or 8 if it was the caller’s own partner who won it. A partner must never take a trick from the caller.',
     ],
   },
   double: {
     title: 'Double',
     paragraphs: [
-      'If your side has won the first five tricks, you may call Double on your turn in the last trick, before playing. Winning that trick yourself is worth 2 balls; losing it gives the other side 4.',
+      'In the four-player game, if your side has won the first five tricks, you may call Double on your turn in the last trick, before playing. Winning that trick yourself is worth 2 balls; losing it gives the other side 4.',
+      'You cannot call Double during a Thunee, or when your side needs only one more ball to win the game.',
     ],
   },
   khanaak: {
     title: 'Khanaak',
     paragraphs: [
-      'If your side has called a Jodhi, you may call Khanaak on your turn in the last trick, before playing. You must win that trick, your side must have lost at least one trick, and your Jodhi plus 10 must beat everything the other side has.',
+      'In the four-player game, if your side has called a Jodhi, you may call Khanaak on your turn in the last trick, before playing. You must win that trick yourself, your side must have lost at least one trick, and your side’s Jodhi plus 10 must be more than the other side’s card points plus their Jodhi. The call does not count.',
       'It is worth 3 balls, or 6 from the counting side. If it fails, the other side gets 4.',
     ],
   },
@@ -98,7 +99,7 @@ export const TOPICS: Record<TopicId, Topic> = {
     title: 'The two-player game',
     paragraphs: [
       'With two players the round is played in two halves. Each half you get six cards and play six tricks; the second half is dealt from the rest of the deck.',
-      'There are no partners. The counting player needs 125 points.',
+      'There are no partners. The counting player needs 125 points, and the round is scored once, after both halves.',
     ],
   },
 }
@@ -121,7 +122,8 @@ export function topicsFor(view: View, event: GameEvent | null): TopicId[] {
   if (event?.type === 'thuneeCalled') out.push('thunee')
   if (phase.kind === 'playing' && phase.turn === view.seat && phase.current.length > 0) out.push('following')
   if (event?.type === 'trickWon') out.push('counting')
-  if ((phase.kind === 'playing' || phase.kind === 'trickPause') && phase.tricks.length === 5 && phase.turn === view.seat) out.push('lastTrick')
+  const lastIndex = view.playerCount === 2 ? 11 : 5
+  if (phase.kind === 'playing' && phase.tricks.length === lastIndex && phase.turn === view.seat) out.push('lastTrick')
   if (can.claimJodhi.length > 0 || event?.type === 'jodhiClaimed') out.push('jodhi')
   if (can.callDouble || event?.type === 'doubleCalled') out.push('double')
   if (can.callKhanaak || event?.type === 'khanaakCalled') out.push('khanaak')

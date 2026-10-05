@@ -6,7 +6,8 @@ import { wouldWin } from '../ai/read'
 import type { Reason } from '../ai/reasons'
 import { findProofs, inPlay } from '../ai/suspicion'
 import type { Note } from './note'
-import { card, count, isPartner, list, points, suitPlural, who } from './words'
+import { thuneeRisk } from './check'
+import { card, count, isPartner, list, points, suitPlural, trickLabel, who } from './words'
 
 export interface Advice {
   note: Note
@@ -44,7 +45,8 @@ export function advise(view: View): Advice | null {
   if (!decides) return null
 
   const { action, reason } = decide(view, HONEST)
-  return { action, note: { tone: 'suggest', title: titleOf(action), body: explain(view, action, reason), cards: cardsOf(action, reason), topic: topicOf(reason) } }
+  const title = phase.kind === 'thuneeWindow' && action.type === 'pass' ? 'No Thunee' : titleOf(action)
+  return { action, note: { tone: 'suggest', title, body: explain(view, action, reason), cards: cardsOf(action, reason), topic: topicOf(reason) } }
 }
 
 function titleOf(action: Action): string {
@@ -110,8 +112,11 @@ function explain(view: View, action: Action, reason: Reason): string {
   switch (reason.code) {
     case 'callStrong':
       return `Your four cards hold ${strength(reason)}: strong enough to choose trump. A call is added to the other side's points, so this hand is worth calling up to ${reason.limit}.`
-    case 'passWeak':
+    case 'passWeak': {
+      const next = availableActions(view).calls[0]
+      if (reason.limit > 0 && next !== undefined) return `Your four cards hold ${strength(reason)}, worth calling up to ${reason.limit}. The next call would be ${next}, more than this hand is worth, so pass.`
       return `Your four cards hold ${strength(reason)}. That is not strong enough to call: a call is added to the other side's points.`
+    }
     case 'strongestSuit':
       return `You hold ${list(reason.cards.map(card))} in ${suitPlural(reason.suit)}, more strength than in any other suit. The more good trumps you hold, the more tricks you can take.`
     case 'lastCard':
@@ -119,11 +124,13 @@ function explain(view: View, action: Action, reason: Reason): string {
     case 'thuneeSure':
       return `With your ${suitPlural(reason.suit)} you can win every trick. Thunee is worth 4 balls.`
     case 'thuneeUnsafe':
-      return 'Thunee means winning all six tricks yourself. Your hand cannot promise that, and failing gives the other side 4 balls.'
+      return `Thunee means winning all six tricks yourself, and your hand cannot promise that. ${thuneeRisk(view)}`
     case 'leadBoss':
       return `The jack is the highest card of its suit, so only a trump can beat ${card(reason.card)}.${whyNot(view, phase, reason.card)}`
     case 'leadLow':
-      return `${card(reason.card)} is your cheapest card outside trump. Keep stronger cards for tricks you can win.`
+      return phase?.trump
+        ? `${card(reason.card)} is your cheapest card outside trump. Keep stronger cards for tricks you can win.`
+        : `${card(reason.card)} is your cheapest card. Keep stronger cards for tricks you can win.`
     case 'leadTrump':
       return 'You hold only trumps, so lead your strongest.'
     case 'thuneeLeadHigh':
@@ -145,7 +152,7 @@ function explain(view: View, action: Action, reason: Reason): string {
     case 'sureDouble':
       return 'Your side has won the first five tricks and your card wins the last. Double is worth 2 balls.'
     case 'sureKhanaak':
-      return 'Your Jodhi plus 10 beats everything the other side has, and your card wins the last trick.'
+      return "Your side's Jodhi plus 10 is more than the other side's card points plus their Jodhi, and your card wins the last trick. Khanaak is worth 3 balls, or 6 from the counting side."
     case 'fallback':
       return action.type === 'playCard' ? `${card(action.card)} is a safe card to play.` : 'This is the safe choice.'
   }
@@ -183,11 +190,16 @@ function proofText(view: View, id: string, accused: number): string {
   const name = who(view, accused)
   const [kind, , cheatAt, revealAt] = id.split(':')
   const phase = inPlay(view)
-  const trick = (i: string) => phase?.tricks[Number(i)] ?? (Number(i) === phase?.tricks.length ? { plays: phase.current } : null)
+  const trick = (i: string) => phase?.tricks[Number(i)] ?? (Number(i) === phase?.tricks.length ? { plays: phase.current, half: phase.half } : null)
+  const label = (i: string) => {
+    const t = trick(i)
+    if (!phase || !t) return `trick ${Number(i) + 1}`
+    return trickLabel(view.playerCount, t.half, phase.tricks.slice(0, Number(i)).filter((x) => x.half === t.half).length)
+  }
   const end = 'A correct challenge wins your side 4 balls.'
   if (kind === 'renege') {
     const led = trick(cheatAt)?.plays[0]?.card.suit
-    if (led) return `On trick ${Number(cheatAt) + 1} ${name} did not follow ${suitPlural(led)}, but has since played one. ${end}`
+    if (led) return `On ${label(cheatAt)} ${name} did not follow ${suitPlural(led)}, but has since played one. ${end}`
   }
   if (kind === 'undercut') return `${name} played under a trump while holding another suit, which the rules forbid. ${end}`
   if (kind === 'jodhi') return `${name} called a Jodhi, but one of its cards is in your hand or has been played elsewhere. ${end}`
