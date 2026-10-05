@@ -3,9 +3,9 @@ import {
   type Action,
   type Card,
   type Seat,
-  type Suit,
   type View,
   type ViewPlaying,
+  RANKS,
   availableActions,
   cardId,
   pointsOf,
@@ -127,7 +127,7 @@ export function findSignals(view: View): Signal[] {
       if (t.winner === p.seat && pointsOf(t.plays.map((q) => q.card)) >= 30) out.push({ id: `cut:${t.index}`, accused: p.seat, claim: null, at: t.index })
       // Dated during its trick (claim t-0.5 < void t-0.25 < cut t), so its mood never counts the trick's own points,
       // whether or not the trick has finished.
-      if (unplaced(phase, tricks, me, led, t.index) >= 4) out.push({ id: `void:${t.index}:${p.seat}`, accused: p.seat, claim: null, at: t.index - 0.25 })
+      if (voidOdds(phase, tricks, me, t, i) < VOID_DOUBT) out.push({ id: `void:${t.index}:${p.seat}`, accused: p.seat, claim: null, at: t.index - 0.25 })
     })
   }
   phase.jodhiClaims.forEach((c, index) => {
@@ -136,14 +136,39 @@ export function findSignals(view: View): Signal[] {
   return out
 }
 
-/** Cards of `suit` the observer could not place by the end of trick `upTo`. */
-function unplaced(phase: ViewPlaying, tricks: TrickRecord[], me: Seat, suit: Suit, upTo: number): number {
+/** Just above the chance of a genuine void at the first trick with four unseen cards (0.208), so early tricks flag as the old 4-unplaced rule did. */
+export const VOID_DOUBT = 0.21
+
+/**
+ * The chance, as the observer saw it just after play `i` of trick `t`, that its player truly held none of the led suit.
+ * Uses only what was known then: the observer's own cards for that half, earlier tricks, and trick `t` up to play `i`.
+ */
+function voidOdds(phase: ViewPlaying, tricks: TrickRecord[], me: Seat, t: TrickRecord, i: number): number {
   const known = new Set<string>()
-  for (const c of phase.hand) if (c.suit === suit) known.add(cardId(c))
-  for (const t of tricks) {
-    for (const p of t.plays) if (p.card.suit === suit && (p.seat === me || t.index <= upTo)) known.add(cardId(p.card))
+  if (phase.half === t.half) for (const c of phase.hand) known.add(cardId(c))
+  for (const r of tricks) {
+    r.plays.forEach((p, j) => {
+      if ((p.seat === me && r.half === t.half) || r.index < t.index || (r.index === t.index && j <= i)) known.add(cardId(p.card))
+    })
   }
-  return 6 - known.size
+  const led = t.plays[0].card.suit
+  const unseen = RANKS.filter((rank) => !known.has(cardId({ suit: led, rank }))).length
+  const done = tricks.filter((r) => r.half === t.half && r.index < t.index).length
+  return chanceOfVoid(24 - known.size, unseen, 6 - done - 1)
+}
+
+/** The chance that `held` cards drawn from `hidden` unseen cards include none of `unseen` particular ones. */
+export function chanceOfVoid(hidden: number, unseen: number, held: number): number {
+  if (unseen === 0) return 1
+  if (hidden - unseen < held) return 0
+  return choose(hidden - unseen, held) / choose(hidden, held)
+}
+
+/** n choose k; exact for the small numbers of a 24-card deck. */
+function choose(n: number, k: number): number {
+  let r = 1
+  for (let j = 0; j < k; j++) r = (r * (n - j)) / (j + 1)
+  return r
 }
 
 /** A hunch gets one look per new signal, once a seat has drawn enough of them. */

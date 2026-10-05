@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest'
 import { type Persona, viewFor } from '../engine'
-import { Table } from '../engine/testing'
+import { Table, cards } from '../engine/testing'
 import { mood } from './read'
-import { chooseChallenge, findProofs, findSignals, noticeOdds } from './suspicion'
+import { VOID_DOUBT, chanceOfVoid, chooseChallenge, findProofs, findSignals, noticeOdds } from './suspicion'
 
 // Dealer 0: seat 1 is trumper (spades), seat 2 leads. Teams: 0+2 count, 1+3 trump.
 // Seat 1 holds one club (Qc); seat 0 holds Qd.
@@ -41,6 +41,8 @@ describe('proofs', () => {
     expect(proofs[0]).toMatchObject({ id: 'renege:1:0:5', accused: 1, gap: 4 })
     expect(proofs[0].salience).toBeCloseTo(1.2)
     expect(noticeOdds(0.95, 4, 1.2)).toBeCloseTo(0.285)
+    // No hunch adds to this: seat 1 has two signals (cut:1, void:1:1) and seat 3 one, short of Sharp's three,
+    // and Straight has no hunches.
     const sharp = rate(t, 2, 'sharp')
     expect(sharp).toBeGreaterThan(0.24)
     expect(sharp).toBeLessThan(0.33)
@@ -158,9 +160,11 @@ describe('hunches', () => {
 
   test('winning a big trick off-suit, a big Jodhi and an unlikely void are signals', () => {
     expect(findSignals(viewFor(trumped().game, 2, 'full'))).toEqual([{ id: 'cut:0', accused: 1, claim: null, at: 0 }])
-    // Seat 2 can place three of the six diamonds (Kd, Qd, Jd) by trick 1, so seat 1's void there is no surprise.
+    // Just after seat 1 trumps trick 1, seat 2 has seen 11 cards: 13 are hidden, 4 of them diamonds (Jd 9d Ad 10d),
+    // and seat 1 still hides 4 cards: a real void has chance C(9,4)/C(13,4) = 0.176.
+    // Seat 3's spade void in trick 2: 10 hidden, 4 spades (Js 9s Ks Qs), 3 in its hand: C(6,3)/C(10,3) = 0.167.
     const ids = findSignals(viewFor(patient().game, 2, 'full')).map((s) => s.id)
-    expect(ids).toEqual(['cut:1'])
+    expect(ids).toEqual(['cut:1', 'void:1:1', 'void:2:3'])
   })
 
   test('Wild sometimes accuses on one signal, more often when behind; Sharp and Straight do not', () => {
@@ -241,6 +245,106 @@ describe('hunch details', () => {
     const fired = decisions(three, 2, 'sharp', 2000).filter(Boolean).length / 2000
     expect(fired).toBeGreaterThan(0.26)
     expect(fired).toBeLessThan(0.34)
+  })
+})
+
+/** Asserts the deal uses each card once and every play so far obeyed the rules. */
+function checkFair(hands: string[], t: Table) {
+  const all = hands.flatMap((h) => cards(h).map((c) => `${c.rank}${c.suit}`))
+  expect(new Set(all).size).toBe(all.length)
+  expect(all).toHaveLength(hands.length * 6)
+  const phase = t.game.phase
+  if (phase.kind !== 'playing' && phase.kind !== 'trickPause') throw new Error(phase.kind)
+  const plays = [...phase.play.tricks.flatMap((x) => x.plays), ...phase.play.current]
+  expect(plays.every((p) => p.legal)).toBe(true)
+}
+
+describe('void odds', () => {
+  const two = (hands: string[]) => new Table(2, { redealIfNoTrumps: false }).deal(hands).toPlay('clubs')
+  const ids = (t: Table, seat: number) => findSignals(viewFor(t.game, seat, 'full')).map((s) => s.id)
+
+  test('the chance of a real void draws the hidden hand from every card the observer cannot place', () => {
+    expect(chanceOfVoid(16, 4, 5)).toBeCloseTo(792 / 4368, 12)
+    expect(chanceOfVoid(16, 3, 5)).toBeCloseTo(1287 / 4368, 12)
+    expect(chanceOfVoid(17, 4, 5)).toBeCloseTo(1287 / 6188, 12)
+    expect(chanceOfVoid(6, 3, 2)).toBeCloseTo(0.2, 12)
+    expect(chanceOfVoid(5, 0, 3)).toBe(1)
+    expect(chanceOfVoid(3, 3, 1)).toBe(0)
+    // A first-trick void with four unseen cards is a signal from any seat; with three it is not.
+    expect(chanceOfVoid(17, 4, 5)).toBeLessThan(VOID_DOUBT)
+    expect(chanceOfVoid(15, 3, 5)).toBeGreaterThan(VOID_DOUBT)
+  })
+
+  test('with four players, a void with three or fewer unseen cards is a signal only at trick 3 with six cards hidden', () => {
+    // Every legal position: trick t, the void at play i, the observer at play o. All 24 cards are dealt, so the
+    // hidden cards are the other three hands: those that have played this trick hold h, the rest h + 1.
+    const hits: string[] = []
+    for (let t = 0; t < 6; t++) {
+      const h = 5 - t
+      for (let i = 1; i < 4; i++) {
+        for (let o = 0; o < 4; o++) {
+          if (o === i) continue
+          const hidden = [0, 1, 2, 3].filter((q) => q !== o).reduce((n, q) => n + (q <= i ? h : h + 1), 0)
+          for (let u = 1; u <= Math.min(3, hidden - h); u++) {
+            if (chanceOfVoid(hidden, u, h) < VOID_DOUBT) hits.push(`t${t} i${i} o${o} P${hidden} u${u}`)
+          }
+        }
+      }
+    }
+    expect(hits).toEqual(['t3 i2 o3 P6 u3', 't3 i3 o0 P6 u3', 't3 i3 o1 P6 u3', 't3 i3 o2 P6 u3'])
+  })
+
+  test('late in a four-player hand, a void with two unseen cards is no signal', () => {
+    // The corner deal below with 10h moved to seat 2: after seat 1 trumps Qh, six cards are hidden from seat 2,
+    // two of them hearts (Jh 9h), and seat 1 hides 2: C(4,2)/C(6,2) = 0.4.
+    const HANDS = ['Qs Kh 10d Kd Qd 10s', '10c Kc Qc Js 9s As', 'Jc 9c Ac Qh Ks 10h', 'Jh 9h Ah Jd 9d Ad']
+    const t = start(HANDS).play('Jc Jd 10d 10c  9c 9d Kd Kc  Ac Ad Qd Qc  Qh Ah Kh 9s')
+    checkFair(HANDS, t)
+    expect(ids(t, 2)).toEqual(['cut:3'])
+  })
+
+  test('the corner: a four-player void with three unseen cards among six hidden is a signal', () => {
+    // Seat 2 wins three club tricks, then leads Qh; seats 3 and 0 follow and still hide Jh 9h 10h between them,
+    // and seat 1 trumps. Seat 1 hides 2 of the 6 hidden cards: C(3,2)/C(6,2) = 0.2.
+    const HANDS = ['10h Kh 10d Kd Qd 10s', '10c Kc Qc Js 9s As', 'Jc 9c Ac Qh Ks Qs', 'Jh 9h Ah Jd 9d Ad']
+    const t = start(HANDS).play('Jc Jd 10d 10c  9c 9d Kd Kc  Ac Ad Qd Qc  Qh Ah Kh 9s')
+    checkFair(HANDS, t)
+    expect(ids(t, 2)).toEqual(['cut:3', 'void:3:1'])
+  })
+
+  test('with two players, a void the stock could explain is no signal', () => {
+    // Seat 0 leads its only diamond in trick 2; seat 1 trumps. 15 cards are hidden (12 in the stock), 4 of them
+    // diamonds, and seat 1 hides 3: C(11,3)/C(15,3) = 0.363. The old count (4 unplaced) flagged it.
+    const HANDS = ['Jh 9h Ah 10h Kh Qd', 'Qh Kd Jc 9c Ac 10c']
+    const t = two(HANDS).play('Jh Qh  9h Kd  Qd 10c')
+    checkFair(HANDS, t)
+    expect(ids(t, 0)).toEqual([])
+  })
+
+  test('with two players, a first-half void gets the same one look before and after the second half is dealt', () => {
+    // Seat 0 leads its only diamond and seat 1 trumps it: 17 hidden, 5 diamonds, 5 in seat 1's hand: 0.128.
+    // The second half deals seat 0 the other five diamonds.
+    const HANDS = ['Qd Js 9s As 10s Ks', 'Jc 9c Ac 10c Kc Qs']
+    const t = two(HANDS).play('Qd Jc')
+    while ((t.game.phase.kind === 'playing' || t.game.phase.kind === 'trickPause') && t.game.phase.play.tricks.length < 6) {
+      t.endPause().autoPlay('trickPause')
+    }
+    checkFair(HANDS, t)
+    const before = viewFor(t.game, 0, 'full')
+    expect(before.phase.kind === 'trickPause' && before.phase.half).toBe(1)
+    const decide = () => Array.from({ length: 500 }, (_, i) => chooseChallenge(viewFor(t.game, 0, 'full'), { persona: 'wild', salt: i + 1 }) !== null)
+    const was = decide()
+    expect(ids(t, 0)).toContain('void:0:1')
+    const signalsBefore = ids(t, 0)
+    t.endPause()
+    const after = viewFor(t.game, 0, 'full')
+    if (after.phase.kind !== 'playing') throw new Error(after.phase.kind)
+    expect(after.phase.half).toBe(2)
+    // The new hand holds diamonds, which a count over the current hand would have taken as placed.
+    expect(after.phase.hand.some((c) => c.suit === 'diamonds')).toBe(true)
+    expect(ids(t, 0)).toEqual(signalsBefore)
+    expect(decide()).toEqual(was)
+    expect(was.some(Boolean)).toBe(true)
   })
 })
 
