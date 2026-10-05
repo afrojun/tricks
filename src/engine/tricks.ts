@@ -1,4 +1,5 @@
-import { type Card, type Suit, rankStrength } from './cards'
+import { trickWinner as winnerOf } from '../kit/tricks'
+import { type Card, type Suit, rankStrength, strength } from './cards'
 import type { RuleSet } from './rules'
 import type { Seat } from './seats'
 
@@ -36,17 +37,7 @@ export function legalPlays(
   return hand.filter((c) => isLegalPlay(c, hand, trick, trump, rules))
 }
 
-/** The highest trump wins; with no trump played, the highest card of the led suit. */
+/** The kit's rule in Thunee's rank order: the highest trump wins; with no trump played, the highest card of the led suit. */
 export function trickWinner(plays: readonly { seat: Seat; card: Card }[], trump: Suit | null): Seat {
-  const led = plays[0].card.suit
-  let best = plays[0]
-  for (const play of plays.slice(1)) {
-    const bestIsTrump = best.card.suit === trump
-    const isTrump = play.card.suit === trump
-    if (isTrump && !bestIsTrump) best = play
-    else if (isTrump === bestIsTrump && play.card.suit === best.card.suit) {
-      if ((isTrump || play.card.suit === led) && rankStrength(play.card.rank) > rankStrength(best.card.rank)) best = play
-    }
-  }
-  return best.seat
+  return winnerOf(plays, { trump, strength })
 }
