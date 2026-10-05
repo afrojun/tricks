@@ -5,27 +5,8 @@ import type { RuleOverrides } from '../engine/rules'
 import { Table, card, playOf } from '../engine/testing'
 import { viewFor } from '../engine/view'
 import { decide } from './choose'
+import { SLY, SLY_BEFORE_PASSING, SLY_PASSES, TO_THE_QUEEN } from './deals'
 
-/**
- * Seat 3 runs spades until seat 1 holds the last one, the ace; then seat 3
- * leads the king and seat 0 drops the queen under it. Seat 1 holds nothing
- * else but diamonds; seat 2 is void in spades after the first round of them.
- */
-const SLY = [
-  '2c 3c 4c Qs 2s 3s 4s 2d 3d 4d 5d 2h 3h',
-  '5c As 5s 6s 7s 6d 7d 8d 9d 10d Jd Qd Kd',
-  '6c 8s Ad 4h 5h 6h 7h 8h 9h 10h Jh Qh Kh',
-  'Ac Ks 9s 10s Js 7c 8c 9c 10c Jc Qc Kc Ah',
-]
-const TO_THE_QUEEN = '2c 5c 6c Ac  9s 4s 7s 8s  10s 3s 6s Ad  Js 2s 5s 4h  Ks Qs'
-/** The same hands after passing left, with seat 0 giving seat 1 the ace of spades. */
-const SLY_BEFORE_PASSING = [
-  '2c 3c 4c Qs 2s 3s 4s 4d 5d 3h As 6d 7d',
-  '5c 5s 6s 7s 8d 9d 10d Jd Qd Kd 8s Ad 4h',
-  '6c 5h 6h 7h 8h 9h 10h Jh Qh Kh 7c 8c Ah',
-  'Ac Ks 9s 10s Js 9c 10c Jc Qc Kc 2d 3d 2h',
-]
-const SLY_PASSES = ['As 6d 7d', '8s Ad 4h', '7c 8c Ah', '2d 3d 2h']
 /** Points on the first trick: seat 2 throws a heart on it, then seat 3 leads the king of hearts to seat 1's lone ace. */
 const SMALL = [
   '2c 3c 4c 2h 2d 3d 4d 5d 2s 3s 4s 5s 6s',
