@@ -81,6 +81,8 @@ export function diffRules(rules: RuleSet): RuleOverrides {
   return out as RuleOverrides
 }
 
+/** Thunee is played by two or four. */
+export const SEAT_COUNTS = [2, 4] as const
 /** Four-player counting target; fixed for every rule set. */
 export const FOUR_PLAYER_TARGET = 105
 export const CHALLENGE_BALLS = 4

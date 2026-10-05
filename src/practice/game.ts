@@ -23,7 +23,7 @@ export type { DecisionRecord, RoundLog }
 
 export const PRACTICE_KEY = 'tricks-thunee-practice'
 /** Raise when the saved shape changes; older saves are discarded. */
-export const PRACTICE_FORMAT = 1
+export const PRACTICE_FORMAT = 2
 
 /** Computer seats are named by where they sit, as seen from seat 0. */
 const NAMES: Record<2 | 4, string[]> = { 2: ['Opponent'], 4: ['Right', 'Partner', 'Left'] }

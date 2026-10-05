@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { CALL_AMOUNTS } from './rules'
-import type { RuleOverrides } from './rules'
-import { type Action, PERSONAS } from './types'
+import { tableActionSchemas } from '../kit/table'
+import { CALL_AMOUNTS, type RuleOverrides, SEAT_COUNTS } from './rules'
+import type { Action } from './types'
 
 const suit = z.enum(['hearts', 'diamonds', 'clubs', 'spades'])
 const rank = z.enum(['J', '9', 'A', '10', 'K', 'Q'])
@@ -37,14 +37,8 @@ export const ruleOverridesSchema = z
 
 /** Actions a client may send. System actions are deliberately absent. */
 export const actionSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('sit'), seat, name: z.string().max(200) }),
-  z.object({ type: z.literal('leaveSeat') }),
-  z.object({ type: z.literal('rename'), name: z.string().max(200) }),
-  z.object({ type: z.literal('addAi'), seat, persona: z.enum([...PERSONAS, 'surprise']).optional() }),
-  z.object({ type: z.literal('clearSeat'), seat }),
+  ...tableActionSchemas(SEAT_COUNTS),
   z.object({ type: z.literal('setRules'), overrides: ruleOverridesSchema }),
-  z.object({ type: z.literal('setPlayerCount'), playerCount: z.union([z.literal(2), z.literal(4)]) }),
-  z.object({ type: z.literal('start') }),
   z.object({ type: z.literal('call'), amount: z.union(CALL_AMOUNTS.map((a) => z.literal(a))) }),
   z.object({ type: z.literal('pass') }),
   z.object({ type: z.literal('preselectTrump'), choice: trumpChoice }),
@@ -58,6 +52,4 @@ export const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('challengeJodhi'), claim: z.number().int().min(0).max(100) }),
   z.object({ type: z.literal('nextRound') }),
   z.object({ type: z.literal('rematch') }),
-  z.object({ type: z.literal('replaceWithAi'), seat }),
-  z.object({ type: z.literal('reclaimSeat') }),
 ]) satisfies z.ZodType<Action>

@@ -1,11 +1,11 @@
+import { type Actor, type Ctx, checkLobbyHost, emptySeats, isAction, isTableAction, revealPersonas, settle, tableAction } from '../kit/table'
 import { hasCard } from './cards'
-import { availableActions, replaceableSeats } from './available'
-import { emptySeats, fixHost, lobbyAction } from './lobby'
+import { availableActions } from './available'
 import { mayCall } from './predicates'
-import { TRADITIONAL } from './rules'
+import { SEAT_COUNTS, TRADITIONAL, resolveRules } from './rules'
 import * as round from './round'
 import { type Seat, allSeats } from './seats'
-import { type Action, type Actor, type ApplyResult, type Ctx, FORMAT_VERSION, type Game, type GameEvent, type RejectReason } from './types'
+import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type RejectReason } from './types'
 import { viewFor } from './view'
 
 export function createGame(): Game {
@@ -22,7 +22,7 @@ export function createGame(): Game {
     roundNumber: 0,
     aiActAt: null,
     aiSalt: 0,
-    acting: null,
+    waiting: [],
     phase: { kind: 'lobby' },
   }
 }
@@ -32,17 +32,14 @@ export function createGame(): Game {
  * player input.
  */
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
+  // Checked before any field is read: a client could send anything at all.
+  if (!isAction(action)) return { rejected: 'notAllowed' }
   const draft = structuredClone(game)
   const events: GameEvent[] = []
   const rejected = dispatch(draft, actor, action, ctx, events)
   if (rejected !== null) return { rejected }
-  schedule(draft, ctx)
+  settle(draft, ctx, seatsToAct(draft), untimedSeats(draft))
   return { game: draft, events }
-}
-
-export function isAiControlled(game: Game, seat: Seat): boolean {
-  const info = game.seats[seat]
-  return info.kind === 'ai' || info.standIn
 }
 
 /** Seats that have something to decide right now. */
@@ -62,6 +59,12 @@ export function seatsToAct(game: Game): Seat[] {
   }
 }
 
+/** The seats the table waits on with no deadline: the trumper choosing trump, and the seat to play. */
+export function untimedSeats(game: Game): Seat[] {
+  const phase = game.phase
+  return phase.kind === 'trumpSelection' ? [phase.trumper] : phase.kind === 'playing' ? [phase.turn] : []
+}
+
 /** The earliest moment the server must wake up for, if any. */
 export function nextDeadline(game: Game): number | null {
   const phase = game.phase
@@ -70,58 +73,26 @@ export function nextDeadline(game: Game): number | null {
   return times.length > 0 ? Math.min(...times) : null
 }
 
-const AI_DELAY_MIN_MS = 600
-const AI_DELAY_SPREAD_MS = 600
-
-/** Recomputes who the game is waiting on and when the next AI seat should act. */
-function schedule(game: Game, ctx: Ctx): void {
-  const phase = game.phase
-  const waitingOn = phase.kind === 'trumpSelection' ? phase.trumper : phase.kind === 'playing' ? phase.turn : null
-  if (waitingOn === null) game.acting = null
-  else if (game.acting?.seat !== waitingOn) game.acting = { seat: waitingOn, since: ctx.now }
-
-  const aiNeeded = seatsToAct(game).some((s) => isAiControlled(game, s))
-  if (!aiNeeded) game.aiActAt = null
-  else if (game.aiActAt === null || game.aiActAt <= ctx.now) {
-    game.aiActAt = ctx.now + AI_DELAY_MIN_MS + Math.floor(ctx.rng() * AI_DELAY_SPREAD_MS)
-  }
-}
-
 function dispatch(game: Game, actor: Actor, action: Action, ctx: Ctx, events: GameEvent[]): RejectReason | null {
-  // System actions.
-  if (action.type === 'tick' || action.type === 'setConnected') {
-    if (actor !== 'system') return 'notAllowed'
-    if (action.type === 'tick') tick(game, ctx, events)
-    else {
-      const seat = game.seats[action.seat]
-      if (!seat || seat.kind !== 'human') return 'badSeat'
-      seat.connected = action.connected
-      fixHost(game)
-      events.push({ type: 'seatChanged' })
-    }
+  if (isTableAction(action)) {
+    const rejected = tableAction(game, actor, action, ctx, events, { seatCounts: SEAT_COUNTS })
+    if (rejected !== null) return rejected
+    if (action.type === 'start') {
+      game.balls = [0, 0]
+      game.roundNumber = 1
+      game.dealer = Math.floor(ctx.rng() * game.playerCount)
+      round.beginRound(game, ctx, events)
+    } else if (action.type === 'tick') tick(game, ctx, events)
     return null
   }
   if (actor === 'system') return 'notAllowed'
 
-  switch (action.type) {
-    case 'sit':
-    case 'leaveSeat':
-    case 'rename':
-    case 'addAi':
-    case 'clearSeat':
-    case 'setRules':
-    case 'setPlayerCount':
-    case 'start': {
-      const rejected = lobbyAction(game, actor, action, ctx, events)
-      if (rejected !== null) return rejected
-      if (action.type === 'start') {
-        game.balls = [0, 0]
-        game.roundNumber = 1
-        game.dealer = Math.floor(ctx.rng() * game.playerCount)
-        round.beginRound(game, ctx, events)
-      }
-      return null
-    }
+  if (action.type === 'setRules') {
+    const rejected = checkLobbyHost(game, actor)
+    if (rejected !== null) return rejected
+    game.rules = resolveRules(action.overrides)
+    events.push({ type: 'seatChanged' })
+    return null
   }
 
   if (actor === null) return 'notSeated'
@@ -214,27 +185,8 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       game.lastRoundWinner = null
       game.roundNumber = 1
       game.dealer = Math.floor(ctx.rng() * game.playerCount)
-      // A surprise persona revealed at game over stays revealed.
-      for (const s of game.seats) s.personaHidden = false
+      revealPersonas(game)
       round.beginRound(game, ctx, events)
-      return null
-
-    case 'replaceWithAi': {
-      if (phase.kind === 'lobby' || phase.kind === 'gameOver') return 'wrongPhase'
-      const target = game.seats[action.seat]
-      if (!target || target.kind !== 'human' || target.standIn || action.seat === seat) return 'badSeat'
-      if (!replaceableSeats(viewFor(game, seat), ctx.now).includes(action.seat)) {
-        return viewFor(game, seat).host === seat ? 'notAllowed' : 'notHost'
-      }
-      target.standIn = true
-      events.push({ type: 'seatChanged' })
-      return null
-    }
-
-    case 'reclaimSeat':
-      if (!can.reclaimSeat) return 'notAllowed'
-      game.seats[seat].standIn = false
-      events.push({ type: 'seatChanged' })
       return null
 
     default:

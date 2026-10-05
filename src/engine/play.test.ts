@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { availableActions, replaceableSeats } from './available'
+import { replaceableSeats } from '../kit/table'
+import { availableActions } from './available'
 import { CLASSIC_APP_OVERRIDES, type RuleOverrides } from './rules'
 import { Table, card } from './testing'
 import type { Game } from './types'
@@ -404,6 +405,34 @@ describe('between rounds', () => {
     over.do(0, { type: 'rematch' })
     expect(over.game).toMatchObject({ balls: [0, 0], roundNumber: 1, khanaakCalled: false, lastRoundWinner: null })
     expect(over.game.phase.kind).toBe('calling')
+  })
+})
+
+describe('who the table waits on', () => {
+  test('the trumper choosing trump and the seat to play, from when the wait began; nobody while a clock runs', () => {
+    const t = new Table(4, { redealIfNoTrumps: false }).deal(D1)
+    expect(t.game.waiting).toEqual([]) // calling has a deadline
+    t.advance(10_000)
+    expect(t.game.waiting).toEqual([{ seat: 1, since: t.now }])
+    t.do(1, { type: 'chooseTrump', choice: 'spades' })
+    expect(t.game.waiting).toEqual([]) // the Thunee window has a deadline
+    t.advance(5000)
+    const began = t.now
+    expect(t.game.waiting).toEqual([{ seat: 2, since: began }])
+    expect(viewFor(t.game, 0).waiting).toEqual([{ seat: 2, since: began }])
+    t.now += 1000
+    t.play('Jc')
+    expect(t.game.waiting).toEqual([{ seat: 3, since: began + 1000 }])
+    t.play('Qh 10c Qc')
+    expect(t.game.waiting).toEqual([]) // the trick pause has a deadline
+  })
+
+  test('a seat still to play keeps its wait when something else happens', () => {
+    const t = start().play('Jc Qh 10c Qc').endPause() // seat 2 won and leads
+    const began = t.now
+    t.now += 30_000
+    t.do(0, { type: 'claimJodhi', suit: 'spades', withJack: false })
+    expect(t.game.waiting).toEqual([{ seat: 2, since: began }])
   })
 })
 

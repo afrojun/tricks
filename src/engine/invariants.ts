@@ -1,5 +1,6 @@
+import { isAiControlled } from '../kit/table'
+import { seatsToAct, untimedSeats } from './apply'
 import { type Card, cardId } from './cards'
-import { isAiControlled, seatsToAct } from './apply'
 import type { Game, RoundPlay } from './types'
 
 /** Throws if the game is in a state the engine should never produce. */
@@ -62,4 +63,6 @@ export function checkInvariants(game: Game): void {
   if (!idle && waiting.length === 0 && !('deadline' in phase)) fail('nobody to act and no deadline')
   const aiNeeded = waiting.some((s) => isAiControlled(game, s))
   if (aiNeeded !== (game.aiActAt !== null)) fail(`aiActAt ${game.aiActAt} but aiNeeded ${aiNeeded}`)
+  const untimed = untimedSeats(game)
+  if (game.waiting.map((w) => w.seat).join() !== untimed.join()) fail(`waiting on ${game.waiting.map((w) => w.seat)} but ${untimed} untimed`)
 }

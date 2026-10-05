@@ -1,4 +1,4 @@
-import { actingHost } from './lobby'
+import { tableView } from '../kit/table'
 import { ballsTarget } from './predicates'
 import type { Seat } from './seats'
 import type { Game, Phase, RoundPlay, ViewPhase, ViewPlaying, View } from './types'
@@ -15,17 +15,13 @@ export type Memory = 'table' | 'full'
 /** What one seat (or a spectator, `null`) is allowed to know about the game. */
 export function viewFor(game: Game, seat: Seat | null, memory: Memory = 'table'): View {
   return {
-    seat,
-    seats: game.seats.map((s) => (s.personaHidden && game.phase.kind !== 'gameOver' ? { ...s, persona: null } : s)),
-    host: actingHost(game),
-    owner: game.host,
+    ...tableView(game, seat),
     playerCount: game.playerCount,
     rules: game.rules,
     balls: game.balls,
     ballsTarget: ballsTarget(game.rules, game.khanaakCalled),
     dealer: game.dealer,
     roundNumber: game.roundNumber,
-    acting: game.acting,
     phase: viewPhase(game.phase, seat, memory),
   }
 }

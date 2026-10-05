@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
+import { canStart } from '../kit/table'
 import { apply, createGame } from './apply'
-import { canStart } from './available'
 import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL } from './rules'
 import { Table, deepFreeze, seededRng } from './testing'
 import { type Action, type Actor, type Game, PERSONAS, type RoundSummary } from './types'
@@ -103,6 +103,17 @@ describe('lobby', () => {
     const game = run(createGame(), null, { type: 'sit', seat: 0, name: 'A' })
     expect(reject(game, 0, { type: 'tick' })).toBe('notAllowed')
     expect(reject(game, 0, { type: 'setConnected', seat: 0, connected: false })).toBe('notAllowed')
+  })
+
+  test('a message that is not an action is refused, never thrown, in the lobby and in play', () => {
+    const lobby = run(createGame(), null, { type: 'sit', seat: 0, name: 'A' })
+    const playing = new Table(4, { redealIfNoTrumps: false }).do(0, { type: 'start' }).game
+    const junk = [null, undefined, 3, 'start', true, [], {}, { type: 7 }, { type: null }, { kind: 'start' }]
+    for (const game of [lobby, playing]) {
+      for (const actor of [0, null, 'system'] as const) {
+        for (const value of junk) expect(reject(game, actor, value as unknown as Action)).toBe('notAllowed')
+      }
+    }
   })
 
   test('apply never mutates its input', () => {

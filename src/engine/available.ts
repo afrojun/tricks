@@ -117,24 +117,3 @@ export function availableActions(view: View): Available {
   }
   return out
 }
-
-/** Lobby helpers for the UI; the engine checks the same conditions. */
-export function canStart(view: View): boolean {
-  return view.phase.kind === 'lobby' && view.host === view.seat && view.seats.every((s) => s.kind !== 'empty')
-}
-
-/** Human seats the host may hand to the AI: disconnected, or holding the turn for over a minute. */
-export const STALL_MS = 60_000
-
-export function replaceableSeats(view: View, now: number): Seat[] {
-  if (view.seat === null || view.seats[view.seat].kind !== 'human') return []
-  if (view.phase.kind === 'lobby' || view.phase.kind === 'gameOver') return []
-  const isHost = view.host === view.seat
-  return view.seats.flatMap((s, seat) => {
-    if (s.kind !== 'human' || s.standIn || seat === view.seat) return []
-    const stalled = view.acting?.seat === seat && now - view.acting.since > STALL_MS
-    // The host looks after everyone else; anyone may step in for a host who has stalled.
-    const mayReplace = isHost ? !s.connected || stalled : seat === view.owner && stalled
-    return mayReplace ? [seat] : []
-  })
-}
