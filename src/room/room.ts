@@ -138,7 +138,8 @@ export class TableRoom {
   onClose(conn: RoomConnection): Promise<void> {
     return this.enqueue(async () => {
       const seat = this.seatOf(conn)
-      if (seat === null) return
+      // A close that woke the room may already have been settled by `matchConnections`.
+      if (seat === null || !this.saved.game.seats[seat].connected) return
       const token = conn.state?.token
       const others = [...this.host.connections()].some((c) => c.id !== conn.id && c.state?.token === token)
       if (!others) await this.act('system', { type: 'setConnected', seat, connected: false })

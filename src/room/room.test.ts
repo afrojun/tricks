@@ -351,6 +351,18 @@ describe('waking from hibernation', () => {
     expect(secondTab.sync.seat).toBe(1)
     expect(w.data.get('state')).toMatchObject({ version: version + 1 })
   })
+
+  test('a close that wakes the room is not applied a second time', async () => {
+    const { w, conns } = await startedGame()
+    w.lose(conns[3]) // a closing socket is no longer open when the room wakes for its close
+    await w.wake()
+    expect(conns[0].view.seats[3].connected).toBe(false)
+    const version = conns[0].sync.version
+    w.writes.length = 0
+    await w.server.onClose(conns[3])
+    expect(w.writes).toEqual([])
+    expect(conns[0].sync.version).toBe(version)
+  })
 })
 
 describe('AI seats', () => {
