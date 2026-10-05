@@ -121,3 +121,14 @@ The challenge lands at once. The client's paced playback keeps the card on scree
 - Delayed challenges.
 - Persona choice for stand-ins.
 - Mood for personas other than Wild.
+
+## Follow-ups
+
+Found during build and review; none blocks play.
+
+- **Tuning, to judge in play.** In 400 simulated four-player games, Sly made about 0.75 false Jodhis per game but only 0.02 reneges, and Wild about 0.8 reneges and 0.8 false Jodhis. In two-player games Wild still makes about 0.17 wrong accusations per game against an honest player, from its "big trick won off-suit" and "big Jodhi" hunches.
+- **Two-player coverage.** The persona simulation checks only that two-player games finish; it logs no tallies and asserts nothing about who challenged correctly.
+- **Untested branches.** Wild's "J or 9 on the table" and "last trick" cheat triggers; `holdBack` falling back when every legal card would show the renege; a challenge made from inside the server's Jodhi hook; a cheating persona end to end through the server.
+- **Hunch details.** When a hunch's latest signal is a Jodhi claim that can no longer be challenged, no play challenge is tried instead. A single play can raise both a `cut` and a `void` signal, which count twice toward Sharp's threshold.
+- **Certain voids as hunches.** In a two-player second half the computer can know its opponent holds the led suit, so a void there is certain cheating, but it is handled as a hunch (always signalled, still rolled) rather than as proof.
+- **Wording.** A hidden persona reads "secret" in the lobby and "?" at the table.

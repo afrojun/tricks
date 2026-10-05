@@ -49,6 +49,7 @@ Dependency direction: `ui -> client -> engine`; `party -> engine, ai`; `ai -> en
 
 - **The engine is pure.** Nothing in `src/engine/` reads the clock, generates randomness, or imports from other folders. Time and randomness arrive through `ctx`. `apply` never mutates its input and never throws on player input; it returns `{ rejected }`.
 - **One source of truth.** Timers are deadlines inside the saved game. The server sets PartyKit's single alarm to `nextDeadline(game)` after every change. Do not keep timer or game facts in server memory.
+- **Saves are not upgraded.** A change to the saved `Game` shape raises `FORMAT_VERSION` (`src/engine/types.ts`), and rooms saved in another format reset to an empty lobby on load. Pushing such a change to `main` resets every game in progress.
 - **Abandoned rooms reset.** A room with no seated human connected for 24 hours (`ABANDONED_AFTER_MS` in `party/server.ts`) goes back to an empty lobby. The clock is `emptySince` in the saved state and shares the one alarm with game deadlines.
 - **Shared validation.** `apply` checks round actions against `availableActions(viewFor(game, seat))`, the same function the UI uses to decide what to show. Add a new action there first.
 - **Views hide information.** Clients only receive `viewFor(game, seat)`. Never send `Game`. Other hands, the stock, `handBefore`, `legal`, Jodhi `valid`, tokens, `aiSalt`, a hidden persona before game over, unrevealed trump, and the cards of any trick before the last completed one must not appear in a view; the simulation test checks this. Computer players, which run on the server, get `viewFor(game, seat, 'full')` and remember the whole round.
@@ -100,3 +101,5 @@ vercel
 ```
 
 Set `VITE_PARTYKIT_HOST` in Vercel dashboard → Settings → Environment Variables, then redeploy. Any static host works: `pnpm build` and serve `dist/` with all paths rewritten to `/`.
+
+The production frontend deploys automatically: Vercel's GitHub integration builds every push to `main`. So one push to `main` updates both the frontend and, if the server changed, PartyKit.
