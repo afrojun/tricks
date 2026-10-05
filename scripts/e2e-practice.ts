@@ -34,7 +34,7 @@ await button('Practice with four').click()
 let hints = 0
 const started = Date.now()
 while (Date.now() - started < 4 * 60_000) {
-  if (await page.getByText('Coach’s review').isVisible()) break
+  if (await page.getByRole('heading', { name: 'Coach’s review' }).isVisible()) break
   if (await showing('Got it')) {
     await shot('2-topic')
     await button('Got it').click()
@@ -58,11 +58,11 @@ while (Date.now() - started < 4 * 60_000) {
   await page.waitForTimeout(150)
 }
 
-if (!(await page.getByText('Coach’s review').isVisible())) problems.push('never reached the coach’s review')
+if (!(await page.getByRole('heading', { name: 'Coach’s review' }).isVisible())) problems.push('never reached the coach’s review')
 else {
   // The round result introduces balls the first time.
   if (await showing('Got it')) await button('Got it').click()
-  await page.getByText('Coach’s review').scrollIntoViewIfNeeded()
+  await page.getByRole('heading', { name: 'Coach’s review' }).scrollIntoViewIfNeeded()
   await shot('7-review')
   if (await showing('See all hands')) {
     await button('See all hands').click()
@@ -71,7 +71,7 @@ else {
   }
   // A reload continues the same game.
   await page.reload()
-  await page.getByText('Coach’s review').waitFor({ timeout: 5000 }).catch(() => problems.push('reload lost the round result'))
+  await page.getByRole('heading', { name: 'Coach’s review' }).waitFor({ timeout: 5000 }).catch(() => problems.push('reload lost the round result'))
 }
 
 await browser.close()

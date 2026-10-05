@@ -1,7 +1,7 @@
 # Practice games with a coach — Design
 
 Date: 2026-10-04
-Status: approved in conversation; awaiting spec review
+Status: implemented on `t3code/ai-guided-tutorial-mode`
 Depends on: `2026-10-04-ai-personas-design.md` (lands first)
 
 ## 1. Purpose
@@ -205,3 +205,17 @@ The table fills the screen, so the coach takes over existing slots and uses shee
 ## 9. Documentation
 
 `AGENTS.md` gains the new folders and dependency arrows, the rule that the coach takes views and never a `Game`, and `pnpm e2e` gains the practice script.
+
+## 10. Changes made during the build
+
+These differ from the sections above and are what the code does.
+
+- **Reactions stay event-triggered.** Section 3 said computer reactions would be worked out from state. The server asks each computer once per triggering event (`trickWon` for Jodhi; `cardPlayed` and `jodhiClaimed` for challenges), so `src/ai/drive.ts` keeps that: `dueStep(game, now)` for deadlines and turns, and `reactions(game, events)` returning one question per seat that each host asks in order.
+- **Extra reason codes.** `leadTrump` (leading with only trumps left) and `cheapOvertake` (the cheapest legal card still beats a partner who is winning).
+- **Topics are a priority list.** `topicsFor(view, event)` returns every topic worth introducing; the session shows the first the player has not seen.
+- **Countdowns stand still.** While practice waits on the player the table shows "No rush: the table waits for you" instead of a countdown, because countdowns run on real time.
+- **Reading holds the clock.** An open hint, log or other sheet holds the practice clock as well as topics and warnings.
+- **The hint carries out its suggestion.** The hint sheet has a button that makes the suggested move, which also covers calls, trump and Thunee, where there is no card to lift.
+- **All hands are not marked.** The round result has no trick history, so *See all hands* shows the dealt hands without marking the cards that beat the player.
+- **The review survives a reload.** It is built whenever the game is at a round result, not only when the round is scored.
+- **Wording.** Two-player tricks are numbered within their half ("trick 1 of the second half"); the coach states the undercut rule, both targets (105 and 125), the twelfth trick in two-player, each player's role in a Thunee, and the partner-catch penalty.
