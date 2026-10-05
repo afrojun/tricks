@@ -1,21 +1,15 @@
 import type * as Party from 'partykit/server'
-import { chooseAction, chooseJodhi, fallbackAction } from '../src/ai/choose'
-import { mindFor } from '../src/ai/mind'
-import { chooseChallenge } from '../src/ai/suspicion'
+import { dueStep, reactions } from '../src/ai/drive'
 import {
   type Action,
   type Actor,
   type Game,
-  type GameEvent,
   type Seat,
   apply,
   FORMAT_VERSION,
   checkInvariants,
   createGame,
-  isAiControlled,
   nextDeadline,
-  seatsToAct,
-  teamOf,
   viewFor,
 } from '../src/engine'
 import {
@@ -155,8 +149,10 @@ export default class ThuneeRoom implements Party.Server {
     for (const conn of this.room.getConnections<ConnState>()) this.send(conn, events)
     await this.armAlarm()
 
-    await this.aiJodhi(result.events)
-    await this.aiChallenge(result.events)
+    for (const ask of reactions(this.saved.game, result.events)) {
+      const step = ask(this.saved.game)
+      if (step) await this.act(step.actor, step.action)
+    }
     return true
   }
 
@@ -165,52 +161,17 @@ export default class ThuneeRoom implements Party.Server {
     for (let guard = 0; guard < 100; guard++) {
       const game = this.saved.game
       const now = this.deps.now()
-      const phase = game.phase
       if (this.saved.emptySince !== null && now >= this.saved.emptySince + ABANDONED_AFTER_MS) {
         await this.reset()
         break
       }
-      if ('deadline' in phase && phase.deadline <= now) {
-        await this.act('system', { type: 'tick' })
-        continue
-      }
-      if (game.aiActAt !== null && game.aiActAt <= now) {
-        const seat = seatsToAct(game).find((s) => isAiControlled(game, s))
-        if (seat === undefined) break
-        const view = viewFor(game, seat, 'full')
-        if (!(await this.act(seat, chooseAction(view, mindFor(game, seat)))) && !(await this.act(seat, fallbackAction(view)))) {
-          throw new Error(`AI seat ${seat} has no acceptable action in ${phase.kind}`)
-        }
-        continue
-      }
-      break
+      const step = dueStep(game, now)
+      if (step === null) break
+      const applied = (await this.act(step.actor, step.action)) || (step.fallback !== undefined && (await this.act(step.actor, step.fallback)))
+      if (!applied && step.fallback !== undefined) throw new Error(`AI seat ${step.actor} has no acceptable action in ${game.phase.kind}`)
     }
     // An alarm that fired early, or nothing due: make sure the next deadline still has one.
     await this.armAlarm()
-  }
-
-  /** AI seats claim a Jodhi as soon as their team wins a trick; what they claim depends on persona (cheating personas sometimes bluff). */
-  private async aiJodhi(events: GameEvent[]): Promise<void> {
-    const won = events.find((e) => e.type === 'trickWon')
-    if (!won || won.type !== 'trickWon') return
-    const game = this.saved.game
-    for (let seat = 0; seat < game.playerCount; seat++) {
-      if (!isAiControlled(game, seat) || teamOf(seat) !== teamOf(won.seat)) continue
-      const claim = chooseJodhi(viewFor(this.saved.game, seat, 'full'), mindFor(this.saved.game, seat))
-      if (claim) await this.act(seat, claim)
-    }
-  }
-
-  /** Computer seats watch every card and claim; a challenge, if any, ends the round. */
-  private async aiChallenge(events: GameEvent[]): Promise<void> {
-    if (!events.some((e) => e.type === 'cardPlayed' || e.type === 'jodhiClaimed')) return
-    for (let seat = 0; seat < this.saved.game.playerCount; seat++) {
-      const game = this.saved.game
-      if (game.phase.kind !== 'playing' && game.phase.kind !== 'trickPause') return
-      if (!isAiControlled(game, seat)) continue
-      const challenge = chooseChallenge(viewFor(game, seat, 'full'), mindFor(game, seat))
-      if (challenge && (await this.act(seat, challenge))) return
-    }
   }
 
   /** Throws away an abandoned game. Versions keep rising so connected clients accept the new view. */

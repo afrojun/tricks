@@ -4,7 +4,8 @@ import { type Session, openSession } from '../client/connection'
 import type { ClientState } from '../client/store'
 import { type Theme, applyTheme, currentCardBack, currentTheme } from '../themes'
 
-const SessionContext = createContext<Session | null>(null)
+/** Provided by `SessionProvider` online, and by the practice screen offline. */
+export const SessionContext = createContext<Session | null>(null)
 
 export function SessionProvider({ room, children }: { room: string; children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)

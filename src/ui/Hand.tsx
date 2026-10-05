@@ -17,6 +17,10 @@ interface HandProps {
   /** Where newly dealt cards come from, as an offset in pixels. */
   dealFrom: { x: number; y: number }
   onPlay: (card: Card) => void
+  /** Practice: the card the hint suggests, raised and ringed. */
+  suggested?: Card | null
+  /** Practice: why a rule-breaking card is a problem, shown above "Play anyway". */
+  explain?: (card: Card) => string | null
 }
 
 /** A card let go this far above the hand has been put on the table. */
@@ -25,7 +29,7 @@ const TAP_SLOP_PX = 12
 /** If a dropped card has not left the hand by now, the play was refused: bring it back. */
 const RETURN_AFTER_MS = 1200
 
-export function Hand({ cards, playable, legal, dealFrom, onPlay }: HandProps) {
+export function Hand({ cards, playable, legal, dealFrom, onPlay, suggested = null, explain }: HandProps) {
   // An illegal card needs a second, explicit confirmation.
   const [pending, setPending] = useState<Card | null>(null)
   const [shake, setShake] = useState(0)
@@ -64,6 +68,8 @@ export function Hand({ cards, playable, legal, dealFrom, onPlay }: HandProps) {
             playable={playable}
             legal={legal.some((c) => sameCard(c, card))}
             pending={pending !== null && sameCard(pending, card)}
+            suggested={suggested !== null && sameCard(suggested, card)}
+            explanation={pending !== null && sameCard(pending, card) ? (explain?.(card) ?? null) : null}
             shake={shake}
             dealFrom={dealFrom}
             dragging={dragging}
@@ -87,6 +93,8 @@ interface HandCardProps {
   playable: boolean
   legal: boolean
   pending: boolean
+  suggested: boolean
+  explanation: string | null
   shake: number
   dealFrom: { x: number; y: number }
   dragging: React.RefObject<boolean>
@@ -96,7 +104,7 @@ interface HandCardProps {
 }
 
 /** One card in the hand. It can be picked up and carried anywhere, and is played by letting go over the table. */
-function HandCard({ card, index, count, playable, legal, pending, shake, dealFrom, dragging, handTop, onAttempt, onConfirm }: HandCardProps) {
+function HandCard({ card, index, count, playable, legal, pending, suggested, explanation, shake, dealFrom, dragging, handTop, onAttempt, onConfirm }: HandCardProps) {
   const x = useMotionValue(0)
   const y = useMotionValue(0)
   // A carried card swings a little with the hand that moves it.
@@ -141,6 +149,7 @@ function HandCard({ card, index, count, playable, legal, pending, shake, dealFro
         setTimeout(() => (dragging.current = false), 0)
       }}
     >
+      {pending && explanation && <p className="panel play-anyway-why">{explanation}</p>}
       {pending && (
         <button
           className="btn btn-danger btn-small play-anyway"
@@ -158,7 +167,7 @@ function HandCard({ card, index, count, playable, legal, pending, shake, dealFro
         playable={playable}
         dim={playable && !legal}
         selected={pending}
-        className={pending ? 'shake' : ''}
+        className={`${pending ? 'shake' : ''} ${suggested ? 'suggested' : ''}`}
         onClick={(e) => {
           e?.stopPropagation()
           if (!dragging.current) onAttempt()

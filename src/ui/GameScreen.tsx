@@ -82,7 +82,7 @@ function present(event: NumberedEvent, view: View, seat: Seat | null): Presentat
   }
 }
 
-function Screen({ room }: { room: string }) {
+export function Screen({ room }: { room: string }) {
   const { store } = useSession()
   const client = useClient()
   const [toast, setToast] = useState<{ text: string; id: number } | null>(null)
@@ -160,7 +160,7 @@ function Screen({ room }: { room: string }) {
 }
 
 /** Replaces a blank screen with a way out if rendering ever throws. */
-class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() {
     return { failed: true }

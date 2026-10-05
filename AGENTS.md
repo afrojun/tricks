@@ -9,13 +9,13 @@ pnpm party          # PartyKit game server (localhost:1999)
 pnpm check          # type check
 pnpm test           # unit, server and simulation tests (Vitest)
 pnpm test:soak      # 400 simulated games per configuration
-pnpm e2e            # browser games and hand controls (needs dev + party running, and Chromium)
+pnpm e2e            # browser games, hand controls and a practice round (needs dev + party running, and Chromium)
 pnpm e2e:sockets    # a full game over real sockets (needs party running)
 pnpm build          # production build
 pnpm party:deploy   # deploy PartyKit to production
 ```
 
-To try a game alone: create a game, sit down, and use "Add computer" on the other seats.
+To try a game alone: create a game, sit down, and use "Add computer" on the other seats. To learn the game, use "Learn to play" on Home: a practice game against computers with a coach, run entirely in the browser (no PartyKit needed).
 
 In development Vite proxies `/parties` to PartyKit, so the app needs only one URL. To play from another device, point an HTTPS tunnel (for example `tailscale serve`) at `127.0.0.1:5173`; `*.ts.net` hosts are already allowed in `vite.config.ts`.
 
@@ -29,11 +29,13 @@ In development Vite proxies `/parties` to PartyKit, so the app needs only one UR
 
 ## Architecture
 
-The design is written up in `docs/superpowers/specs/2026-10-04-thunee-rebuild-design.md`.
+The design is written up in `docs/superpowers/specs/2026-10-04-thunee-rebuild-design.md`. Practice games and the coach: `docs/superpowers/specs/2026-10-04-practice-and-coach-design.md`.
 
 ```
 src/engine/    Pure rules. One Game value, changed only by apply(game, actor, action, ctx).
-src/ai/        Computer players: seat view -> action.
+src/ai/        Computer players: seat view -> action (with a reason code). drive.ts is the automatic loop every host shares.
+src/coach/     Pure: the player's view and events -> notes. Topics, situation, hints, warnings, narration, review.
+src/practice/  A practice game in the browser: local Session, virtual clock that waits for the player, saved to the device.
 src/protocol.ts  Wire messages shared by client and server.
 party/server.ts  PartyKit room: identity, persistence, alarm, AI driving.
 src/client/    Socket wrapper and the store the UI reads.
@@ -43,7 +45,7 @@ src/presets/   Rule presets: storage, share links, descriptions.
 scripts/       End-to-end scripts.
 ```
 
-Dependency direction: `ui -> client -> engine`; `party -> engine, ai`; `ai -> engine`.
+Dependency direction: `ui -> client -> engine`; `ui -> practice -> client, engine, ai, coach`; `ui -> coach`; `coach -> engine, ai`; `party -> engine, ai`; `ai -> engine`.
 
 ### Rules that keep it correct
 
@@ -53,6 +55,8 @@ Dependency direction: `ui -> client -> engine`; `party -> engine, ai`; `ai -> en
 - **Abandoned rooms reset.** A room with no seated human connected for 24 hours (`ABANDONED_AFTER_MS` in `party/server.ts`) goes back to an empty lobby. The clock is `emptySince` in the saved state and shares the one alarm with game deadlines.
 - **Shared validation.** `apply` checks round actions against `availableActions(viewFor(game, seat))`, the same function the UI uses to decide what to show. Add a new action there first.
 - **Views hide information.** Clients only receive `viewFor(game, seat)`. Never send `Game`. Other hands, the stock, `handBefore`, `legal`, Jodhi `valid`, tokens, `aiSalt`, a hidden persona before game over, unrevealed trump, and the cards of any trick before the last completed one must not appear in a view; the simulation test checks this. Computer players, which run on the server, get `viewFor(game, seat, 'full')` and remember the whole round.
+- **The coach is honest.** Coach functions take a `View` (the player's own, with `'full'` memory), never a `Game`, and never run a computer's decision for another seat. Only the round review sees the dealt hands, after the round. Advice comes from the computer's own `decide` with the honest mind, so the hint and the computers cannot disagree; `check` must return null for the advised action.
+- **Practice time waits for the player.** The practice clock (`src/practice/clock.ts`) only runs while nothing waits on the player; timers there use the browser, since there is no server.
 - **Identity is a secret token, not a connection.** The browser's token maps to a seat on the server. Clients only see seat numbers.
 - **Paced playback.** `src/client/playback.ts` holds each server message on screen for a dwell set by its events, and skips ahead when a backlog builds. Sending an action releases the hold. A new event type that should be seen needs a dwell there.
 - **Computer personas.** Each computer seat has a persona (`src/ai/mind.ts`) that decides whether it cheats and how well it watches. Every AI chance is `roll(aiSalt, seat, id)`, a pure hash, so a decision never changes on re-evaluation and nothing about it is held in server memory. A stand-in for a human always plays as Straight.

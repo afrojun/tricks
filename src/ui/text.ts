@@ -1,14 +1,9 @@
 import { type Card, type RejectReason, type Seat, type Suit, type Team, type View, SUITS, rankStrength, teamOf } from '../engine'
 
-export const SUIT_SYMBOL: Record<Suit, string> = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' }
-export const SUIT_NAME: Record<Suit, string> = { hearts: 'Hearts', diamonds: 'Diamonds', clubs: 'Clubs', spades: 'Spades' }
+export { SUIT_NAME, SUIT_SYMBOL, cardText } from '../engine'
 
 export function isRed(suit: Suit): boolean {
   return suit === 'hearts' || suit === 'diamonds'
-}
-
-export function cardText(card: Card): string {
-  return `${card.rank}${SUIT_SYMBOL[card.suit]}`
 }
 
 export function seatName(view: View, seat: Seat): string {
