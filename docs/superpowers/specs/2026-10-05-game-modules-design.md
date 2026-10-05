@@ -204,7 +204,7 @@ export function legalCards<C>(hand: readonly C[], excusesFor: (card: C) => Excus
 /** A play as an observer sees it. `deal` separates hands dealt apart, such as Thunee's two halves. */
 export interface SeenPlay<C> { seat: Seat; card: C; trick: number; deal: number; excuses: Excuse<C>[] }
 export interface Proof {
-  id: string                       // stable, so a proof gets one look: see `roll`
+  id: string                       // `<rule>:<seat>:<trick>:<revealing trick>`; stable, so a proof gets one look: see `roll`
   accused: Seat
   rule: string | null              // the rule broken, for a play
   claim: number | null             // the claim disproved, for a declaration
@@ -239,7 +239,7 @@ Each game defines its accusation actions, who may accuse whom, and the penalty, 
 | Today | Becomes |
 |---|---|
 | `src/engine/` | `src/games/thunee/engine/`. `cards.ts` keeps Thunee's ranks and values on kit cards. `seats.ts` keeps teams. `lobby.ts` and the table half of `apply.ts` are replaced by the kit. `tricks.ts` is rewritten on excuses. |
-| `src/ai/` | `src/games/thunee/ai/`, except `mind.ts`, which is already in the kit. `suspicion.ts` and `cheat.ts` use `playProofs`, `noticed` and `exposes`. |
+| `src/ai/` | `src/games/thunee/ai/`, except `mind.ts`, which is already in the kit. `suspicion.ts` and `cheat.ts` use `playProofs`, `noticed` and `exposes`. Thunee names its two excuse rules `renege` and `undercut`, so its proof ids, and with them every computer's roll, stay exactly as they are today. |
 | `src/coach/` | `src/games/thunee/coach/` |
 | `src/ui/Table.tsx`, `RoundResult.tsx`, the Thunee half of `GameScreen.tsx` (`present`) | `src/games/thunee/ui/` |
 | `src/presets/describe.ts` | Thunee's `RuleBook`. `storage.ts` and `share.ts` become generic and keyed by game. |
