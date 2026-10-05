@@ -39,3 +39,11 @@ export const ALL_POINTS = [
   'Ah 2d 3d 4d 5d 6d 7d 8d 9d 10d Jd Qd Kd',
   'Ad 2s 3s 4s 5s 6s 7s 8s 9s 10s Js Ks As',
 ]
+
+/** High and low cards spread round the table: played out with the first legal card, nobody shoots the moon. */
+export const SPREAD = [
+  '2c 6c 10c Ac 5d 9d Kd 4s 8s Qs 3h 7h Jh',
+  '3c 7c Jc 2d 6d 10d Ad 5s 9s Ks 4h 8h Qh',
+  '4c 8c Qc 3d 7d Jd 2s 6s 10s As 5h 9h Kh',
+  '5c 9c Kc 4d 8d Qd 3s 7s Js 2h 6h 10h Ah',
+]

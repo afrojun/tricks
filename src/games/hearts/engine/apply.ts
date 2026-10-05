@@ -1,5 +1,5 @@
 import { hasCard, sameCard } from '../../../kit/cards'
-import { type Actor, type Ctx, type Seat, allSeats, checkLobbyHost, emptySeats, isTableAction, settle, tableAction } from '../../../kit/table'
+import { type Actor, type Ctx, type Seat, allSeats, checkLobbyHost, emptySeats, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
 import { availableActions } from './available'
 import { PASS_SIZE, PLAYERS, SEAT_COUNTS, STANDARD, resolveRules } from './rules'
 import * as round from './round'
@@ -109,9 +109,24 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       return null
     }
 
+    case 'challengePlay':
+      if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return 'wrongPhase'
+      if (!can.challengePlay.includes(action.seat)) return 'notAllowed'
+      round.challengePlay(game, phase.play, seat, action.seat, events)
+      return null
+
     case 'nextRound':
       if (!can.nextRound) return phase.kind === 'roundResult' ? 'notAllowed' : 'wrongPhase'
       game.roundNumber++
+      round.beginRound(game, ctx, events)
+      return null
+
+    case 'rematch':
+      if (phase.kind !== 'gameOver') return 'wrongPhase'
+      if (!can.rematch) return 'notHost'
+      game.scores = [0, 0, 0, 0]
+      game.roundNumber = 1
+      revealPersonas(game)
       round.beginRound(game, ctx, events)
       return null
 
