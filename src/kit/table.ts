@@ -388,16 +388,22 @@ export function replaceableSeats(view: TableView, now: number): Seat[] {
 
 // ── Wire schemas ─────────────────────────────────────────────────────────
 
-/** The table actions a client may send, for a game's action schema. System actions are absent. */
-export function tableActionSchemas(seatCounts: readonly number[]) {
-  const seat = z.number().int().min(0).max(Math.max(...seatCounts) - 1)
+/**
+ * The table actions a client may send, for a game's action schema. System actions are absent.
+ * With `bounded: false` only each field's type is checked: what an engine checks before it reads
+ * a field, leaving seats, names and counts to `tableAction`, which refuses them with its own reasons.
+ */
+export function tableActionSchemas(seatCounts: readonly number[], { bounded = true } = {}) {
+  const seat = bounded ? z.number().int().min(0).max(Math.max(...seatCounts) - 1) : z.number()
+  const name = bounded ? z.string().max(200) : z.string()
+  const playerCount = bounded ? z.number().int().refine((n) => seatCounts.includes(n)) : z.number()
   return [
-    z.object({ type: z.literal('sit'), seat, name: z.string().max(200) }),
+    z.object({ type: z.literal('sit'), seat, name }),
     z.object({ type: z.literal('leaveSeat') }),
-    z.object({ type: z.literal('rename'), name: z.string().max(200) }),
+    z.object({ type: z.literal('rename'), name }),
     z.object({ type: z.literal('addAi'), seat, persona: z.enum([...PERSONAS, 'surprise']).optional() }),
     z.object({ type: z.literal('clearSeat'), seat }),
-    z.object({ type: z.literal('setPlayerCount'), playerCount: z.number().int().refine((n) => seatCounts.includes(n)) }),
+    z.object({ type: z.literal('setPlayerCount'), playerCount }),
     z.object({ type: z.literal('start') }),
     z.object({ type: z.literal('replaceWithAi'), seat }),
     z.object({ type: z.literal('reclaimSeat') }),

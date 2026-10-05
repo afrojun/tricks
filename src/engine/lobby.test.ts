@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { canStart } from '../kit/table'
 import { apply, createGame } from './apply'
 import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL } from './rules'
+import { actionSchema } from './schema'
 import { Table, deepFreeze, seededRng } from './testing'
 import { type Action, type Actor, type Game, PERSONAS, type RoundSummary } from './types'
 import { viewFor } from './view'
@@ -114,6 +115,74 @@ describe('lobby', () => {
         for (const value of junk) expect(reject(game, actor, value as unknown as Action)).toBe('notAllowed')
       }
     }
+  })
+
+  test('an action with a missing, null or wrong-typed field is refused, never thrown, and changes nothing', () => {
+    // Every action a player may send, with payloads its fields must refuse. An action with no fields has none to break.
+    const BAD: Record<string, object[]> = {
+      sit: [{ seat: null, name: 'A' }, { seat: 1, name: null }, { seat: '1', name: 'A' }, { seat: 1 }],
+      leaveSeat: [],
+      rename: [{ name: null }, { name: 5 }, {}],
+      addAi: [{ seat: null }, { seat: '1' }, { seat: 1, persona: 'evil' }, { seat: 1, persona: 5 }],
+      clearSeat: [{ seat: null }, { seat: 'x' }],
+      setPlayerCount: [{ playerCount: null }, { playerCount: '2' }],
+      start: [],
+      replaceWithAi: [{ seat: null }, { seat: '2' }, {}],
+      reclaimSeat: [],
+      setRules: [{ overrides: null }, { overrides: 'x' }, {}, { overrides: { ballsToWin: 'x' } }, { overrides: { allowCheating: 'no' } }],
+      call: [{ amount: null }, { amount: '10' }, {}],
+      pass: [],
+      preselectTrump: [{ choice: null }, { choice: 'stars' }, { choice: 5 }],
+      chooseTrump: [{ choice: null }, { choice: 'stars' }, {}],
+      callThunee: [],
+      playCard: [{ card: null }, {}, { card: 'Jh' }, { card: { suit: 'stars', rank: 'J' } }, { card: { suit: 'hearts' } }, { card: { suit: 'clubs', rank: 10 } }],
+      claimJodhi: [{ suit: null, withJack: false }, { suit: 'spades' }, { suit: 'spades', withJack: 'yes' }, { suit: 'stars', withJack: false }],
+      callDouble: [],
+      callKhanaak: [],
+      challengePlay: [{ seat: null }, { seat: '1' }, {}],
+      challengeJodhi: [{ claim: null }, { claim: '0' }, {}],
+      nextRound: [],
+      rematch: [],
+    }
+    expect(Object.keys(BAD).sort()).toEqual(actionSchema.options.map((o) => o.shape.type.value).sort())
+
+    const D1 = ['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']
+    const dealt = () => new Table(4, { redealIfNoTrumps: false }).deal(D1)
+    const playing = () => dealt().toPlay('spades')
+    const ended = playing()
+    ended.game = { ...ended.game, balls: [0, 11] }
+    const games: Game[] = [
+      run(createGame(), null, { type: 'sit', seat: 0, name: 'A' }),
+      new Table().game,
+      dealt().game,
+      dealt().advance(10_000).game,
+      dealt().advance(10_000).do(1, { type: 'chooseTrump', choice: 'spades' }).game,
+      playing().play('Jc Qh').game, // seat 0 to play, holding a card it may not play
+      playing().play('Jc Qh 10c Qc').do(0, { type: 'claimJodhi', suit: 'spades', withJack: false }).game,
+      playing().do('system', { type: 'setConnected', seat: 2, connected: false }).game,
+      playing().do('system', { type: 'setConnected', seat: 2, connected: false }).do(0, { type: 'replaceWithAi', seat: 2 }).game,
+      playing().play('Jc Qh 10c Qc  9c Kh Qd 10s  Js 10h 10d Qs  9s Ah Ad Ks  As Ac 9d 9h  Kd Kc Jd Jh').endPause().game,
+      ended.play('Jc Qh 10c Qc  9c Kh Qd 10s  Js 10h 10d Qs  9s Ah Ad Ks  As Ac 9d 9h  Kd Kc Jd Jh').endPause().game,
+    ]
+    for (const game of games) {
+      deepFreeze(game)
+      for (const [type, payloads] of Object.entries(BAD)) {
+        for (const payload of payloads) {
+          for (const actor of [0, 1, 2, 3, null] as const) {
+            const action = { type, ...payload } as unknown as Action
+            expect(apply(game, actor, action, ctx), `${JSON.stringify(action)} by ${actor} in ${game.phase.kind}`).toEqual({ rejected: 'notAllowed' })
+          }
+        }
+      }
+    }
+  })
+
+  test('the system’s own actions are not held to the players’ schema', () => {
+    const t = new Table(4, { redealIfNoTrumps: false }).do(0, { type: 'start' })
+    t.do('system', { type: 'setConnected', seat: 2, connected: false })
+    expect(t.game.seats[2].connected).toBe(false)
+    t.advance(10_000)
+    expect(t.game.phase.kind).toBe('trumpSelection')
   })
 
   test('apply never mutates its input', () => {

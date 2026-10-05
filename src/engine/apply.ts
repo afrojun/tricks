@@ -1,6 +1,7 @@
 import { type Actor, type Ctx, checkLobbyHost, emptySeats, isAction, isTableAction, revealPersonas, settle, tableAction } from '../kit/table'
 import { hasCard } from './cards'
 import { availableActions } from './available'
+import { actionShape } from './schema'
 import { mayCall } from './predicates'
 import { SEAT_COUNTS, TRADITIONAL, resolveRules } from './rules'
 import * as round from './round'
@@ -32,11 +33,14 @@ export function createGame(): Game {
  * player input.
  */
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
-  // Checked before any field is read: a client could send anything at all.
+  // Checked before any field is read: a client could send anything at all. Only the system sends `tick` and `setConnected`.
   if (!isAction(action)) return { rejected: 'notAllowed' }
+  const system = action.type === 'tick' || action.type === 'setConnected'
+  const shaped = system ? { success: true as const, data: action } : actionShape.safeParse(action)
+  if (!shaped.success) return { rejected: 'notAllowed' }
   const draft = structuredClone(game)
   const events: GameEvent[] = []
-  const rejected = dispatch(draft, actor, action, ctx, events)
+  const rejected = dispatch(draft, actor, shaped.data, ctx, events)
   if (rejected !== null) return { rejected }
   settle(draft, ctx, seatsToAct(draft), untimedSeats(draft))
   return { game: draft, events }
