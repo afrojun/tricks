@@ -62,7 +62,7 @@ export interface SeenPlay<C> {
 
 /** A certain sign of cheating. */
 export interface Proof {
-  /** Stable, so a proof gets one look: see `roll`. */
+  /** `<rule>:<seat>:<trick>:<revealing trick>`. Stable, so a proof gets one look: see `roll`. */
   id: string
   accused: Seat
   /** The rule broken, for a play. */

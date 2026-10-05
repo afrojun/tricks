@@ -13,6 +13,7 @@ import {
   playProofs,
   recordPlay,
 } from './integrity'
+import { TRAITS, roll } from './mind'
 import { followSuit } from './tricks'
 
 const LETTERS: Record<string, Suit> = { h: 'hearts', d: 'diamonds', c: 'clubs', s: 'spades' }
@@ -129,6 +130,33 @@ describe('proofs', () => {
       ['undercut:1:0:1', 'undercut', 0],
       ['undercut:1:0:3', 'undercut', 2],
     ])
+  })
+
+  test('a proof id is `<rule>:<seat>:<trick>:<revealing trick>`, so Thunee keeps its ids by naming its rules', () => {
+    // How src/ai/suspicion.ts builds them today.
+    const thuneeId = (rule: 'renege' | 'undercut', seat: number, trick: number, revealTrick: number) => `${rule}:${seat}:${trick}:${revealTrick}`
+    const play = (seat: number, c: string, trick: number, rule?: string, without?: (x: Card) => boolean): SeenPlay<Card> => ({
+      seat,
+      card: card(c),
+      trick,
+      deal: 0,
+      excuses: rule && without ? [{ rule, without }] : [],
+    })
+    // Thunee's "clumsy" and "patient" reneges, and its undercut shown up by a plain card.
+    const clumsy = [play(1, 'Js', 0, 'renege', (x) => x.suit === 'clubs'), play(1, 'Qc', 1)]
+    const patient = [play(1, 'Kd', 0, 'renege', (x) => x.suit === 'clubs'), play(1, 'Qc', 5)]
+    const undercut = [play(1, 'Qs', 0, 'undercut', (x) => x.suit !== 'spades'), play(1, 'Jc', 1)]
+    expect(playProofs(clumsy, () => true).map((p) => p.id)).toEqual([thuneeId('renege', 1, 0, 1)])
+    expect(playProofs(patient, () => true).map((p) => p.id)).toEqual([thuneeId('renege', 1, 0, 5)])
+    expect(playProofs(undercut, () => true).map((p) => p.id)).toEqual([thuneeId('undercut', 1, 0, 1)])
+    expect(playProofs(clumsy, () => true)[0].id).toBe('renege:1:0:1')
+
+    // The same id, gap and salience give the same look as Thunee's own loop, salt by salt.
+    const proof = { ...playProofs(patient, () => true)[0], salience: 1.2 }
+    for (let salt = 1; salt <= 500; salt++) {
+      const thunee = roll(salt, 2, thuneeId('renege', 1, 0, 5)) < noticeOdds(TRAITS.sharp.attention, 4, 1.2)
+      expect(noticed([proof], { persona: 'sharp', salt }, 2) !== null).toBe(thunee)
+    }
   })
 
   test('a card exposes an earlier excuse of one’s own', () => {
