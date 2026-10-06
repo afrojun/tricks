@@ -77,6 +77,27 @@
 - [ ] A new room, one human and three Straight computers, the end score typed as 50 then stepped by − to 25 (one change sent, checked on the socket). Pass each round, play every card by tapping it; at each result the round's points add up to 26 (78 for a moon), the totals are the sums of the rounds, the first round ended after thirteen tricks with thirteen cards from the human. Then game over: the winner holds the fewest points and someone reached 25. The host's "Play again" starts round one at zero.
 - [ ] Fix the comment in `scripts/play.ts`. All browser scripts and `play.ts` pass against port 5273. Commit.
 
+### Added during the wave: M6, Tailwind reads only the app's code
+
+**Files:** `src/index.css`.
+
+- [ ] Show the problem: a throwaway file under `docs/` and one under `.github/`, each with a class-like word, put those classes in the built CSS.
+- [ ] `@import 'tailwindcss' source('.')`: class names come from `src/` only (`index.html` has none). Build again: the probe words are gone, and every rule that left the CSS is for a class no file under `src/` uses. Remove the probes. Commit.
+
+### Added during the wave: M7, a room does not log a plain request's URL
+
+**Files:** `worker/room.ts`, `scripts/play.ts`.
+
+- [ ] Show the problem: a plain GET to a valid room's address with a token writes that URL, token included, to the dev server's console (partyserver's default `onRequest`).
+- [ ] `Room.onRequest` returns 404 "Not found" and logs nothing. `scripts/play.ts` checks that a plain request to an unknown name still gets the edge's 404 "Unknown room" (`onBeforeRequest` runs first) and to a valid room the room's 404 "Not found"; the dev server's console shows none of those URLs. Commit.
+
 ## Rulings
 
-Recorded in the report as they are made.
+1. **C1: the tokens stay a plain object in the saved state.** A `Map` would change what is saved and need its own reading of old saves. Lookups use `Object.hasOwn` and accept only an integer seat a human holds; the map is rebuilt with `Object.fromEntries`, so any token name is an own data property. Each send is tried on its own, rejections and the error broadcast included, and the alarm is now armed before anyone is told as well. Found on the way: before this, a throwing socket also made the queue's error handler throw, leaving the room's serialising queue rejected for good.
+2. **C1: short inherited names are tested though they cannot reach the lookup.** `constructor` and `toString` are under the 16-character minimum and become anonymous tokens; `__defineGetter__` and `propertyIsEnumerable` are long enough and carry the regression.
+3. **I1: a baseline, not a stream generation.** The room sends a new connection its current view with no events, and every later sync to it carries only events numbered after that; the client drops playback on every reconnect, so nothing from the old socket arrives after. So the first sync after a (re)connect can safely reset the watermark to its own highest event, or zero. No protocol or saved-state change. Practice is unaffected: it connects once, and its session keeps numbers rising across new games.
+4. **M1: one change by keeping the focus, the right value by the draft.** − and + cancel mouse-down's focus change, so a typed number is not sent on its own by leaving the field before the tap. Where a browser still leaves the field first (a keyboard, perhaps some phones), the tap still steps from the typed number: two changes, the right value. The draft is remounted by the room's value, as the input was.
+5. **M3: the human plays every card by tapping it; no stand-ins.** The pace is set by the computers' delays and the trick pauses, so stand-ins would not shorten the run; the end score of 25 (the lowest allowed) ends the game in two or three rounds. A moon round adds up to 78. The browser check of M1 counts rule changes only after the editor opens, since sitting down sends the creator's choices from the home screen.
+6. **M4: today's values in every theme.** Rendering is unchanged; no theme is retuned.
+7. **M6: `source('.')`, relative to `src/index.css`.** The rules that left the CSS: `.bg-surface` (named in `AGENTS.md`, used nowhere in `src/`) and `.ring` with fourteen `@property` rules for its variables, from words in the docs.
+8. **M7: the response is a bare 404.** A plain request to a valid name still wakes or creates its room and runs `onStart`, as before; only the log line and the body change.
