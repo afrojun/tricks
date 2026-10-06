@@ -31,6 +31,11 @@ export interface GameModule<G extends TableState, A, E, V extends TableView> {
   createGame(): G
   /** The only way a game changes. Never mutates `game`; never throws on player input. */
   apply(game: G, actor: Actor, action: A, ctx: Ctx): { game: G; events: E[] } | { rejected: string }
+  /**
+   * The in-place half of `apply`, for a game that has one: `apply` is exactly `structuredClone` then this.
+   * Changes `draft`, which the caller must own; on a rejection leaves it unchanged. For imagined games only.
+   */
+  step?(draft: G, actor: Actor, action: A, ctx: Ctx): { events: E[] } | { rejected: string }
   viewFor(game: G, seat: Seat | null, memory?: Memory): V
   seatsToAct(game: G): Seat[]
   /** The earliest moment the host must wake up for, if any. */
