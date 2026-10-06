@@ -1,4 +1,5 @@
-@import 'tailwindcss';
+/* Class names are looked for only in the app's code (this folder), never in docs, scripts or workflows. */
+@import 'tailwindcss' source('.');
 
 @theme inline {
   --color-bg: var(--bg);
