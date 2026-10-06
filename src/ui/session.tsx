@@ -1,16 +1,24 @@
 import { MotionConfig } from 'motion/react'
 import { type ReactNode, createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
-import { type Session, openSession } from '../client/connection'
+import { type Session, type SessionGame, openSession } from '../client/connection'
 import type { ClientState } from '../client/store'
+import type { Action, GameEvent, View } from '../engine'
+import { dwell } from '../games/thunee/dwell'
 import { type Theme, applyTheme, currentCardBack, currentTheme } from '../themes'
 
+/** A Thunee table, online or in practice: what these screens read and send. */
+export type ThuneeSession = Session<View, Action, GameEvent>
+
+/** What a session needs of Thunee: its id and its events' dwells. */
+export const THUNEE: SessionGame<GameEvent> = { id: 'thunee', dwell }
+
 /** Provided by `SessionProvider` online, and by the practice screen offline. */
-export const SessionContext = createContext<Session | null>(null)
+export const SessionContext = createContext<ThuneeSession | null>(null)
 
 export function SessionProvider({ room, children }: { room: string; children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
+  const [session, setSession] = useState<ThuneeSession | null>(null)
   useEffect(() => {
-    const opened = openSession('thunee', room)
+    const opened = openSession<View, Action, GameEvent>(THUNEE, room)
     setSession(opened)
     return () => opened.close()
   }, [room])
@@ -18,14 +26,14 @@ export function SessionProvider({ room, children }: { room: string; children: Re
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>
 }
 
-export function useSession(): Session {
+export function useSession(): ThuneeSession {
   const session = useContext(SessionContext)
   if (!session) throw new Error('useSession outside SessionProvider')
   return session
 }
 
 /** Everything the server last told this client. */
-export function useClient(): ClientState {
+export function useClient(): ClientState<View> {
   const { store } = useSession()
   return useSyncExternalStore(store.subscribe, store.getState)
 }

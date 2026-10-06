@@ -1,5 +1,5 @@
 import PartySocket from 'partysocket'
-import type { Action, GameEvent, View } from '../engine'
+import type { TableAction, TableView } from '../kit/table'
 import { PING, PONG, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
 import { deviceToken } from './identity'
 import { Playback } from './playback'
@@ -8,35 +8,47 @@ import { GameStore } from './store'
 const PING_EVERY_MS = 5000
 const MAX_UNANSWERED_PINGS = 2
 
-export interface Session {
-  store: GameStore
-  send: (action: Action) => void
+/** A table as the screens see it, online or in practice: the game supplies the view, action and event types. */
+export interface Session<V, A, E> {
+  store: GameStore<V, E>
+  send: (action: A) => void
   close: () => void
 }
 
+/** What a session needs of a game: its id, which names its rooms, and how long each of its events holds the screen. */
+export interface SessionGame<E> {
+  id: string
+  dwell(event: E): number
+}
+
 /** Opens a socket to a game's room and feeds everything it receives into a store. */
-export function openSession(game: string, code: string): Session {
-  const store = new GameStore()
-  const playback = new Playback((message, receivedAt) => {
-    store.receive(message, receivedAt)
-    // Coming back to a seat the AI was minding: take it back straight away.
-    if (justOpened && message.type === 'sync') {
-      justOpened = false
-      if (message.seat !== null && message.view.seats[message.seat].standIn) send({ type: 'reclaimSeat' })
-    }
-  })
+export function openSession<V extends TableView, A, E>(game: SessionGame<E>, code: string): Session<V, A, E> {
+  const store = new GameStore<V, E>()
+  const playback = new Playback<V, E>(
+    (message, receivedAt) => {
+      store.receive(message, receivedAt)
+      // Coming back to a seat the AI was minding: take it back straight away.
+      if (justOpened && message.type === 'sync') {
+        justOpened = false
+        if (message.seat !== null && message.view.seats[message.seat].standIn) post({ type: 'reclaimSeat' } satisfies TableAction)
+      }
+    },
+    (event) => game.dwell(event),
+  )
   // The rooms are served by the same Worker as the page, so they share its origin.
   const socket = new PartySocket({
     host: location.host,
     protocol: location.protocol === 'https:' ? 'wss' : 'ws',
     party: 'room',
-    room: roomName(game, code),
+    room: roomName(game.id, code),
     query: { [TOKEN_PARAM]: deviceToken() },
   })
-  const send = (action: Action) => {
+  /** Any game's actions include the table's, such as taking a seat back. */
+  const post = (action: A | TableAction) => {
     playback.release()
     socket.send(JSON.stringify({ action }))
   }
+  const send = (action: A) => post(action)
   let everOpened = false
   let justOpened = false
 
@@ -78,7 +90,7 @@ export function openSession(game: string, code: string): Session {
   socket.addEventListener('message', (e) => {
     unanswered = 0
     if (e.data === PONG) return
-    let message: ServerMessage<View, GameEvent>
+    let message: ServerMessage<V, E>
     try {
       message = JSON.parse(e.data as string)
     } catch {

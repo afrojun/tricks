@@ -12,7 +12,8 @@ import type { Note, TopicId } from '../coach/note'
 import { review } from '../coach/review'
 import { situation } from '../coach/situation'
 import { topicsFor } from '../coach/topics'
-import type { Action, Card, GameEvent } from '../engine'
+import type { Action, Card, GameEvent, View } from '../engine'
+import { dwell } from '../games/thunee/dwell'
 import type { NumberedEvent } from '../protocol'
 import { PRACTICE_KEY, PracticeGame } from './game'
 
@@ -62,7 +63,7 @@ interface Snapshot {
   rest: Partial<CoachState>
 }
 
-export interface PracticeSession extends Session {
+export interface PracticeSession extends Session<View, Action, GameEvent> {
   coach: Coach
 }
 
@@ -84,13 +85,13 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
   let game = saved ?? PracticeGame.start(playerCount ?? 4, newSeed(), 'You')
   const isNew = saved === null
 
-  const store = new GameStore()
+  const store = new GameStore<View, GameEvent>()
   /** Coach snapshots waiting for the table sync they describe, by version. */
   const pending = new Map<number, Snapshot>()
-  const playback = new Playback((message, receivedAt) => {
+  const playback = new Playback<View, GameEvent>((message, receivedAt) => {
     store.receive(message, receivedAt)
     if (message.type === 'sync') show(message.version)
-  })
+  }, dwell)
   let version = 0
   /** Event numbers keep rising across restarts, so the store never mistakes new events for old. */
   let eventN = 0
