@@ -52,12 +52,18 @@ interface Group {
   cards: number[]
 }
 
+/** The ways a group may be split, each with the number of deals that follow it. */
+interface Share {
+  total: number
+  options: { split: number[]; ways: number }[]
+}
+
 /** Every deal of the hidden cards that keeps a set of constraints, counted exactly by groups. */
 class Deals<C extends Card> {
   private groups: Group[] = []
   /** For each "at least one" constraint, the places it names. */
   private some: number[] = []
-  private memo = new Map<string, number>()
+  private memo = new Map<string, Share>()
   private factorial: number[] = [1]
 
   constructor(
@@ -106,10 +112,8 @@ class Deals<C extends Card> {
     let room = [...this.sizes]
     let met = 0
     this.groups.forEach((group, g) => {
-      const options = this.splits(group, room)
-        .map((split) => ({ split, ways: this.ways(group, split, g, room, met) }))
-        .filter((o) => o.ways > 0)
-      let pick = rng() * options.reduce((sum, o) => sum + o.ways, 0)
+      const { total, options } = this.share(g, room, met)
+      let pick = rng() * total
       const { split } = options.find((o) => (pick -= o.ways) < 0) ?? options[options.length - 1]
       const cards = shuffle(group.cards, rng)
       split.forEach((n, p) => places[p].push(...cards.splice(0, n).map((i) => this.hidden[i])))
@@ -122,13 +126,21 @@ class Deals<C extends Card> {
   /** Deals of groups `g` onwards into `room`, given the "at least one" constraints already met. */
   private count(g: number, room: number[], met: number): number {
     if (g === this.groups.length) return room.every((r) => r === 0) && met === (1 << this.some.length) - 1 ? 1 : 0
+    return this.share(g, room, met).total
+  }
+
+  /** How group `g` may be split, with the deals that follow each split; worked out once and kept for every world. */
+  private share(g: number, room: number[], met: number): Share {
     const key = `${g}:${room}:${met}`
     const known = this.memo.get(key)
     if (known !== undefined) return known
     const group = this.groups[g]
-    const total = this.splits(group, room).reduce((sum, split) => sum + this.ways(group, split, g, room, met), 0)
-    this.memo.set(key, total)
-    return total
+    const options = this.splits(group, room)
+      .map((split) => ({ split, ways: this.ways(group, split, g, room, met) }))
+      .filter((o) => o.ways > 0)
+    const share = { total: options.reduce((sum, o) => sum + o.ways, 0), options }
+    this.memo.set(key, share)
+    return share
   }
 
   /** Deals in which group `g` is split as `split`, with the groups after it dealt every way they can be. */

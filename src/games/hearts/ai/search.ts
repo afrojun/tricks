@@ -64,7 +64,7 @@ export function knowledge(view: View): Knowledge<Card> {
     const to = passTarget(me, view.direction)
     for (const card of play.gave) if (hasCard(hidden, card)) hard.push({ kind: 'holds', place: places.indexOf(to), card, why: `gave ${cardId(card)}` })
   }
-  const evidence: Constraint<Card>[] = []
+  const evidence: Extract<Constraint<Card>, { kind: 'none' }>[] = []
   const cheats = new Set<Seat>()
   seen.forEach((p, i) => {
     if (p.seat === me) return
@@ -76,7 +76,7 @@ export function knowledge(view: View): Knowledge<Card> {
     }
   })
   if (!view.rules.allowCheating) return { hidden, sizes: places.map((s) => play.handCounts[s]), hard: [...hard, ...evidence], soft: [] }
-  const soft = evidence.filter((k) => k.kind !== 'some' && !cheats.has(places[k.place]))
+  const soft = evidence.filter((k) => !cheats.has(places[k.place]))
   return { hidden, sizes: places.map((s) => play.handCounts[s]), hard, soft }
 }
 
