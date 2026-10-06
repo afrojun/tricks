@@ -47,7 +47,7 @@ Accounts, matchmaking, chat, games beyond Hearts, Hearts for three or five playe
 | D2 | The module contract for Thunee; a room, protocol, client and practice for any game | the same, steps 5 and 7 | D1 |
 | D3 | Folder moves, the screens contract, the shell, on-demand loading, Hearts in the list | the same, steps 6 and 8 | D2 |
 | E1 | Hearts' hand-written computer players and personas | `2026-10-05-hearts-design.md` sections 7.1 and 7.2 | C. New files in the Hearts folder, so it runs beside D. |
-| E2 | The search player in the kit, gated on Hearts | `2026-10-05-hearts-design.md` section 7.3 | E1 |
+| E2 | The search player in the kit, gated on Hearts | `2026-10-06-search-player-design.md` | D2, E1 |
 | E3 | Hearts' screens, practice and presets | `2026-10-05-hearts-design.md` sections 8 and 9 | D3, E1 |
 | F | Coach in two tiers | `2026-10-05-coach-tiers-design.md` | D2, E1 |
 | G | Deploy configuration | `2026-10-05-deploy-design.md` | everything |
