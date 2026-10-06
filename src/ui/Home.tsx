@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { type RuleOverrides, resolveRules } from '../games/thunee/engine'
+import type { RuleOverrides, RuleSet } from '../games/thunee/engine'
+import { thuneeRules } from '../games/thunee/ui/rules'
+import { resolve } from '../kit/rules'
 import { SHARE_PARAM, decodeShare } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
 import { RulesList } from './Rules'
@@ -26,7 +28,7 @@ export function setupKey(code: string): string {
 }
 
 function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
-  const decoded = decodeShare(code)
+  const decoded = decodeShare(thuneeRules, code)
   const [saved, setSaved] = useState(false)
   if (!decoded.ok) {
     return (
@@ -42,14 +44,14 @@ function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
       <details>
         <summary className="cursor-pointer">See every rule</summary>
         <div className="mt-3">
-          <RulesList rules={resolveRules(decoded.overrides)} />
+          <RulesList game={thuneeRules} rules={resolve(thuneeRules.rules.defaults, decoded.overrides)} />
         </div>
       </details>
       <button
         className="btn btn-primary"
         disabled={saved}
         onClick={() => {
-          if (savePreset(decoded.name, decoded.overrides)) {
+          if (savePreset(thuneeRules, decoded.name, decoded.overrides)) {
             setSaved(true)
             onSaved()
           }
@@ -87,7 +89,7 @@ function LearnToPlay() {
 
 export function Home() {
   const [playerCount, setPlayerCount] = useState<2 | 4>(4)
-  const [presets, setPresets] = useState<Preset[]>(listPresets)
+  const [presets, setPresets] = useState<Preset<RuleSet>[]>(() => listPresets(thuneeRules))
   const [presetId, setPresetId] = useState(presets[0].id)
   const [joinCode, setJoinCode] = useState('')
   const shared = new URLSearchParams(location.search).get(SHARE_PARAM)
@@ -111,7 +113,7 @@ export function Home() {
           <SharedRules
             code={shared}
             onSaved={() => {
-              const next = listPresets()
+              const next = listPresets(thuneeRules)
               setPresets(next)
               setPresetId(next[next.length - 1].id)
             }}

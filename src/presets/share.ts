@@ -1,11 +1,11 @@
-import { type RuleOverrides, ruleOverridesSchema } from '../games/thunee/engine'
+import type { RulesOf } from './book'
 import { cleanPresetName } from './storage'
 
 /** Bumped only if the encoding itself changes; new settings do not need it. */
 export const SHARE_VERSION = 1
 export const SHARE_PARAM = 'rules'
 
-export type Decoded = { ok: true; name: string; overrides: RuleOverrides } | { ok: false; error: string }
+export type Decoded<R> = { ok: true; name: string; overrides: Partial<R> } | { ok: false; error: string }
 
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text)
@@ -17,14 +17,14 @@ function fromBase64Url(text: string): string {
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
 }
 
-/** A compact, URL-safe string carrying a preset's name and its differences from Traditional. */
-export function encodeShare(name: string, overrides: RuleOverrides): string {
+/** A compact, URL-safe string carrying a preset's name and its differences from the game's defaults. */
+export function encodeShare(name: string, overrides: object): string {
   return toBase64Url(JSON.stringify({ v: SHARE_VERSION, n: name, o: overrides }))
 }
 
-/** Never throws: anything unreadable comes back as an error to show the user. */
-export function decodeShare(code: string): Decoded {
-  const unreadable: Decoded = { ok: false, error: "This rules link can't be read. Ask for it to be sent again." }
+/** Read with the game's own schema. Never throws: anything unreadable comes back as an error to show the user. */
+export function decodeShare<R extends object>(game: RulesOf<R>, code: string): Decoded<R> {
+  const unreadable: Decoded<R> = { ok: false, error: "This rules link can't be read. Ask for it to be sent again." }
   let data: unknown
   try {
     data = JSON.parse(fromBase64Url(code.trim()))
@@ -35,15 +35,15 @@ export function decodeShare(code: string): Decoded {
   const { v, n, o } = data as Record<string, unknown>
   if (typeof v !== 'number') return unreadable
   if (v > SHARE_VERSION) {
-    return { ok: false, error: 'This rules link was made with a newer version of Thunee. Reload the page and try again.' }
+    return { ok: false, error: `This rules link was made with a newer version of ${game.name}. Reload the page and try again.` }
   }
-  const overrides = ruleOverridesSchema.safeParse(o ?? {})
+  const overrides = game.rules.schema.safeParse(o ?? {})
   if (!overrides.success) return unreadable
   const name = typeof n === 'string' ? cleanPresetName(n) : null
   return { ok: true, name: name ?? 'Shared rules', overrides: overrides.data }
 }
 
-/** Opens Thunee's home, which offers to save the preset. */
-export function shareUrl(name: string, overrides: RuleOverrides, origin: string = location.origin): string {
-  return `${origin}/thunee?${SHARE_PARAM}=${encodeShare(name, overrides)}`
+/** Opens the game's home, which offers to save the preset. */
+export function shareUrl<R extends object>(game: RulesOf<R>, name: string, overrides: Partial<R>, origin: string = location.origin): string {
+  return `${origin}/${game.id}?${SHARE_PARAM}=${encodeShare(name, overrides)}`
 }

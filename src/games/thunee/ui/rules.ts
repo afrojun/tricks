@@ -1,24 +1,14 @@
-import { type RuleOverrides, type RuleSet, TRADITIONAL, diffRules } from '../engine'
+/** Thunee's house rules for the screens: Traditional, the built-in presets, and how each rule is described. */
+import { CLASSIC_APP_OVERRIDES, type RuleSet, TRADITIONAL, ruleOverridesSchema } from '../engine'
+import type { RuleBook, RuleInfo, RulesOf } from '../../../presets/book'
 
-type Choice<K extends keyof RuleSet> = { value: RuleSet[K]; label: string }
-
-export type RuleInfo = {
-  [K in keyof RuleSet]: {
-    key: K
-    label: string
-    /** Present for settings chosen from a list; absent for numbers. */
-    choices?: Choice<K>[]
-    range?: { min: number; max: number; unit: string }
-  }
-}[keyof RuleSet]
-
-const onOff = (on: string, off: string): Choice<'double'>[] => [
+const onOff = (on: string, off: string) => [
   { value: true, label: on },
   { value: false, label: off },
 ]
 
 /** Every setting, in the order the rules sheet and editor show them. */
-export const RULE_INFO: RuleInfo[] = [
+const RULE_INFO: RuleInfo<RuleSet>[] = [
   { key: 'thuneeCaller', label: 'Who may call Thunee', choices: [{ value: 'anyone', label: 'Anyone' }, { value: 'trumperOnly', label: 'Only the trumper' }] },
   { key: 'thuneeTrump', label: 'Trump in a Thunee', choices: [{ value: 'firstCardLed', label: "The caller's first card" }, { value: 'noTrump', label: 'No trump' }] },
   { key: 'thuneeLeader', label: 'Who leads a Thunee', choices: [{ value: 'caller', label: 'The caller' }, { value: 'afterCaller', label: 'The player after the caller' }] },
@@ -30,33 +20,27 @@ export const RULE_INFO: RuleInfo[] = [
   { key: 'defaultTrumper', label: 'Trumper when nobody calls', choices: [{ value: 'dealerRight', label: "The dealer's right" }, { value: 'teamAhead', label: 'The team that is ahead' }] },
   { key: 'dealerRotation', label: 'The deal passes on', choices: [{ value: 'stayWhileBehind', label: "Unless the dealer's team is behind" }, { value: 'always', label: 'Every round' }] },
   { key: 'khanaak', label: 'Khanaak', choices: [{ value: 'strict', label: 'Strict conditions' }, { value: 'simple', label: 'Simple conditions' }] },
-  { key: 'khanaakRaisesTarget', label: 'A Khanaak call makes it a 13-ball game', choices: onOff('Yes', 'No') as never },
+  { key: 'khanaakRaisesTarget', label: 'A Khanaak call makes it a 13-ball game', choices: onOff('Yes', 'No') },
   { key: 'double', label: 'Double', choices: onOff('Allowed', 'Not played') },
-  { key: 'undercutRestriction', label: 'Undercutting a trump', choices: onOff('Only with a hand of trumps', 'Always allowed') as never },
-  { key: 'allowCheating', label: 'Cheating', choices: onOff('Allowed, and can be challenged', 'Not allowed') as never },
-  { key: 'redealIfNoTrumps', label: 'Counting team holds no trump', choices: onOff('Redeal', 'Play on') as never },
+  { key: 'undercutRestriction', label: 'Undercutting a trump', choices: onOff('Only with a hand of trumps', 'Always allowed') },
+  { key: 'allowCheating', label: 'Cheating', choices: onOff('Allowed, and can be challenged', 'Not allowed') },
+  { key: 'redealIfNoTrumps', label: 'Counting team holds no trump', choices: onOff('Redeal', 'Play on') },
   { key: 'ballsToWin', label: 'Balls to win', range: { min: 1, max: 30, unit: 'balls' } },
-  { key: 'twoToClear', label: 'Must win by two balls', choices: onOff('Yes', 'No') as never },
+  { key: 'twoToClear', label: 'Must win by two balls', choices: onOff('Yes', 'No') },
   { key: 'twoPlayerTarget', label: 'Two-player counting target', range: { min: 50, max: 250, unit: 'points' } },
   { key: 'callTimerSeconds', label: 'Time to call', range: { min: 3, max: 60, unit: 'seconds' } },
   { key: 'thuneeWindowSeconds', label: 'Time to call Thunee', range: { min: 0, max: 30, unit: 'seconds' } },
 ]
 
-export function valueLabel(info: RuleInfo, value: RuleSet[keyof RuleSet]): string {
-  if (info.choices) return (info.choices as Choice<keyof RuleSet>[]).find((c) => c.value === value)?.label ?? String(value)
-  return `${value} ${info.range?.unit ?? ''}`.trim()
+export const ruleBook: RuleBook<RuleSet> = {
+  defaults: TRADITIONAL,
+  schema: ruleOverridesSchema,
+  presets: [
+    { id: 'traditional', name: 'Traditional', overrides: {} },
+    { id: 'classic-app', name: 'Classic app', overrides: CLASSIC_APP_OVERRIDES },
+  ],
+  info: RULE_INFO,
 }
 
-/** How many settings differ from Traditional. */
-export function differenceCount(rules: RuleSet): number {
-  return Object.keys(diffRules(rules)).length
-}
-
-export function isTraditional(key: keyof RuleSet, rules: RuleSet): boolean {
-  return rules[key] === TRADITIONAL[key]
-}
-
-export function sameOverrides(a: RuleOverrides, b: RuleOverrides): boolean {
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof RuleSet>
-  return [...keys].every((k) => (a[k] ?? TRADITIONAL[k]) === (b[k] ?? TRADITIONAL[k]))
-}
+/** Thunee's house rules under the id and name its presets and links are kept by. */
+export const thuneeRules: RulesOf<RuleSet> = { id: 'thunee', name: 'Thunee', rules: ruleBook }

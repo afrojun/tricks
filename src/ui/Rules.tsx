@@ -1,31 +1,32 @@
 import { useState } from 'react'
-import { type RuleOverrides, type RuleSet, TRADITIONAL, diffRules, resolveRules } from '../games/thunee/engine'
-import { RULE_INFO, type RuleInfo, differenceCount, isTraditional, sameOverrides, valueLabel } from '../games/thunee/ui/rules'
+import { diff, resolve } from '../kit/rules'
+import { type RuleInfo, type RulesOf, defaultsName, differenceCount, isDefault, sameOverrides, valueLabel } from '../presets/book'
 import { shareUrl } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
 import { copyText } from './text'
 
 /** One line saying which rules are in force. */
-export function rulesSummary(rules: RuleSet): string {
-  const preset = listPresets().find((p) => sameOverrides(p.overrides, diffRules(rules)))
+export function rulesSummary<R extends object>(game: RulesOf<R>, rules: R): string {
+  const preset = listPresets(game).find((p) => sameOverrides(game.rules, p.overrides, diff(game.rules.defaults, rules)))
   if (preset) return preset.name
-  const n = differenceCount(rules)
-  return `Traditional with ${n} house rule${n === 1 ? '' : 's'}`
+  const n = differenceCount(game.rules, rules)
+  return `${defaultsName(game.rules)} with ${n} house rule${n === 1 ? '' : 's'}`
 }
 
 /** Read-only list of every rule, with house rules marked. */
-export function RulesList({ rules }: { rules: RuleSet }) {
+export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>; rules: R }) {
+  const book = game.rules
   return (
     <dl className="grid gap-2">
-      {RULE_INFO.map((info) => {
-        const house = !isTraditional(info.key, rules)
+      {book.info.map((info) => {
+        const house = !isDefault(book, info.key, rules)
         return (
-          <div key={info.key} className="grid grid-cols-[1fr_auto] gap-x-3 items-baseline border-b border-line/40 pb-2">
+          <div key={String(info.key)} className="grid grid-cols-[1fr_auto] gap-x-3 items-baseline border-b border-line/40 pb-2">
             <dt>{info.label}</dt>
             <dd className="text-right font-semibold">{valueLabel(info, rules[info.key])}</dd>
             {house && (
               <p className="col-span-2 text-sm text-on-surface-muted">
-                House rule. Traditional: {valueLabel(info, TRADITIONAL[info.key])}
+                House rule. {defaultsName(book)}: {valueLabel(info, book.defaults[info.key])}
               </p>
             )}
           </div>
@@ -35,7 +36,7 @@ export function RulesList({ rules }: { rules: RuleSet }) {
   )
 }
 
-function RuleControl({ info, rules, onChange }: { info: RuleInfo; rules: RuleSet; onChange: (patch: RuleOverrides) => void }) {
+function RuleControl<R extends object>({ info, rules, onChange }: { info: RuleInfo<R>; rules: R; onChange: (patch: Partial<R>) => void }) {
   const value = rules[info.key]
   if (info.choices) {
     return (
@@ -45,7 +46,7 @@ function RuleControl({ info, rules, onChange }: { info: RuleInfo; rules: RuleSet
             key={String(choice.value)}
             className="btn btn-small"
             aria-pressed={choice.value === value}
-            onClick={() => onChange({ [info.key]: choice.value })}
+            onClick={() => onChange({ [info.key]: choice.value } as Partial<R>)}
           >
             {choice.label}
           </button>
@@ -53,17 +54,17 @@ function RuleControl({ info, rules, onChange }: { info: RuleInfo; rules: RuleSet
       </div>
     )
   }
-  const { min, max, unit } = info.range!
-  const set = (n: number) => onChange({ [info.key]: Math.min(max, Math.max(min, n)) })
+  const { min, max, unit, step = 1 } = info.range!
+  const set = (n: number) => onChange({ [info.key]: Math.min(max, Math.max(min, n)) } as Partial<R>)
   return (
     <div className="flex items-center gap-2">
-      <button className="btn btn-small" onClick={() => set((value as number) - 1)} aria-label={`Less ${info.label}`}>
+      <button className="btn btn-small" onClick={() => set((value as number) - step)} aria-label={`Less ${info.label}`}>
         −
       </button>
       <span className="min-w-20 text-center font-semibold">
         {value as number} {unit}
       </span>
-      <button className="btn btn-small" onClick={() => set((value as number) + 1)} aria-label={`More ${info.label}`}>
+      <button className="btn btn-small" onClick={() => set((value as number) + step)} aria-label={`More ${info.label}`}>
         +
       </button>
     </div>
@@ -71,21 +72,22 @@ function RuleControl({ info, rules, onChange }: { info: RuleInfo; rules: RuleSet
 }
 
 /** Preset picker plus per-rule controls. Calls `onChange` with the overrides to apply. */
-export function RulesEditor({ rules, onChange }: { rules: RuleSet; onChange: (overrides: RuleOverrides) => void }) {
-  const [presets, setPresets] = useState<Preset[]>(listPresets)
+export function RulesEditor<R extends object>({ game, rules, onChange }: { game: RulesOf<R>; rules: R; onChange: (overrides: Partial<R>) => void }) {
+  const book = game.rules
+  const [presets, setPresets] = useState<Preset<R>[]>(() => listPresets(game))
   const [name, setName] = useState('')
   const [copied, setCopied] = useState(false)
-  const overrides = diffRules(rules)
-  const active = presets.find((p) => sameOverrides(p.overrides, overrides))
+  const overrides = diff(book.defaults, rules)
+  const active = presets.find((p) => sameOverrides(book, p.overrides, overrides))
 
   const save = () => {
-    if (savePreset(name, overrides)) {
-      setPresets(listPresets())
+    if (savePreset(game, name, overrides)) {
+      setPresets(listPresets(game))
       setName('')
     }
   }
   const share = async () => {
-    if (await copyText(shareUrl(active?.name ?? (name || 'House rules'), overrides))) {
+    if (await copyText(shareUrl(game, active?.name ?? (name || 'House rules'), overrides))) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -105,13 +107,13 @@ export function RulesEditor({ rules, onChange }: { rules: RuleSet; onChange: (ov
       </div>
 
       <div className="grid gap-3">
-        {RULE_INFO.map((info) => (
-          <div key={info.key} className="grid gap-1 border-b border-line/40 pb-3">
+        {book.info.map((info) => (
+          <div key={String(info.key)} className="grid gap-1 border-b border-line/40 pb-3">
             <p>
               {info.label}
-              {!isTraditional(info.key, rules) && <span className="text-on-surface-muted"> (house rule)</span>}
+              {!isDefault(book, info.key, rules) && <span className="text-on-surface-muted"> (house rule)</span>}
             </p>
-            <RuleControl info={info} rules={rules} onChange={(patch) => onChange(diffRules(resolveRules({ ...overrides, ...patch })))} />
+            <RuleControl info={info} rules={rules} onChange={(patch) => onChange(diff(book.defaults, resolve(book.defaults, { ...overrides, ...patch })))} />
           </div>
         ))}
       </div>

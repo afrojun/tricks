@@ -22,6 +22,7 @@ import { HowToPlaySheet } from './coach/CoachSheets'
 import { useCoach } from '../../../ui/coach/context'
 import { RoundResult } from './RoundResult'
 import { RulesList, rulesSummary } from '../../../ui/Rules'
+import { thuneeRules } from './rules'
 import { Sheet } from '../../../ui/Sheet'
 import { ThemePicker } from '../../../ui/ThemePicker'
 import { personaLabel } from '../../../ui/personas'
@@ -151,8 +152,8 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
       )}
       {sheet === 'rules' && (
         <Sheet title="Rules in this game" onClose={() => setSheet(null)}>
-          <p className="mb-3">{rulesSummary(view.rules)}</p>
-          <RulesList rules={view.rules} />
+          <p className="mb-3">{rulesSummary(thuneeRules, view.rules)}</p>
+          <RulesList game={thuneeRules} rules={view.rules} />
         </Sheet>
       )}
       {sheet === 'howto' && <HowToPlaySheet onClose={() => setSheet(null)} />}
@@ -664,7 +665,7 @@ function MenuSheet({ view, room, onSheet, now }: { view: View; room: string; onS
   return (
     <div className="grid gap-4">
       <p className="text-on-surface-muted">
-        {coached ? 'Practice game' : `Game ${room}`}, round {view.roundNumber}. {rulesSummary(view.rules)}.
+        {coached ? 'Practice game' : `Game ${room}`}, round {view.roundNumber}. {rulesSummary(thuneeRules, view.rules)}.
       </p>
       {coached && (
         <div className="flex flex-wrap gap-2">

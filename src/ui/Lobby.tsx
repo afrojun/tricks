@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { type View, canStart, cleanName, teamOf } from '../games/thunee/engine'
 import { type GameSetup, setupKey } from './Home'
+import { thuneeRules } from '../games/thunee/ui/rules'
 import { RulesEditor, RulesList, rulesSummary } from './Rules'
 import { gamePath, roomPath } from './routes'
 import { PERSONA_CHOICES, PERSONA_NAMES } from './personas'
@@ -125,7 +126,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
 
       <section className="panel p-4 w-full max-w-sm grid gap-3">
         <h2 className="display text-lg">Rules</h2>
-        <p>{rulesSummary(view.rules)}</p>
+        <p>{rulesSummary(thuneeRules, view.rules)}</p>
         <div className="flex flex-wrap gap-2">
           <button className="btn btn-small" onClick={() => setSheet('rules')}>
             See every rule
@@ -159,12 +160,12 @@ export function Lobby({ view, room }: { view: View; room: string }) {
 
       {sheet === 'rules' && (
         <Sheet title="Rules" onClose={() => setSheet(null)}>
-          <RulesList rules={view.rules} />
+          <RulesList game={thuneeRules} rules={view.rules} />
         </Sheet>
       )}
       {sheet === 'edit' && (
         <Sheet title="Change rules" onClose={() => setSheet(null)}>
-          <RulesEditor rules={view.rules} onChange={(overrides) => send({ type: 'setRules', overrides })} />
+          <RulesEditor game={thuneeRules} rules={view.rules} onChange={(overrides) => send({ type: 'setRules', overrides })} />
         </Sheet>
       )}
       {picking !== null && personas && (
