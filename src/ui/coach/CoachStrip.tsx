@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
-import type { Note } from '../../coach/note'
-import { AdviceSheet, LogSheet, TopicSheet, WarningSheet } from './CoachSheets'
-import { useCoach, useSession } from '../session'
+import type { Note } from '../../practice/contract'
+import type { ShellView } from '../contract'
+import { sessionHooks } from '../session'
+import { AdviceSheet, type Lessons, LogSheet, TopicSheet, WarningSheet } from './CoachSheets'
+import { useCoach } from './context'
+
+/** The coach's advice is one of the game's own actions, sent as it came. */
+const { useSession } = sessionHooks<ShellView, unknown, { type: string }>()
 
 /** The coach's line above the hand: the situation and Hint on your decision, otherwise the latest news. */
-export function CoachStrip() {
+export function CoachStrip({ lessons }: { lessons: Lessons }) {
   const coached = useCoach()
   const { send } = useSession()
   const [hintOpen, setHintOpen] = useState(false)
@@ -52,6 +57,7 @@ export function CoachStrip() {
       {/* A topic or warning takes the screen; the hint waits behind it. */}
       {hintOpen && state.advice && !state.topic && !state.warning && (
         <AdviceSheet
+          lessons={lessons}
           advice={state.advice}
           onDo={() => {
             setHintOpen(false)
@@ -61,8 +67,8 @@ export function CoachStrip() {
         />
       )}
       {logOpen && <LogSheet log={state.log} onClose={() => setLogOpen(false)} />}
-      {state.warning && <WarningSheet note={state.warning.note} onAnyway={() => coached.coach.confirm()} onBack={() => coached.coach.cancel()} />}
-      {!state.warning && state.topic && <TopicSheet id={state.topic} onClose={() => coached.coach.dismissTopic()} closeLabel="Got it" />}
+      {state.warning && <WarningSheet lessons={lessons} note={state.warning.note} onAnyway={() => coached.coach.confirm()} onBack={() => coached.coach.cancel()} />}
+      {!state.warning && state.topic && <TopicSheet lessons={lessons} id={state.topic} onClose={() => coached.coach.dismissTopic()} closeLabel="Got it" />}
     </>
   )
 }

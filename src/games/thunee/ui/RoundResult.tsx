@@ -1,8 +1,9 @@
-import { type Available, type RoundSummary, type ScoreLine, type Team, type View, teamOf } from '../engine'
-import { CoachReview } from './coach/CoachReview'
+import { type Available, type Card, type RoundSummary, type ScoreLine, type Team, type View, teamOf } from '../engine'
+import { CoachReview } from '../../../ui/coach/CoachReview'
+import type { DealShown } from '../../../ui/coach/CoachSheets'
 import { useSession } from './session'
 import { SUIT_NAME, cardText, plural, seatName } from '../../../ui/text'
-import { teamName } from './text'
+import { sortHand, teamName } from './text'
 
 const LINE_LABEL: Record<ScoreLine['label'], string> = {
   cards: 'Cards won',
@@ -11,6 +12,9 @@ const LINE_LABEL: Record<ScoreLine['label'], string> = {
   jodhi: 'Jodhi',
   opponentJodhi: "Opponents' Jodhi",
 }
+
+/** A Thunee round is dealt in two halves, six cards each, and the review shows both. */
+const HALVES: DealShown<Card> = { sort: sortHand, dealName: (half) => (half === 0 ? 'First half' : 'Second half') }
 
 /** What a guilty play was caught doing, by the first rule it broke. */
 const CAUGHT: Record<string, string> = { renege: 'not following suit', undercut: 'undercutting a trump' }
@@ -80,7 +84,7 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
         Balls: {teamName(view, 0)} {summary.ballsAfter[0]}, {teamName(view, 1)} {summary.ballsAfter[1]}. First to {view.ballsTarget}.
       </p>
 
-      <CoachReview view={view} />
+      <CoachReview view={view} shown={HALVES} />
 
       {winner === null ? (
         can.nextRound ? (

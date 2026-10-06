@@ -16,8 +16,9 @@ import { AccuseSheet } from '../../../ui/Accuse'
 import { GameMenu } from '../../../ui/GameMenu'
 import { Hand } from '../../../ui/Hand'
 import { check } from '../coach/check'
-import { CoachStrip } from './coach/CoachStrip'
-import { HowToPlaySheet } from './coach/CoachSheets'
+import { TOPICS } from '../coach/topics'
+import { CoachStrip } from '../../../ui/coach/CoachStrip'
+import { HowToPlaySheet } from '../../../ui/coach/CoachSheets'
 import { CHALLENGE_BEAT_MS, VERDICT_BEAT_MS } from './present'
 import { RoundResult } from './RoundResult'
 import { RulesSheet, rulesSummary } from '../../../ui/Rules'
@@ -116,7 +117,7 @@ export function Table({ view, room }: { view: View; room: string }) {
       </div>
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        {coached && <CoachStrip />}
+        {coached && <CoachStrip lessons={TOPICS} />}
         <div className="flex items-center justify-center gap-2 px-3 min-h-7" aria-live="polite">
           {!watching && <RoleBadges view={view} seat={me} />}
           {!watching &&
@@ -156,7 +157,7 @@ export function Table({ view, room }: { view: View; room: string }) {
         </Sheet>
       )}
       {sheet === 'rules' && <RulesSheet game={game} rules={view.rules} onClose={() => setSheet(null)} />}
-      {sheet === 'howto' && <HowToPlaySheet onClose={() => setSheet(null)} />}
+      {sheet === 'howto' && <HowToPlaySheet lessons={TOPICS} onClose={() => setSheet(null)} />}
       {sheet === 'history' && (
         <Sheet title="Last trick" onClose={() => setSheet(null)}>
           <LastTrick view={view} playing={playing} />
