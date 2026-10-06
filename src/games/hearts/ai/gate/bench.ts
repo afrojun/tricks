@@ -20,6 +20,11 @@ export interface Timing {
   cpu: number | null
 }
 
+/** Raw timings, small: `round kind candidates ms[ cpu]` for each decision, `;` between them. */
+export function raw(timings: readonly Timing[]): string {
+  return timings.map((t) => `${t.round} ${t.kind} ${t.candidates} ${t.ms.toFixed(2)}${t.cpu === null ? '' : ` ${t.cpu.toFixed(2)}`}`).join(';')
+}
+
 /** Rounds 1 to `rounds`, each deal under the pass direction its number picks, at `worlds` worlds a decision. */
 export function speed(rounds: number, worlds: number, clock: () => number, cpu?: () => number): Timing[] {
   let candidates = 0

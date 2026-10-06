@@ -203,9 +203,6 @@ function speedSummary(timings: Timing[], key: 'ms' | 'cpu') {
   }
 }
 
-/** Raw timings, small: one string per run, `kind candidates ms[ cpu]` per decision, rounds apart. */
-const raw = (timings: Timing[]) => timings.map((t) => `${t.round} ${t.kind[0]} ${t.candidates} ${t.ms.toFixed(2)}${t.cpu === null ? '' : ` ${t.cpu.toFixed(2)}`}`).join(';')
-
 async function speedNode(rounds: number) {
   const cpu = () => {
     const used = process.cpuUsage()
@@ -216,7 +213,7 @@ async function speedNode(rounds: number) {
   for (const worlds of SPEED_WORLDS) {
     const timings = gate.speed(rounds, worlds, () => performance.now(), cpu)
     out[`w${worlds}`] = { wall: speedSummary(timings, 'ms'), cpu: speedSummary(timings, 'cpu') }
-    raws[`w${worlds}`] = raw(timings)
+    raws[`w${worlds}`] = gate.raw(timings)
     console.log(`speed in Node, ${rounds} rounds, ${worlds} worlds, load ${load()}:`, JSON.stringify(out[`w${worlds}`]))
   }
   save('speed-node.json', { rounds, summary: out, raw: raws })
@@ -239,7 +236,7 @@ async function speedBrowser(rounds: number, rates: number[]) {
       )) as Timing[]
       await page.close()
       out[`x${rate}-w${worlds}`] = speedSummary(timings, 'ms')
-      raws[`x${rate}-w${worlds}`] = raw(timings)
+      raws[`x${rate}-w${worlds}`] = gate.raw(timings)
       console.log(`speed in Chromium ${browser.version()}, ${rate}x throttled, ${rounds} rounds, ${worlds} worlds, load ${load()}:`, JSON.stringify(out[`x${rate}-w${worlds}`]))
     }
   }

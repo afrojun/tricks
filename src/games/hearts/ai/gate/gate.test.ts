@@ -3,6 +3,7 @@
  * is `run.ts`; see section 9 of the search-player spec.
  */
 import { describe, expect, test } from 'vitest'
+import { type Timing, raw } from './bench'
 import { cheatRound, replay, selfDeal, strengthDeal } from './measure'
 
 const WORLDS = 3
@@ -39,6 +40,16 @@ describe('the gate, in small', () => {
     }
     expect(cheats).toBeGreaterThan(0)
   }, 120_000)
+
+  test('raw timings keep each decision’s kind apart, so a reader needs no knowledge of the bench to tell pass from play', () => {
+    const timings: Timing[] = [
+      { round: 1, seat: 0, kind: 'pass', candidates: 8, ms: 12.345, cpu: 12 },
+      { round: 1, seat: 1, kind: 'first', candidates: 3, ms: 4, cpu: null },
+      { round: 1, seat: 2, kind: 'play', candidates: 1, ms: 0.01, cpu: 0.01 },
+    ]
+    expect(raw(timings)).toBe('1 pass 8 12.35 12.00;1 first 3 4.00;1 play 1 0.01 0.01')
+    expect(raw(timings).split(';').map((row) => row.split(' ')[1])).toEqual(['pass', 'first', 'play'])
+  })
 
   test('determinism: every decision of a round, asked again from its reloaded save, comes out the same', () => {
     const result = replay(1, WORLDS)
