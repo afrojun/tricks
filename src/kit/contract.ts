@@ -26,6 +26,11 @@ export interface Contract<G extends TableState, A, E, V extends TableView> {
   hidden(game: G, seat: Seat | null): Card[]
   /** Keys that must never appear in any view. */
   secrets: readonly string[]
+  /**
+   * What else this seat's view, or a spectator's, must not show, such as a trump not yet revealed:
+   * what is wrong with it, or null. Given the view the module produced, the one a client receives.
+   */
+  checkView?(game: G, seat: Seat | null, view: V): string | null
   /** The game's own checks after every applied action. Throws on a failure. */
   check?(game: G, events: readonly E[], step: { actor: Actor; action: A; source: Source }): void
 }
@@ -61,6 +66,8 @@ export function runContract<G extends TableState, A, E, V extends TableView>(
       if (leaked.length > 0) fail(`the view for ${seat} leaks ${JSON.stringify(leaked)}`)
       const text = JSON.stringify(view)
       for (const secret of contract.secrets) if (text.includes(`"${secret}":`)) fail(`the view for ${seat} holds ${secret}`)
+      const wrong = contract.checkView?.(game, seat, view) ?? null
+      if (wrong !== null) fail(`the view for ${seat} ${wrong}`)
       if (game.phase.kind !== 'gameOver') {
         view.seats.forEach((s, i) => {
           if (game.seats[i].personaHidden && s.persona !== null) fail(`the view for ${seat} shows seat ${i}'s hidden persona`)
@@ -170,17 +177,22 @@ function candidates(schema: z.ZodType, path: string, k: number): unknown[] {
     const element = (i: number) => valid(schema.element as z.ZodType, `${path}.${i}`, k + i)
     return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0].map((length) => Array.from({ length }, (_, i) => element(i)))
   }
-  return []
+  // The check never quietly tests less: a shape it cannot read, even one branch of a union, is refused.
+  throw new Error(`checkMalformed cannot read ${path}: an unsupported schema`)
 }
 
-/**
- * The `k`th valid value of a field, counting round its valid values, or an error naming the field:
- * the check never quietly tests less.
- */
+/** The `k`th valid value of a field, counting round its valid values, or an error naming the field. */
 function valid(schema: z.ZodType, path: string, k: number): unknown {
   const found = candidates(schema, path, k).filter((value) => schema.safeParse(value).success)
   if (found.length === 0) throw new Error(`checkMalformed cannot build a valid ${path}: an unsupported schema`)
   return found[k % found.length]
+}
+
+/** Whether a field has fields of its own: an object, an array, or a union with such a shape. */
+function structured(schema: z.ZodType): boolean {
+  const inner = schema instanceof z.ZodOptional ? (schema.unwrap() as z.ZodType) : schema
+  if (inner instanceof z.ZodUnion) return (inner.options as z.ZodType[]).some(structured)
+  return inner instanceof z.ZodObject || inner instanceof z.ZodArray
 }
 
 /** How many valid actions it takes for every value of every enumerated field to appear in one. */
@@ -204,11 +216,20 @@ function edited(action: object, path: Path, change: (parent: Record<string | num
 
 /**
  * Every field under `path` of a valid action: each is given every wrong value, then left out (an
- * array element removed), with every other field kept valid. Recurses into object fields and each
- * element of an array. Adds the probes to `probes` and returns the fields' paths.
+ * array element removed), with every other field kept valid. Recurses into object fields, each
+ * element of an array, and each shape of a union that has fields, set valid in its place first.
+ * Adds the probes to `probes` and returns the fields' paths.
  */
 function mutations(schema: z.ZodType, value: unknown, action: object, path: Path, name: string, probes: unknown[]): string[] {
   const inner = schema instanceof z.ZodOptional ? (schema.unwrap() as z.ZodType) : schema
+  if (inner instanceof z.ZodUnion) {
+    return (inner.options as z.ZodType[]).filter(structured).flatMap((shape) => {
+      const shaped = valid(shape, [name, ...path].join('.'), 0)
+      const whole = edited(action, path, (parent, last) => void (parent[last] = shaped))
+      probes.push(whole)
+      return mutations(shape, shaped, whole, path, name, probes)
+    })
+  }
   const children: [string | number, z.ZodType][] =
     inner instanceof z.ZodObject
       ? Object.entries(inner.shape as Record<string, z.ZodType>).filter(([key]) => path.length > 0 || key !== 'type')

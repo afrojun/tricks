@@ -30,6 +30,21 @@ export interface ThuneeTally {
 
 const pick = <T>(items: readonly T[], rng: () => number): T => items[Math.floor(rng() * items.length)]
 
+/**
+ * Whether a trump has been chosen, is not yet revealed, and this seat (or a spectator) may not
+ * know it. Only the trumper knows it, and in a Thunee round not even the trumper. That is in the
+ * Thunee window, in play until the first card (or the Thunee caller's), and in a trick's pause
+ * should one ever come before then; the engine reveals it within the first trick.
+ */
+export function trumpHiddenFrom(game: Game, seat: Seat | null): boolean {
+  const phase = game.phase
+  if (phase.kind === 'thuneeWindow') return seat !== phase.trumper
+  if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return false
+  const play = phase.play
+  if (play.trump === null || play.trumpRevealed) return false
+  return seat !== play.trumper || play.thunee !== null
+}
+
 const PERSONAS: (Persona | 'surprise')[] = ['surprise', 'sharp', 'wild']
 
 export function thuneeContract(overrides: RuleOverrides, playerCount: 2 | 4): { contract: Contract<Game, Action, GameEvent, View>; tally: ThuneeTally } {
@@ -111,6 +126,10 @@ export function thuneeContract(overrides: RuleOverrides, playerCount: 2 | 4): { 
 
     secrets: ['handBefore', 'broke', 'valid', 'stock', 'dealt', 'aiSalt'],
 
+    checkView(game, seat, view) {
+      return trumpHiddenFrom(game, seat) && JSON.stringify(view).includes('"trump":"') ? 'shows trump before it is revealed' : null
+    },
+
     check(game, events) {
       for (const e of events) {
         if (e.type === 'challengeResolved') {
@@ -123,14 +142,6 @@ export function thuneeContract(overrides: RuleOverrides, playerCount: 2 | 4): { 
       const phase = game.phase
       if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return
       const play = phase.play
-      // Trump stays hidden until it is revealed, except from a trumper who chose it for an ordinary round.
-      if (!play.trumpRevealed) {
-        for (const seat of [...allSeats(game.playerCount), null]) {
-          const seen = viewFor(game, seat).phase
-          const mayKnow = seat === play.trumper && play.thunee === null
-          if ('trump' in seen && seen.trump !== null && !mayKnow) fail(`trump shown to ${seat} before it is revealed`)
-        }
-      }
       if (events.some((e) => e.type === 'cardPlayed')) {
         const records = [...play.tricks.flatMap((t) => t.plays), ...play.current]
         if (records[records.length - 1].broke.length > 0) tally.cheats++

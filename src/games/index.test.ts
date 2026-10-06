@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import { GAMES, gameOf, isRoomName } from '.'
-import { type Game, TRADITIONAL } from '../engine'
+import { type Game, type View, TRADITIONAL } from '../engine'
+import { Table } from '../engine/testing'
 import { type Contract, type ContractRun, checkMalformed, runContract } from '../kit/contract'
-import type { Actor, TableState, TableView } from '../kit/table'
+import type { Actor, Seat, TableState, TableView } from '../kit/table'
 import { STANDARD, hearts } from './hearts'
 import { heartsContract } from './hearts/contract'
 import { thunee } from './thunee'
@@ -51,7 +52,11 @@ describe('every game in the list', () => {
   const overrides = (rules: object) => ['setRules.overrides', ...Object.keys(rules).map((key) => `setRules.overrides.${key}`)]
   const card = (at: string) => [at, `${at}.suit`, `${at}.rank`]
 
-  /** What the malformed-action check must reach in each game: the phases of a first round, every action a client may send, and every field. */
+  /**
+   * What the malformed-action check must reach in each game: the phases of a first round, every action a client may
+   * send, and every field. A union's shapes with fields of their own would add those fields here; neither game has one
+   * yet (Thunee's trump choice is a suit or `lastCard`), so the exact lists below fail the day one appears unlisted.
+   */
   const COVERAGE: Record<string, { phases: string[]; actions: string[]; paths: string[] }> = {
     thunee: {
       phases: ['calling', 'trumpSelection', 'thuneeWindow', 'playing', 'trickPause', 'roundResult'],
@@ -141,15 +146,45 @@ describe('every game in the list keeps the module contract', () => {
     expect(Object.keys(FIXTURES).sort()).toEqual([...GAMES.keys()].sort())
   })
 
-  test('the gate finds a view that shows another seat’s cards or a secret', () => {
+  describe('the gate judges the views the module itself produces', () => {
     const { contract } = thuneeContract({}, 4)
-    const hands = (game: Game) => ('hands' in game.phase ? game.phase.hands : 'play' in game.phase ? game.phase.play.hands : [])
-    const showing = (extra: (game: Game) => object): typeof contract => ({
+    /** Thunee with its views changed by `change`, played through the same fixture. */
+    const viewing = (change: (game: Game, seat: Seat | null, view: View) => View): typeof contract => ({
       ...contract,
-      module: { ...thunee, viewFor: (game, seat, memory) => ({ ...thunee.viewFor(game, seat, memory), ...extra(game) }) },
+      module: { ...thunee, viewFor: (game, seat, memory) => change(game, seat, thunee.viewFor(game, seat, memory)) },
     })
-    expect(() => runContract(showing((game) => ({ peek: hands(game) })), 1)).toThrow(/^thunee seed 1, calling: the view for 0 leaks/)
-    expect(() => runContract(showing((game) => ({ aiSalt: game.aiSalt })), 1)).toThrow(/^thunee seed 1, calling: the view for 0 holds aiSalt/)
+    const hands = (game: Game) => ('hands' in game.phase ? game.phase.hands : 'play' in game.phase ? game.phase.play.hands : [])
+    const trump = (game: Game) => (game.phase.kind === 'thuneeWindow' ? game.phase.trump : 'play' in game.phase ? game.phase.play.trump : null)
+    /** Trump shown to `to` in one phase, as a careless view would. */
+    const showingTrump = (kind: string, to: (seat: Seat | null) => boolean) =>
+      viewing((game, seat, view) => (game.phase.kind === kind && to(seat) ? ({ ...view, phase: { ...view.phase, trump: trump(game) } } as View) : view))
+
+    test('another seat’s cards, or a secret', () => {
+      expect(() => runContract(viewing((game, _, view) => ({ ...view, peek: hands(game) })), 1)).toThrow(/^thunee seed 1, calling: the view for 0 leaks/)
+      expect(() => runContract(viewing((game, _, view) => ({ ...view, aiSalt: game.aiSalt })), 1)).toThrow(/^thunee seed 1, calling: the view for 0 holds aiSalt/)
+    })
+
+    test('trump before it is revealed, to the spectator or a seat that is not the trumper, in the Thunee window and in play', () => {
+      for (const kind of ['thuneeWindow', 'playing']) {
+        const spectator = new RegExp(`^thunee seed 1, ${kind}: the view for null shows trump before it is revealed`)
+        expect(() => runContract(showingTrump(kind, (seat) => seat === null), 1), kind).toThrow(spectator)
+        const seats = new RegExp(`^thunee seed 1, ${kind}: the view for \\d shows trump before it is revealed`)
+        expect(() => runContract(showingTrump(kind, (seat) => seat !== null), 1), kind).toThrow(seats)
+      }
+    })
+
+    test('and in a trick’s pause, which the engine never reaches with trump unrevealed', () => {
+      // The first card of a round reveals trump, and the Thunee caller's card does in a Thunee round, so no game
+      // played reaches this; the check is given one by hand: the first trick played out with trump still hidden.
+      const game = new Table(4, { redealIfNoTrumps: false }).deal(['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']).toPlay('spades').game
+      if (game.phase.kind !== 'playing') throw new Error('expected play')
+      const paused: Game = { ...game, phase: { kind: 'trickPause', play: { ...game.phase.play, trumpRevealed: false }, deadline: 0 } }
+      const shown = (seat: Seat | null) => ({ ...thunee.viewFor(paused, seat), phase: { ...thunee.viewFor(paused, seat).phase, trump: 'spades' } }) as View
+      expect(contract.checkView!(paused, null, shown(null))).toBe('shows trump before it is revealed')
+      expect(contract.checkView!(paused, 0, shown(0))).toBe('shows trump before it is revealed')
+      expect(contract.checkView!(paused, 1, shown(1))).toBeNull() // the trumper
+      expect(contract.checkView!(paused, null, thunee.viewFor(paused, null))).toBeNull()
+    })
   })
 
   for (const [id, module] of GAMES) {
