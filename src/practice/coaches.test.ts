@@ -1,6 +1,8 @@
-import { describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { GAMES } from '../games'
+import { availableActions as heartsAvailable } from '../games/hearts/engine'
 import { heartsPractice } from '../games/hearts/practice'
+import { dwell as heartsDwell } from '../games/hearts/ui/dwell'
 import { thuneeCoach } from '../games/thunee/coach'
 import { advise } from '../games/thunee/coach/advise'
 import { check } from '../games/thunee/coach/check'
@@ -8,11 +10,15 @@ import { narrate } from '../games/thunee/coach/narrate'
 import { review } from '../games/thunee/coach/review'
 import { situation } from '../games/thunee/coach/situation'
 import { topicsFor } from '../games/thunee/coach/topics'
+import { availableActions as thuneeAvailable } from '../games/thunee/engine'
 import { thuneePractice } from '../games/thunee/practice'
+import { dwell as thuneeDwell } from '../games/thunee/ui/dwell'
+import { hasCard } from '../kit/cards'
 import type { TableState, TableView } from '../kit/table'
 import { GAMES as CLIENTS, loadGame } from '../ui/games'
 import type { GamePractice, Note } from './contract'
 import { PracticeGame } from './game'
+import { openPracticeSession } from './session'
 import { playPractice } from './testing'
 
 /** What a seeded practice game showed about its coach. */
@@ -87,4 +93,68 @@ describe('every game’s coach', () => {
       }, 60_000)
     }
   }
+})
+
+/**
+ * Plays a practice session, taking the hints, until the player holds a card that would break a
+ * rule; then asks the session's coach about it, as a table's hand does before its second tap.
+ */
+function checkThroughSession<G extends TableState, A extends { type: string }, E, V extends TableView, N extends Note, D, S>(
+  practice: GamePractice<G, A, E, V, N, D, S>,
+  dwell: (event: E) => number,
+  ruleBreaking: (view: V) => A | null,
+  moveOn: A,
+): void {
+  const storage = new Map<string, string>()
+  const s = openPracticeSession(practice, dwell, {
+    playerCount: null,
+    seed: 2,
+    storage: { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => void storage.set(k, v), removeItem: (k) => void storage.delete(k) },
+  })
+  vi.runOnlyPendingTimers()
+  for (let guard = 0; guard < 5000; guard++) {
+    const state = s.coach.getState()
+    const view = s.store.getState().view!
+    if (state.topic !== null) s.coach.dismissTopic()
+    else if (state.trickPaused) s.coach.continueTrick()
+    else if (view.phase.kind === 'roundResult') s.send(moveOn)
+    else if (state.advice && state.version === s.store.getState().version) {
+      const bad = ruleBreaking(view)
+      if (bad !== null) {
+        const warning = s.coach.check(bad)
+        expect(warning).toMatchObject({ tone: 'warn', rule: 'illegal' })
+        expect(warning).toEqual(practice.coach.check(view, bad))
+        expect(s.coach.check(state.advice.action)).toBeNull()
+        s.close()
+        return
+      }
+      s.send(state.advice.action)
+    }
+    vi.advanceTimersByTime(500)
+  }
+  s.close()
+  throw new Error(`${practice.module.id}: the player never held a card that breaks a rule`)
+}
+
+describe('the practice session asks the coach about an action', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  test('Thunee: the coach’s warning for a rule-breaking card, and nothing for the hint', () => {
+    const ruleBreaking = (view: Parameters<typeof thuneeAvailable>[0]) => {
+      const can = thuneeAvailable(view)
+      const card = can.play.find((c) => !hasCard(can.legal, c))
+      return card ? ({ type: 'playCard', card } as const) : null
+    }
+    checkThroughSession(thuneePractice, thuneeDwell, ruleBreaking, { type: 'nextRound' })
+  })
+
+  test('Hearts: the coach’s warning for a rule-breaking card, and nothing for the hint', () => {
+    const ruleBreaking = (view: Parameters<typeof heartsAvailable>[0]) => {
+      const can = heartsAvailable(view)
+      const card = can.play.find((c) => !hasCard(can.legal, c))
+      return card ? ({ type: 'playCard', card } as const) : null
+    }
+    checkThroughSession(heartsPractice, heartsDwell, ruleBreaking, { type: 'nextRound' })
+  })
 })

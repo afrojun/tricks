@@ -47,6 +47,11 @@ export interface Coach<A, N extends Note, D> {
   getState(): CoachState<A, N, D>
   subscribe(listener: () => void): () => void
   hint(): void
+  /**
+   * The coach's warning for an action the player is about to take, from their own view; null for
+   * none. A table's hand words its confirmation of a rule-breaking card with it.
+   */
+  check(action: A): N | null
   confirm(): void
   cancel(): void
   dismissTopic(): void
@@ -267,6 +272,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
       return () => listeners.delete(listener)
     },
     hint: () => update({ showHint: true }),
+    check: (action) => tutor.check(game.coachView(), action),
     confirm() {
       const held = state.warning
       if (!held) return
