@@ -11,12 +11,14 @@ interface PlayingCardProps {
   playable?: boolean
   dim?: boolean
   selected?: boolean
+  /** A word on the card's visible edge, such as "New"; it joins the card's name for screen readers. */
+  tag?: string
   className?: string
   style?: React.CSSProperties
 }
 
-export function PlayingCard({ card, size = 'hand', onClick, playable, dim, selected, className = '', style }: PlayingCardProps) {
-  const label = `${card.rank} of ${SUIT_NAME[card.suit]}`
+export function PlayingCard({ card, size = 'hand', onClick, playable, dim, selected, tag, className = '', style }: PlayingCardProps) {
+  const label = `${card.rank} of ${SUIT_NAME[card.suit]}${tag ? `, ${tag.toLowerCase()}` : ''}`
   const face = (
     <>
       <span className="corner">
@@ -26,6 +28,11 @@ export function PlayingCard({ card, size = 'hand', onClick, playable, dim, selec
       <span className="centre" aria-hidden>
         {SUIT_SYMBOL[card.suit]}
       </span>
+      {tag && (
+        <span className="card-tag" aria-hidden>
+          {tag}
+        </span>
+      )}
     </>
   )
   const shared = {

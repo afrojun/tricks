@@ -273,6 +273,48 @@ button:disabled {
   translate: 0 0;
 }
 
+/*
+ * A hand of many cards (Hearts' thirteen): smaller cards, sized by the screen and not the theme's
+ * type, each showing a strip as wide as the row allows (at most the six-card spacing), so the row
+ * fits and every index shows. Its "Play anyway" sits over the middle of the row.
+ */
+.hand[data-many] {
+  --w: clamp(52px, 15.5vw, 76px);
+  position: relative;
+}
+.hand[data-many] .hand-slot {
+  margin-inline: calc((min((100% - var(--w)) / (var(--count) - 1), var(--w) * 0.84) - var(--w)) / 2);
+}
+.hand[data-many] .playing-card {
+  width: var(--w);
+}
+.hand[data-many] .playing-card .corner {
+  left: 0.15rem;
+  font-size: calc(var(--w) * 0.3);
+}
+.hand[data-many] .playing-card .centre {
+  font-size: calc(var(--w) * 0.56);
+}
+/* Picked to pass: raised and ringed, in the accent rather than the warning of "Play anyway". */
+.hand .playing-card.picked {
+  --lift: -0.9rem;
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+.card-tag {
+  position: absolute;
+  left: 0.1rem;
+  bottom: 0.35rem;
+  padding: 0.05rem 0.2rem;
+  font-family: var(--font-body-family);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
 /* ── Table pieces ───────────────────────────────────────────────────────── */
 
 .trick-area {

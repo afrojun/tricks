@@ -1,7 +1,8 @@
 import { AnimatePresence, animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { type Card, cardId, sameCard } from '../kit/cards'
+import { type Card, cardId, hasCard, sameCard } from '../kit/cards'
 import { PlayingCard } from './Card'
+import { fanTilt } from './hands'
 import { cardText } from './text'
 
 /** Shared between a card in the hand and the same card on the table, so it travels between them. */
@@ -24,6 +25,18 @@ interface HandProps<C extends Card> {
   suggested?: C | null
   /** Practice: why a rule-breaking card is a problem, shown above "Play anyway". */
   explain?: (card: C) => string | null
+  /**
+   * The most cards this hand holds, when more than six (Hearts' thirteen): smaller cards, spaced so
+   * that many fit one row with every index showing.
+   */
+  most?: number
+  /**
+   * Choosing several cards at once, such as a pass: a tap picks a card or puts it back, and nothing
+   * is played. `onPick` is null once the choice is made.
+   */
+  choose?: { picked: C[]; onPick: ((card: C) => void) | null }
+  /** Cards to mark as new, such as those just passed to the player. */
+  marked?: C[]
 }
 
 /** A card let go this far above the hand has been put on the table. */
@@ -32,7 +45,7 @@ const TAP_SLOP_PX = 12
 /** If a dropped card has not left the hand by now, the play was refused: bring it back. */
 const RETURN_AFTER_MS = 1200
 
-export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom, onPlay, suggested = null, explain }: HandProps<C>) {
+export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom, onPlay, suggested = null, explain, most, choose, marked = [] }: HandProps<C>) {
   // An illegal card needs a second, explicit confirmation.
   const [pending, setPending] = useState<C | null>(null)
   const [shake, setShake] = useState(0)
@@ -59,9 +72,29 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
 
   // Tighter overlap as the hand grows, so six cards still fit a phone.
   const overlap = cards.length >= 6 ? -0.16 : cards.length === 5 ? -0.1 : -0.04
+  // Many cards close up as far as the row needs (see `.hand[data-many]`).
+  const many = most !== undefined && most > 6
+  const confirm = (card: C) => {
+    setPending(null)
+    onPlay(card)
+  }
+  /** Returns whether the card was sent to the table; while choosing, a tap only picks. */
+  const tap = (card: C): boolean => {
+    if (!choose) return attempt(card)
+    choose.onPick?.(card)
+    return false
+  }
 
   return (
-    <div ref={handRef} className="hand" style={{ '--overlap': overlap } as React.CSSProperties} onClick={() => !dragging.current && setPending(null)}>
+    <div
+      ref={handRef}
+      className="hand"
+      data-many={many || undefined}
+      style={{ '--overlap': overlap, ...(many && { '--count': Math.max(2, cards.length) }) } as React.CSSProperties}
+      onClick={() => !dragging.current && setPending(null)}
+    >
+      {/* Over a long row, a card's own "Play anyway" could run off the screen: it sits above the middle of the row. */}
+      {many && pending && <PlayAnyway card={pending} explanation={explain?.(pending) ?? null} onConfirm={() => confirm(pending)} />}
       <AnimatePresence initial={false}>
         {cards.map((card, i) => (
           <HandCard
@@ -69,24 +102,43 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
             card={card}
             index={i}
             count={cards.length}
-            playable={playable}
-            legal={legal.some((c) => sameCard(c, card))}
+            playable={choose ? choose.onPick !== null : playable}
+            choosing={choose !== undefined}
+            legal={choose !== undefined || legal.some((c) => sameCard(c, card))}
             pending={pending !== null && sameCard(pending, card)}
+            picked={choose !== undefined && hasCard(choose.picked, card)}
+            marked={hasCard(marked, card)}
             suggested={suggested !== null && sameCard(suggested, card)}
             explanation={pending !== null && sameCard(pending, card) ? (explain?.(card) ?? null) : null}
+            ownAnyway={!many}
             shake={shake}
             dealFrom={dealFrom}
             dragging={dragging}
             handTop={() => handRef.current?.getBoundingClientRect().top ?? 0}
-            onAttempt={() => attempt(card)}
-            onConfirm={() => {
-              setPending(null)
-              onPlay(card)
-            }}
+            onAttempt={() => tap(card)}
+            onConfirm={() => confirm(card)}
           />
         ))}
       </AnimatePresence>
     </div>
+  )
+}
+
+/** The second tap for a rule-breaking card, and in practice why it is a problem. */
+function PlayAnyway({ card, explanation, onConfirm }: { card: Card; explanation: string | null; onConfirm: () => void }) {
+  return (
+    <>
+      {explanation && <p className="panel play-anyway-why">{explanation}</p>}
+      <button
+        className="btn btn-danger btn-small play-anyway"
+        onClick={(e) => {
+          e.stopPropagation()
+          onConfirm()
+        }}
+      >
+        Play {cardText(card)} anyway
+      </button>
+    </>
   )
 }
 
@@ -95,10 +147,16 @@ interface HandCardProps {
   index: number
   count: number
   playable: boolean
+  /** Picking cards rather than playing one: no carrying, and no second tap. */
+  choosing: boolean
   legal: boolean
   pending: boolean
+  picked: boolean
+  marked: boolean
   suggested: boolean
   explanation: string | null
+  /** Whether "Play anyway" sits over this card, rather than over the row. */
+  ownAnyway: boolean
   shake: number
   dealFrom: { x: number; y: number }
   dragging: React.RefObject<boolean>
@@ -108,7 +166,8 @@ interface HandCardProps {
 }
 
 /** One card in the hand. It can be picked up and carried anywhere, and is played by letting go over the table. */
-function HandCard({ card, index, count, playable, legal, pending, suggested, explanation, shake, dealFrom, dragging, handTop, onAttempt, onConfirm }: HandCardProps) {
+function HandCard(props: HandCardProps) {
+  const { card, index, count, playable, choosing, legal, pending, picked, marked, suggested, explanation, ownAnyway, shake, dealFrom, dragging, handTop, onAttempt, onConfirm } = props
   const x = useMotionValue(0)
   const y = useMotionValue(0)
   // A carried card swings a little with the hand that moves it.
@@ -120,7 +179,7 @@ function HandCard({ card, index, count, playable, legal, pending, suggested, exp
     animate(x, 0)
     animate(y, 0)
   }
-  const tilt = (index - (count - 1) / 2) * 4
+  const tilt = fanTilt(index, count)
 
   return (
     <motion.div
@@ -134,7 +193,7 @@ function HandCard({ card, index, count, playable, legal, pending, suggested, exp
       }}
       initial="dealt"
       animate="held"
-      drag={playable}
+      drag={playable && !choosing}
       dragMomentum={false}
       whileDrag={{ scale: 1.12, zIndex: 60 }}
       onDragStart={() => {
@@ -153,25 +212,15 @@ function HandCard({ card, index, count, playable, legal, pending, suggested, exp
         setTimeout(() => (dragging.current = false), 0)
       }}
     >
-      {pending && explanation && <p className="panel play-anyway-why">{explanation}</p>}
-      {pending && (
-        <button
-          className="btn btn-danger btn-small play-anyway"
-          onClick={(e) => {
-            e.stopPropagation()
-            onConfirm()
-          }}
-        >
-          Play {cardText(card)} anyway
-        </button>
-      )}
+      {pending && ownAnyway && <PlayAnyway card={card} explanation={explanation} onConfirm={onConfirm} />}
       <PlayingCard
         key={pending ? shake : 0}
         card={card}
         playable={playable}
         dim={playable && !legal}
-        selected={pending}
-        className={`${pending ? 'shake' : ''} ${suggested ? 'suggested' : ''}`}
+        selected={pending || picked}
+        tag={marked ? 'New' : undefined}
+        className={`${pending ? 'shake' : ''} ${suggested ? 'suggested' : ''}${picked ? ' picked' : ''}`}
         onClick={(e) => {
           e?.stopPropagation()
           if (!dragging.current) onAttempt()
