@@ -1,5 +1,5 @@
 // One Worker for the whole app: static assets for the pages, one Durable Object class for rooms.
-// Only what local development needs; deployment is configured separately.
+// `pnpm dev` runs it inside Vite; a push to `main` deploys it (.github/workflows/deploy.yml).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tricks",
@@ -15,5 +15,22 @@
     // routePartykitRequest names the URL segment after the binding: /parties/room/<game>-<CODE>.
     "bindings": [{ "name": "Room", "class_name": "Room" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
+  // Applied in order, once each. v1 is the first in production. A change to the room classes
+  // needs a new entry with a new tag; never edit or remove one that has been deployed.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      // One line per request and room message, with its outcome. Pages are served as assets
+      // without running the Worker, so these are mostly room traffic.
+      "invocation_logs": true
+    }
+  },
+  // Cloudflare creates the DNS record for the custom domain on the first deploy.
+  "routes": [{ "pattern": "tricks.afrojun.dev", "custom_domain": true }],
+  // No <name>.workers.dev address and no per-version preview addresses: the custom domain only.
+  "workers_dev": false,
+  "preview_urls": false
 }
