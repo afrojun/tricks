@@ -16,6 +16,14 @@ export function isRoomName(name: string): boolean {
   return ROOM_NAME.test(name)
 }
 
+const NAME_SHAPE = /^([a-z]+)-([A-Z]{6})$/
+
+/** A room name's game and code, by its shape alone: whether the game is known is the list of games' business. */
+export function splitRoomName(name: string): { game: string; code: string } | null {
+  const match = NAME_SHAPE.exec(name)
+  return match ? { game: match[1], code: match[2] } : null
+}
+
 /** The close code for a socket opened to a name that is not a game and a code. */
 export const UNKNOWN_ROOM_CLOSE_CODE = 4404
 

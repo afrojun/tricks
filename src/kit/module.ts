@@ -44,3 +44,18 @@ export interface GameModule<G extends TableState, A, E, V extends TableView> {
   /** Questions to put to computer seats after an applied action. The host applies each answer before asking the next. */
   reactions(game: G, events: readonly E[]): Ask<G, A>[]
 }
+
+/**
+ * A module as a host that holds whichever game it is given sees it: the table's state and view,
+ * and the game's own actions and events as values it passes along without reading.
+ */
+export type AnyGameModule = GameModule<TableState, unknown, { type: string }, TableView>
+
+/**
+ * Forgets a module's own types, for a list of games. Sound while the host hands the module only
+ * what the module made or admitted: games from its `createGame` and `apply` (or a save in its
+ * `formatVersion`), actions its `actionSchema` parsed or the table's own, and its own events.
+ */
+export function anyGame<G extends TableState, A, E extends { type: string }, V extends TableView>(module: GameModule<G, A, E, V>): AnyGameModule {
+  return module as unknown as AnyGameModule
+}
