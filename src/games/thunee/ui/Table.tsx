@@ -13,7 +13,7 @@ import {
   jodhiPoints,
   teamOf,
 } from '../engine'
-import { CardBack, PlayingCard } from '../../../ui/Card'
+import { PlayingCard } from '../../../ui/Card'
 import { GameMenu } from '../../../ui/GameMenu'
 import { Hand, cardLayoutId } from '../../../ui/Hand'
 import { check } from '../coach/check'
@@ -22,10 +22,10 @@ import { HowToPlaySheet } from './coach/CoachSheets'
 import { CHALLENGE_BEAT_MS, VERDICT_BEAT_MS } from './present'
 import { RoundResult } from './RoundResult'
 import { RulesList, rulesSummary } from '../../../ui/Rules'
+import { SeatBadge as Badge, TakeOver, usePosition, useTurnAlert } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
 import { Timer } from '../../../ui/Timer'
-import { personaLabel } from '../../../ui/personas'
-import { TOWARD, type Where, place } from '../../../ui/seats'
+import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
 import { playSound } from '../../../ui/sound'
 import { SUIT_NAME, SUIT_SYMBOL, isRed, plural, seatName } from '../../../ui/text'
@@ -33,12 +33,6 @@ import { useCoach, useSession } from './session'
 import { sortHand, teamName } from './text'
 
 type SheetName = 'menu' | 'history' | 'rules' | 'jodhi' | 'challenge' | 'howto' | null
-
-/** Where a seat sits on screen relative to the viewer, who is always at the bottom. */
-function usePosition(view: View): (seat: Seat) => Where {
-  const { direction } = useGameClient()
-  return (seat) => place(seat, view.seat ?? 0, view.playerCount, direction)
-}
 
 /** New balls to fill one at a time on the score track. */
 export interface BallBurst {
@@ -96,11 +90,7 @@ export function Table({ view, room }: { view: View; room: string }) {
     coach?.setReading('table', sheet !== null)
   }, [coach, sheet])
 
-  useEffect(() => {
-    if (!myTurn) return
-    playSound('yourTurn')
-    navigator.vibrate?.(30)
-  }, [myTurn])
+  useTurnAlert(myTurn)
 
   const others = view.seats.map((_, seat) => seat).filter((seat) => seat !== me)
   const at = (where: Where) => others.find((seat) => position(seat) === where)
@@ -137,14 +127,7 @@ export function Table({ view, room }: { view: View; room: string }) {
             ))}
           {!coached && <span className="text-center">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>}
         </div>
-        {can.reclaimSeat && (
-          <div className="flex items-center justify-center gap-2 px-3 pb-1" role="status">
-            <span>The computer is playing for you.</span>
-            <button className="btn btn-primary btn-small" onClick={() => send({ type: 'reclaimSeat' })}>
-              Take over
-            </button>
-          </div>
-        )}
+        {can.reclaimSeat && <TakeOver />}
         {watching && (
           <div className="flex justify-center pb-3">
             <SeatBadge view={view} seat={0} />
@@ -327,19 +310,13 @@ function said(view: View, seat: Seat): string[] {
   }
 }
 
+/** Another player, with their role badges and what they have said. */
 function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: 'left' | 'right' }) {
   const phase = view.phase
-  const info = view.seats[seat]
   const count = 'handCounts' in phase ? phase.handCounts[seat] : 0
   const turn = (phase.kind === 'playing' && phase.turn === seat) || (phase.kind === 'trumpSelection' && phase.trumper === seat)
-  const away = info.kind === 'human' && !info.connected
-  const persona = personaLabel(info, view.rules.allowCheating)
   return (
-    <div className="flex flex-col items-center gap-1 max-w-24" data-side={side}>
-      <p className="seat-name truncate max-w-full text-sm" data-turn={turn}>
-        {info.name}
-      </p>
-      {persona && <p className="text-xs text-muted">{persona}</p>}
+    <Badge view={view} seat={seat} side={side} turn={turn} count={count}>
       <div className="flex gap-1 empty:hidden">
         <RoleBadges view={view} seat={seat} />
       </div>
@@ -348,15 +325,7 @@ function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: 'left'
           {text}
         </p>
       ))}
-      {(away || info.standIn) && <p className="text-xs text-muted">{info.standIn ? 'computer playing' : 'disconnected'}</p>}
-      <div className={`flex ${side ? 'flex-col -space-y-7' : '-space-x-3'}`}>
-        {Array.from({ length: count }, (_, i) => (
-          <span key={i} className="card-in" style={{ animationDelay: `${i * 60}ms` }}>
-            <CardBack />
-          </span>
-        ))}
-      </div>
-    </div>
+    </Badge>
   )
 }
 
