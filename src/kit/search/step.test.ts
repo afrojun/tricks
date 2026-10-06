@@ -109,8 +109,9 @@ describe('step is the in-place half of apply', () => {
             const run = runContract({ ...contract, module: checked(module, tally, true) }, seed)
             expect(run.game.phase.kind).toBe('gameOver')
           }
-          expect(tally.applied).toBeGreaterThan(SEEDS * 100)
-          expect(tally.rejected).toBeGreaterThan(SEEDS * 100)
+          // A Thunee game with cheating on can end inside a hundred actions once a cheat is caught, so the bar is modest.
+          expect(tally.applied).toBeGreaterThan(SEEDS * 50)
+          expect(tally.rejected).toBeGreaterThan(SEEDS * 50)
         }, 120_000)
       }
     }
