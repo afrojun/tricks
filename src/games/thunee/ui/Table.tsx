@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import {
   type Available,
@@ -13,9 +12,8 @@ import {
   jodhiPoints,
   teamOf,
 } from '../engine'
-import { PlayingCard } from '../../../ui/Card'
 import { GameMenu } from '../../../ui/GameMenu'
-import { Hand, cardLayoutId } from '../../../ui/Hand'
+import { Hand } from '../../../ui/Hand'
 import { check } from '../coach/check'
 import { CoachStrip } from './coach/CoachStrip'
 import { HowToPlaySheet } from './coach/CoachSheets'
@@ -25,6 +23,7 @@ import { RulesList, rulesSummary } from '../../../ui/Rules'
 import { SeatBadge as Badge, TakeOver, usePosition, useTurnAlert } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
 import { Timer } from '../../../ui/Timer'
+import { LastTrick, TrickArea } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
 import { playSound } from '../../../ui/sound'
@@ -450,51 +449,6 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
   )
 }
 
-function TrickArea({ view, phase }: { view: View; phase: ViewPlaying }) {
-  const position = usePosition(view)
-  const last = phase.tricks[phase.tricks.length - 1]
-  const paused = phase.kind === 'trickPause' && last !== undefined
-  const showing = paused ? last.plays : phase.current
-  const winner = paused ? last.winner : null
-  // The same number while a trick is being played and while it is shown complete, so its cards keep their identity.
-  const trickNumber = paused ? phase.tricks.length - 1 : phase.tricks.length
-  // A finished trick leaves toward whoever won it.
-  const exitTo = last ? TOWARD[position(last.winner)] : { x: 0, y: 0 }
-  const area: Record<Where, string> = { top: 'col-start-2 row-start-1', left: 'col-start-1 row-start-2', right: 'col-start-3 row-start-2', bottom: 'col-start-2 row-start-3' }
-  return (
-    <div className="trick-area" aria-label="Current trick">
-      <AnimatePresence custom={exitTo}>
-        {showing.map((play) => {
-          const where = position(play.seat)
-          const mine = play.seat === view.seat
-          const from = TOWARD[where]
-          return (
-            <motion.div
-              key={`${trickNumber}-${play.seat}`}
-              className={`relative ${area[where]}`}
-              // The player's own card arrives from the hand by shared layout; others come from their seat.
-              layoutId={mine ? cardLayoutId(play.card) : undefined}
-              custom={exitTo}
-              variants={{
-                away: { x: from.x * 0.6, y: from.y * 0.6, opacity: 0, scale: 0.8 },
-                down: { x: 0, y: 0, opacity: 1, scale: 1 },
-                taken: (to: { x: number; y: number }) => ({ x: to.x, y: to.y, opacity: 0, scale: 0.5 }),
-              }}
-              initial={mine ? false : 'away'}
-              animate="down"
-              exit="taken"
-            >
-              <PlayingCard card={play.card} size="trick" className={winner === play.seat ? 'winner-ring' : ''} />
-              {play === showing[0] && <span className="led-tag">Led</span>}
-            </motion.div>
-          )
-        })}
-      </AnimatePresence>
-      {winner !== null && <p className="col-start-2 row-start-2 text-center text-sm text-accent">{winner === view.seat ? 'You win it' : `${seatName(view, winner)} wins`}</p>}
-    </div>
-  )
-}
-
 // ── Hint line and actions ────────────────────────────────────────────────
 
 function Hint({ view, can }: { view: View; can: Available }) {
@@ -599,27 +553,6 @@ function ChallengeSheet({ view, can, playing, onDone }: { view: View; can: Avail
           </button>
         )
       })}
-    </div>
-  )
-}
-
-/** The most recent completed trick only: what a player at the table could still picture. */
-function LastTrick({ view, playing }: { view: View; playing: ViewPlaying | null }) {
-  const trick = playing?.tricks[playing.tricks.length - 1]
-  if (!trick) return <p>No trick has been completed this round.</p>
-  return (
-    <div className="grid gap-2">
-      <p>
-        Won by {trick.winner === view.seat ? 'you' : seatName(view, trick.winner)}. {trick.plays[0].seat === view.seat ? 'You' : seatName(view, trick.plays[0].seat)} led.
-      </p>
-      <div className="flex gap-2">
-        {trick.plays.map((play) => (
-          <div key={play.seat} className="grid justify-items-center gap-1">
-            <PlayingCard card={play.card} size="trick" className={play.seat === trick.winner ? 'winner-ring' : ''} />
-            <span className="text-xs truncate max-w-14">{play.seat === view.seat ? 'You' : seatName(view, play.seat)}</span>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
