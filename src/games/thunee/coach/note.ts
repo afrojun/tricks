@@ -1,12 +1,8 @@
 import type { Action, Card, View } from '../engine'
+import type { DecisionRecord as KitDecisionRecord, Note as KitNote } from '../../../kit/coach'
 
 /** One decision the player made, with what the coach advised at that moment. */
-export interface DecisionRecord {
-  /** The player's full view just before deciding. */
-  view: View
-  advised: Action | null
-  taken: Action
-}
+export type DecisionRecord = KitDecisionRecord<View, Action>
 
 /** What a practice round keeps for the review. */
 export interface RoundLog {
@@ -33,11 +29,8 @@ export type TopicId =
 /** The mistakes `check` warns about. */
 export type WarningRule = 'illegal' | 'overtakePartner' | 'givePoints' | 'overcall' | 'thunee' | 'jodhiUnclaimed' | 'challenge'
 
-/** Everything the coach says. */
-export interface Note {
-  tone: 'info' | 'suggest' | 'warn'
-  title: string
-  body: string
+/** Everything the coach says, with Thunee's own topics and warnings. */
+export interface Note extends KitNote {
   /** Cards to highlight in the hand or on the table. */
   cards?: Card[]
   seats?: number[]

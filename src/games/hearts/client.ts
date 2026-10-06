@@ -1,9 +1,11 @@
 /**
- * Hearts' screens, as the shell loads them. The table is a placeholder until Hearts has its own,
- * and practice is still to come. Reads only the engine: the computer players stay on the server.
+ * Hearts' screens, as the shell loads them. The table is a placeholder until Hearts has its own.
+ * Practice runs the game in the browser, computer players and tier-1 coach included.
  */
+import { practiceClient } from '../../practice/client'
 import type { GameClient } from '../../ui/contract'
 import { type Action, type GameEvent, SEAT_COUNTS, type View } from './engine'
+import { heartsPractice } from './practice'
 import { dwell } from './ui/dwell'
 import { present } from './ui/present'
 import { ruleBook } from './ui/rules'
@@ -22,5 +24,5 @@ export const heartsClient: GameClient<View, Action, GameEvent> = {
   rules: ruleBook,
   lobbyTeams: () => null,
   rejections: REJECTIONS,
-  practice: null,
+  practice: practiceClient(heartsPractice, dwell),
 }

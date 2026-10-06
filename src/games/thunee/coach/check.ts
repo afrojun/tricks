@@ -2,8 +2,9 @@
  * Warnings before a mistake. Only a fixed list of mistakes, and never the coach's own advice:
  * each judgement rule fires only when the player's move has the problem and the advised move does not.
  */
-import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, SUIT_NAME, availableActions, hasCard, rankStrength, teamOf, trickWinner } from '../engine'
+import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, SUIT_NAME, availableActions, excusesFor, hasCard, rankStrength, teamOf, trickWinner } from '../engine'
 import { callLimit, chooseJodhi, decide } from '../ai/choose'
+import { brokenRules } from '../../../kit/integrity'
 import { HONEST } from '../../../kit/mind'
 import { wouldWin } from '../ai/read'
 import { findProofs, inPlay } from '../ai/suspicion'
@@ -62,7 +63,7 @@ function checkPlay(view: View, phase: ViewPlaying, played: Card, warn: Warn): No
     const held = led ? phase.hand.filter((c) => c.suit === led) : []
     const top = highestTrump(phase)
     const why =
-      held.length > 0
+      illegalKind(phase, played, view.rules) === 'follow'
         ? `${SUIT_NAME[led!]} were led and you hold ${list(held.map(card))}, so you must follow suit.`
         : `You may not play a trump lower than ${top ? card(top) : 'the trump'} already in this trick while you hold cards of another suit.`
     return warn('illegal', 'That breaks the rules', `${why} If an opponent notices, they can challenge and win 4 balls.`, { cards: held, topic: 'following' })
@@ -113,8 +114,12 @@ export function thuneeRisk(view: View): string {
     : 'If you lose a trick, the other side gets 4 balls.'
 }
 
-/** Why a card breaks the rules: not following suit, or playing under a trump. */
-export function illegalKind(phase: ViewPlaying): 'follow' | 'undercut' {
-  const led = phase.current[0]?.card.suit
-  return led !== undefined && phase.hand.some((c) => c.suit === led) ? 'follow' : 'undercut'
+/**
+ * Why a card breaks the rules: not following suit, or playing under a trump. The engine's own
+ * excuses decide it, so the coach names what a challenge would find; a card that breaks both is
+ * named for the suit it did not follow.
+ */
+export function illegalKind(phase: ViewPlaying, played: Card, rules: View['rules']): 'follow' | 'undercut' {
+  const broken = brokenRules(phase.hand, excusesFor(played, phase.current.map((p) => p.card), phase.trump, rules))
+  return broken[0] === 'renege' ? 'follow' : 'undercut'
 }

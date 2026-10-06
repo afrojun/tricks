@@ -86,8 +86,8 @@ function trickName(view: View): string {
 function playOffence(decisions: readonly DecisionRecord[], played: Card | undefined): string {
   const d = played && decisions.find((x) => x.taken.type === 'playCard' && sameCard(x.taken.card, played))
   const phase = d ? inPlay(d.view) : null
-  if (!phase) return played ? 'breaking a play rule' : 'not following suit'
-  return illegalKind(phase) === 'follow' ? 'not following suit' : 'playing a trump under a higher trump while holding another suit'
+  if (!played || !d || !phase) return played ? 'breaking a play rule' : 'not following suit'
+  return illegalKind(phase, played, d.view.rules) === 'follow' ? 'not following suit' : 'playing a trump under a higher trump while holding another suit'
 }
 
 function capital(text: string): string {
@@ -135,7 +135,7 @@ function uncaught({ decisions, summary, you }: ReviewInput): Note[] {
       const phase = inPlay(d.view)
       const led = phase?.current[0]?.card.suit
       const what =
-        phase && led && illegalKind(phase) === 'follow'
+        phase && led && d.taken.type === 'playCard' && illegalKind(phase, d.taken.card, d.view.rules) === 'follow'
           ? `You did not follow ${suitPlural(led)} when you could have.`
           : 'You played a trump under a higher trump while holding cards of another suit.'
       return {
