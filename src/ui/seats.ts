@@ -55,6 +55,13 @@ export function countWord(n: number): string {
   return COUNT_WORDS[n] ?? String(n)
 }
 
+/** How many can play, as the Tricks home says it: "Two or four players." */
+export function tableSizes(seatCounts: readonly number[]): string {
+  const words = [...seatCounts].sort((a, b) => a - b).map((n) => countWord(n).toLowerCase())
+  const list = words.length > 1 ? `${words.slice(0, -1).join(', ')} or ${words[words.length - 1]}` : words[0]
+  return `${list[0].toUpperCase()}${list.slice(1)} players.`
+}
+
 /** A table size as the home screen offers it: "Four, in pairs", "Two". */
 export function playersLabel(teams: readonly (number | null)[]): string {
   const word = countWord(teams.length)

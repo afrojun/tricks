@@ -1,17 +1,11 @@
 import type { MouseEvent } from 'react'
+import { GAMES, type GameId } from './games'
 import { ThemePicker } from './ThemePicker'
-import { type GameId, gamePath, opensInPlace } from './routes'
+import { gamePath, opensInPlace } from './routes'
+import { tableSizes } from './seats'
 import { navigate } from './session'
 
-interface GameCard {
-  id: GameId
-  name: string
-  blurb: string
-}
-
-const GAMES: GameCard[] = [{ id: 'thunee', name: 'Thunee', blurb: 'Jack high, twelve balls to win. Two or four players.' }]
-
-/** `/`: the games, and the look that every game shares. */
+/** `/`: the games, and the look that every game shares. Loads no game. */
 export function TricksHome() {
   // A modified or middle click keeps the link's own behaviour, such as opening a new tab.
   const open = (game: GameId) => (e: MouseEvent) => {
@@ -30,7 +24,9 @@ export function TricksHome() {
         {GAMES.map((game) => (
           <a key={game.id} href={gamePath(game.id)} onClick={open(game.id)} className="panel p-4 grid gap-1">
             <h2 className="display text-xl">{game.name}</h2>
-            <p>{game.blurb}</p>
+            <p>
+              {game.tagline} {tableSizes(game.seatCounts)}
+            </p>
           </a>
         ))}
       </section>

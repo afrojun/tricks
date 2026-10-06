@@ -14,9 +14,16 @@ const server = {
   allowedHosts: ['.ts.net'],
 }
 
+/** Each game's screens load on demand as a chunk of their own, named by the game: `assets/thunee-<hash>.js`. */
+function chunkFileNames(chunk: { facadeModuleId: string | null }): string {
+  const game = chunk.facadeModuleId?.match(/[/\\]src[/\\]games[/\\]([a-z]+)[/\\]client\.ts$/)?.[1]
+  return `assets/${game ?? '[name]'}-[hash].js`
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss(), cloudflare()],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
+  build: { rolldownOptions: { output: { chunkFileNames } } },
   server,
   preview: server,
 })

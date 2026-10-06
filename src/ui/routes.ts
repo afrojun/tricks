@@ -1,8 +1,8 @@
 /** Where each address leads, and how addresses are built. Pure, so it is tested without a browser. */
+import { GAMES, type GameId } from './games'
 
 /** The games with screens. A game the server holds has an address here only once it has them. */
-export const GAME_IDS = ['thunee'] as const
-export type GameId = (typeof GAME_IDS)[number]
+const GAME_IDS: readonly string[] = GAMES.map((game) => game.id)
 
 export type Route =
   | { screen: 'tricks' }
@@ -17,7 +17,7 @@ export function cleanCode(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, CODE_LENGTH)
 }
 
-const isGame = (part: string | undefined): part is GameId => (GAME_IDS as readonly (string | undefined)[]).includes(part)
+const isGame = (part: string | undefined): part is GameId => part !== undefined && GAME_IDS.includes(part)
 
 /** Old addresses (`/game/<CODE>`, `/practice`) are not redirected: they show the Tricks home. */
 export function route(path: string): Route {
