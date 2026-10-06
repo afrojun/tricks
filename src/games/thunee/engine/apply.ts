@@ -33,18 +33,27 @@ export function createGame(): Game {
  * player input.
  */
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
+  const draft = structuredClone(game)
+  const result = step(draft, actor, action, ctx)
+  return 'rejected' in result ? result : { game: draft, events: result.events }
+}
+
+/**
+ * `apply` in place: changes `draft` and returns the events, or refuses and leaves `draft` as it
+ * was. Every check comes before the first change. Never throws on player input.
+ */
+export function step(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
   // Checked before any field is read: a client could send anything at all. Only the system sends `tick` and `setConnected`.
   if (!isAction(action)) return { rejected: 'notAllowed' }
-  if (!isActor(game, actor)) return { rejected: 'notSeated' }
+  if (!isActor(draft, actor)) return { rejected: 'notSeated' }
   const system = action.type === 'tick' || action.type === 'setConnected'
   const shaped = system ? { success: true as const, data: action } : actionShape.safeParse(action)
   if (!shaped.success) return { rejected: 'notAllowed' }
-  const draft = structuredClone(game)
   const events: GameEvent[] = []
   const rejected = dispatch(draft, actor, shaped.data, ctx, events)
   if (rejected !== null) return { rejected }
   settle(draft, ctx, seatsToAct(draft), untimedSeats(draft))
-  return { game: draft, events }
+  return { events }
 }
 
 /** Seats that have something to decide right now. */

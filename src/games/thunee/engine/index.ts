@@ -7,7 +7,7 @@ export { excusesFor, isLegalPlay, legalPlays, seenPlays, trickWinner } from './t
 export { viewFor } from './view'
 export type { Memory } from '../../../kit/module'
 export { type Available, availableActions } from './available'
-export { apply, createGame, nextDeadline, seatsToAct, untimedSeats } from './apply'
+export { apply, createGame, nextDeadline, seatsToAct, step, untimedSeats } from './apply'
 export { canStart, cleanName, isAiControlled, MAX_NAME_LENGTH, replaceableSeats, STALL_MS } from '../../../kit/table'
 export { cardPointsByTeam, tricksWonByTeam } from './scoring'
 export { checkInvariants } from './invariants'
