@@ -1,6 +1,6 @@
 /** Thunee's house rules for the screens: Traditional, the built-in presets, and how each rule is described. */
 import { CLASSIC_APP_OVERRIDES, type RuleSet, TRADITIONAL, ruleOverridesSchema } from '../engine'
-import type { RuleBook, RuleInfo, RulesOf } from '../../../presets/book'
+import type { RuleBook, RuleInfo } from '../../../presets/book'
 
 const onOff = (on: string, off: string) => [
   { value: true, label: on },
@@ -41,6 +41,3 @@ export const ruleBook: RuleBook<RuleSet> = {
   ],
   info: RULE_INFO,
 }
-
-/** Thunee's house rules under the id and name its presets and links are kept by. */
-export const thuneeRules: RulesOf<RuleSet> = { id: 'thunee', name: 'Thunee', rules: ruleBook }

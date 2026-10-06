@@ -1,42 +1,69 @@
 import { MotionConfig } from 'motion/react'
 import { type ReactNode, createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
-import { type Session, type SessionGame, openSession } from '../client/connection'
+import { type Session, openSession } from '../client/connection'
 import type { ClientState } from '../client/store'
-import type { Action, GameEvent, View } from '../games/thunee/engine'
-import { dwell } from '../games/thunee/ui/dwell'
+import type { TableAction } from '../kit/table'
 import { type Theme, applyTheme, currentCardBack, currentTheme } from '../themes'
+import type { AnyGameClient, ShellView } from './contract'
 
-/** A Thunee table, online or in practice: what these screens read and send. */
-export type ThuneeSession = Session<View, Action, GameEvent>
+// ── The game ─────────────────────────────────────────────────────────────
 
-/** What a session needs of Thunee: its id and its events' dwells. */
-export const THUNEE: SessionGame<GameEvent> = { id: 'thunee', dwell }
+const GameContext = createContext<AnyGameClient | null>(null)
+
+/** Provided under a game's address, once its screens have loaded. */
+export const GameProvider = GameContext.Provider
+
+/** The screens of the game whose address this is. */
+export function useGameClient(): AnyGameClient {
+  const game = useContext(GameContext)
+  if (!game) throw new Error('useGameClient outside a game')
+  return game
+}
+
+// ── The table ────────────────────────────────────────────────────────────
+
+/** What the shell sends to any game: the table's actions, and the rules the lobby sets. */
+export type ShellAction = TableAction | { type: 'setRules'; overrides: object }
+
+/** Any game's table, online or in practice, as the shell holds it. */
+export type ShellSession = Session<ShellView, ShellAction, { type: string }>
 
 /** Provided by `SessionProvider` online, and by the practice screen offline. */
-export const SessionContext = createContext<ThuneeSession | null>(null)
+export const SessionContext = createContext<ShellSession | null>(null)
 
+/** Opens a room of the game whose address this is. */
 export function SessionProvider({ room, children }: { room: string; children: ReactNode }) {
-  const [session, setSession] = useState<ThuneeSession | null>(null)
+  const game = useGameClient()
+  const [session, setSession] = useState<ShellSession | null>(null)
   useEffect(() => {
-    const opened = openSession<View, Action, GameEvent>(THUNEE, room)
+    const opened = openSession<ShellView, ShellAction, { type: string }>(game, room)
     setSession(opened)
     return () => opened.close()
-  }, [room])
+  }, [game, room])
   if (!session) return null
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>
 }
 
-export function useSession(): ThuneeSession {
-  const session = useContext(SessionContext)
-  if (!session) throw new Error('useSession outside SessionProvider')
-  return session
+/**
+ * The hooks screens read the table through, typed by a game's view, action and event. Sound
+ * because the shell draws a game's screens only inside a session opened with that game's client.
+ */
+export function sessionHooks<V extends ShellView, A, E>() {
+  function useSession(): Session<V, A, E> {
+    const session = useContext(SessionContext)
+    if (!session) throw new Error('useSession outside a session')
+    return session as unknown as Session<V, A, E>
+  }
+  /** Everything the server last told this client. */
+  function useClient(): ClientState<V> {
+    const { store } = useSession()
+    return useSyncExternalStore(store.subscribe, store.getState)
+  }
+  return { useSession, useClient }
 }
 
-/** Everything the server last told this client. */
-export function useClient(): ClientState<View> {
-  const { store } = useSession()
-  return useSyncExternalStore(store.subscribe, store.getState)
-}
+/** The shell's own: any game's table, as far as the shell reads it. */
+export const { useSession, useClient } = sessionHooks<ShellView, ShellAction, { type: string }>()
 
 /** Whole seconds left until a server deadline, by the server's clock. */
 export function useCountdown(deadline: number | null): number {

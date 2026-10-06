@@ -1,15 +1,12 @@
 import { useState } from 'react'
-import type { RuleOverrides, RuleSet } from '../games/thunee/engine'
-import { thuneeRules } from '../games/thunee/ui/rules'
 import { resolve } from '../kit/rules'
 import { SHARE_PARAM, decodeShare } from '../presets/share'
-import { type Preset, listPresets, savePreset } from '../presets/storage'
+import { listPresets, savePreset } from '../presets/storage'
 import { RulesList } from './Rules'
-import { thuneePractice } from '../games/thunee/practice'
-import { PracticeGame, practiceKey } from '../practice/game'
 import { ThemePicker } from './ThemePicker'
 import { CODE_LENGTH, cleanCode, practicePath, roomPath } from './routes'
-import { navigate } from './session'
+import { countWord, playersLabel, teamsAt } from './seats'
+import { navigate, useGameClient } from './session'
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // no I or O
 
@@ -18,17 +15,19 @@ export function newGameCode(): string {
   return [...values].map((v) => CODE_LETTERS[v % CODE_LETTERS.length]).join('')
 }
 
+/** The creator's choices from a game's home, which its lobby applies. */
 export interface GameSetup {
-  playerCount: 2 | 4
-  overrides: RuleOverrides
+  playerCount: number
+  overrides: object
 }
 
-export function setupKey(code: string): string {
-  return `tricks-thunee-setup-${code}`
+export function setupKey(game: string, code: string): string {
+  return `tricks-${game}-setup-${code}`
 }
 
 function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
-  const decoded = decodeShare(thuneeRules, code)
+  const game = useGameClient()
+  const decoded = decodeShare(game, code)
   const [saved, setSaved] = useState(false)
   if (!decoded.ok) {
     return (
@@ -44,14 +43,14 @@ function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
       <details>
         <summary className="cursor-pointer">See every rule</summary>
         <div className="mt-3">
-          <RulesList game={thuneeRules} rules={resolve(thuneeRules.rules.defaults, decoded.overrides)} />
+          <RulesList game={game} rules={resolve(game.rules.defaults, decoded.overrides)} />
         </div>
       </details>
       <button
         className="btn btn-primary"
         disabled={saved}
         onClick={() => {
-          if (savePreset(thuneeRules, decoded.name, decoded.overrides)) {
+          if (savePreset(game, decoded.name, decoded.overrides)) {
             setSaved(true)
             onSaved()
           }
@@ -63,33 +62,46 @@ function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
   )
 }
 
+/** Larger tables first. */
+const bySize = (counts: readonly number[]) => [...counts].sort((a, b) => b - a)
+
 function LearnToPlay() {
-  const [saved] = useState(() => PracticeGame.load(thuneePractice, localStorage.getItem(practiceKey('thunee'))) !== null)
-  const start = (players: 2 | 4) => navigate(practicePath('thunee', players))
+  const game = useGameClient()
+  const practice = game.practice
+  const [saved] = useState(() => practice?.saved() ?? false)
+  if (!practice) {
+    return (
+      <section className="panel p-4 w-full max-w-sm grid gap-3">
+        <h2 className="display text-lg">Learn to play</h2>
+        <p>Practice games against the computer, with a coach, are coming to {game.name}.</p>
+      </section>
+    )
+  }
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">
       <h2 className="display text-lg">Learn to play</h2>
       <p>Play against the computer with a coach who explains every move, gives hints, and warns you before a mistake.</p>
       {saved && (
-        <button className="btn btn-primary" onClick={() => navigate(practicePath('thunee'))}>
+        <button className="btn btn-primary" onClick={() => navigate(practicePath(game.id))}>
           Continue practice
         </button>
       )}
       <div className="flex gap-2">
-        <button className={`btn flex-1 ${saved ? '' : 'btn-primary'}`} onClick={() => start(4)}>
-          {saved ? 'New: four players' : 'Practice with four'}
-        </button>
-        <button className="btn flex-1" onClick={() => start(2)}>
-          {saved ? 'New: two players' : 'Practice with two'}
-        </button>
+        {bySize(game.seatCounts).map((n, i) => (
+          <button key={n} className={`btn flex-1 ${saved || i > 0 ? '' : 'btn-primary'}`} onClick={() => navigate(practicePath(game.id, n))}>
+            {saved ? `New: ${countWord(n).toLowerCase()} players` : `Practice with ${countWord(n).toLowerCase()}`}
+          </button>
+        ))}
       </div>
     </section>
   )
 }
 
+/** `/<game>`: a game's home. Create, join, presets, practice. */
 export function Home() {
-  const [playerCount, setPlayerCount] = useState<2 | 4>(4)
-  const [presets, setPresets] = useState<Preset<RuleSet>[]>(() => listPresets(thuneeRules))
+  const game = useGameClient()
+  const [playerCount, setPlayerCount] = useState(() => bySize(game.seatCounts)[0])
+  const [presets, setPresets] = useState(() => listPresets(game))
   const [presetId, setPresetId] = useState(presets[0].id)
   const [joinCode, setJoinCode] = useState('')
   const shared = new URLSearchParams(location.search).get(SHARE_PARAM)
@@ -97,15 +109,15 @@ export function Home() {
   const create = () => {
     const code = newGameCode()
     const overrides = presets.find((p) => p.id === presetId)?.overrides ?? {}
-    sessionStorage.setItem(setupKey(code), JSON.stringify({ playerCount, overrides } satisfies GameSetup))
-    navigate(roomPath('thunee', code))
+    sessionStorage.setItem(setupKey(game.id, code), JSON.stringify({ playerCount, overrides } satisfies GameSetup))
+    navigate(roomPath(game.id, code))
   }
 
   return (
     <main className="min-h-full flex flex-col items-center gap-5 p-4 pb-10">
       <header className="text-center mt-6">
-        <h1 className="display text-7xl text-accent">Thunee</h1>
-        <p className="text-muted mt-2">Jack high, twelve balls to win.</p>
+        <h1 className="display text-7xl text-accent">{game.name}</h1>
+        <p className="text-muted mt-2">{game.tagline}</p>
       </header>
 
       {shared !== null && (
@@ -113,7 +125,7 @@ export function Home() {
           <SharedRules
             code={shared}
             onSaved={() => {
-              const next = listPresets(thuneeRules)
+              const next = listPresets(game)
               setPresets(next)
               setPresetId(next[next.length - 1].id)
             }}
@@ -125,16 +137,18 @@ export function Home() {
 
       <section className="panel p-4 w-full max-w-sm grid gap-4">
         <h2 className="display text-lg">New game</h2>
-        <div className="grid gap-1">
-          <span>Players</span>
-          <div className="flex gap-2">
-            {([4, 2] as const).map((n) => (
-              <button key={n} className="btn flex-1" aria-pressed={playerCount === n} onClick={() => setPlayerCount(n)}>
-                {n === 4 ? 'Four, in pairs' : 'Two'}
-              </button>
-            ))}
+        {game.seatCounts.length > 1 && (
+          <div className="grid gap-1">
+            <span>Players</span>
+            <div className="flex gap-2">
+              {bySize(game.seatCounts).map((n) => (
+                <button key={n} className="btn flex-1" aria-pressed={playerCount === n} onClick={() => setPlayerCount(n)}>
+                  {playersLabel(teamsAt((seat, count) => game.lobbyTeams(seat, count), n))}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
         <div className="grid gap-1">
           <span>Rules</span>
           <div className="flex flex-wrap gap-2">
@@ -155,7 +169,7 @@ export function Home() {
         className="panel p-4 w-full max-w-sm grid gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          if (joinCode.length === CODE_LENGTH) navigate(roomPath('thunee', joinCode))
+          if (joinCode.length === CODE_LENGTH) navigate(roomPath(game.id, joinCode))
         }}
       >
         <h2 className="display text-lg">Join a game</h2>

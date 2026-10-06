@@ -1,6 +1,6 @@
 import { AnimatePresence, animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { type Card, cardId, sameCard } from '../games/thunee/engine'
+import { type Card, cardId, sameCard } from '../kit/cards'
 import { PlayingCard } from './Card'
 import { cardText } from './text'
 
@@ -9,20 +9,21 @@ export function cardLayoutId(card: Card): string {
   return `card-${cardId(card)}`
 }
 
-interface HandProps {
-  cards: Card[]
+/** A game's own card type, so what is played comes back as the game's card. */
+interface HandProps<C extends Card> {
+  cards: C[]
   /** Whether it is this player's turn to play a card. */
   playable: boolean
-  legal: Card[]
+  legal: C[]
   /** Whether a rule-breaking card may still be played, after a second tap: only while cheating is allowed. */
   anyway: boolean
   /** Where newly dealt cards come from, as an offset in pixels. */
   dealFrom: { x: number; y: number }
-  onPlay: (card: Card) => void
+  onPlay: (card: C) => void
   /** Practice: the card the hint suggests, raised and ringed. */
-  suggested?: Card | null
+  suggested?: C | null
   /** Practice: why a rule-breaking card is a problem, shown above "Play anyway". */
-  explain?: (card: Card) => string | null
+  explain?: (card: C) => string | null
 }
 
 /** A card let go this far above the hand has been put on the table. */
@@ -31,9 +32,9 @@ const TAP_SLOP_PX = 12
 /** If a dropped card has not left the hand by now, the play was refused: bring it back. */
 const RETURN_AFTER_MS = 1200
 
-export function Hand({ cards, playable, legal, anyway, dealFrom, onPlay, suggested = null, explain }: HandProps) {
+export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom, onPlay, suggested = null, explain }: HandProps<C>) {
   // An illegal card needs a second, explicit confirmation.
-  const [pending, setPending] = useState<Card | null>(null)
+  const [pending, setPending] = useState<C | null>(null)
   const [shake, setShake] = useState(0)
   const handRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
@@ -43,7 +44,7 @@ export function Hand({ cards, playable, legal, anyway, dealFrom, onPlay, suggest
   }, [playable, cards.length])
 
   /** Returns whether the card was sent to the table. */
-  const attempt = (card: Card): boolean => {
+  const attempt = (card: C): boolean => {
     if (!playable) return false
     if (legal.some((c) => sameCard(c, card))) {
       setPending(null)

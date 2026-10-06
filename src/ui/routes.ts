@@ -32,11 +32,11 @@ export function route(path: string): Route {
   return code.length === CODE_LENGTH ? { screen: 'room', game, code } : { screen: 'home', game }
 }
 
-export function gamePath(game: GameId): string {
+export function gamePath(game: string): string {
   return `/${game}`
 }
 
-export function roomPath(game: GameId, code: string): string {
+export function roomPath(game: string, code: string): string {
   return `/${game}/${code}`
 }
 
@@ -56,6 +56,6 @@ export function opensInPlace(click: LinkClick): boolean {
 }
 
 /** With a player count, a new practice game; without, the saved one. */
-export function practicePath(game: GameId, players?: 2 | 4): string {
+export function practicePath(game: string, players?: number): string {
   return `/${game}/practice${players === undefined ? '' : `?players=${players}`}`
 }

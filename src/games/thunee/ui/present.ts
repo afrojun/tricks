@@ -1,19 +1,13 @@
 import type { GameEvent, Seat, View } from '../engine'
-import type { NumberedEvent } from '../../../protocol'
-import type { Moment } from '../../../ui/Moments'
+import type { Presentation } from '../../../ui/contract'
 import { playSound } from '../../../ui/sound'
 import { SUIT_NAME, seatName } from '../../../ui/text'
 
 export const CHALLENGE_BEAT_MS = 1000
 export const VERDICT_BEAT_MS = 1300
 
-export interface Presentation {
-  toast?: string
-  moments?: Moment[]
-}
-
 /** Turns one game event into a sound and, where it helps, a toast or a moment in the middle of the table. */
-export function present(event: NumberedEvent<GameEvent>, view: View, seat: Seat | null): Presentation {
+export function present(event: GameEvent, view: View, seat: Seat | null): Presentation {
   const name = (s: Seat) => (s === seat ? 'You' : seatName(view, s))
   const verb = (s: Seat, you: string, they: string) => (s === seat ? you : they)
   const call = (s: Seat, what: string, detail?: string, ms = 1500): Presentation => {
@@ -72,7 +66,7 @@ export function present(event: NumberedEvent<GameEvent>, view: View, seat: Seat 
     }
     case 'gameOver':
       playSound('gameOver')
-      return {}
+      return { celebrate: event.winner === 0 ? 'var(--team0)' : 'var(--team1)' }
     default:
       return {}
   }

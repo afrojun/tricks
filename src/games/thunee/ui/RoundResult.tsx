@@ -1,6 +1,6 @@
 import { type Available, type RoundSummary, type ScoreLine, type Team, type View, teamOf } from '../engine'
 import { CoachReview } from './coach/CoachReview'
-import { useSession } from '../../../ui/session'
+import { useSession } from './session'
 import { SUIT_NAME, cardText, plural, seatName } from '../../../ui/text'
 import { teamName } from './text'
 

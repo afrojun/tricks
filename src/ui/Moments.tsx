@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
-import type { Card, Team } from '../games/thunee/engine'
+import type { Card } from '../kit/cards'
 import { PlayingCard } from './Card'
 
 /** A call, challenge or verdict that deserves the middle of the screen for a moment. */
@@ -50,10 +50,10 @@ export function MomentOverlay({ moment }: { moment: (Moment & { id: number }) | 
   )
 }
 
-/** A single burst in the winning side's colour when the game is won. */
-export function Celebration({ team }: { team: Team }) {
+/** A single burst in the winner's colour when the game is won: a theme token such as `var(--team0)`. */
+export function Celebration({ colour }: { colour: string }) {
   return (
-    <div className="celebration" style={{ color: team === 0 ? 'var(--team0)' : 'var(--team1)' }} aria-hidden>
+    <div className="celebration" style={{ color: colour }} aria-hidden>
       {Array.from({ length: 28 }, (_, i) => (
         <i
           key={i}

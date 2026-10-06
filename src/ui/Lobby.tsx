@@ -1,26 +1,28 @@
 import { useEffect, useState } from 'react'
-import { type View, canStart, cleanName, teamOf } from '../games/thunee/engine'
+import { canStart, cleanName } from '../kit/table'
+import type { ShellView } from './contract'
 import { type GameSetup, setupKey } from './Home'
-import { thuneeRules } from '../games/thunee/ui/rules'
 import { RulesEditor, RulesList, rulesSummary } from './Rules'
 import { gamePath, roomPath } from './routes'
 import { PERSONA_CHOICES, PERSONA_NAMES } from './personas'
+import { partnersLine, seatLabel, teamsAt } from './seats'
 import { Sheet } from './Sheet'
-import { navigate, useSession } from './session'
+import { navigate, useGameClient, useSession } from './session'
 import { copyText } from './text'
 
 const NAME_KEY = 'tricks-name'
 
-function readSetup(room: string): GameSetup | null {
+function readSetup(game: string, room: string): GameSetup | null {
   try {
-    const raw = sessionStorage.getItem(setupKey(room))
+    const raw = sessionStorage.getItem(setupKey(game, room))
     return raw ? (JSON.parse(raw) as GameSetup) : null
   } catch {
     return null
   }
 }
 
-export function Lobby({ view, room }: { view: View; room: string }) {
+export function Lobby({ view, room }: { view: ShellView; room: string }) {
+  const game = useGameClient()
   const { send } = useSession()
   const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) ?? '')
   const [copied, setCopied] = useState(false)
@@ -34,18 +36,21 @@ export function Lobby({ view, room }: { view: View; room: string }) {
 
   // The creator's choices from the home screen. They apply only if the creator is the
   // first to sit; if someone else already hosts, the lobby's settings stand.
-  const [setup, setSetup] = useState<GameSetup | null>(() => readSetup(room))
+  const [setup, setSetup] = useState<GameSetup | null>(() => readSetup(game.id, room))
   useEffect(() => {
     if (setup === null || view.owner === null) return
-    sessionStorage.removeItem(setupKey(room))
+    sessionStorage.removeItem(setupKey(game.id, room))
     setSetup(null)
     if (view.owner !== me) return
     if (setup.playerCount !== view.playerCount) send({ type: 'setPlayerCount', playerCount: setup.playerCount })
     send({ type: 'setRules', overrides: setup.overrides })
-  }, [setup, view.owner, view.playerCount, me, room, send])
+  }, [setup, view.owner, view.playerCount, me, game, room, send])
   // Until that happens, offer only the seats the creator's game will have.
   const seatLimit = setup?.playerCount ?? view.playerCount
-  const canShrink = view.seats.slice(2).every((s) => s.kind === 'empty')
+  const teams = teamsAt((seat, count) => game.lobbyTeams(seat, count), view.playerCount)
+  const partners = partnersLine(teams)
+  /** A smaller table needs the seats it would drop to be empty. */
+  const fits = (count: number) => view.seats.slice(count).every((s) => s.kind === 'empty')
 
   const sit = (seat: number) => {
     const clean = cleanName(name)
@@ -54,7 +59,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
     send({ type: 'sit', seat, name: clean })
   }
   const copyInvite = async () => {
-    if (await copyText(`${location.origin}${roomPath('thunee', room)}`)) {
+    if (await copyText(`${location.origin}${roomPath(game.id, room)}`)) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -63,7 +68,7 @@ export function Lobby({ view, room }: { view: View; room: string }) {
   return (
     <main className="min-h-full flex flex-col items-center gap-4 p-4 pb-10">
       <header className="w-full max-w-sm flex items-center justify-between mt-2">
-        <button className="btn btn-quiet btn-small" onClick={() => navigate(gamePath('thunee'))}>
+        <button className="btn btn-quiet btn-small" onClick={() => navigate(gamePath(game.id))}>
           Leave
         </button>
         <button className="btn btn-quiet btn-small" onClick={copyInvite} aria-label="Copy invite link">
@@ -81,17 +86,17 @@ export function Lobby({ view, room }: { view: View; room: string }) {
         )}
         <ul className="grid gap-2">
           {view.seats.slice(0, seatLimit).map((seat, i) => {
-            const team = teamOf(i)
+            const team = teams[i] ?? null
             return (
               <li key={i} className="flex items-center gap-2 border-b border-line/40 pb-2">
-                <span className="w-3 h-3 rounded-full shrink-0" style={{ background: team === 0 ? 'var(--team0)' : 'var(--team1)' }} aria-hidden />
+                {team !== null && <span className="w-3 h-3 rounded-full shrink-0" style={{ background: `var(--team${team})` }} aria-hidden />}
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-semibold">
                     {seat.kind === 'empty' ? 'Empty seat' : seat.name}
                     {i === me && ' (you)'}
                   </p>
                   <p className="text-sm text-on-surface-muted">
-                    {view.playerCount === 4 ? `Team ${team + 1}` : `Player ${i + 1}`}
+                    {seatLabel(i, teams)}
                     {seat.kind === 'ai' && (personas ? `, computer: ${seat.persona === null ? 'secret' : PERSONA_NAMES[seat.persona]}` : ', computer')}
                     {view.host === i && ', host'}
                     {seat.kind === 'human' && !seat.connected && ', disconnected'}
@@ -121,12 +126,12 @@ export function Lobby({ view, room }: { view: View; room: string }) {
             )
           })}
         </ul>
-        {view.playerCount === 4 && <p className="text-sm text-on-surface-muted">Partners sit opposite: seats 1 and 3 play seats 2 and 4.</p>}
+        {partners && <p className="text-sm text-on-surface-muted">{partners}</p>}
       </section>
 
       <section className="panel p-4 w-full max-w-sm grid gap-3">
         <h2 className="display text-lg">Rules</h2>
-        <p>{rulesSummary(thuneeRules, view.rules)}</p>
+        <p>{rulesSummary(game, view.rules)}</p>
         <div className="flex flex-wrap gap-2">
           <button className="btn btn-small" onClick={() => setSheet('rules')}>
             See every rule
@@ -137,13 +142,15 @@ export function Lobby({ view, room }: { view: View; room: string }) {
             </button>
           )}
         </div>
-        {isHost && (
+        {isHost && game.seatCounts.length > 1 && (
           <div className="flex gap-2">
-            {([4, 2] as const).map((n) => (
-              <button key={n} className="btn btn-small flex-1" aria-pressed={view.playerCount === n} disabled={n === 2 && !canShrink} onClick={() => send({ type: 'setPlayerCount', playerCount: n })}>
-                {n} players
-              </button>
-            ))}
+            {[...game.seatCounts]
+              .sort((a, b) => b - a)
+              .map((n) => (
+                <button key={n} className="btn btn-small flex-1" aria-pressed={view.playerCount === n} disabled={!fits(n)} onClick={() => send({ type: 'setPlayerCount', playerCount: n })}>
+                  {n} players
+                </button>
+              ))}
           </div>
         )}
       </section>
@@ -160,12 +167,12 @@ export function Lobby({ view, room }: { view: View; room: string }) {
 
       {sheet === 'rules' && (
         <Sheet title="Rules" onClose={() => setSheet(null)}>
-          <RulesList game={thuneeRules} rules={view.rules} />
+          <RulesList game={game} rules={view.rules} />
         </Sheet>
       )}
       {sheet === 'edit' && (
         <Sheet title="Change rules" onClose={() => setSheet(null)}>
-          <RulesEditor game={thuneeRules} rules={view.rules} onChange={(overrides) => send({ type: 'setRules', overrides })} />
+          <RulesEditor game={game} rules={view.rules} onChange={(overrides) => send({ type: 'setRules', overrides })} />
         </Sheet>
       )}
       {picking !== null && personas && (

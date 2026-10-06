@@ -1,48 +1,29 @@
-import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import type { Team } from '../games/thunee/engine'
-import { CHALLENGE_BEAT_MS, VERDICT_BEAT_MS, present } from '../games/thunee/ui/present'
+import { Component, type ReactNode, useEffect, useState } from 'react'
 import { Lobby } from './Lobby'
 import { Celebration, MomentOverlay, useMoments } from './Moments'
-import { BALL_STAGGER_MS, type BallBurst, Table } from '../games/thunee/ui/Table'
 import { gamePath } from './routes'
-import { SessionProvider, navigate, useClient, useSession } from './session'
-import { playSound } from './sound'
+import { SessionProvider, navigate, useClient, useGameClient, useSession } from './session'
 import { rejectionText } from './text'
 
+/** The frame around any game's table: the connection, the lobby or the game's own table, and what its events show. */
 export function Screen({ room }: { room: string }) {
+  const game = useGameClient()
   const { store } = useSession()
   const client = useClient()
   const [toast, setToast] = useState<{ text: string; id: number } | null>(null)
-  const [burst, setBurst] = useState<BallBurst | null>(null)
-  const [celebrate, setCelebrate] = useState<{ team: Team; id: number } | null>(null)
+  const [celebrate, setCelebrate] = useState<{ colour: string; id: number } | null>(null)
   const moments = useMoments()
   const pushMoment = moments.push
-
-  // Delayed presentation steps, all cancelled if the screen goes away.
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
-  const later = useCallback((run: () => void, ms: number) => {
-    if (ms <= 0) return run()
-    timers.current.push(setTimeout(run, ms))
-  }, [])
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   useEffect(
     () =>
       store.onEvent((event, view, seat) => {
-        const shown = present(event, view, seat)
+        const shown = game.present(event, view, seat)
         if (shown.toast) setToast({ text: shown.toast, id: event.n })
         shown.moments?.forEach(pushMoment)
-        if (event.type === 'roundScored') {
-          const { winner, balls, ballsAfter, challenge } = event.summary
-          // After a challenge, the balls wait for the verdict.
-          const wait = challenge ? CHALLENGE_BEAT_MS + VERDICT_BEAT_MS / 2 : 0
-          later(() => setBurst({ team: winner, from: ballsAfter[winner] - balls, count: balls, id: event.n }), wait)
-          for (let i = 0; i < balls; i++) later(() => playSound('pip'), wait + i * BALL_STAGGER_MS)
-        }
-        if (event.type === 'dealt') setBurst(null)
-        if (event.type === 'gameOver') setCelebrate({ team: event.winner, id: event.n })
+        if (shown.celebrate) setCelebrate({ colour: shown.celebrate, id: event.n })
       }),
-    [store, pushMoment, later],
+    [store, pushMoment, game],
   )
   useEffect(() => {
     if (!celebrate) return
@@ -51,9 +32,9 @@ export function Screen({ room }: { room: string }) {
   }, [celebrate])
   useEffect(() => {
     if (!client.rejection) return
-    setToast({ text: rejectionText(client.rejection.reason), id: -client.rejection.id })
+    setToast({ text: rejectionText(client.rejection.reason, game.rejections), id: -client.rejection.id })
     store.clearRejection()
-  }, [client.rejection, store])
+  }, [client.rejection, store, game])
 
   if (!client.view) {
     return (
@@ -74,9 +55,9 @@ export function Screen({ room }: { room: string }) {
           {client.error}
         </p>
       )}
-      {client.view.phase.kind === 'lobby' ? <Lobby view={client.view} room={room} /> : <Table view={client.view} room={room} burst={burst} />}
+      {client.view.phase.kind === 'lobby' ? <Lobby view={client.view} room={room} /> : <game.Table view={client.view} room={room} />}
       <MomentOverlay moment={moments.current} />
-      {celebrate && <Celebration key={celebrate.id} team={celebrate.team} />}
+      {celebrate && <Celebration key={celebrate.id} colour={celebrate.colour} />}
       {toast && (
         <p key={toast.id} className="panel toast" role="status">
           {toast.text}
@@ -86,8 +67,17 @@ export function Screen({ room }: { room: string }) {
   )
 }
 
-/** Replaces a blank screen with a way out if rendering ever throws. */
-export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+interface BoundaryProps {
+  /** Where "Leave" goes. */
+  home: string
+  title?: string
+  body?: string
+  leave?: string
+  children: ReactNode
+}
+
+/** Replaces a blank screen with a way out if rendering, or loading a game, ever throws. */
+export class ErrorBoundary extends Component<BoundaryProps, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() {
     return { failed: true }
@@ -97,16 +87,22 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
   }
   render() {
     if (!this.state.failed) return this.props.children
+    const {
+      home,
+      title = 'The table stopped drawing',
+      body = 'Your seat and cards are safe on the server. Reload to pick up where you left off.',
+      leave = 'Leave game',
+    } = this.props
     return (
       <main className="h-full grid place-items-center p-6">
         <section className="panel p-4 max-w-sm grid gap-3">
-          <h1 className="display text-xl">The table stopped drawing</h1>
-          <p>Your seat and cards are safe on the server. Reload to pick up where you left off.</p>
+          <h1 className="display text-xl">{title}</h1>
+          <p>{body}</p>
           <button className="btn btn-primary" onClick={() => location.reload()}>
             Reload
           </button>
-          <button className="btn" onClick={() => navigate(gamePath('thunee'))}>
-            Leave game
+          <button className="btn" onClick={() => navigate(home)}>
+            {leave}
           </button>
         </section>
       </main>
@@ -114,9 +110,11 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
   }
 }
 
+/** A room of the game whose address this is. */
 export function GameScreen({ room }: { room: string }) {
+  const game = useGameClient()
   return (
-    <ErrorBoundary>
+    <ErrorBoundary home={gamePath(game.id)}>
       <SessionProvider room={room} key={room}>
         <Screen room={room} />
       </SessionProvider>

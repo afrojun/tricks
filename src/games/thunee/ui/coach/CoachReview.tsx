@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { View } from '../../engine'
 import { HandsSheet } from './CoachSheets'
-import { useCoach } from '../../../../ui/coach/context'
+import { useCoach } from '../session'
 
 /** In practice, the coach's look back at the round, under the score. */
 export function CoachReview({ view }: { view: View }) {

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   type Available,
   type Seat,
@@ -11,43 +11,33 @@ import {
   type ViewPlaying,
   availableActions,
   jodhiPoints,
-  replaceableSeats,
   teamOf,
 } from '../engine'
 import { CardBack, PlayingCard } from '../../../ui/Card'
+import { GameMenu } from '../../../ui/GameMenu'
 import { Hand, cardLayoutId } from '../../../ui/Hand'
 import { check } from '../coach/check'
 import { CoachStrip } from './coach/CoachStrip'
 import { HowToPlaySheet } from './coach/CoachSheets'
-import { useCoach } from '../../../ui/coach/context'
+import { CHALLENGE_BEAT_MS, VERDICT_BEAT_MS } from './present'
 import { RoundResult } from './RoundResult'
 import { RulesList, rulesSummary } from '../../../ui/Rules'
-import { thuneeRules } from './rules'
 import { Sheet } from '../../../ui/Sheet'
-import { ThemePicker } from '../../../ui/ThemePicker'
+import { Timer } from '../../../ui/Timer'
 import { personaLabel } from '../../../ui/personas'
-import { gamePath } from '../../../ui/routes'
-import { navigate, useCountdown, useSession } from '../../../ui/session'
-import { isMuted, playSound, setMuted } from '../../../ui/sound'
+import { TOWARD, type Where, place } from '../../../ui/seats'
+import { useGameClient } from '../../../ui/session'
+import { playSound } from '../../../ui/sound'
 import { SUIT_NAME, SUIT_SYMBOL, isRed, plural, seatName } from '../../../ui/text'
+import { useCoach, useSession } from './session'
 import { sortHand, teamName } from './text'
 
 type SheetName = 'menu' | 'history' | 'rules' | 'jodhi' | 'challenge' | 'howto' | null
-type Where = 'bottom' | 'right' | 'top' | 'left'
 
 /** Where a seat sits on screen relative to the viewer, who is always at the bottom. */
-function position(seat: Seat, me: Seat, n: number): Where {
-  const offset = (seat - me + n) % n
-  if (n === 2) return offset === 0 ? 'bottom' : 'top'
-  return (['bottom', 'right', 'top', 'left'] as const)[offset]
-}
-
-/** Roughly how far, in pixels, a card travels to or from each side of the table. */
-const TOWARD: Record<Where, { x: number; y: number }> = {
-  bottom: { x: 0, y: 190 },
-  top: { x: 0, y: -190 },
-  left: { x: -150, y: 0 },
-  right: { x: 150, y: 0 },
+function usePosition(view: View): (seat: Seat) => Where {
+  const { direction } = useGameClient()
+  return (seat) => place(seat, view.seat ?? 0, view.playerCount, direction)
 }
 
 /** New balls to fill one at a time on the score track. */
@@ -58,8 +48,40 @@ export interface BallBurst {
   id: number
 }
 
-export function Table({ view, room, burst }: { view: View; room: string; burst: BallBurst | null }) {
-  const { send, store } = useSession()
+/** The balls a round has just won, filled in one at a time with a pip each; after the verdict when a challenge ended the round. */
+function useBallBurst(): BallBurst | null {
+  const { store } = useSession()
+  const [burst, setBurst] = useState<BallBurst | null>(null)
+  useEffect(() => {
+    // Delayed steps, all cancelled if the table goes away.
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const later = (run: () => void, ms: number) => {
+      if (ms <= 0) return run()
+      timers.push(setTimeout(run, ms))
+    }
+    const stop = store.onEvent((event) => {
+      if (event.type === 'roundScored') {
+        const { winner, balls, ballsAfter, challenge } = event.summary
+        // After a challenge, the balls wait for the verdict.
+        const wait = challenge ? CHALLENGE_BEAT_MS + VERDICT_BEAT_MS / 2 : 0
+        later(() => setBurst({ team: winner, from: ballsAfter[winner] - balls, count: balls, id: event.n }), wait)
+        for (let i = 0; i < balls; i++) later(() => playSound('pip'), wait + i * BALL_STAGGER_MS)
+      }
+      if (event.type === 'dealt') setBurst(null)
+    })
+    return () => {
+      stop()
+      timers.forEach(clearTimeout)
+    }
+  }, [store])
+  return burst
+}
+
+export function Table({ view, room }: { view: View; room: string }) {
+  const { send } = useSession()
+  const game = useGameClient()
+  const burst = useBallBurst()
+  const position = usePosition(view)
   const [sheet, setSheet] = useState<SheetName>(null)
   const me = view.seat ?? 0
   const watching = view.seat === null
@@ -81,7 +103,7 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
   }, [myTurn])
 
   const others = view.seats.map((_, seat) => seat).filter((seat) => seat !== me)
-  const at = (where: Where) => others.find((seat) => position(seat, me, view.playerCount) === where)
+  const at = (where: Where) => others.find((seat) => position(seat) === where)
   const hand = 'hand' in phase ? sortHand(phase.hand) : []
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
   // Result panels may need to scroll; during play nothing may clip a travelling card.
@@ -135,7 +157,7 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
               playable={myTurn}
               legal={can.legal}
               anyway={view.rules.allowCheating}
-              dealFrom={TOWARD[position(view.dealer, me, view.playerCount)]}
+              dealFrom={TOWARD[position(view.dealer)]}
               onPlay={(card) => send({ type: 'playCard', card })}
               suggested={advised?.type === 'playCard' ? advised.card : null}
               explain={coached ? (card) => check(view, { type: 'playCard', card })?.body ?? null : undefined}
@@ -147,13 +169,13 @@ export function Table({ view, room, burst }: { view: View; room: string; burst: 
 
       {sheet === 'menu' && (
         <Sheet title="Menu" onClose={() => setSheet(null)}>
-          <MenuSheet view={view} room={room} onSheet={setSheet} now={store.serverNow(Date.now())} />
+          <MenuSheet view={view} room={room} onSheet={setSheet} />
         </Sheet>
       )}
       {sheet === 'rules' && (
         <Sheet title="Rules in this game" onClose={() => setSheet(null)}>
-          <p className="mb-3">{rulesSummary(thuneeRules, view.rules)}</p>
-          <RulesList game={thuneeRules} rules={view.rules} />
+          <p className="mb-3">{rulesSummary(game, view.rules)}</p>
+          <RulesList game={game} rules={view.rules} />
         </Sheet>
       )}
       {sheet === 'howto' && <HowToPlaySheet onClose={() => setSheet(null)} />}
@@ -360,30 +382,6 @@ function Centre({ view, can }: { view: View; can: Available }) {
   }
 }
 
-function Timer({ deadline, totalSeconds }: { deadline: number; totalSeconds: number }) {
-  const { store } = useSession()
-  const seconds = useCountdown(deadline)
-  const coached = useCoach()
-  // The bar runs on its own clock from where the countdown stood when this deadline was first drawn.
-  // Frozen per deadline: changing a running animation's duration would make it race ahead.
-  const { remaining, fraction } = useMemo(() => {
-    const left = Math.max(0, deadline - store.serverNow(Date.now()))
-    return { remaining: left, fraction: Math.min(1, left / (totalSeconds * 1000)) }
-  }, [deadline, totalSeconds, store])
-  // Practice time stands still while the table waits for the player.
-  if (coached?.state.waiting) return <p className="text-center text-on-surface-muted">No rush: the table waits for you.</p>
-  return (
-    <div className="grid gap-1">
-      <p className={`display text-3xl text-center ${seconds <= 3 ? 'text-danger' : ''}`} aria-label={`${seconds} seconds left`}>
-        {seconds}
-      </p>
-      <div className="timer-bar" data-urgent={seconds <= 3}>
-        <i key={deadline} style={{ '--from': fraction, animationDuration: `${remaining}ms` } as React.CSSProperties} />
-      </div>
-    </div>
-  )
-}
-
 function TrumpButtons({ choices, chosen, onChoose }: { choices: TrumpChoice[]; chosen?: TrumpChoice | null; onChoose: (c: TrumpChoice) => void }) {
   return (
     <div className="flex flex-wrap justify-center gap-2">
@@ -484,7 +482,7 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
 }
 
 function TrickArea({ view, phase }: { view: View; phase: ViewPlaying }) {
-  const me = view.seat ?? 0
+  const position = usePosition(view)
   const last = phase.tricks[phase.tricks.length - 1]
   const paused = phase.kind === 'trickPause' && last !== undefined
   const showing = paused ? last.plays : phase.current
@@ -492,13 +490,13 @@ function TrickArea({ view, phase }: { view: View; phase: ViewPlaying }) {
   // The same number while a trick is being played and while it is shown complete, so its cards keep their identity.
   const trickNumber = paused ? phase.tricks.length - 1 : phase.tricks.length
   // A finished trick leaves toward whoever won it.
-  const exitTo = last ? TOWARD[position(last.winner, me, view.playerCount)] : { x: 0, y: 0 }
+  const exitTo = last ? TOWARD[position(last.winner)] : { x: 0, y: 0 }
   const area: Record<Where, string> = { top: 'col-start-2 row-start-1', left: 'col-start-1 row-start-2', right: 'col-start-3 row-start-2', bottom: 'col-start-2 row-start-3' }
   return (
     <div className="trick-area" aria-label="Current trick">
       <AnimatePresence custom={exitTo}>
         {showing.map((play) => {
-          const where = position(play.seat, me, view.playerCount)
+          const where = position(play.seat)
           const mine = play.seat === view.seat
           const from = TOWARD[where]
           return (
@@ -657,64 +655,45 @@ function LastTrick({ view, playing }: { view: View; playing: ViewPlaying | null 
   )
 }
 
-function MenuSheet({ view, room, onSheet, now }: { view: View; room: string; onSheet: (s: SheetName) => void; now: number }) {
-  const { send } = useSession()
-  const [muted, setMutedState] = useState(isMuted)
+function MenuSheet({ view, room, onSheet }: { view: View; room: string; onSheet: (s: SheetName) => void }) {
   const coached = useCoach()
-  const replaceable = coached ? [] : replaceableSeats(view, now)
+  const game = useGameClient()
   return (
-    <div className="grid gap-4">
-      <p className="text-on-surface-muted">
-        {coached ? 'Practice game' : `Game ${room}`}, round {view.roundNumber}. {rulesSummary(thuneeRules, view.rules)}.
-      </p>
-      {coached && (
-        <div className="flex flex-wrap gap-2">
-          <button className="btn btn-small" onClick={() => onSheet('howto')}>
-            How to play
+    <GameMenu
+      view={view}
+      intro={
+        <>
+          <p className="text-on-surface-muted">
+            {coached ? 'Practice game' : `Game ${room}`}, round {view.roundNumber}. {rulesSummary(game, view.rules)}.
+          </p>
+          {coached && (
+            <div className="flex flex-wrap gap-2">
+              <button className="btn btn-small" onClick={() => onSheet('howto')}>
+                How to play
+              </button>
+              <button
+                className="btn btn-small"
+                onClick={() => {
+                  coached.coach.restart(view.playerCount)
+                  onSheet(null)
+                }}
+              >
+                New practice game
+              </button>
+            </div>
+          )}
+        </>
+      }
+      actions={
+        <>
+          <button className="btn btn-small" onClick={() => onSheet('rules')}>
+            Rules in this game
           </button>
-          <button
-            className="btn btn-small"
-            onClick={() => {
-              coached.coach.restart(view.playerCount)
-              onSheet(null)
-            }}
-          >
-            New practice game
+          <button className="btn btn-small" onClick={() => onSheet('history')}>
+            Last trick
           </button>
-        </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <button className="btn btn-small" onClick={() => onSheet('rules')}>
-          Rules in this game
-        </button>
-        <button className="btn btn-small" onClick={() => onSheet('history')}>
-          Last trick
-        </button>
-        <button
-          className="btn btn-small"
-          aria-pressed={!muted}
-          onClick={() => {
-            setMuted(!muted)
-            setMutedState(!muted)
-          }}
-        >
-          Sound {muted ? 'off' : 'on'}
-        </button>
-      </div>
-      <ThemePicker />
-      {replaceable.length > 0 && (
-        <div className="grid gap-2">
-          <p>Let the computer play for someone who is away. They take the seat back when they return.</p>
-          {replaceable.map((seat) => (
-            <button key={seat} className="btn btn-small" onClick={() => send({ type: 'replaceWithAi', seat })}>
-              Computer plays for {seatName(view, seat)}
-            </button>
-          ))}
-        </div>
-      )}
-      <button className="btn btn-danger" onClick={() => navigate(gamePath('thunee'))}>
-        Leave game
-      </button>
-    </div>
+        </>
+      }
+    />
   )
 }
