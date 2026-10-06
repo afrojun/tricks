@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { describe, expect, test } from 'vitest'
 import { hasCard, sameCard } from '../../../kit/cards'
 import { type Mind, type Persona, mindFor } from '../../../kit/mind'
+import { explain } from '../../../kit/search/explain'
 import { prepare } from '../../../kit/search/sample'
 import { search } from '../../../kit/search/search'
 import type { SearchGame } from '../../../kit/search/types'
@@ -250,6 +251,17 @@ describe('the search player for Hearts', () => {
     expect(searchHearts(viewFor(reloaded, 0, 'full'), mind(9))).toEqual(once)
     const values = (salt: number) => JSON.stringify(searchHearts(full(t, 0), mind(salt))!.options.map((o) => o.values))
     expect(new Set([1, 2, 3, 4].map(values)).size).toBeGreaterThan(1)
+  })
+
+  test('explains a decision: each option’s mean points against, and for a card how often it won the trick', () => {
+    const t = new Table({ passing: 'none' }).deal(SPREAD).play('2c 3c 4c 5c  Kc 6c 7c 8c').endPause().play('9c')
+    const card = explain(searchHearts(full(t, 0), mind(9), { worlds: 6 })!)!
+    expect(card.worlds).toBe(6)
+    expect(card.chosen.gap).toBe(0)
+    expect([card.chosen, ...card.others].every((e) => e.mean <= 0 && e.wins !== null && e.wins >= 0 && e.wins <= 1)).toBe(true)
+    const pass = explain(searchHearts(full(new Table({}, 1).deal(SPREAD), 0), mind(9), { worlds: 6 })!)!
+    expect(pass.others).toHaveLength(7)
+    expect([pass.chosen, ...pass.others].every((e) => e.wins === null)).toBe(true)
   })
 
   test('only one candidate is played without a search', () => {

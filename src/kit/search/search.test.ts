@@ -1,3 +1,4 @@
+import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { type Card, cardId, hasCard, removeCard, sameCard } from '../cards'
 import { HONEST } from '../mind'
@@ -124,6 +125,29 @@ describe('the search player', () => {
     const view = viewOf(deal([1, 4, 5]), 0)
     expect(() => search({ ...toy, candidates: () => [{ type: 'play', card: heart(1) }, { type: 'play', card: heart(6) }] }, view, HONEST)).toThrow(/refused \(cardNotInHand\)/)
     expect(() => search({ ...toy, rollout: (game) => ({ type: 'play', card: game.hands[0][0] ?? heart(1) }), seatsToAct: () => [0] }, view, HONEST)).toThrow(/refused/)
+  })
+
+  test('does a fixed amount of work: one rebuilt game and one playout per world and candidate, whatever happens in them', () => {
+    let rebuilt = 0
+    const counted = { ...toy, rebuild: (view: ToyView, world: Card[][]) => (rebuilt++, toy.rebuild(view, world)) }
+    for (const worlds of [1, 7, 30]) {
+      rebuilt = 0
+      const result = search({ ...counted, worlds }, viewOf(deal([1, 4, 5]), 0), HONEST)!
+      expect(rebuilt).toBe(worlds * 3)
+      expect(result.options.every((o) => o.values.length === worlds)).toBe(true)
+    }
+  })
+
+  test('reads no clock and no other randomness, and imports nothing but the kit', () => {
+    const dir = new URL('.', import.meta.url)
+    const sources = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+    expect(sources.sort()).toEqual(['explain.ts', 'sample.ts', 'search.ts', 'seed.ts', 'types.ts'])
+    const adapter = new URL('../../games/hearts/ai/search.ts', import.meta.url)
+    for (const file of [...sources.map((f) => new URL(f, dir)), adapter]) {
+      const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+      expect({ file: file.pathname, chance: /Math\.random|Date\b|performance\.|setTimeout/.test(code) }).toEqual({ file: file.pathname, chance: false })
+      if (file !== adapter) for (const [, from] of code.matchAll(/from '([^']+)'/g)) expect(from, file.pathname).toMatch(/^\.\.?\/[a-z]+$/)
+    }
   })
 
   test('explains each option: mean, standard error, the gap to the chosen paired by world, and how often it won the trick', () => {

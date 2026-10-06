@@ -3,6 +3,7 @@
  * fit what the seat has seen, with their uncertainty. Words belong to the coach, which says "in the deals this
  * could be"; a "much worse" warning is not to be read off these numbers until its threshold is validated.
  */
+import type { Card } from '../cards'
 import type { SearchResult } from './search'
 
 export interface Estimate<A> {
@@ -26,7 +27,7 @@ export interface Explanation<A> {
 }
 
 /** Estimates for the chosen action and each alternative; null when there was nothing to search. */
-export function explain<A>(result: SearchResult<A>): Explanation<A> | null {
+export function explain<A, C extends Card>(result: SearchResult<A, C>): Explanation<A> | null {
   if (result.worlds === 0) return null
   const chosen = result.options[result.chosen]
   const estimate = (option: (typeof result.options)[number]): Estimate<A> => {
