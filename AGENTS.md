@@ -127,7 +127,7 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 
 None for the app. The pages and the rooms are served by the same Worker, so they always share an origin.
 
-The deploy needs none: Workers Builds supplies Cloudflare's credentials through a build token on the account. Scripts and tests read a few of their own: `APP_URL` and `CHROMIUM` (the end-to-end scripts), `SIM_GAMES` (simulation sizes, as in `test:soak`), and `GATE` and `GATE_*` (the search player's gate).
+The deploy needs none in the repository: Workers Builds deploys with the build token set on the Worker's build settings. Scripts and tests read a few of their own: `APP_URL` and `CHROMIUM` (the end-to-end scripts), `SIM_GAMES` (simulation sizes, as in `test:soak`), and `GATE` and `GATE_*` (the search player's gate).
 
 ## Deployment
 

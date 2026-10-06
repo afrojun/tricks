@@ -1,5 +1,5 @@
 // One Worker for the whole app: static assets for the pages, one Durable Object class for rooms.
-// `pnpm dev` runs it inside Vite; a push to `main` deploys it (.github/workflows/deploy.yml).
+// `pnpm dev` runs it inside Vite; a push to `main` deploys it through Cloudflare Workers Builds (see AGENTS.md).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tricks",

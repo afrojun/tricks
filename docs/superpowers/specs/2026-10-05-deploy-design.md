@@ -35,7 +35,7 @@ Cloudflare Workers Builds, connected to the GitHub repository through Cloudflare
 2. Build command: `pnpm check && pnpm test && pnpm build`. A failure stops the build before anything is deployed.
 3. Deploy command: `pnpm exec wrangler deploy`, which follows the config the build wrote. Workers Builds supplies the credentials through a build token on the account, so the repository holds no secrets.
 
-Builds run one after another; each deploys all of `main` as it was pushed. Their logs are in the dashboard (Workers & Pages, `tricks`, Deployments, View build) or `cf builds list` and `cf builds logs`.
+Each build deploys all of `main` as it was at its commit. Unlike the removed workflow, nothing in the repository makes deploys run one at a time: Cloudflare limits concurrent builds per account (one on the free plan, more on paid), but does not promise that two builds of this Worker finish in push order. Leave a build to finish before pushing again when order matters. Their logs are in the dashboard (Workers & Pages, `tricks`, Deployments, View build) or `cf builds list` and `cf builds logs`.
 
 One deploy carries the app and the rooms together, so a change to the messages between them can no longer reach one before the other. Tabs already open still run the old app until reloaded.
 
@@ -92,6 +92,8 @@ Updated 2026-10-06, at the end of sub-project G (branch `tricks-deploy`, plan `d
 
 The account checks above and disconnecting Vercel from `main` were done on 2026-10-06. What remains:
 
+0. **The last check of section 5,** before pushing: a full game of Thunee and one of Hearts against the local production build, on two devices. In a terminal of its own, on `tricks`, run `pnpm build && pnpm preview` (the built Worker on port 4173), then open `https://omarchy.taild12565.ts.net:8443/thunee` and `/hearts`; this machine's Tailscale Serve already maps that address to 4173.
+
 1. **Bring `main` up to date.** Nothing deploys from GitHub any more, so this push alone deploys nothing:
 
    ```bash
@@ -103,7 +105,7 @@ The account checks above and disconnecting Vercel from `main` were done on 2026-
    - Production branch: `main`. Root directory: `/`.
    - Build command: `pnpm check && pnpm test && pnpm build`.
    - Deploy command: `pnpm exec wrangler deploy`.
-   - Build token: create one when asked, or reuse an account build token whose permissions cover Workers Scripts and the `afrojun.dev` zone's Workers Routes; the custom domain needs the second.
+   - Build token: let Cloudflare create one (it already includes the routes permission), or pick a user API token scoped to this account with Workers Scripts Edit and, on the `afrojun.dev` zone, Workers Routes Edit; the custom domain needs the second. Account-owned API tokens are not supported for builds.
 
    The first build then installs, checks, tests, builds and deploys. It creates the Worker, applies migration `v1` (the `Room` class) and attaches `tricks.afrojun.dev`, whose DNS record and certificate can take a few minutes to answer.
 
@@ -122,7 +124,7 @@ The account checks above and disconnecting Vercel from `main` were done on 2026-
 
    Then by hand: create a game at `https://tricks.afrojun.dev/thunee`, join from a second device and finish a round, and the same at `/hearts`; leave a table idle for several minutes, then play a card, and everyone must still be seated and connected; and the logs show no errors. The Worker's "Domains & Routes" settings should list `tricks.afrojun.dev` only.
 
-   A bad deploy is undone by reverting its commit on `main`, which builds and deploys again, or at once from the Worker's Deployments (Rollback).
+   A bad deploy is undone by reverting its commit on `main`, which builds and deploys again. The dashboard's Rollback (the Worker's Deployments) is quicker but only reaches versions with the same Durable Object migrations, so it cannot go back across a new migration; then deploy a fix forward instead. Neither brings back rooms already reset by a format-version change.
 4. **Afterwards** (section 4), once the checks in step 3 pass:
    - Delete the Vercel project, already disconnected: Vercel, the project, Settings, Advanced, Delete Project.
    - Delete the PartyKit deployment `tuscan-thunee`: `pnpm dlx partykit login`, then `pnpm dlx partykit delete --name tuscan-thunee` (or from PartyKit's dashboard).
