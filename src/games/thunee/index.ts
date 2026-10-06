@@ -1,4 +1,4 @@
-/** Thunee as a game module: what the room, practice and tests need. Its engine is `src/engine/`, its computer players `src/ai/`. */
+/** Thunee as a game module: what the room, practice and tests need. Its engine is `./engine/`, its computer players `./ai/`. */
 import { dueStep, reactions } from './ai/drive'
 import type { GameModule } from '../../kit/module'
 import {
@@ -14,6 +14,7 @@ import {
   createGame,
   nextDeadline,
   seatsToAct,
+  step,
   viewFor,
 } from './engine'
 
@@ -23,6 +24,7 @@ export const thunee: GameModule<Game, Action, GameEvent, View> = {
   seatCounts: SEAT_COUNTS,
   createGame,
   apply,
+  step,
   viewFor,
   seatsToAct,
   nextDeadline,

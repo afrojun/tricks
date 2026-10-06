@@ -55,13 +55,32 @@ function choosePass(view: View, hand: readonly Card[]): Decision {
     .filter((cards) => cards.length > 0 && cards.length <= 2 && !cards.some(keep))
     .sort((a, b) => a.length - b.length || byStrength(b[0], a[0]))
   for (const cards of short) if (cards.length <= PASS_SIZE - picks.length) cards.forEach((c) => take(c, 'shortSuit'))
+  for (const c of highestLeft(view, hand)) take(c, 'highCard')
+
+  return { action: { type: 'choosePass', cards: picks.map((p) => p.card) }, reason: { code: 'pass', picks } }
+}
+
+/** The cards this player would pass once its other rules are spent, first to last; never the cards it keeps. */
+function highestLeft(view: View, hand: readonly Card[]): Card[] {
+  const keep = (c: Card) => view.rules.jackOfDiamonds && sameCard(c, JACK_OF_DIAMONDS)
+  const spades = hand.filter((c) => c.suit === 'spades').length
   // Spades below the queen go last: they are what hides her, or what ducks under her.
   const left = hand.filter((c) => !keep(c) && !(isQueen(c) && spades >= SPADES_TO_HIDE_QUEEN))
   const order = (a: Card, b: Card) =>
     Number(isLowSpade(a)) - Number(isLowSpade(b)) || strength(b) - strength(a) || PASS_SUITS.indexOf(a.suit) - PASS_SUITS.indexOf(b.suit)
-  for (const c of left.sort(order)) take(c, 'highCard')
+  return left.sort(order)
+}
 
-  return { action: { type: 'choosePass', cards: picks.map((p) => p.card) }, reason: { code: 'pass', picks } }
+/**
+ * Every card of the hand in the order this player would pass it: its three picks, then the highest cards
+ * left, then the cards it keeps, highest first. The search player's pass candidates are built on this order.
+ */
+export function passOrder(view: View, hand: readonly Card[]): Card[] {
+  const action = choosePass(view, hand).action as Extract<Action, { type: 'choosePass' }>
+  const rest = hand.filter((c) => !action.cards.some((p) => sameCard(p, c)))
+  const left = highestLeft(view, rest)
+  const kept = rest.filter((c) => !left.includes(c)).sort((a, b) => byStrength(b, a))
+  return [...action.cards, ...left, ...kept]
 }
 
 // ── Play ─────────────────────────────────────────────────────────────────
@@ -87,7 +106,8 @@ type Plain = Extract<
 >
 const as = (code: Plain['code'], card: Card): CardChoice => ({ card, reason: { code, card } })
 
-function chooseCard(view: View, phase: ViewPlaying, legal: readonly Card[]): CardChoice {
+/** The honest card from among `legal`, and why. */
+export function chooseCard(view: View, phase: ViewPlaying, legal: readonly Card[]): CardChoice {
   if (legal.length === 1) return as(isOpeningLead(phase) ? 'openingLead' : 'onlyCard', legal[0])
   return phase.current.length === 0 ? chooseLead(phase, legal) : chooseFollow(view, phase, legal)
 }

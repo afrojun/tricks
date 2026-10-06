@@ -28,21 +28,34 @@ export function createGame(): Game {
  * player input.
  */
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
+  const draft = structuredClone(game)
+  const result = step(draft, actor, action, ctx)
+  return 'rejected' in result ? result : { game: draft, events: result.events }
+}
+
+/**
+ * The in-place half of `apply`: changes `draft` and returns the events. On a
+ * rejection the draft is left as it was, since every action is checked before
+ * anything is changed. The caller must own the draft: not frozen, and not
+ * shared with views still in use. For imagined games, such as the search
+ * player's; everything else goes through `apply`.
+ */
+export function step(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
   // Checked before any field is read: a client could send anything at all. Only the system sends `tick` and `setConnected`.
   if (!isAction(action)) return { rejected: 'notAllowed' }
-  if (!isActor(game, actor)) return { rejected: 'notSeated' }
+  if (!isActor(draft, actor)) return { rejected: 'notSeated' }
   const system = action.type === 'tick' || action.type === 'setConnected'
   const shaped = system ? { success: true as const, data: action } : actionShape.safeParse(action)
   if (!shaped.success) return { rejected: 'notAllowed' }
-  const draft = structuredClone(game)
+  const kind = draft.phase.kind
   const events: GameEvent[] = []
   const rejected = dispatch(draft, actor, shaped.data, ctx, events)
   if (rejected !== null) return { rejected }
   // A new phase starts every wait afresh: whoever passes last may also hold the two of clubs.
-  if (draft.phase.kind !== game.phase.kind) draft.waiting = []
+  if (draft.phase.kind !== kind) draft.waiting = []
   const toAct = seatsToAct(draft)
   settle(draft, ctx, toAct, toAct)
-  return { game: draft, events }
+  return { events }
 }
 
 /** Seats that have something to decide right now: every seat still to choose its pass, or the seat to play. */

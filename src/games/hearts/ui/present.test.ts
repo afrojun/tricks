@@ -14,8 +14,9 @@ function seated(): View {
 const summary = (over: Partial<RoundSummary>): RoundSummary => ({ roundNumber: 1, reason: 'normal', points: [0, 0, 0, 26], scoresAfter: [0, 0, 0, 26], moon: null, ...over })
 
 describe('Hearts on the client', () => {
-  test('names the game as the shell lists it, clockwise, for four, without teams or practice', () => {
-    expect(heartsClient).toMatchObject({ id: 'hearts', name: 'Hearts', direction: 'clockwise', seatCounts: [4], practice: null })
+  test('names the game as the shell lists it, clockwise, for four, without teams, with practice', () => {
+    expect(heartsClient).toMatchObject({ id: 'hearts', name: 'Hearts', direction: 'clockwise', seatCounts: [4] })
+    expect(heartsClient.practice).not.toBeNull()
     expect([0, 1, 2, 3].map((seat) => heartsClient.lobbyTeams(seat, 4))).toEqual([null, null, null, null])
   })
 
