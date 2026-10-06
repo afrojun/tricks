@@ -35,7 +35,7 @@ export interface Knowledge<C extends Card> {
 /** One placing of the hidden cards: the cards of each place, in a random order. */
 export type World<C extends Card> = C[][]
 
-/** What a game supplies to the search player, beside its module's `viewFor`, `seatsToAct` and `nextDeadline`. */
+/** What a game supplies to the search player. */
 export interface SearchGame<G, A, V extends TableView, C extends Card = Card> {
   /** The in-place half of `apply` (rule 1). */
   step(draft: G, actor: Actor, action: A | TableAction, ctx: Ctx): { events: unknown[] } | { rejected: string }
@@ -45,8 +45,11 @@ export interface SearchGame<G, A, V extends TableView, C extends Card = Card> {
   rebuild(view: V, world: World<C>): G
   /** The legal actions open to the viewer now, in an order that does not depend on chance. */
   candidates(view: V): A[]
-  /** A random legal action for the seat whose view this is, in an imagined game, for rollouts. */
-  rollout(view: V, rng: () => number): A
+  /**
+   * A random legal action for a seat to act in an imagined game, for rollouts. It reads the imagined game,
+   * which `rebuild` made from the view, rather than a view of it, which would cost a view per action.
+   */
+  rollout(game: G, seat: Seat, rng: () => number): A
   /** The round's result for one seat once it is over: higher is better for that seat. */
   value(game: G, seat: Seat): number
   /** Names this decision from public facts (rule 4). */
@@ -57,7 +60,7 @@ export interface SearchGame<G, A, V extends TableView, C extends Card = Card> {
   trick?(view: V): number | null
   /** Who took trick `index`, once it is complete; null before. */
   trickWinner?(game: G, index: number): Seat | null
-  viewFor(game: G, seat: Seat): V
+  /** The module's own: who has something to decide, and the next deadline. A round is over when neither is left. */
   seatsToAct(game: G): Seat[]
   nextDeadline(game: G): number | null
 }

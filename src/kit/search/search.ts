@@ -94,7 +94,7 @@ function playOut<G, A, V extends TableView, C extends Card>(
     if (trick !== null && winner === null) winner = game.trickWinner?.(draft, trick) ?? null
     const toAct = game.seatsToAct(draft)
     if (toAct.length > 0) {
-      act(game, draft, toAct[0], game.rollout(game.viewFor(draft, toAct[0]), rng), now, rng)
+      act(game, draft, toAct[0], game.rollout(draft, toAct[0], rng), now, rng)
       continue
     }
     const due = game.nextDeadline(draft)

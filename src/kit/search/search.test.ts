@@ -67,13 +67,12 @@ const toy: SearchGame<Toy, ToyAction, ToyView> = {
     return { hands, played: [...view.played], turn: view.phase.kind === 'over' ? null : view.played[0] === null ? 0 : 1 }
   },
   candidates: (view) => [...view.hand].sort((a, b) => cardId(a).localeCompare(cardId(b))).map((card) => ({ type: 'play', card })),
-  rollout: (view, rng) => ({ type: 'play', card: view.hand[Math.floor(rng() * view.hand.length)] }),
+  rollout: (game, seat, rng) => ({ type: 'play', card: game.hands[seat][Math.floor(rng() * game.hands[seat].length)] }),
   value: (game, seat) => (winner(game) === seat ? 1 : -1),
   decisionId: (view) => `play:${view.played.filter(Boolean).length}`,
   worlds: 30,
   trick: () => 0,
   trickWinner: (game) => winner(game),
-  viewFor: viewOf,
   seatsToAct: (game) => (game.turn === null ? [] : [game.turn]),
   nextDeadline: () => null,
 }
@@ -124,7 +123,7 @@ describe('the search player', () => {
   test('a candidate the engine refuses is a bug, and throws', () => {
     const view = viewOf(deal([1, 4, 5]), 0)
     expect(() => search({ ...toy, candidates: () => [{ type: 'play', card: heart(1) }, { type: 'play', card: heart(6) }] }, view, HONEST)).toThrow(/refused \(cardNotInHand\)/)
-    expect(() => search({ ...toy, rollout: (v) => ({ type: 'play', card: v.hand[0] ?? heart(1) }), seatsToAct: () => [0] }, view, HONEST)).toThrow(/refused/)
+    expect(() => search({ ...toy, rollout: (game) => ({ type: 'play', card: game.hands[0][0] ?? heart(1) }), seatsToAct: () => [0] }, view, HONEST)).toThrow(/refused/)
   })
 
   test('explains each option: mean, standard error, the gap to the chosen paired by world, and how often it won the trick', () => {
