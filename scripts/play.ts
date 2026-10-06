@@ -95,7 +95,7 @@ function firstViewOf(name: string): Promise<{ playerCount: number; phase: { kind
     socket.addEventListener('close', (e) => reject(new Error(`a socket to ${name} closed with ${e.code}`)))
   })
 }
-// Hearts has no screens yet, but the server holds its rooms.
+// The server holds Hearts' rooms too. Hearts is played through its screens by scripts/e2e-hearts.ts.
 const hearts = await firstViewOf(roomName('hearts', code))
 if (hearts.playerCount !== 4 || hearts.phase.kind !== 'lobby' || !('gameEndsAt' in hearts.rules)) throw new Error(`a Hearts room opened as ${JSON.stringify(hearts)}`)
 console.log(`room ${roomName('hearts', code)}: a Hearts lobby of four`)
