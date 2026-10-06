@@ -135,7 +135,7 @@ Each deal is played under all four pass directions. On each, the round is played
 - **Against random players** it does what the hand-written player does (−4.809 [−4.885, −4.734] in its own report). Its rollouts model random opponents exactly.
 - **Four search players** take 6.955 points a round each over 200 rounds with 7 moons, exactly 6.5 + 13 × 7 / 200. Moons are three times as common as among four hand-written players (3.5% against 1.1%).
 
-Why, as far as the decisions show: random rollouts play every seat at random, the searcher's own later cards included. A random player keeps no low cards to duck with and throws the queen of spades at random, so in the imagined deals holding high cards or the queen is far worse than it is for a player who plays on with care, and the estimates swing with each deal: the paired standard error of the gap between two cards is about one point at 30 worlds, as large as most gaps. The hand-written player encodes the care. In Thunee the spike's search beat a hand-written player that was itself only 0.43 balls a round better than random; Hearts' hand-written player is far stronger than random (4.8 points a round).
+Why, as far as the decisions show: random rollouts play every seat at random, the searcher's own later cards included. A random player keeps no low cards to duck with and throws the queen of spades at random, so in the imagined deals holding high cards or the queen is far worse than it is for a player who plays on with care, and the estimates swing with each deal: the paired standard error of the gap between two cards is half a point to a point at 30 worlds, as large as most gaps. The hand-written player encodes the care. In Thunee the spike's search beat a hand-written player that was itself only 0.43 balls a round better than random; Hearts' hand-written player is far stronger than random (4.8 points a round).
 
 ### Speed
 
@@ -154,8 +154,8 @@ The decisions of twenty seeded rounds of four search players, each timed once af
 
 - **Against the bar.** The 95th percentile in Chromium throttled four times is over 100 ms at 10, 20 and 30 worlds. A round of four computers stays under one second of CPU in Node at 10 and 20 worlds, but not at 30 (median 0.999 s, worst 1.245 s).
 - **The pass sets the tail.** Eight candidates played to the end of the round: the searched p95 is about the median pass.
-- **Where the time goes**, in a profile at 30 worlds: the engine's `step` is about 60%, most of it its own validation, which builds a view and the available actions for every action. Dealing, rebuilding and the rest of the search are under 10%. Two savings were taken before measuring: rollouts read the imagined game rather than building a view per action, and cards that play alike are searched once.
-- **Under load** (averages 13 to 25, the first runs) the same decisions took two to three times as long; those runs are not reported.
+- **Where the time goes**, in a profile at 30 worlds: the engine's `step` is about 60%, most of it its own validation, which builds a view and the available actions for every action. The search's own work (the random choices, dealing, rebuilding) is about a tenth. Two savings were taken before measuring: rollouts read the imagined game rather than building a view per action, and cards that play alike are searched once.
+- **Under load.** The first runs, at load averages of 13 to 25, took up to three times as long for the same decisions. They were repeated on a quiet machine, and only the repeats are reported and saved.
 
 ### Cheating
 
