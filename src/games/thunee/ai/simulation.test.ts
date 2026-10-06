@@ -13,10 +13,10 @@ import {
   seatsToAct,
   teamOf,
   viewFor,
-} from '../games/thunee/engine'
-import { Table, collectCards, seededRng } from '../games/thunee/engine/testing'
+} from '../engine'
+import { Table, collectCards, seededRng } from '../engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
-import { HONEST } from '../kit/mind'
+import { HONEST } from '../../../kit/mind'
 import { chooseChallenge } from './suspicion'
 
 /** Raise with SIM_GAMES=2000 for a soak run. */

@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest'
-import { type Game, viewFor } from '../games/thunee/engine'
-import { Table, card, cards } from '../games/thunee/engine/testing'
+import { type Game, viewFor } from '../engine'
+import { Table, card, cards } from '../engine/testing'
 import { decide } from './choose'
-import { HONEST } from '../kit/mind'
+import { HONEST } from '../../../kit/mind'
 
 // Dealer 0: seat 1 is trumper (team 1), seat 2 leads; trump is spades. Order of play 2, 3, 0, 1.
 const D1 = ['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']

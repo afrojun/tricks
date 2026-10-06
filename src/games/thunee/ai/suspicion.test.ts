@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
-import { chanceOfVoid, noticeOdds } from '../kit/integrity'
-import { type Persona, viewFor } from '../games/thunee/engine'
-import { Table, cards } from '../games/thunee/engine/testing'
+import { chanceOfVoid, noticeOdds } from '../../../kit/integrity'
+import { type Persona, viewFor } from '../engine'
+import { Table, cards } from '../engine/testing'
 import { mood } from './read'
 import { VOID_DOUBT, chooseChallenge, findProofs, findSignals } from './suspicion'
 

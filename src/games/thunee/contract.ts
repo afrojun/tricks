@@ -1,5 +1,5 @@
 /** Thunee's side of the module contract: its random legal player, its mischief, and what each seat may not see. For tests. */
-import { chooseJodhi } from '../../ai/choose'
+import { chooseJodhi } from './ai/choose'
 import {
   type Action,
   type Game,

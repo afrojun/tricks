@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { thunee } from '.'
-import { dueStep, reactions } from '../../ai/drive'
+import { dueStep, reactions } from './ai/drive'
 import { FORMAT_VERSION, apply, viewFor } from './engine'
 
 describe('the Thunee module', () => {

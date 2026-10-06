@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { chooseAction, chooseJodhi } from '../ai/choose'
+import { chooseAction, chooseJodhi } from '../games/thunee/ai/choose'
 import { HONEST } from '../kit/mind'
 import type { Action, GameEvent, View } from '../games/thunee/engine'
 import { type Game, createGame } from '../games/thunee/engine'

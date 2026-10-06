@@ -6,7 +6,7 @@ import { thuneePractice } from '../games/thunee/practice'
 import { type ThuneePracticeGame, playPractice } from '../games/thunee/testing'
 import { PRACTICE_FORMAT, PracticeGame, practiceKey } from './game'
 import { rng } from './rng'
-import { decide } from '../ai/choose'
+import { decide } from '../games/thunee/ai/choose'
 import { HONEST } from '../kit/mind'
 
 describe('rng', () => {

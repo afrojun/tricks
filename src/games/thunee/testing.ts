@@ -1,5 +1,5 @@
 /** Thunee's practice for tests: a game played forward the way an attentive learner would. */
-import { decide } from '../../ai/choose'
+import { decide } from './ai/choose'
 import type { Note } from '../../coach/note'
 import { type Action, type Card, type Game, type GameEvent, type RoundSummary, type View, seatsToAct } from './engine'
 import { HONEST } from '../../kit/mind'

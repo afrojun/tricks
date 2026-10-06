@@ -5,7 +5,6 @@ export default defineConfig({
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   test: {
     include: [
-      'src/ai/**/*.test.ts',
       'src/client/**/*.test.ts',
       'src/presets/**/*.test.ts',
       'src/practice/**/*.test.ts',

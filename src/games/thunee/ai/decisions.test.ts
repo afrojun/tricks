@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest'
-import { type Action, type Actor, type Persona, type RuleOverrides, CLASSIC_APP_OVERRIDES, SUITS, availableActions, createGame, nextDeadline, sameCard, seatsToAct, viewFor } from '../games/thunee/engine'
-import { Table, seededRng } from '../games/thunee/engine/testing'
+import { type Action, type Actor, type Persona, type RuleOverrides, CLASSIC_APP_OVERRIDES, SUITS, availableActions, createGame, nextDeadline, sameCard, seatsToAct, viewFor } from '../engine'
+import { Table, seededRng } from '../engine/testing'
 import { chooseAction } from './choose'
 import { dueStep, reactions } from './drive'
-import { HONEST } from '../kit/mind'
+import { HONEST } from '../../../kit/mind'
 
 /**
  * Pins what computers decide. Seeded whole games: computers of every persona driven only

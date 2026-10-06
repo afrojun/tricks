@@ -10,7 +10,7 @@
     "check": "tsc --noEmit && tsc --noEmit -p worker",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:soak": "SIM_GAMES=400 vitest run src/ai src/games/hearts/simulation.test.ts",
+    "test:soak": "SIM_GAMES=400 vitest run src/games/thunee/ai src/games/hearts/simulation.test.ts",
     "e2e": "tsx scripts/e2e.ts && tsx scripts/e2e-two.ts && tsx scripts/e2e-controls.ts && tsx scripts/e2e-practice.ts",
     "e2e:sockets": "tsx scripts/play.ts"
   },

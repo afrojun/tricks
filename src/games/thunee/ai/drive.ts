@@ -1,8 +1,8 @@
 /** What happens without a person acting: deadlines, computer turns, and computers' reactions. Shared by every host. */
-import type { Ask as KitAsk, Step as KitStep } from '../kit/module'
-import { type Action, type Game, type GameEvent, isAiControlled, seatsToAct, teamOf, viewFor } from '../games/thunee/engine'
+import type { Ask as KitAsk, Step as KitStep } from '../../../kit/module'
+import { type Action, type Game, type GameEvent, isAiControlled, seatsToAct, teamOf, viewFor } from '../engine'
 import { chooseAction, chooseJodhi, fallbackAction } from './choose'
-import { mindFor } from '../kit/mind'
+import { mindFor } from '../../../kit/mind'
 import { chooseChallenge } from './suspicion'
 
 /** Something to apply without a person acting: the kit's `Step`, for Thunee. */

@@ -1,5 +1,5 @@
 /** Thunee as a game module: what the room, practice and tests need. Its engine is `src/engine/`, its computer players `src/ai/`. */
-import { dueStep, reactions } from '../../ai/drive'
+import { dueStep, reactions } from './ai/drive'
 import type { GameModule } from '../../kit/module'
 import {
   type Action,

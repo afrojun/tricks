@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest'
-import { type Action, type Actor, type Game, type GameEvent, createGame, viewFor } from '../games/thunee/engine'
-import { Table } from '../games/thunee/engine/testing'
+import { type Action, type Actor, type Game, type GameEvent, createGame, viewFor } from '../engine'
+import { Table } from '../engine/testing'
 import { chooseAction, fallbackAction } from './choose'
 import { type Step, dueStep, reactions } from './drive'
-import { mindFor } from '../kit/mind'
+import { mindFor } from '../../../kit/mind'
 
 /** A four-seat game with one human at seat 0 and computers elsewhere, just dealt. */
 function withComputers(seed = 3): Table {

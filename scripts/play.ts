@@ -7,7 +7,7 @@
  * pnpm e2e:sockets, with APP_URL set if the app is not on http://localhost:5173.
  */
 import PartySocket from 'partysocket'
-import { chooseAction, chooseJodhi } from '../src/ai/choose'
+import { chooseAction, chooseJodhi } from '../src/games/thunee/ai/choose'
 import { HONEST } from '../src/kit/mind'
 import { type Action, type GameEvent, type View, availableActions } from '../src/games/thunee/engine'
 import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../src/protocol'
