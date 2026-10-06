@@ -5,11 +5,13 @@
  *
  * Parts: strength, random, self, cheating, determinism, speed, browser; all of them when none is named. A short
  * run unless GATE=full. GATE_WORLDS (a list, such as 10,20,30), GATE_DEALS, GATE_ROUNDS and GATE_THREADS change
- * the sizes. The gate is bundled with Vite, as the app is, and timed in Node and in headless Chromium
- * (`/usr/bin/chromium`, or CHROMIUM). Results, raw timings included, are written to `results/`.
+ * the sizes, and GATE_SEARCHES=pass or play searches only that part. The gate is bundled with Vite, as the app
+ * is, and timed in Node and in headless Chromium (`/usr/bin/chromium`, or CHROMIUM). A full run, or one given
+ * its sizes, writes its results, raw timings included, to `results/`; the short default only prints them.
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { loadavg, tmpdir } from 'node:os'
+import { relative } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { chromium } from 'playwright-core'
 import { build } from 'vite'
@@ -31,8 +33,20 @@ const RESULTS = new URL('./results/', import.meta.url)
 mkdirSync(RESULTS, { recursive: true })
 
 const load = () => loadavg().map((l) => l.toFixed(1)).join(' ')
-const stamp = () => ({ date: new Date().toISOString(), full: FULL, load: load(), command: `GATE=${FULL ? 'full' : 'short'} ${process.argv.slice(1).join(' ')}` })
-const save = (name: string, data: object) => writeFileSync(new URL(name, RESULTS), `${JSON.stringify({ ...stamp(), ...data })}\n`)
+/** The command that reruns this, with every setting it was given. */
+const command = [
+  ...Object.entries(process.env)
+    .filter(([key]) => key.startsWith('GATE'))
+    .sort()
+    .map(([key, value]) => `${key}=${value}`),
+  './node_modules/.bin/tsx',
+  relative(process.cwd(), process.argv[1]),
+  ...parts,
+].join(' ')
+const stamp = () => ({ date: new Date().toISOString(), full: FULL, load: load(), command })
+/** A full run, or one given its sizes, is saved; the short default only prints, so it never overwrites a full result. */
+const SAVING = FULL || Object.keys(process.env).some((key) => key.startsWith('GATE_'))
+const save = (name: string, data: object) => SAVING && writeFileSync(new URL(name, RESULTS), `${JSON.stringify({ ...stamp(), ...data })}\n`)
 const mean = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
 
 // ── The bundle ───────────────────────────────────────────────────────────
