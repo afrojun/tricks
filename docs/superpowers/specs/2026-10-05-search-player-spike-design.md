@@ -86,7 +86,7 @@ Also report how much code "rebuild a game from a view" took for Thunee, since ev
 
 ## 6. Results
 
-Run 2026-10-05 on branch `tricks-search-spike` (code in `src/spike/search/`). Node 24 on an 8-core desktop shared with other work. Every run is seeded; the command for each is listed at the end. "Search R/n" means search with rollout policy R at n sampled worlds per decision. Balls are per round.
+Run 2026-10-05 on branch `tricks-search-spike` (code in `src/spike/search/`). The branch was deleted on 2026-10-06; its code and raw results (`src/spike/search/results/`) are kept at the tag `archive/search-spike`, so `git checkout archive/search-spike` restores them and the commands below run from there. Node 24 on an 8-core desktop shared with other work. Every run is seeded; the command for each is listed at the end. "Search R/n" means search with rollout policy R at n sampled worlds per decision. Balls are per round.
 
 ### Strength (3.1)
 
