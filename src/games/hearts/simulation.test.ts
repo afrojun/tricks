@@ -27,7 +27,7 @@ describe('the module contract', () => {
       }
       console.log(
         `${name}: ${actions} actions, endings: ${[...tally.reasons].sort().join(', ')}; ` +
-          `${tally.cheats} cheats, ${tally.accusations} accusations, ${tally.caught} by computers, ${refused} refused`,
+          `${tally.cheats} cheats, ${tally.accusations} accusations, ${tally.caught} guilty by computers, ${tally.hunches} computer hunches wrong, ${refused} refused`,
       )
       expect(actions).toBeGreaterThan(GAMES * 150)
       expect(tally.reasons).toContain('normal')

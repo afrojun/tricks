@@ -2,7 +2,7 @@
 import { cardId, sameCard } from '../../kit/cards'
 import type { Contract } from '../../kit/contract'
 import { brokenRules } from '../../kit/integrity'
-import type { Persona } from '../../kit/mind'
+import { type Persona, TRAITS, mindFor } from '../../kit/mind'
 import { type Seat, allSeats } from '../../kit/table'
 import { hearts } from '.'
 import { availableActions } from './engine/available'
@@ -16,8 +16,10 @@ export interface HeartsTally {
   reasons: Set<string>
   /** Rule-breaking cards accepted. */
   cheats: number
-  /** Accusations by computers, every one of them guilty. */
+  /** Guilty accusations by computers. */
   caught: number
+  /** Wrong accusations by computers, every one of them on a hunch. */
+  hunches: number
   accusations: number
 }
 
@@ -26,7 +28,7 @@ const pick = <T>(items: readonly T[], rng: () => number): T => items[Math.floor(
 const PERSONAS: (Persona | 'surprise')[] = ['surprise', 'sharp', 'wild']
 
 export function heartsContract(overrides: RuleOverrides): { contract: Contract<Game, Action, GameEvent, View>; tally: HeartsTally } {
-  const tally: HeartsTally = { reasons: new Set(), cheats: 0, caught: 0, accusations: 0 }
+  const tally: HeartsTally = { reasons: new Set(), cheats: 0, caught: 0, hunches: 0, accusations: 0 }
   const fail = (message: string): never => {
     throw new Error(message)
   }
@@ -96,8 +98,10 @@ export function heartsContract(overrides: RuleOverrides): { contract: Contract<G
           tally.accusations++
           if (!game.rules.allowCheating) fail('an accusation with cheating off')
           if (step.source === 'computer') {
-            if (!e.guilty) fail(`seat ${e.challenger} accused ${e.accused} without a proof`)
-            tally.caught++
+            // Only a persona that acts on hunches may be wrong; the rest accuse on a proof alone.
+            if (e.guilty) tally.caught++
+            else if (TRAITS[mindFor(game, e.challenger).persona].hunchAt !== null) tally.hunches++
+            else fail(`seat ${e.challenger} accused ${e.accused} without a proof`)
           }
         }
         if (e.type === 'roundScored') checkSummary(game, e.summary)
