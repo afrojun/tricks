@@ -10,7 +10,8 @@ import { checkInvariants } from '../../engine/invariants'
 import { MOON_POINTS, PLAYERS } from '../../engine/rules'
 import type { Action, Game, View } from '../../engine/types'
 import { viewFor } from '../../engine/view'
-import { candidates, heartsSearch, rebuild, searchHearts } from '../search'
+import { rebuild } from '../imagine'
+import { candidates, heartsSearch, searchHearts } from '../search'
 import { DIRECTIONS, type Player, RANDOM, WRITTEN, dealt, handsOf, playRound } from './play'
 
 /** Whether two actions are the same pass (in any order) or the same card. */

@@ -142,11 +142,11 @@ describe('the search player', () => {
     const dir = new URL('.', import.meta.url)
     const sources = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
     expect(sources.sort()).toEqual(['explain.ts', 'sample.ts', 'search.ts', 'seed.ts', 'types.ts'])
-    const adapter = new URL('../../games/hearts/ai/search.ts', import.meta.url)
-    for (const file of [...sources.map((f) => new URL(f, dir)), adapter]) {
+    const adapter = ['search.ts', 'imagine.ts'].map((f) => new URL(`../../games/hearts/ai/${f}`, import.meta.url))
+    for (const file of [...sources.map((f) => new URL(f, dir)), ...adapter]) {
       const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
       expect({ file: file.pathname, chance: /Math\.random|Date\b|performance\.|setTimeout/.test(code) }).toEqual({ file: file.pathname, chance: false })
-      if (file !== adapter) for (const [, from] of code.matchAll(/from '([^']+)'/g)) expect(from, file.pathname).toMatch(/^\.\.?\/[a-z]+$/)
+      if (!adapter.includes(file)) for (const [, from] of code.matchAll(/from '([^']+)'/g)) expect(from, file.pathname).toMatch(/^\.\.?\/[a-z]+$/)
     }
   })
 

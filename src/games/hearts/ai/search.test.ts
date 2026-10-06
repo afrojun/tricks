@@ -18,8 +18,9 @@ import type { Action, Game, View } from '../engine/types'
 import { viewFor } from '../engine/view'
 import { chooseChallenge } from './catch'
 import { chooseAction, decide, passOrder } from './choose'
+import { rebuild, value } from './imagine'
 import { unseen, wouldWin } from './read'
-import { candidates, decisionId, heartsSearch, knowledge, passCandidates, rebuild, searchHearts, value } from './search'
+import { candidates, decisionId, heartsSearch, knowledge, passCandidates, searchHearts } from './search'
 
 /** The adapter with every rebuilt world checked: the invariants hold, and the seat gets its own view back exactly. */
 function checking(tally = { worlds: 0 }, worlds = heartsSearch.worlds): SearchGame<Game, Action, View, Card> {

@@ -202,8 +202,11 @@ describe('the computer players', () => {
     expect(sources).toContain('choose.ts')
     for (const file of sources) {
       const code = readFileSync(new URL(file, dir), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
-      // The search adapter's `rebuild` makes imagined games from a view, which it steps and scores (search-player spec, rule 2).
-      expect({ file, game: /\bGame\b/.test(code), views: /\bviewFor\b/.test(code) }).toEqual({ file, game: file === 'drive.ts' || file === 'search.ts', views: file === 'drive.ts' })
+      // The search player's imagined games, rebuilt from a view, are a game it steps and scores (search-player spec, rule 2).
+      expect({ file, game: /\bGame\b/.test(code), views: /\bviewFor\b/.test(code) }).toEqual({ file, game: file === 'drive.ts' || file === 'imagine.ts', views: file === 'drive.ts' })
     }
+    // And they hold nothing else: the search decides in `search.ts`, from the view.
+    const imagine = readFileSync(new URL('imagine.ts', dir), 'utf8')
+    expect([...imagine.matchAll(/^export (?:function|const) (\w+)/gm)].map((m) => m[1]).sort()).toEqual(['fullPlay', 'imagined', 'othersThan', 'rebuild', 'rollout', 'value'])
   })
 })
