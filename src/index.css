@@ -239,7 +239,7 @@ button:disabled {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgb(60 60 60 / 0.22);
+  background: var(--card-dim);
   pointer-events: none;
 }
 .hand .playing-card.shake {
@@ -377,7 +377,7 @@ button:disabled {
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 0.5);
+  background: var(--backdrop);
   display: grid;
   align-items: end;
   z-index: 40;

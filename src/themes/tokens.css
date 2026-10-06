@@ -35,6 +35,9 @@
   --card-radius: 4px;
   --card-font: 'VT323', monospace;
   --motion: 90ms;
+  /* Over a card that may not be played, and behind an open sheet. */
+  --card-dim: rgb(60 60 60 / 0.22);
+  --backdrop: rgb(0 0 0 / 0.5);
 }
 
 :root[data-theme='modern'] {
@@ -69,6 +72,9 @@
   --card-radius: 9px;
   --card-font: 'Bricolage Grotesque', system-ui, sans-serif;
   --motion: 180ms;
+  /* Over a card that may not be played, and behind an open sheet. */
+  --card-dim: rgb(60 60 60 / 0.22);
+  --backdrop: rgb(0 0 0 / 0.5);
 }
 
 :root[data-theme='minimal'] {
@@ -103,6 +109,9 @@
   --card-radius: 5px;
   --card-font: 'Hanken Grotesk', system-ui, sans-serif;
   --motion: 120ms;
+  /* Over a card that may not be played, and behind an open sheet. */
+  --card-dim: rgb(60 60 60 / 0.22);
+  --backdrop: rgb(0 0 0 / 0.5);
 }
 
 /* ── Card backs ─────────────────────────────────────────────────────────── */
