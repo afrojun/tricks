@@ -37,7 +37,7 @@ pnpm preview      # serve the production build locally, rooms included
 
 ## Deployment
 
-The pages and the rooms are one Cloudflare Worker, `tricks`, at `tricks.afrojun.dev`. Every push to `main` runs `.github/workflows/deploy.yml`: install, type check, tests, build, then `wrangler deploy` with the repository's `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets. Nothing else is deployed.
+The pages and the rooms are one Cloudflare Worker, `tricks`, at `tricks.afrojun.dev`. Cloudflare Workers Builds deploys it on every push to `main`: install, then `pnpm check && pnpm test && pnpm build`, then `wrangler deploy`. The repository holds no deploy secrets; Cloudflare supplies the credentials. Nothing else is deployed.
 
 A deploy restarts the rooms, and games in progress carry on. A change to how a game is saved resets that game's rooms; `AGENTS.md` explains when. What the first deploy needs is in the "Status" section of `docs/superpowers/specs/2026-10-05-deploy-design.md`.
 

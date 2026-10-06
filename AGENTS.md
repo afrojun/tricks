@@ -28,7 +28,7 @@ In development the Cloudflare Vite plugin runs the Worker, rooms included, insid
 - **Frontend**: Vite + React + TypeScript
 - **Styling**: Tailwind CSS v4 over theme tokens (CSS custom properties)
 - **Real-time**: one Cloudflare Worker; each room is a Durable Object built with `partyserver`, and the client connects with `partysocket`
-- **Hosting**: the same Worker serves the pages as static assets; GitHub Actions deploys it from `main`
+- **Hosting**: the same Worker serves the pages as static assets; Cloudflare Workers Builds deploys it from `main`
 - **Validation**: Zod
 - **Package manager**: pnpm; **tests**: Vitest
 
@@ -59,7 +59,7 @@ src/presets/        Rule books (book.ts), presets saved per game, and share link
 src/themes/         Theme tokens and the theme list.
 scripts/            End-to-end scripts.
 wrangler.jsonc      The Worker: assets, the Room Durable Object and its migrations, the custom domain, logs.
-.github/workflows/  deploy.yml: every push to main is checked, tested, built and deployed.
+.node-version       The Node major the Cloudflare build uses.
 ```
 
 Dependency direction: `kit` imports nothing from the app, and anything may import it. `ui -> client, practice, presets, themes`, and `ui -> games/<id>/client.ts` only through the dynamic imports in `src/ui/games.ts`; a game's `client.ts` and `ui/ -> src/ui` (the contract and shared parts), `practice`, `presets`; `games/<id>` never imports another game; within a game `ui -> coach, engine`, `coach -> engine, ai` and `ai -> engine`, and the engine imports only the kit; `practice -> client, protocol`; `client -> protocol`; `room -> games, protocol`; `worker -> games, protocol, room`. `room`, `protocol`, `client`, `practice` and the shell know a game only through its module, its `GamePractice` or its `GameClient`.
@@ -127,13 +127,13 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 
 None for the app. The pages and the rooms are served by the same Worker, so they always share an origin.
 
-The deploy reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, which live only in the GitHub repository's secrets. Scripts and tests read a few of their own: `APP_URL` and `CHROMIUM` (the end-to-end scripts), `SIM_GAMES` (simulation sizes, as in `test:soak`), and `GATE` and `GATE_*` (the search player's gate).
+The deploy needs none: Workers Builds supplies Cloudflare's credentials through a build token on the account. Scripts and tests read a few of their own: `APP_URL` and `CHROMIUM` (the end-to-end scripts), `SIM_GAMES` (simulation sizes, as in `test:soak`), and `GATE` and `GATE_*` (the search player's gate).
 
 ## Deployment
 
 Tricks runs as one Cloudflare Worker named `tricks` at `https://tricks.afrojun.dev`, a custom domain on the account that holds `afrojun.dev`. It has no `workers.dev` address and no preview addresses. `wrangler.jsonc` holds all of this.
 
-Every push to `main` deploys. `.github/workflows/deploy.yml` installs from the lockfile, runs `pnpm check`, `pnpm test` and `pnpm build`, then `pnpm exec wrangler deploy` with the repository's `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets. A failed install, check, test or build stops the run before it deploys. A failure in the deploy step itself may come after the Worker was uploaded, so check the dashboard rather than the job's status. One deploy carries the pages and the rooms together, so a change to the messages between them reaches both at once; tabs already open run the old pages until reloaded.
+Every push to `main` deploys, through Cloudflare Workers Builds (the Worker's Settings, Builds, in the dashboard; `cf builds triggers list` from the CLI). The build installs with pnpm (the version in `packageManager`, Node from `.node-version`), runs `pnpm check && pnpm test && pnpm build`, then `pnpm exec wrangler deploy`. A failed install, check, test or build stops it before it deploys. A failure in the deploy step itself may come after the Worker was uploaded, so check the Worker's Deployments rather than the build's status. Build logs: the Worker's Deployments, View build; or `cf builds list` and `cf builds logs`. One deploy carries the pages and the rooms together, so a change to the messages between them reaches both at once; tabs already open run the old pages until reloaded.
 
 - **A deploy restarts every room.** Games in progress survive it, because everything a room knows is saved.
 - **A format version resets.** Pushing a change that raises a game's `FORMAT_VERSION` resets every room of that game, and every practice save of it, as soon as it deploys.
