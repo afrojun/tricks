@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { heartsClient } from '../client'
-import { type RoundSummary, type View, OMNIBUS, STANDARD, resolveRules, viewFor } from '../engine'
+import { type GameEvent, type RoundSummary, type View, OMNIBUS, STANDARD, resolveRules, viewFor } from '../engine'
 import { Table } from '../engine/testing'
 import { dwell } from './dwell'
 import { present } from './present'
@@ -27,12 +27,32 @@ describe('Hearts on the client', () => {
     expect(heartsClient.rules.defaults).toEqual(STANDARD)
   })
 
-  test('cards and passes hold the screen; scoring does not wait', () => {
+  test('cards and passes hold the screen; an ordinary score does not wait', () => {
     expect(dwell({ type: 'cardPlayed', seat: 0, card: { suit: 'clubs', rank: '2' } })).toBeGreaterThan(0)
     expect(dwell({ type: 'passesExchanged' })).toBeGreaterThan(0)
     expect(dwell({ type: 'challengeResolved', challenger: 0, accused: 1, guilty: true })).toBeGreaterThan(1000)
     expect(dwell({ type: 'roundScored', summary: summary({}) })).toBe(0)
     expect(dwell({ type: 'seatChanged' })).toBe(0)
+  })
+
+  test('every message holds the screen for as long as the moments it shows, so the next cannot move the table under them', () => {
+    const view = seated()
+    const card = { suit: 'hearts', rank: '9' } as const
+    const challenge = { challenger: 1, accused: 0, guilty: true, rule: 'followSuit', card }
+    // Events as the engine sends them together, one message each.
+    const messages: GameEvent[][] = [
+      [{ type: 'cardPlayed', seat: 0, card }, { type: 'heartsBroken' }],
+      [{ type: 'trickWon', seat: 0, points: 1 }, { type: 'roundScored', summary: summary({ reason: 'moon', moon: 2, points: [26, 26, 0, 26] }) }],
+      [{ type: 'roundScored', summary: summary({ reason: 'moon', moon: 1 }) }, { type: 'gameOver', winner: 1 }],
+      [{ type: 'challengeResolved', challenger: 1, accused: 0, guilty: true }, { type: 'roundScored', summary: summary({ reason: 'challenge', challenge }) }],
+      [{ type: 'challengeResolved', challenger: 1, accused: 0, guilty: false }, { type: 'roundScored', summary: summary({ reason: 'challenge', challenge: { ...challenge, guilty: false, rule: null } }) }],
+    ]
+    for (const events of messages) {
+      // Moments are shown one after another.
+      const shown = events.flatMap((e) => present(e, view, 1).moments ?? []).reduce((ms, m) => ms + m.ms, 0)
+      expect(shown, events.map((e) => e.type).join(' + ')).toBeGreaterThan(0)
+      expect(Math.max(...events.map(dwell)), events.map((e) => e.type).join(' + ')).toBeGreaterThanOrEqual(shown)
+    }
   })
 
   test('a deal says which way to pass', () => {

@@ -5,9 +5,10 @@ import { playSound } from '../../../ui/sound'
 import { seatName } from '../../../ui/text'
 import { BROKE } from './text'
 
-const CHALLENGE_BEAT_MS = 1000
-const VERDICT_BEAT_MS = 1300
-const HEARTS_BROKEN_MS = 1100
+/** How long each moment holds the middle of the table; `dwell` holds playback at least as long. */
+export const CHALLENGE_BEAT_MS = 1000
+export const VERDICT_BEAT_MS = 1300
+export const HEARTS_BROKEN_MS = 1100
 
 /** Who gave the viewer their three cards, by the round's direction: the rule is public, so this hides nothing. */
 function giverTo(view: View, seat: Seat): Seat | null {
