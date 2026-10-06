@@ -1,7 +1,7 @@
 # Tricks — Overview
 
 Date: 2026-10-05
-Status: built on `tricks`. Sub-projects A to F are merged; G is in place and the first push to `main` waits on the owner (section 2)
+Status: built on `tricks`. Sub-projects A, C, D1 to D3, E1 to E3 and F are merged; B, the throwaway spike, was run and reviewed and never merged; G is in place and the first push to `main` waits on the owner (section 2)
 Builds on: `2026-10-04-thunee-rebuild-design.md`, `2026-10-04-ai-personas-design.md`, `2026-10-04-practice-and-coach-design.md`
 
 ## 1. Purpose
