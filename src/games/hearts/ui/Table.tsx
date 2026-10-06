@@ -131,7 +131,7 @@ export function Table({ view, room }: { view: View; room: string }) {
               dealFrom={dealFrom}
               onPlay={(card) => send({ type: 'playCard', card })}
               suggested={advised?.type === 'playCard' ? advised.card : null}
-              explain={coached ? (card) => coached.coach.check?.({ type: 'playCard', card })?.body ?? null : undefined}
+              explain={coached ? (card) => coached.coach.check({ type: 'playCard', card })?.body ?? null : undefined}
               most={HAND_SIZE}
               choose={
                 phase.kind === 'passing'
