@@ -7,7 +7,7 @@ import { GameMenu } from '../../../ui/GameMenu'
 import { Hand } from '../../../ui/Hand'
 import { togglePick } from '../../../ui/hands'
 import { RulesSheet, rulesSummary } from '../../../ui/Rules'
-import { SeatBadge, TakeOver, usePosition, useTurnAlert } from '../../../ui/Seat'
+import { SeatBadge, TakeOver, usePosition } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
 import { LastTrick, TrickArea } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
@@ -56,6 +56,7 @@ export function Table({ view, room }: { view: View; room: string }) {
   const watching = view.seat === null
   const phase = view.phase
   const can = availableActions(view)
+  // No sound or buzz for the player's turn: no event marks it, and a view's change is not an event.
   const myTurn = phase.kind === 'playing' && phase.turn === view.seat
   const coached = useCoach()
   const advised = coached?.state.showHint ? coached.state.advice?.action : undefined
@@ -64,7 +65,6 @@ export function Table({ view, room }: { view: View; room: string }) {
   useEffect(() => {
     coach?.setReading('table', sheet !== null)
   }, [coach, sheet])
-  useTurnAlert(myTurn)
 
   const others = view.seats.map((_, seat) => seat).filter((seat) => seat !== me)
   const at = (where: Where, side?: 'left' | 'right') => {

@@ -22,7 +22,7 @@ import { HowToPlaySheet } from '../../../ui/coach/CoachSheets'
 import { CHALLENGE_BEAT_MS, VERDICT_BEAT_MS } from './present'
 import { RoundResult } from './RoundResult'
 import { RulesSheet, rulesSummary } from '../../../ui/Rules'
-import { SeatBadge as Badge, TakeOver, usePosition, useTurnAlert } from '../../../ui/Seat'
+import { SeatBadge as Badge, TakeOver, usePosition } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
 import { Timer } from '../../../ui/Timer'
 import { LastTrick, TrickArea } from '../../../ui/Trick'
@@ -91,7 +91,11 @@ export function Table({ view, room }: { view: View; room: string }) {
     coach?.setReading('table', sheet !== null)
   }, [coach, sheet])
 
-  useTurnAlert(myTurn)
+  useEffect(() => {
+    if (!myTurn) return
+    playSound('yourTurn')
+    navigator.vibrate?.(30)
+  }, [myTurn])
 
   const others = view.seats.map((_, seat) => seat).filter((seat) => seat !== me)
   const at = (where: Where) => others.find((seat) => position(seat) === where)

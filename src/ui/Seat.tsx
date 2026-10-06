@@ -1,25 +1,15 @@
-import { type ReactNode, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import type { Seat } from '../kit/table'
 import { CardBack } from './Card'
 import type { ShellView } from './contract'
 import { personaLabel } from './personas'
 import { type Where, place } from './seats'
 import { useGameClient, useSession } from './session'
-import { playSound } from './sound'
 
 /** Where a seat sits on screen relative to the viewer, who is always at the bottom; a spectator sees from seat 0. */
 export function usePosition(view: ShellView): (seat: Seat) => Where {
   const { direction } = useGameClient()
   return (seat) => place(seat, view.seat ?? 0, view.playerCount, direction)
-}
-
-/** A sound and a short buzz when it becomes the player's turn. */
-export function useTurnAlert(myTurn: boolean): void {
-  useEffect(() => {
-    if (!myTurn) return
-    playSound('yourTurn')
-    navigator.vibrate?.(30)
-  }, [myTurn])
 }
 
 interface SeatBadgeProps {
