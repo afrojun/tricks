@@ -13,7 +13,7 @@ import {
   seatsToAct,
   seenPlays,
   viewFor,
-} from '../../engine'
+} from './engine'
 import type { Contract } from '../../kit/contract'
 import { brokenRules } from '../../kit/integrity'
 import { HONEST } from '../../kit/mind'

@@ -1,5 +1,5 @@
 /** Reading the round from a seat's view. Computer players get the `full` view. */
-import { type Card, type Seat, type View, type ViewPlay, type ViewPlaying, pointsOf, teamOf, trickWinner } from '../engine'
+import { type Card, type Seat, type View, type ViewPlay, type ViewPlaying, pointsOf, teamOf, trickWinner } from '../games/thunee/engine'
 
 export interface TrickRecord {
   index: number

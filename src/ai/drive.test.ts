@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { type Action, type Actor, type Game, type GameEvent, createGame, viewFor } from '../engine'
-import { Table } from '../engine/testing'
+import { type Action, type Actor, type Game, type GameEvent, createGame, viewFor } from '../games/thunee/engine'
+import { Table } from '../games/thunee/engine/testing'
 import { chooseAction, fallbackAction } from './choose'
 import { type Step, dueStep, reactions } from './drive'
 import { mindFor } from '../kit/mind'

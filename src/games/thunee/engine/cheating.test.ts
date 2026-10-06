@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { mindFor } from '../kit/mind'
+import { mindFor } from '../../../kit/mind'
 import { availableActions } from './available'
 import { checkInvariants } from './invariants'
 import { CLASSIC_APP, type RuleOverrides, TRADITIONAL } from './rules'

@@ -1,4 +1,4 @@
-import type { Card } from '../engine'
+import type { Card } from '../games/thunee/engine'
 import { useTheme } from './session'
 import { SUIT_NAME, SUIT_SYMBOL, isRed } from './text'
 

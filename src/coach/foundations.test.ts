@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { type Game, type View, SUIT_NAME, viewFor } from '../engine'
-import { Table, card } from '../engine/testing'
+import { type Game, type View, SUIT_NAME, viewFor } from '../games/thunee/engine'
+import { Table, card } from '../games/thunee/engine/testing'
 import { advise } from './advise'
 import type { TopicId } from './note'
 import { reads, runningPoints } from './reads'

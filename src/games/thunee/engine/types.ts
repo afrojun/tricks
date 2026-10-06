@@ -1,11 +1,11 @@
-import type { PlayRecord as KitPlayRecord } from '../kit/integrity'
-import type { TableAction, TableEvent, TableReject, TableState, TableView } from '../kit/table'
+import type { PlayRecord as KitPlayRecord } from '../../../kit/integrity'
+import type { TableAction, TableEvent, TableReject, TableState, TableView } from '../../../kit/table'
 import type { Card, Suit } from './cards'
 import type { RuleOverrides, RuleSet } from './rules'
 import type { Seat, Team } from './seats'
 
-export { type Persona, PERSONAS } from '../kit/mind'
-export type { Actor, Ctx, SeatInfo, ViewSeat, Waiting } from '../kit/table'
+export { type Persona, PERSONAS } from '../../../kit/mind'
+export type { Actor, Ctx, SeatInfo, ViewSeat, Waiting } from '../../../kit/table'
 
 export const FORMAT_VERSION = 3
 

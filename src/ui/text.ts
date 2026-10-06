@@ -1,6 +1,6 @@
-import { type Card, type RejectReason, type Seat, type Suit, type Team, type View, SUITS, rankStrength, teamOf } from '../engine'
+import { type Card, type RejectReason, type Seat, type Suit, type Team, type View, SUITS, rankStrength, teamOf } from '../games/thunee/engine'
 
-export { SUIT_NAME, SUIT_SYMBOL, cardText } from '../engine'
+export { SUIT_NAME, SUIT_SYMBOL, cardText } from '../games/thunee/engine'
 
 export function isRed(suit: Suit): boolean {
   return suit === 'hearts' || suit === 'diamonds'

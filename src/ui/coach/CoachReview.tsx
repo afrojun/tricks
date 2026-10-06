@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { View } from '../../engine'
+import type { View } from '../../games/thunee/engine'
 import { HandsSheet } from './CoachSheets'
 import { useCoach } from './context'
 

@@ -2,7 +2,7 @@
  * Warnings before a mistake. Only a fixed list of mistakes, and never the coach's own advice:
  * each judgement rule fires only when the player's move has the problem and the advised move does not.
  */
-import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, SUIT_NAME, availableActions, hasCard, rankStrength, teamOf, trickWinner } from '../engine'
+import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, SUIT_NAME, availableActions, hasCard, rankStrength, teamOf, trickWinner } from '../games/thunee/engine'
 import { callLimit, chooseJodhi, decide } from '../ai/choose'
 import { HONEST } from '../kit/mind'
 import { wouldWin } from '../ai/read'

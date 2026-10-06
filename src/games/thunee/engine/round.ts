@@ -1,4 +1,4 @@
-import { firstCheat, recordPlay } from '../kit/integrity'
+import { firstCheat, recordPlay } from '../../../kit/integrity'
 import { type Card, createDeck, pointsOf, removeCard, shuffle } from './cards'
 import {
   holdsJodhi,

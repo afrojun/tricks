@@ -1,7 +1,7 @@
-import { type Card as KitCard, SUITS } from '../kit/cards'
+import { type Card as KitCard, SUITS } from '../../../kit/cards'
 
 /** Suits, card identity and shuffling come from the kit; Thunee supplies its ranks and their values. */
-export { type Suit, SUITS, SUIT_NAME, SUIT_SYMBOL, cardId, cardText, hasCard, removeCard, sameCard, shuffle } from '../kit/cards'
+export { type Suit, SUITS, SUIT_NAME, SUIT_SYMBOL, cardId, cardText, hasCard, removeCard, sameCard, shuffle } from '../../../kit/cards'
 
 /** Ranks from highest to lowest. */
 export const RANKS = ['J', '9', 'A', '10', 'K', 'Q'] as const

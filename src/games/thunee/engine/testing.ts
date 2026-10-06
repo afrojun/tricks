@@ -1,5 +1,5 @@
 /** Helpers for tests and simulations. Not used by the app. */
-import { deepFreeze, seededRng } from '../kit/testing'
+import { deepFreeze, seededRng } from '../../../kit/testing'
 import { apply, createGame } from './apply'
 import { type Card, type Rank, type Suit, createDeck, sameCard } from './cards'
 import { type RuleOverrides, resolveRules } from './rules'
@@ -8,7 +8,7 @@ import type { Action, Actor, Ctx, Game, GameEvent } from './types'
 import { availableActions } from './available'
 import { viewFor } from './view'
 
-export { collectCards, deepFreeze, seededRng } from '../kit/testing'
+export { collectCards, deepFreeze, seededRng } from '../../../kit/testing'
 
 const SUIT_LETTERS: Record<string, Suit> = { h: 'hearts', d: 'diamonds', c: 'clubs', s: 'spades' }
 

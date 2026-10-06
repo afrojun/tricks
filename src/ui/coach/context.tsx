@@ -1,6 +1,6 @@
 import { createContext, useContext, useSyncExternalStore } from 'react'
 import type { Note } from '../../coach/note'
-import type { Action, Card } from '../../engine'
+import type { Action, Card } from '../../games/thunee/engine'
 import type { Coach, CoachState } from '../../practice/session'
 
 /** Thunee's coach, as practice runs it: notes in Thunee's words, and each round's two deals. */

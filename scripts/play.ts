@@ -9,7 +9,7 @@
 import PartySocket from 'partysocket'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
 import { HONEST } from '../src/kit/mind'
-import { type Action, type GameEvent, type View, availableActions } from '../src/engine'
+import { type Action, type GameEvent, type View, availableActions } from '../src/games/thunee/engine'
 import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../src/protocol'
 
 const app = new URL(process.env.APP_URL ?? 'http://localhost:5173')

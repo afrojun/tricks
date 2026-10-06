@@ -1,5 +1,5 @@
 /** Why a computer chose what it did, as data. The words live in the coach. */
-import type { Action, Card, Suit } from '../engine'
+import type { Action, Card, Suit } from '../games/thunee/engine'
 
 export type Reason =
   | { code: 'callStrong'; jacks: number; backedJack: boolean; high: number; limit: number }

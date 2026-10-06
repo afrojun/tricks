@@ -1,7 +1,7 @@
 /** When a computer persona breaks the rules, and how it covers its tracks. */
 import { exposes, noticeOdds } from '../kit/integrity'
 import { type Mind, TRAITS } from '../kit/mind'
-import { type Card, type View, type ViewPlaying, pointsOf, rankStrength, seenPlays, teamOf, trickWinner } from '../engine'
+import { type Card, type View, type ViewPlaying, pointsOf, rankStrength, seenPlays, teamOf, trickWinner } from '../games/thunee/engine'
 import { mood, wouldWin } from './read'
 
 /** The attention Sly assumes of whoever is watching. */

@@ -1,4 +1,4 @@
-import type { Persona, ViewSeat } from '../engine'
+import type { Persona, ViewSeat } from '../games/thunee/engine'
 
 export const PERSONA_NAMES: Record<Persona, string> = { straight: 'Straight', sharp: 'Sharp', sly: 'Sly', wild: 'Wild' }
 

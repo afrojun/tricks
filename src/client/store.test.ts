@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { type GameEvent, type View, createGame, viewFor } from '../engine'
+import { type GameEvent, type View, createGame, viewFor } from '../games/thunee/engine'
 import type { NumberedEvent, ServerMessage } from '../protocol'
 import { GameStore } from './store'
 

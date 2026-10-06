@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { replaceableSeats } from '../kit/table'
+import { replaceableSeats } from '../../../kit/table'
 import { availableActions } from './available'
 import { CLASSIC_APP_OVERRIDES, type RuleOverrides } from './rules'
 import { Table, card } from './testing'

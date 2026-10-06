@@ -1,4 +1,4 @@
-import { type RuleOverrides, CLASSIC_APP_OVERRIDES, ruleOverridesSchema } from '../engine'
+import { type RuleOverrides, CLASSIC_APP_OVERRIDES, ruleOverridesSchema } from '../games/thunee/engine'
 
 export interface Preset {
   id: string

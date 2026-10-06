@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { type RuleOverrides, resolveRules } from '../engine'
+import { type RuleOverrides, resolveRules } from '../games/thunee/engine'
 import { SHARE_PARAM, decodeShare } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
 import { RulesList } from './Rules'

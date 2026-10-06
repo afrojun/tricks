@@ -1,5 +1,5 @@
 /** The suggested move for the player's decision, and why: the honest computer's choice, put into words. */
-import { type Action, type Card, type View, type ViewPlaying, SUIT_NAME, availableActions, jodhiPoints, sameCard } from '../engine'
+import { type Action, type Card, type View, type ViewPlaying, SUIT_NAME, availableActions, jodhiPoints, sameCard } from '../games/thunee/engine'
 import { decide, chooseJodhi } from '../ai/choose'
 import { HONEST } from '../kit/mind'
 import { wouldWin } from '../ai/read'

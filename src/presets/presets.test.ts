@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL, resolveRules, ruleOverridesSchema } from '../engine'
+import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL, resolveRules, ruleOverridesSchema } from '../games/thunee/engine'
 import { RULE_INFO, differenceCount, valueLabel } from './describe'
 import { decodeShare, encodeShare, shareUrl } from './share'
 import { BUILT_IN_PRESETS, deletePreset, listPresets, renamePreset, savePreset } from './storage'

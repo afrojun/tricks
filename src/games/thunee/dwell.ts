@@ -1,5 +1,5 @@
 /** How long each of Thunee's events holds the screen before the next message is shown. For its screens. */
-import type { GameEvent } from '../../engine'
+import type { GameEvent } from './engine'
 
 const DWELL_MS: Partial<Record<GameEvent['type'], number>> = {
   passed: 300,

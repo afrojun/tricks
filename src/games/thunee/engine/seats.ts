@@ -1,9 +1,9 @@
-import type { Seat } from '../kit/table'
+import type { Seat } from '../../../kit/table'
 
 /** Seats come from the kit, numbered in play order; Thunee pairs them into teams. */
-export { type Seat, allSeats, seatsFrom } from '../kit/table'
+export { type Seat, allSeats, seatsFrom } from '../../../kit/table'
 /** Play runs counterclockwise; the next seat is the one to the right. */
-export { nextSeat as next } from '../kit/table'
+export { nextSeat as next } from '../../../kit/table'
 
 export type Team = 0 | 1
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { type Persona, viewFor } from '../engine'
-import { Table, card } from '../engine/testing'
+import { type Persona, viewFor } from '../games/thunee/engine'
+import { Table, card } from '../games/thunee/engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
 
 // Dealer 0: seat 1 is trumper (spades), seat 2 leads. Teams: 0+2 count, 1+3 trump.

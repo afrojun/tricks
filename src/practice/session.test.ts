@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { availableActions } from '../engine'
+import { availableActions } from '../games/thunee/engine'
 import type { Note } from '../coach/note'
 import { dwell } from '../games/thunee/dwell'
 import { type ThuneePracticeSession, thuneePractice } from '../games/thunee/practice'

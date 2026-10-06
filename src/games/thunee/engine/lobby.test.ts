@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { canStart } from '../kit/table'
+import { canStart } from '../../../kit/table'
 import { apply, createGame } from './apply'
 import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL } from './rules'
 import { actionSchema } from './schema'

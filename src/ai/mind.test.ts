@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { viewFor } from '../engine'
-import { Table } from '../engine/testing'
+import { viewFor } from '../games/thunee/engine'
+import { Table } from '../games/thunee/engine/testing'
 import { mindFor, roll } from '../kit/mind'
 import { history, mood } from './read'
 

@@ -1,4 +1,4 @@
-import { isAiControlled } from '../kit/table'
+import { isAiControlled } from '../../../kit/table'
 import { seatsToAct, untimedSeats } from './apply'
 import { type Card, cardId } from './cards'
 import type { Game, RoundPlay } from './types'

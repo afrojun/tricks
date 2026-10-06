@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { tableActionSchemas } from '../kit/table'
+import { tableActionSchemas } from '../../../kit/table'
 import { CALL_AMOUNTS, type RuleOverrides, SEAT_COUNTS } from './rules'
 import type { Action } from './types'
 

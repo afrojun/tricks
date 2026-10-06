@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { thunee } from '.'
 import { dueStep, reactions } from '../../ai/drive'
-import { FORMAT_VERSION, apply, viewFor } from '../../engine'
+import { FORMAT_VERSION, apply, viewFor } from './engine'
 
 describe('the Thunee module', () => {
   test('names the game and carries every part of the contract', () => {

@@ -1,4 +1,4 @@
-import { type Actor, type Ctx, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../kit/table'
+import { type Actor, type Ctx, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
 import { hasCard } from './cards'
 import { availableActions } from './available'
 import { actionShape } from './schema'

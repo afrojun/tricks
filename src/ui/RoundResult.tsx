@@ -1,4 +1,4 @@
-import { type Available, type RoundSummary, type ScoreLine, type Team, type View, teamOf } from '../engine'
+import { type Available, type RoundSummary, type ScoreLine, type Team, type View, teamOf } from '../games/thunee/engine'
 import { CoachReview } from './coach/CoachReview'
 import { useSession } from './session'
 import { SUIT_NAME, cardText, plural, seatName, teamName } from './text'

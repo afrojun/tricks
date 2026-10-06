@@ -13,8 +13,8 @@ import {
   seatsToAct,
   teamOf,
   viewFor,
-} from '../engine'
-import { Table, collectCards, seededRng } from '../engine/testing'
+} from '../games/thunee/engine'
+import { Table, collectCards, seededRng } from '../games/thunee/engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
 import { HONEST } from '../kit/mind'
 import { chooseChallenge } from './suspicion'

@@ -1,4 +1,4 @@
-import { type RuleOverrides, ruleOverridesSchema } from '../engine'
+import { type RuleOverrides, ruleOverridesSchema } from '../games/thunee/engine'
 import { cleanPresetName } from './storage'
 
 /** Bumped only if the encoding itself changes; new settings do not need it. */

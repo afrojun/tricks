@@ -1,5 +1,5 @@
 /** Small pieces of wording the coach shares. */
-import { type Card, type Seat, type Suit, type View, CARD_POINTS, FOUR_PLAYER_TARGET, SUIT_NAME, cardText, teamOf } from '../engine'
+import { type Card, type Seat, type Suit, type View, CARD_POINTS, FOUR_PLAYER_TARGET, SUIT_NAME, cardText, teamOf } from '../games/thunee/engine'
 
 export const card = cardText
 

@@ -1,6 +1,6 @@
-import { type CommonRules, diff, resolve } from '../kit/rules'
+import { type CommonRules, diff, resolve } from '../../../kit/rules'
 
-export { TRICK_PAUSE_MS } from '../kit/rules'
+export { TRICK_PAUSE_MS } from '../../../kit/rules'
 
 /** `allowCheating` comes from the kit: with it off, a rule-breaking card or a false Jodhi is refused and nobody may accuse. */
 export interface RuleSet extends CommonRules {

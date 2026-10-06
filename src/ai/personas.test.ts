@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { type Action, type Game, type Persona, type RuleOverrides, CLASSIC_APP_OVERRIDES, availableActions, checkInvariants, hasCard, nextDeadline, seatsToAct, viewFor } from '../engine'
-import { Table } from '../engine/testing'
+import { type Action, type Game, type Persona, type RuleOverrides, CLASSIC_APP_OVERRIDES, availableActions, checkInvariants, hasCard, nextDeadline, seatsToAct, viewFor } from '../games/thunee/engine'
+import { Table } from '../games/thunee/engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
 import { type Mind, TRAITS } from '../kit/mind'
 import { chooseChallenge } from './suspicion'

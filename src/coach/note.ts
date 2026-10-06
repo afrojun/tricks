@@ -1,4 +1,4 @@
-import type { Action, Card, View } from '../engine'
+import type { Action, Card, View } from '../games/thunee/engine'
 
 /** One decision the player made, with what the coach advised at that moment. */
 export interface DecisionRecord {

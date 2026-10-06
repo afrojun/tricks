@@ -15,7 +15,7 @@ import {
   nextDeadline,
   seatsToAct,
   viewFor,
-} from '../../engine'
+} from './engine'
 
 export const thunee: GameModule<Game, Action, GameEvent, View> = {
   id: 'thunee',

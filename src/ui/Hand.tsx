@@ -1,6 +1,6 @@
 import { AnimatePresence, animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { type Card, cardId, sameCard } from '../engine'
+import { type Card, cardId, sameCard } from '../games/thunee/engine'
 import { PlayingCard } from './Card'
 import { cardText } from './text'
 

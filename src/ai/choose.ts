@@ -13,7 +13,7 @@ import {
   rankStrength,
   teamOf,
   trickWinner,
-} from '../engine'
+} from '../games/thunee/engine'
 import { chooseCheat, holdBack } from './cheat'
 import { type Mind, TRAITS, roll } from '../kit/mind'
 import { history, wouldWin } from './read'

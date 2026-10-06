@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { type View, canStart, cleanName, teamOf } from '../engine'
+import { type View, canStart, cleanName, teamOf } from '../games/thunee/engine'
 import { type GameSetup, setupKey } from './Home'
 import { RulesEditor, RulesList, rulesSummary } from './Rules'
 import { gamePath, roomPath } from './routes'

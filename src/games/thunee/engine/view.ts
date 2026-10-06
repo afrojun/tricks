@@ -1,5 +1,5 @@
-import type { Memory } from '../kit/module'
-import { tableView } from '../kit/table'
+import type { Memory } from '../../../kit/module'
+import { tableView } from '../../../kit/table'
 import { ballsTarget } from './predicates'
 import type { Seat } from './seats'
 import type { Game, Phase, RoundPlay, ViewPhase, ViewPlaying, View } from './types'

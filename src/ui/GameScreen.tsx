@@ -1,5 +1,5 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import type { GameEvent, Seat, Team, View } from '../engine'
+import type { GameEvent, Seat, Team, View } from '../games/thunee/engine'
 import type { NumberedEvent } from '../protocol'
 import { Lobby } from './Lobby'
 import { Celebration, type Moment, MomentOverlay, useMoments } from './Moments'

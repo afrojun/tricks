@@ -2,7 +2,7 @@ import { MotionConfig } from 'motion/react'
 import { type ReactNode, createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import { type Session, type SessionGame, openSession } from '../client/connection'
 import type { ClientState } from '../client/store'
-import type { Action, GameEvent, View } from '../engine'
+import type { Action, GameEvent, View } from '../games/thunee/engine'
 import { dwell } from '../games/thunee/dwell'
 import { type Theme, applyTheme, currentCardBack, currentTheme } from '../themes'
 

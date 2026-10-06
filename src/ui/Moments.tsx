@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
-import type { Card, Team } from '../engine'
+import type { Card, Team } from '../games/thunee/engine'
 import { PlayingCard } from './Card'
 
 /** A call, challenge or verdict that deserves the middle of the screen for a moment. */

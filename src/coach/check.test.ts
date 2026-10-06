@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { type Game, type View, viewFor } from '../engine'
-import { Table, card } from '../engine/testing'
+import { type Game, type View, viewFor } from '../games/thunee/engine'
+import { Table, card } from '../games/thunee/engine/testing'
 import { thuneePractice } from '../games/thunee/practice'
 import { playPractice } from '../games/thunee/testing'
 import { PracticeGame } from '../practice/game'

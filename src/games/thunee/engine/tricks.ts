@@ -3,8 +3,8 @@
  * hidden record of what a play broke, the verdict on an accusation and what an
  * observer can prove from the cards it has seen all come from `excusesFor`.
  */
-import { type Excuse, type SeenPlay, brokenRules, legalCards } from '../kit/integrity'
-import { followSuit, trickWinner as winnerOf } from '../kit/tricks'
+import { type Excuse, type SeenPlay, brokenRules, legalCards } from '../../../kit/integrity'
+import { followSuit, trickWinner as winnerOf } from '../../../kit/tricks'
 import { type Card, type Suit, strength } from './cards'
 import type { RuleSet } from './rules'
 import type { Seat } from './seats'

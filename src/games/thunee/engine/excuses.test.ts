@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { brokenRules } from '../kit/integrity'
+import { brokenRules } from '../../../kit/integrity'
 import { availableActions } from './available'
 import { hasCard } from './cards'
 import { CLASSIC_APP, TRADITIONAL } from './rules'

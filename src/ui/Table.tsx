@@ -13,7 +13,7 @@ import {
   jodhiPoints,
   replaceableSeats,
   teamOf,
-} from '../engine'
+} from '../games/thunee/engine'
 import { CardBack, PlayingCard } from './Card'
 import { Hand, cardLayoutId } from './Hand'
 import { check } from '../coach/check'
