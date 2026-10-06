@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { availableActions } from '../engine'
 import type { Note } from '../coach/note'
-import { PRACTICE_KEY, PracticeGame } from './game'
-import { playPractice } from './testing'
-import { type PracticeSession, openPracticeSession, shouldHold } from './session'
+import { dwell } from '../games/thunee/dwell'
+import { type ThuneePracticeSession, thuneePractice } from '../games/thunee/practice'
+import { playPractice } from '../games/thunee/testing'
+import { PracticeGame, practiceKey } from './game'
+import { openPracticeSession, shouldHold } from './session'
 
 class MemoryStorage {
   private data = new Map<string, string>()
@@ -18,7 +20,7 @@ class MemoryStorage {
   }
 }
 
-let open: PracticeSession[] = []
+let open: ThuneePracticeSession[] = []
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => {
   for (const s of open) s.close()
@@ -29,7 +31,7 @@ afterEach(() => {
 /** A new four-player session whose player may call at the start. */
 function callingSession(storage = new MemoryStorage()) {
   for (let seed = 1; seed < 50; seed++) {
-    const s = openPracticeSession({ playerCount: 4, storage, seed })
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: 4, storage, seed })
     open.push(s)
     vi.runOnlyPendingTimers()
     const view = s.store.getState().view!
@@ -66,7 +68,7 @@ describe('holding an action behind a warning', () => {
     const { s, storage } = callingSession()
     s.send({ type: 'call', amount: 104 })
     s.close()
-    const again = openPracticeSession({ playerCount: null, storage })
+    const again = openPracticeSession(thuneePractice, dwell, { playerCount: null, storage })
     open.push(again)
     vi.runOnlyPendingTimers()
     expect(again.coach.getState().warning).toBeNull()
@@ -97,22 +99,22 @@ describe('the coach state', () => {
     expect(s.coach.getState().topic).toBe('calling')
     s.coach.dismissTopic()
     expect(s.coach.getState().topic).toBeNull()
-    const again = openPracticeSession({ playerCount: 4, storage, seed: 2 })
+    const again = openPracticeSession(thuneePractice, dwell, { playerCount: 4, storage, seed: 2 })
     open.push(again)
     expect(again.coach.getState().topic).toBeNull()
   })
 
   test('the game is saved for the next visit', () => {
     const { storage } = callingSession()
-    expect(storage.getItem(PRACTICE_KEY)).not.toBeNull()
+    expect(storage.getItem(practiceKey('thunee'))).not.toBeNull()
   })
 
   test('reopening on a round result still shows the review and the hands', () => {
     const storage = new MemoryStorage()
-    const p = PracticeGame.start(4, 5, 'You')
+    const p = PracticeGame.start(thuneePractice, 4, 5, 'You')
     playPractice(p, 3000, undefined, (g) => g.game.phase.kind === 'roundResult')
-    storage.setItem(PRACTICE_KEY, p.save())
-    const s = openPracticeSession({ playerCount: null, storage })
+    storage.setItem(practiceKey('thunee'), p.save())
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: null, storage })
     open.push(s)
     expect(s.coach.getState().review?.length).toBeGreaterThan(0)
     expect(s.coach.getState().dealt?.length).toBeGreaterThan(0)
@@ -173,8 +175,8 @@ describe('checkpoint C', () => {
 
   test('reopening a game nobody has started learning from shows the opening topics', () => {
     const storage = new MemoryStorage()
-    storage.setItem(PRACTICE_KEY, PracticeGame.start(4, 3, 'You').save())
-    const s = openPracticeSession({ playerCount: null, storage })
+    storage.setItem(practiceKey('thunee'), PracticeGame.start(thuneePractice, 4, 3, 'You').save())
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: null, storage })
     open.push(s)
     expect(s.coach.getState().topic).toBe('cards')
   })

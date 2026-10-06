@@ -1,96 +1,92 @@
 /** A practice game played entirely on this device: one person, honest computers, and a clock that waits. */
-import { type Step, dueStep, reactions } from '../ai/drive'
-import type { DecisionRecord, RoundLog } from '../coach/note'
-import {
-  type Action,
-  type Actor,
-  type Game,
-  type GameEvent,
-  type RejectReason,
-  type View,
-  FORMAT_VERSION,
-  apply,
-  checkInvariants,
-  createGame,
-  nextDeadline,
-  viewFor,
-} from '../engine'
+import type { Step } from '../kit/module'
+import type { Actor, TableAction, TableState, TableView } from '../kit/table'
 import type { NumberedEvent } from '../protocol'
-import { pauseId, waitingOnPlayer } from './clock'
+import { waitingOnPlayer } from './clock'
+import type { DecisionRecord, GamePractice, Note, RoundLog } from './contract'
 import { type Rng, rng } from './rng'
 
 export type { DecisionRecord, RoundLog }
 
-export const PRACTICE_KEY = 'tricks-thunee-practice'
+/** Where a game's practice is saved on this device. */
+export function practiceKey(game: string): string {
+  return `tricks-${game}-practice`
+}
+
 /** Raise when the saved shape changes; older saves are discarded. */
 export const PRACTICE_FORMAT = 2
 
-/** Computer seats are named by where they sit, as seen from seat 0. */
-const NAMES: Record<2 | 4, string[]> = { 2: ['Opponent'], 4: ['Right', 'Partner', 'Left'] }
-
-interface Saved {
+interface Saved<G, V, A, D> {
   format: number
-  game: Game
+  game: G
   rng: number
   virtualNow: number
   eventCount: number
-  round: RoundLog
+  round: RoundLog<V, A, D>
   continued: string | null
 }
 
-export interface Applied {
-  events: NumberedEvent<GameEvent>[]
+export interface Applied<E> {
+  events: NumberedEvent<E>[]
 }
 
-export class PracticeGame {
+export class PracticeGame<G extends TableState, A extends { type: string }, E, V extends TableView, N extends Note, D, S> {
   readonly you = 0
   private readonly random: Rng
 
   private constructor(
-    public game: Game,
+    readonly practice: GamePractice<G, A, E, V, N, D, S>,
+    public game: G,
     seed: number,
     /** Practice time: only moves while nothing is waiting on the player. */
     public virtualNow: number,
     private eventCount: number,
-    public round: RoundLog,
-    /** The trick pause the player has continued past. */
+    public round: RoundLog<V, A, D>,
+    /** The pause the player has continued past. */
     private continued: string | null,
   ) {
     this.random = rng(seed)
   }
 
-  static start(playerCount: 2 | 4, seed: number, name: string): PracticeGame {
-    const p = new PracticeGame(createGame(), seed, 0, 0, { dealt: [], decisions: [] }, null)
-    p.must(null, { type: 'sit', seat: 0, name })
-    if (playerCount === 2) p.must(0, { type: 'setPlayerCount', playerCount: 2 })
-    for (let seat = 1; seat < playerCount; seat++) p.must(0, { type: 'addAi', seat, persona: 'straight' })
-    p.must(0, { type: 'setRules', overrides: {} })
+  static start<G extends TableState, A extends { type: string }, E, V extends TableView, N extends Note, D, S>(
+    practice: GamePractice<G, A, E, V, N, D, S>,
+    playerCount: number,
+    seed: number,
+    name: string,
+  ): PracticeGame<G, A, E, V, N, D, S> {
+    const p = new PracticeGame(practice, practice.module.createGame(), seed, 0, 0, { dealt: [], decisions: [] }, null)
+    p.must(null, p.table({ type: 'sit', seat: 0, name }))
+    for (const action of practice.setup(playerCount)) p.must(0, action)
     // The lobby has no action to rename another seat; this is the starting state, before anything is played.
-    p.game = { ...p.game, seats: p.game.seats.map((s, i) => (i === 0 ? s : { ...s, name: NAMES[playerCount][i - 1] })) }
-    p.must(0, { type: 'start' })
+    const names = practice.seatNames(playerCount)
+    p.game = { ...p.game, seats: p.game.seats.map((s, i) => (i === 0 ? s : { ...s, name: names[i - 1] })) }
+    p.must(0, p.table({ type: 'start' }))
     return p
   }
 
   /** A saved game, or null if there is none or it was saved by another version. */
-  static load(json: string | null): PracticeGame | null {
+  static load<G extends TableState, A extends { type: string }, E, V extends TableView, N extends Note, D, S>(
+    practice: GamePractice<G, A, E, V, N, D, S>,
+    json: string | null,
+  ): PracticeGame<G, A, E, V, N, D, S> | null {
     if (json === null) return null
     try {
-      const s = JSON.parse(json) as Saved
-      if (s.format !== PRACTICE_FORMAT || s.game?.formatVersion !== FORMAT_VERSION) return null
+      const s = JSON.parse(json) as Saved<G, V, A, D>
+      if (s.format !== PRACTICE_FORMAT || s.game?.formatVersion !== practice.module.formatVersion) return null
       const numbers = [s.rng, s.virtualNow, s.eventCount].every((n) => typeof n === 'number' && Number.isFinite(n))
       if (!numbers || !Array.isArray(s.round?.decisions) || !Array.isArray(s.round?.dealt)) return null
       if (typeof s.game.phase?.kind !== 'string' || !Array.isArray(s.game.seats)) return null
       // Anything the engine would reject, or could not show, is a broken save.
-      checkInvariants(s.game)
-      viewFor(s.game, 0, 'full')
-      return new PracticeGame(s.game, s.rng, s.virtualNow, s.eventCount, s.round, s.continued ?? null)
+      practice.module.checkInvariants(s.game)
+      practice.module.viewFor(s.game, 0, 'full')
+      return new PracticeGame(practice, s.game, s.rng, s.virtualNow, s.eventCount, s.round, s.continued ?? null)
     } catch {
       return null
     }
   }
 
   save(): string {
-    const saved: Saved = {
+    const saved: Saved<G, V, A, D> = {
       format: PRACTICE_FORMAT,
       game: this.game,
       rng: this.random.state,
@@ -103,50 +99,57 @@ export class PracticeGame {
   }
 
   /** What the table shows: the player's view with only the last trick face up. */
-  view(): View {
-    return viewFor(this.game, this.you)
+  view(): V {
+    return this.practice.module.viewFor(this.game, this.you)
   }
 
   /** What the coach reasons from: the same view, remembering every card played face up this round. */
-  coachView(): View {
-    return viewFor(this.game, this.you, 'full')
+  coachView(): V {
+    return this.practice.module.viewFor(this.game, this.you, 'full')
   }
 
   waiting(sheetOpen: boolean): boolean {
-    return waitingOnPlayer(this.game, this.you, sheetOpen, this.continued)
+    const toAct = this.practice.module.seatsToAct(this.game)
+    return waitingOnPlayer(this.practice.pauseId(this.game), toAct, this.you, sheetOpen, this.continued)
+  }
+
+  /** Whether a pause is waiting for the player to continue past it. */
+  paused(): boolean {
+    const pause = this.practice.pauseId(this.game)
+    return pause !== null && pause !== this.continued
   }
 
   /** The player's action, recorded with the advice they had. */
-  act(action: Action, advised: Action | null): { rejected: RejectReason } | Applied {
+  act(action: A, advised: A | null): { rejected: string } | Applied<E> {
     const before = this.coachView()
     const round = this.round
     const result = this.apply(this.you, action)
     if (!Array.isArray(result)) return result
     // A redeal starts a new log; a decision about the cards thrown in does not belong in it.
-    if (isRoundDecision(action) && this.round === round) this.round.decisions.push({ view: before, advised, taken: action } satisfies DecisionRecord)
+    if (this.practice.isDecision(action) && this.round === round) this.round.decisions.push({ view: before, advised, taken: action } satisfies DecisionRecord<V, A>)
     return { events: this.number(result) }
   }
 
-  /** Ends the trick pause the player was reading; the clock can then reach its deadline. */
+  /** Ends the pause the player was reading; the clock can then reach its deadline. */
   continueTrick(): void {
-    this.continued = pauseId(this.game)
+    this.continued = this.practice.pauseId(this.game)
   }
 
   /**
    * Lets up to `ms` of practice time pass, resolving every deadline and computer turn on the way.
    * Time stops as soon as something waits on the player.
    */
-  advance(ms: number, sheetOpen: boolean): Applied {
+  advance(ms: number, sheetOpen: boolean): Applied<E> {
     const target = this.virtualNow + ms
-    const events: GameEvent[] = []
+    const events: E[] = []
     for (let guard = 0; guard < 500; guard++) {
       if (this.waiting(sheetOpen)) break
-      const step = dueStep(this.game, this.virtualNow)
+      const step = this.practice.module.dueStep(this.game, this.virtualNow)
       if (step) {
         events.push(...this.runStep(step))
         continue
       }
-      const next = nextDeadline(this.game)
+      const next = this.practice.module.nextDeadline(this.game)
       if (next === null || next > target) {
         this.virtualNow = Math.max(this.virtualNow, target)
         break
@@ -158,13 +161,18 @@ export class PracticeGame {
 
   /** Practice ms until something is next due, or null if nothing is. */
   nextIn(): number | null {
-    const next = nextDeadline(this.game)
+    const next = this.practice.module.nextDeadline(this.game)
     return next === null ? null : Math.max(0, next - this.virtualNow)
+  }
+
+  /** A table action, which every game's actions include. */
+  table(action: TableAction): A {
+    return action as A
   }
 
   // ── Internals ─────────────────────────────────────────────────────────
 
-  private runStep(step: Step): GameEvent[] {
+  private runStep(step: Step<A>): E[] {
     const first = this.apply(step.actor, step.action)
     if (Array.isArray(first)) return first
     if (step.fallback) {
@@ -176,14 +184,15 @@ export class PracticeGame {
   }
 
   /** Applies one action and every computer reaction to it, keeping the round log. */
-  private apply(actor: Actor, action: Action): GameEvent[] | { rejected: RejectReason } {
-    const result = apply(this.game, actor, action, { now: this.virtualNow, rng: () => this.random.next() })
+  private apply(actor: Actor, action: A): E[] | { rejected: string } {
+    const module = this.practice.module
+    const result = module.apply(this.game, actor, action, { now: this.virtualNow, rng: () => this.random.next() })
     if ('rejected' in result) return { rejected: result.rejected }
-    checkInvariants(result.game)
+    module.checkInvariants(result.game)
     this.game = result.game
     this.keepRound(result.events)
     const events = [...result.events]
-    for (const ask of reactions(this.game, result.events)) {
+    for (const ask of module.reactions(this.game, result.events)) {
       const step = ask(this.game)
       if (!step) continue
       const more = this.apply(step.actor, step.action)
@@ -192,25 +201,19 @@ export class PracticeGame {
     return events
   }
 
-  private keepRound(events: readonly GameEvent[]): void {
-    if (events.some((e) => e.type === 'dealt' && e.half === 1)) this.round = { dealt: [], decisions: [] }
-    const phase = this.game.phase
-    if (phase.kind === 'playing' || phase.kind === 'trickPause') {
-      this.round.dealt[phase.play.half - 1] = phase.play.dealt.map((h) => [...h])
-    }
+  private keepRound(events: readonly E[]): void {
+    if (this.practice.roundBegins(events)) this.round = { dealt: [], decisions: [] }
+    const deal = this.practice.dealInPlay(this.game)
+    if (deal !== null) this.round.dealt[deal.index] = deal.hands
   }
 
-  private number(events: readonly GameEvent[]): NumberedEvent<GameEvent>[] {
+  private number(events: readonly E[]): NumberedEvent<E>[] {
     return events.map((e) => ({ ...e, n: ++this.eventCount }))
   }
 
   /** Setup actions that cannot fail. */
-  private must(actor: Actor, action: Action): void {
+  private must(actor: Actor, action: A): void {
     const result = this.apply(actor, action)
     if (!Array.isArray(result)) throw new Error(`practice setup: ${action.type} rejected (${result.rejected})`)
   }
-}
-
-function isRoundDecision(action: Action): boolean {
-  return action.type !== 'nextRound' && action.type !== 'rematch' && action.type !== 'tick'
 }

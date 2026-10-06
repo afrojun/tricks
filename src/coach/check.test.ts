@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import { type Game, type View, viewFor } from '../engine'
 import { Table, card } from '../engine/testing'
+import { thuneePractice } from '../games/thunee/practice'
+import { playPractice } from '../games/thunee/testing'
 import { PracticeGame } from '../practice/game'
-import { playPractice } from '../practice/testing'
 import { advise } from './advise'
 import { check } from './check'
 
@@ -69,7 +70,7 @@ describe('check', () => {
   test('the advice itself never draws a warning', () => {
     for (const players of [2, 4] as const) {
       for (let seed = 1; seed <= 5; seed++) {
-        const p = PracticeGame.start(players, seed, 'Ann')
+        const p = PracticeGame.start(thuneePractice, players, seed, 'Ann')
         playPractice(p, 3000, () => {
           const v = p.coachView()
           const a = advise(v)
