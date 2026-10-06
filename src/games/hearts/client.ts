@@ -1,6 +1,6 @@
 /**
- * Hearts' screens, as the shell loads them. The table is a placeholder until Hearts has its own,
- * and practice is still to come. Reads only the engine: the computer players stay on the server.
+ * Hearts' screens, as the shell loads them: its table, what its events show, its house rules.
+ * Practice is still to come. Reads only the engine: the computer players stay on the server.
  */
 import type { GameClient } from '../../ui/contract'
 import { type Action, type GameEvent, SEAT_COUNTS, type View } from './engine'
