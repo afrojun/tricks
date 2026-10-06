@@ -31,5 +31,3 @@ export const thunee: GameModule<Game, Action, GameEvent, View> = {
   dueStep,
   reactions,
 }
-
-export * from '../../engine'

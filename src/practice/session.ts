@@ -84,7 +84,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
   dwell: (event: E) => number,
   { playerCount, storage = localStorage, seed }: PracticeOptions,
 ): PracticeSession<V, A, E, N, D> {
-  const { coach: said, module } = practice
+  const { coach: tutor, module } = practice
   const savedKey = practiceKey(module.id)
   const topicsKey = seenKey(module.id)
   const newSeed = () => seed ?? crypto.getRandomValues(new Uint32Array(1))[0]
@@ -143,7 +143,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     const already = seen()
     const view = game.coachView()
     for (const e of events) {
-      const fresh = said.topicsFor(view, e).find((t) => !already.has(t))
+      const fresh = tutor.topicsFor(view, e).find((t) => !already.has(t))
       if (fresh) return fresh
     }
     return null
@@ -156,14 +156,14 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     const view = game.coachView()
     const over = practice.summary(view)
     if (over !== null && reviewed?.round !== game.round) {
-      reviewed = { round: game.round, notes: said.review({ decisions: game.round.decisions, summary: over, dealt: game.round.dealt, you: game.you, view }) }
+      reviewed = { round: game.round, notes: tutor.review({ decisions: game.round.decisions, summary: over, dealt: game.round.dealt, you: game.you, view }) }
     }
     return {
-      said: events.map((e) => said.narrate(e, view)).filter((n): n is N => n !== null),
+      said: events.map((e) => tutor.narrate(e, view)).filter((n): n is N => n !== null),
       newRound: practice.roundBegins(events),
       rest: {
-        situation: said.situation(view),
-        advice: said.advise(view),
+        situation: tutor.situation(view),
+        advice: tutor.advise(view),
         showHint: false,
         trickPaused: game.paused(),
         review: over !== null ? reviewed!.notes : null,
@@ -178,9 +178,9 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
       if (v > shown) break
       const snap = pending.get(v)!
       pending.delete(v)
-      const lines = [...snap.said].reverse()
-      const log = snap.newRound ? lines : [...lines, ...state.log].slice(0, LOG_LIMIT)
-      update({ ...snap.rest, version: v, log, latest: lines.length > 0 ? log[0] : state.latest, topic })
+      const said = [...snap.said].reverse()
+      const log = snap.newRound ? said : [...said, ...state.log].slice(0, LOG_LIMIT)
+      update({ ...snap.rest, version: v, log, latest: said.length > 0 ? log[0] : state.latest, topic })
     }
   }
 
@@ -206,7 +206,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     topic = nextTopic([...extra, ...events, null])
     const snap = snapshot(events)
     if (extra.length > 0) {
-      snap.said = [...extra.map((e) => said.narrate(e, game.coachView())).filter((n): n is N => n !== null), ...snap.said]
+      snap.said = [...extra.map((e) => tutor.narrate(e, game.coachView())).filter((n): n is N => n !== null), ...snap.said]
       snap.newRound = true
     }
     sync(events, snap)
@@ -226,7 +226,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
   }
 
   const apply = (action: A) => {
-    const advised = said.advise(game.coachView())?.action ?? null
+    const advised = tutor.advise(game.coachView())?.action ?? null
     const result = game.act(action, advised)
     if ('rejected' in result) {
       playback.push({ type: 'rejected', reason: result.rejected })
@@ -237,7 +237,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
 
   const send = (action: A) => {
     playback.release()
-    const warning = said.check(game.coachView(), action)
+    const warning = tutor.check(game.coachView(), action)
     if (shouldHold(warning)) {
       update({ warning: { note: warning!, action }, waiting: true })
       clearTimeout(timer)
@@ -291,7 +291,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     continueTrick() {
       // Continuing past a pause is checked as the system's tick, which every game's actions include.
       const tick = game.table({ type: 'tick' })
-      const warning = said.check(game.coachView(), tick)
+      const warning = tutor.check(game.coachView(), tick)
       if (shouldHold(warning)) {
         update({ warning: { note: warning!, action: tick }, waiting: true })
         clearTimeout(timer)
