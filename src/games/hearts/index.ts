@@ -1,6 +1,7 @@
 /** Hearts as a game module: what the room, practice and tests need. */
 import type { GameModule } from '../../kit/module'
 import { dueStep, reactions } from './ai/drive'
+import { step } from './engine/apply'
 import {
   type Action,
   FORMAT_VERSION,
@@ -23,6 +24,7 @@ export const hearts: GameModule<Game, Action, GameEvent, View> = {
   seatCounts: SEAT_COUNTS,
   createGame,
   apply,
+  step,
   viewFor,
   seatsToAct,
   nextDeadline,

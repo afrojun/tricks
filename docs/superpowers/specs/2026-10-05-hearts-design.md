@@ -164,6 +164,13 @@ Hearts supplies: what a seat knows about the hidden cards (its own hand, cards p
 
 **The gate.** Hearts adopts the search player only if, on duplicate deals with every seat taken in turn and every pass direction, it takes fewer points per round than the hand-written player with a 95% interval clear of zero, and a decision fits a budget measured in a browser and in a room. Otherwise Hearts keeps the hand-written player.
 
+**Result (2026-10-06): the gate fails, and Hearts keeps the hand-written player.** Its `decide` is unchanged. These numbers replace those of an earlier run, whose adapter merged two cards that a card on the table separated, and so dropped a legal choice. The verdict is the same: over the same deals the fix changed the mean by −0.030 [−0.067, 0.008].
+- **Strength.** Over 400 duplicate deals the search player at 30 worlds took 1.419 [1.248, 1.591] more points per round than the hand-written player; at 100 worlds it was still worse by 0.931 [0.416, 1.447] (section 9 of `2026-10-06-search-player-design.md`). The loss is in card play: searching only the pass was level with the hand-written pass.
+- **Speed.** It is also too slow: the 95th percentile of a decision in Chromium throttled four times is 318 ms at 30 worlds and 109 ms even at 10, against a bar of 100 ms.
+- **Cheating and determinism.** It never failed against cheats in 500 rounds, and every decision replays identically from a saved game.
+
+The adapter (`src/games/hearts/ai/search.ts`, with its imagined games in `imagine.ts`) and the gate (`src/games/hearts/ai/gate/`) stay, so a stronger rollout can be tried against the same gate.
+
 ## 8. Screens
 
 Checked at 390 by 844.
