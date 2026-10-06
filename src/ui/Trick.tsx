@@ -25,9 +25,10 @@ const AREA: Record<Where, string> = { top: 'col-start-2 row-start-1', left: 'col
 
 /**
  * The trick in the middle of the table. Each card arrives from its player's side, and a finished
- * trick is shown with its winner ringed, then leaves toward them. `wins` words the winner's line.
+ * trick is shown with its winner ringed, then leaves toward them. `wins` words the winner's line
+ * between the cards, or leaves it out (null) for a game that says more elsewhere.
  */
-export function TrickArea({ view, phase, wins }: { view: ShellView; phase: TrickRound; wins?: (winner: Seat) => string }) {
+export function TrickArea({ view, phase, wins }: { view: ShellView; phase: TrickRound; wins?: (winner: Seat) => string | null }) {
   const position = usePosition(view)
   const last = phase.tricks[phase.tricks.length - 1]
   const paused = phase.kind === 'trickPause' && last !== undefined
@@ -66,7 +67,7 @@ export function TrickArea({ view, phase, wins }: { view: ShellView; phase: Trick
           )
         })}
       </AnimatePresence>
-      {winner !== null && (
+      {winner !== null && (wins === undefined || wins(winner) !== null) && (
         <p className="col-start-2 row-start-2 text-center text-sm text-accent">
           {wins ? wins(winner) : winner === view.seat ? 'You win it' : `${seatName(view, winner)} wins`}
         </p>

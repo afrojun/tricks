@@ -283,7 +283,8 @@ button:disabled {
   position: relative;
 }
 .hand[data-many] .hand-slot {
-  margin-inline: calc((min((100% - var(--w)) / (var(--count) - 1), var(--w) * 0.84) - var(--w)) / 2);
+  /* 36px keeps the leaning outer cards' top corners on the screen. */
+  margin-inline: calc((min((100% - var(--w) - 36px) / (var(--count) - 1), var(--w) * 0.84) - var(--w)) / 2);
 }
 .hand[data-many] .playing-card {
   width: var(--w);
@@ -301,13 +302,14 @@ button:disabled {
   outline: 3px solid var(--accent);
   outline-offset: 1px;
 }
+/* Sized by the card, so it fits the strip a card shows in a long row. */
 .card-tag {
   position: absolute;
-  left: 0.1rem;
-  bottom: 0.35rem;
-  padding: 0.05rem 0.2rem;
+  left: calc(var(--w) * 0.03);
+  bottom: calc(var(--w) * 0.12);
+  padding: 0.05em 0.15em;
   font-family: var(--font-body-family);
-  font-size: 0.6rem;
+  font-size: calc(var(--w) * 0.15);
   font-weight: 700;
   line-height: 1.2;
   border-radius: var(--radius);
@@ -477,6 +479,11 @@ button:disabled {
   border-radius: var(--radius);
   color: var(--text-muted);
   white-space: nowrap;
+}
+/* A fact that has come true, such as hearts broken. */
+.fact[data-on='true'] {
+  color: var(--accent);
+  border-color: currentColor;
 }
 .suit-chip {
   display: inline-block;
