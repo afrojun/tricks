@@ -61,6 +61,29 @@ describe('game store', () => {
     expect(store.getState().version).toBe(0)
   })
 
+  test('a reconnect to a room that reset plays its new events, numbered from one again', () => {
+    const { store, played } = connected()
+    store.receive(sync(40, Array.from({ length: 75 }, (_, i) => event(i + 1))), 5000)
+    expect(played).toHaveLength(75)
+    store.setConnection('reconnecting')
+    store.setConnection('open')
+    store.receive(sync(0, []), 5000) // the reset room's lobby: a lower version and no events
+    store.receive(sync(1, [event(1)]), 5000)
+    expect(store.getState().version).toBe(1)
+    expect(played.slice(75)).toEqual([1])
+  })
+
+  test('the first sync after a reconnect is the baseline for events too: its own are not played, then or again', () => {
+    const { store, played } = connected()
+    store.receive(sync(2, [event(1)]), 5000)
+    store.setConnection('reconnecting')
+    store.setConnection('open')
+    store.receive(sync(5, [event(3), event(4)]), 5000) // a broadcast that reached the new socket first
+    store.receive(sync(5, []), 5000)
+    store.receive(sync(6, [event(4), event(5)]), 5000) // 4 arrives again
+    expect(played).toEqual([1, 5])
+  })
+
   test('countdowns follow the server clock even when this device is 30 seconds off', () => {
     const store = new GameStore()
     store.setConnection('open')

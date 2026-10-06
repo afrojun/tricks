@@ -7,6 +7,7 @@ import { type Game, createGame } from '../games/thunee/engine'
 import { Table, card, seededRng } from '../games/thunee/engine/testing'
 import { gameOf, isRoomName } from '../games'
 import { type View as HeartsView, availableActions as heartsAvailable, createGame as createHearts, FORMAT_VERSION as HEARTS_FORMAT } from '../games/hearts'
+import { GameStore } from '../client/store'
 import { type ServerMessage as GenericServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../protocol'
 import { type RoomConnection, type RoomHost, TableRoom } from './room'
 
@@ -518,6 +519,40 @@ describe('timers', () => {
     w.data.set('state', { game: { formatVersion: 999 }, tokens: {}, version: 7, eventCount: 0 })
     await w.boot()
     expect((await w.connect(TOKENS[0])).sync).toMatchObject({ version: 0, view: { phase: { kind: 'lobby' } } })
+  })
+
+  test('a client that reconnects to a room reset by a new format hears the new game’s events', async () => {
+    const { w, conns } = await startedGame()
+    const store = new GameStore<View, GameEvent>()
+    const heard: number[] = []
+    store.onEvent((e) => heard.push(e.n))
+    const feed = (conn: FakeConn) => {
+      for (const message of conn.take()) store.receive(message, w.now)
+    }
+    store.setConnection('open')
+    feed(conns[0])
+    await w.send(conns[2], { type: 'pass' })
+    feed(conns[0])
+    expect(heard.length).toBeGreaterThan(0)
+    const highest = Math.max(...heard)
+
+    // A deploy raises the format: the sockets drop, and the room comes back as a fresh lobby.
+    const state = w.data.get('state') as { game: Game }
+    w.data.set('state', { ...state, game: { ...state.game, formatVersion: 999 } })
+    store.setConnection('reconnecting')
+    await w.boot()
+    store.setConnection('open')
+    const back = await w.connect(TOKENS[0])
+    feed(back)
+    expect(store.getState()).toMatchObject({ version: 0, seat: null, view: { phase: { kind: 'lobby' } } })
+
+    const before = heard.length
+    await w.send(back, { type: 'sit', seat: 0, name: 'Again' })
+    const numbers = back.sync.events.map((e) => e.n)
+    expect(numbers[0]).toBe(1)
+    expect(Math.max(...numbers)).toBeLessThan(highest) // numbered from one again, below what the client heard
+    feed(back)
+    expect(heard.slice(before)).toEqual(numbers)
   })
 
   test('a format 1 save is discarded and replaced by an empty lobby', async () => {
