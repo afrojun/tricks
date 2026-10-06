@@ -90,6 +90,13 @@
 - [ ] Test first: hearts breaking is a moment; the exchange names who gave the viewer cards; every event that is shown holds the screen long enough for it.
 - [ ] Implement. Commit.
 
+### Added during the build: the coach, when one is present
+
+Asked for while Task 4 was under way, because Hearts practice (on another branch) gives the table a coach.
+
+- [ ] Move Thunee's coach strip, its sheets (hint, warning, log, lessons, all hands) and the coach's review into `src/ui/coach/`, generic: a game passes its written lessons and how its dealt hands are shown. Thunee's markup unchanged with a stub coach in every state. One commit.
+- [ ] Hearts' table draws the strip, the hint, the review (which says so when it has nothing to point out) and, in the hand's second tap, the coach's warning, which it asks of the coach in context through an optional `check`. Nothing imported from Hearts' practice or coach.
+
 ### Task 7: End to end
 
 **Files:** `scripts/e2e-hearts.ts`.
