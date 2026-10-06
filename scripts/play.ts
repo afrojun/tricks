@@ -2,7 +2,8 @@
  * Plays a whole game against the running app over real sockets: two scripted
  * humans and two AI seats, with one human dropping and reconnecting mid-game.
  * First checks that a socket to a name that is not a room is closed with the
- * room's close code, and that a Hearts room opens as a lobby of four. The
+ * room's close code, that a plain request to a room's address gets a 404, and
+ * that a Hearts room opens as a lobby of four. The
  * rooms share the app's origin. Usage: pnpm dev (in another terminal), then
  * pnpm e2e:sockets, with APP_URL set if the app is not on http://localhost:5173.
  */
@@ -76,6 +77,22 @@ for (const name of ['SIM123', 'thunee-abcdef', 'spades-ABCDEF']) {
   if (closed !== UNKNOWN_ROOM_CLOSE_CODE) throw new Error(`a socket to ${name} closed with ${closed}, not ${UNKNOWN_ROOM_CLOSE_CODE}`)
 }
 console.log(`sockets to unknown room names closed with ${UNKNOWN_ROOM_CLOSE_CODE}`)
+
+// Rooms are reached only by socket. A plain request to a room's address is refused: an unknown
+// name at the edge, a room by the room itself, which logs nothing (its URL may carry a token).
+async function plainRequest(name: string): Promise<string> {
+  const response = await fetch(`${app.origin}/parties/room/${name}?token=script-token-plainrequest`)
+  return `${response.status} ${await response.text()}`
+}
+for (const [name, want] of [
+  ['SIM123', '404 Unknown room'],
+  [roomName('hearts', code), '404 Not found'],
+  [room, '404 Not found'],
+]) {
+  const got = await plainRequest(name)
+  if (got !== want) throw new Error(`a plain request to ${name} got ${got}, not ${want}`)
+}
+console.log('plain requests to rooms are refused with 404')
 
 /** The first view a plain WebSocket is sent by the room `name`. */
 function firstViewOf(name: string): Promise<{ playerCount: number; phase: { kind: string }; rules: object }> {
