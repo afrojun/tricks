@@ -4,7 +4,7 @@
 
 **Goal:** One computer player in the kit that samples the cards a seat cannot see and plays imagined deals out with the engine itself, and the gate that decides whether Hearts adopts it for passing and play.
 
-**Architecture:** Hearts' `apply` becomes `structuredClone` then an exported in-place `step`; `GameModule` gains an optional `step`. `src/kit/search/` holds a game-agnostic player: `types.ts` (what a game supplies, `SearchGame`), `seed.ts` (a decision's random stream from the salt, the seat and a decision id), `sample.ts` (an exact sampler over places with sizes, hard constraints and soft evidence, dropping evidence that cannot hold), `search.ts` (worlds, candidates, random legal rollouts through `step`, paired results), `explain.ts` (means, standard errors, trick wins). `src/games/hearts/ai/search.ts` is Hearts' adapter: knowledge from a `full` view, `rebuild`, candidates (legal cards; a pruned set of passes around the hand-written player's), value, decision id, worlds. The gate (`src/games/hearts/ai/gate.test.ts` plus a browser timing script) measures strength, speed, cheating and determinism; its results go in `src/games/hearts/ai/results/` and section 9 of the search-player spec.
+**Architecture:** Hearts' `apply` becomes `structuredClone` then an exported in-place `step`; `GameModule` gains an optional `step`. `src/kit/search/` holds a game-agnostic player: `types.ts` (what a game supplies, `SearchGame`), `seed.ts` (a decision's random stream from the salt, the seat and a decision id), `sample.ts` (an exact sampler over places with sizes, hard constraints and soft evidence, dropping evidence that cannot hold), `search.ts` (worlds, candidates, random legal rollouts through `step`, paired results), `explain.ts` (means, standard errors, trick wins). `src/games/hearts/ai/search.ts` is Hearts' adapter: knowledge from a `full` view, `rebuild`, candidates (legal cards; a pruned set of passes around the hand-written player's), value, decision id, worlds. The gate (`src/games/hearts/ai/gate/`) measures strength, speed, cheating and determinism; its results go in `src/games/hearts/ai/gate/results/` and section 9 of the search-player spec.
 
 **Tech Stack:** TypeScript, Vitest, playwright-core with `/usr/bin/chromium`, Vite (to bundle the browser timing).
 
@@ -40,10 +40,11 @@
 | `src/kit/search/sample.ts` | `prepare(knowledge)`: drops soft evidence that cannot hold, then samples worlds exactly uniformly |
 | `src/kit/search/search.ts` | `search(game, view, mind)`: worlds, candidates, rollouts, results |
 | `src/kit/search/explain.ts` | Means, standard errors, paired gaps, trick wins |
-| `src/games/hearts/ai/search.ts` | Hearts' `SearchGame` and its `decide` |
-| `src/games/hearts/ai/gate.test.ts` | The gate: strength, speed in Node, cheating, determinism |
-| `src/games/hearts/ai/gate-browser.ts` | Speed in headless Chromium, throttled four times |
-| `src/games/hearts/ai/results/` | The gate's saved results and raw timings |
+| `src/games/hearts/ai/search.ts` | Hearts' `SearchGame` and `searchHearts`, its decision |
+| `src/games/hearts/ai/gate/play.ts`, `measure.ts`, `bench.ts` | Rounds on duplicate deals; strength, cheating, determinism and speed, deal by deal |
+| `src/games/hearts/ai/gate/run.ts` | The gate in one command: bundles with Vite, shares deals among worker threads, times Node and Chromium |
+| `src/games/hearts/ai/gate/gate.test.ts` | The gate in small, in the suite |
+| `src/games/hearts/ai/gate/results/` | The gate's saved results and raw timings |
 
 ---
 
