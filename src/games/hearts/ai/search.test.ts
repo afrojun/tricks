@@ -13,11 +13,12 @@ import { MOON, SPREAD, VOID } from '../engine/deals'
 import { checkInvariants } from '../engine/invariants'
 import { PASS_SIZE, PLAYERS, type RuleOverrides } from '../engine/rules'
 import { Table, card, cards, playOf } from '../engine/testing'
-import type { Card } from '../engine/cards'
+import { type Card, strength, trickPoints } from '../engine/cards'
 import type { Action, Game, View } from '../engine/types'
 import { viewFor } from '../engine/view'
 import { chooseChallenge } from './catch'
 import { chooseAction, decide, passOrder } from './choose'
+import { unseen, wouldWin } from './read'
 import { candidates, decisionId, heartsSearch, knowledge, passCandidates, rebuild, searchHearts, value } from './search'
 
 /** The adapter with every rebuilt world checked: the invariants hold, and the seat gets its own view back exactly. */
@@ -191,6 +192,51 @@ describe('candidates', () => {
     // Seat 2 then holds 4c 8c Qc, but at VOID's opening, seat 2 holds 9c 10c Jc in a row: one card stands for all three.
     const v = new Table({ passing: 'none' }).deal(VOID).play('2c 4d')
     expect(candidates(full(v, 2))).toEqual([{ type: 'playCard', card: card('Jc') }])
+  })
+
+  test('a card on the table between two held cards keeps them apart: one wins the trick, the other does not', () => {
+    // Seat 2 holds 7c and 9c and no other club; 8c lies on the table between them, so 7c loses the trick and 9c wins it.
+    const deal = [
+      '2c 3c 4c 5c 6c 2d 3d 4d 5d 6d 7d 8d 9d',
+      '8c 10d Jd Qd Kd Ad 2s 3s 4s 5s 6s 7s 8s',
+      '7c 9c 9s 10s Js Qs Ks As 2h 3h 4h 5h 6h',
+      '10c Jc Qc Kc Ac 7h 8h 9h 10h Jh Qh Kh Ah',
+    ]
+    const t = new Table({ passing: 'none' }).deal(deal).play('2c 8c')
+    const offered = candidates(full(t, 2)).map((a) => (a as { card: Card }).card)
+    expect(offered).toEqual(cards('9c 7c'))
+    const result = searchHearts(full(t, 2), { persona: 'straight', salt: 1 }, { worlds: 6 })!
+    // 7c never takes the trick; 9c does unless seat 3, still to play, holds a higher club in that world.
+    const [nine, seven] = result.options.map((o) => o.won!)
+    expect(seven).toBe(0)
+    expect(nine).toBeGreaterThan(0)
+  })
+
+  test('cards searched once for all play alike: none of those left out differs in suit, worth, or what it does to the trick', () => {
+    let merged = 0
+    for (const seed of [1, 2, 3]) {
+      eachState({}, seed, (t) => {
+        const phase = t.game.phase
+        if (phase.kind !== 'playing') return
+        const view = full(t, phase.turn)
+        if (view.phase.kind !== 'playing') return
+        const offered = candidates(view).map((a) => (a as { card: Card }).card)
+        const meets = [...unseen(view.phase), ...view.phase.current.map((p) => p.card)]
+        for (const c of availableActions(view).legal) {
+          if (hasCard(offered, c)) continue
+          merged++
+          const stand = offered.find(
+            (k) =>
+              k.suit === c.suit &&
+              trickPoints([k], view.rules) === trickPoints([c], view.rules) &&
+              !meets.some((o) => o.suit === c.suit && strength(o) > Math.min(strength(k), strength(c)) && strength(o) < Math.max(strength(k), strength(c))),
+          )
+          expect(stand, `${c.rank}${c.suit} has no card standing for it`).toBeDefined()
+          expect(wouldWin(view.phase.current, phase.turn, stand!)).toBe(wouldWin(view.phase.current, phase.turn, c))
+        }
+      })
+    }
+    expect(merged).toBeGreaterThan(100)
   })
 
   test('alike needs the same worth: the queen of spades never stands for the king, nor two hearts for a spade', () => {

@@ -164,12 +164,12 @@ export function passCandidates(view: View, hand: readonly Card[]): Card[][] {
 }
 
 /**
- * In play, the legal cards, one of each set that play alike: cards of one suit with no card between them still
- * out, worth the same to whoever takes them (each heart one point, any other card none, the queen of spades and
- * a counting jack of diamonds alone), win and lose against the same cards, so either gives the same deals. The
- * hand-written player's choice comes first, standing for its set, so that it wins a tie; the rest are the lowest
- * of their sets, in a fixed order. `among` narrows the cards, as a careful cheat holds back one that would show
- * it up.
+ * In play, the legal cards, one of each set that play alike: cards of one suit with no card between them that
+ * they could still meet, neither one still out nor one on the table now, and worth the same to whoever takes
+ * them (each heart one point, any other card none, the queen of spades and a counting jack of diamonds alone).
+ * They win and lose against the same cards, now and later, so either gives the same deals. The hand-written
+ * player's choice comes first, standing for its set, so that it wins a tie; the rest are the lowest of their
+ * sets, in a fixed order. `among` narrows the cards, as a careful cheat holds back one that would show it up.
  */
 export function candidates(view: View, among?: readonly Card[]): Action[] {
   if (view.seat === null) return []
@@ -179,11 +179,12 @@ export function candidates(view: View, among?: readonly Card[]): Action[] {
   if (phase.kind !== 'playing' || can.legal.length === 0) return []
   const legal = among ?? can.legal
   const first = chooseCard(view, phase, legal).card
-  const out = unseen(phase)
+  // The cards a card played now could still meet: those still out, and those on the table.
+  const meets = [...unseen(phase), ...phase.current.map((p) => p.card)]
   const worth = (c: Card) => trickPoints([c], view.rules)
   const between = (o: Card, a: Card, b: Card) =>
     o.suit === a.suit && strength(o) > Math.min(strength(a), strength(b)) && strength(o) < Math.max(strength(a), strength(b))
-  const alike = (a: Card, b: Card) => a.suit === b.suit && worth(a) === worth(b) && !out.some((o) => between(o, a, b))
+  const alike = (a: Card, b: Card) => a.suit === b.suit && worth(a) === worth(b) && !meets.some((o) => between(o, a, b))
   const kept: Card[] = [first]
   for (const card of [...legal].sort(canonical)) if (!kept.some((k) => alike(k, card))) kept.push(card)
   return kept.map((card) => ({ type: 'playCard', card }))
