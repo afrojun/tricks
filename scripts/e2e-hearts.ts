@@ -121,7 +121,7 @@ await shot(a, '5-round-over')
 // Practice runs in this browser; the placeholder follows it, though it cannot pass for you yet.
 await a.goto(`${base}/hearts/practice`)
 check(await seen(a, /Passing three cards to the left/, 10_000), '/hearts/practice opens a practice game at the pass')
-check(await seen(a, 'Still choosing: You.', 10_000), 'the computers choose their cards and the table waits for you')
+check(await seen(a, 'Still choosing: You, Left, Across, Right.', 10_000), 'the whole table waits for you to choose')
 await shot(a, '6-practice')
 
 if (problems.length) console.log('PROBLEMS:\n' + problems.join('\n'))
