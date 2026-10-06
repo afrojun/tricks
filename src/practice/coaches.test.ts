@@ -10,6 +10,7 @@ import { situation } from '../games/thunee/coach/situation'
 import { topicsFor } from '../games/thunee/coach/topics'
 import { thuneePractice } from '../games/thunee/practice'
 import type { TableState, TableView } from '../kit/table'
+import { GAMES as CLIENTS, loadGame } from '../ui/games'
 import type { GamePractice, Note } from './contract'
 import { PracticeGame } from './game'
 import { playPractice } from './testing'
@@ -62,8 +63,10 @@ const COACHED: Record<string, { counts: number[]; play: (playerCount: number, se
 }
 
 describe('every game’s coach', () => {
-  test('every game in the list has a practice with a coach', () => {
-    expect(Object.keys(COACHED).sort()).toEqual([...GAMES.keys()].sort())
+  test('every game whose screens offer practice is played here, and only those', async () => {
+    // A game may list itself with `practice: null` until its practice is written.
+    for (const { id } of CLIENTS) expect(id in COACHED, id).toBe((await loadGame(id)).practice !== null)
+    for (const id of Object.keys(COACHED)) expect(GAMES.has(id), id).toBe(true)
   })
 
   test('Thunee’s practice coach is its hand-written coach, every member', () => {
