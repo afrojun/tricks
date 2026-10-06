@@ -21,7 +21,7 @@ The search player's gate for Hearts is not part of `pnpm test`: `pnpm exec tsx s
 
 To try a game alone: open it from the Tricks home, create a game, sit down, and use "Add computer" on the other seats. To learn a game, use "Learn to play" on its home: a practice game against computers with a coach, run entirely in the browser (no room needed).
 
-In development the Cloudflare Vite plugin runs the Worker, rooms included, inside Vite, so the app needs only one URL. To play from another device, point an HTTPS tunnel (for example `tailscale serve`) at `127.0.0.1:5173`; `*.ts.net` hosts are already allowed in `vite.config.ts`. Local room storage lives in `.wrangler/`.
+In development the Cloudflare Vite plugin runs the Worker, rooms included, inside Vite, so the app needs only one URL. To play from another device, point an HTTPS tunnel (for example `tailscale serve`) at `127.0.0.1:5173`; `*.ts.net` hosts are already allowed in `vite.config.ts`. Local room storage lives in `.wrangler/`. After pulling or merging large changes, restart `pnpm dev`: a long-running server can serve pages that never finish loading, and the first browser script after a merge can fail while Vite re-optimises its dependencies, so rerun it once before suspecting the code.
 
 ## Tech Stack
 
@@ -141,4 +141,4 @@ Every push to `main` deploys, through Cloudflare Workers Builds (the Worker's Se
 - **The deploy reads the build.** `pnpm build` writes the Worker's config to `dist/tricks/wrangler.json` and points `.wrangler/deploy/config.json` at it, so `wrangler deploy` always follows a build. To check a deploy without making one: `pnpm build && pnpm exec wrangler deploy --dry-run`.
 - **Logs** are on (`observability` in `wrangler.jsonc`), one line per request and room message: the Worker's Logs tab in the Cloudflare dashboard, or `pnpm exec wrangler tail tricks` when logged in. They record URLs without their query strings (`redact_query_string`), because a socket's URL carries the device token, which owns a seat. Never log a request's full URL or a token from the code.
 
-What the first deploy needs from the account owner, and the checks after it, are in the "Status" section of `docs/superpowers/specs/2026-10-05-deploy-design.md`. Before Tricks, the app was Thunee alone, served by Vercel with its rooms on PartyKit; both are removed by hand once `tricks.afrojun.dev` works.
+How Tricks was first deployed, the build trigger's ids, and the checks still left are in the "Status" section of `docs/superpowers/specs/2026-10-05-deploy-design.md`. Before Tricks, the app was Thunee alone, served by Vercel with its rooms on PartyKit; both are removed by hand once `tricks.afrojun.dev` works.

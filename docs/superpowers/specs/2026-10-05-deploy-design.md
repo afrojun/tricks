@@ -1,7 +1,7 @@
 # Deploy configuration — Design
 
 Date: 2026-10-05
-Status: built, not yet deployed (sub-project G in `2026-10-05-tricks-overview-design.md`). Section 7 says what is done and what the owner does next.
+Status: deployed 2026-10-06 (sub-project G in `2026-10-05-tricks-overview-design.md`). Section 7 records how, and what is left.
 Depends on: everything else being merged into `tricks`
 
 ## 1. Purpose

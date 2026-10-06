@@ -1,7 +1,7 @@
 # Tricks — Overview
 
 Date: 2026-10-05
-Status: built on `tricks`. Sub-projects A, C, D1 to D3, E1 to E3 and F are merged; B, the throwaway spike, was run and reviewed and never merged; G is in place and the first push to `main` waits on the owner (section 2)
+Status: built on `tricks`. Sub-projects A, C, D1 to D3, E1 to E3 and F are merged; B, the throwaway spike, was run and reviewed and never merged; G deployed Tricks on 2026-10-06 (section 2)
 Builds on: `2026-10-04-thunee-rebuild-design.md`, `2026-10-04-ai-personas-design.md`, `2026-10-04-practice-and-coach-design.md`
 
 ## 1. Purpose
@@ -50,7 +50,7 @@ Accounts, matchmaking, chat, games beyond Hearts, Hearts for three or five playe
 | E2 | The search player in the kit, gated on Hearts | `2026-10-06-search-player-design.md` | D2, E1 | **Run; the gate failed** on strength and on speed, so Hearts keeps its hand-written player. The search player is merged and kept in the kit (`src/kit/search/`), with Hearts' adapter and gate in `src/games/hearts/ai/`, for another attempt or a third game. Results in its spec, section 9. |
 | E3 | Hearts' screens, practice and presets | `2026-10-05-hearts-design.md` sections 8 and 9 | D3, E1 | **Merged.** Hearts has its own table, round result and game over. |
 | F | Coach in two tiers | `2026-10-05-coach-tiers-design.md` | D2, E1 | **Merged.** Thunee's coach is written by hand; Hearts' is the kit's tier 1. |
-| G | Deploy configuration | `2026-10-05-deploy-design.md` | everything | **Built, not deployed.** The configuration, the workflow and the documents are in place; the first push to `main` waits on the owner (deploy spec, section 7). |
+| G | Deploy configuration | `2026-10-05-deploy-design.md` | everything | **Deployed 2026-10-06** at `tricks.afrojun.dev`, by Cloudflare Workers Builds on every push to `main` (deploy spec, section 7). |
 
 A, B and C touched different files and ran in parallel. D is split in three so each part can be reviewed well; it is the work that moves Thunee's files, so only work in other folders runs beside it.
 
@@ -76,7 +76,7 @@ src/ui/             The shell: Tricks home, game home, lobby, practice screen, g
                     and the shared parts: hand, seat badge, trick area, sheets, the coach's strip,
                     sheets and review (coach/).
 src/themes/  src/presets/  scripts/
-wrangler.jsonc  .github/workflows/deploy.yml
+wrangler.jsonc  .node-version
 ```
 
 Dependency direction: `games/* -> kit`; a game's `client.ts` and `ui/ -> src/ui, practice, presets`; `room -> games, kit, protocol`; `worker -> games, protocol, room`; `ui -> client, practice, presets, kit`, and `ui -> games (screens)` only through on-demand loading; `practice -> client, protocol, kit`. Games never import each other. `kit` imports nothing from the app.
