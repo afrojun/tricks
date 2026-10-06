@@ -5,7 +5,8 @@
  * result, and the second round passes to the right. There the host plays a rule-breaking card
  * after a second tap. Last, the second player goes away, the host lets the computer play for
  * them, and they take the seat back on return. Also checks that the home loads no game's code,
- * and Hearts' practice. Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
+ * and Hearts' practice: the coach, a new practice game dropping the old game's picks, and the
+ * coach's warning on a second tap. Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
 import { type Browser, type Page, chromium } from 'playwright-core'
 
@@ -238,8 +239,49 @@ await a.goto(`${base}/hearts/practice?players=4`)
 if (practised) {
   check(await seen(a, 'Passing left', 10_000), '/hearts/practice opens a practice game at the pass')
   check(await a.locator('.coach-strip').isVisible(), 'the practice table draws the coach')
-} else check(await seen(a, 'Practice is coming'), '/hearts/practice says practice is coming')
-await shot(a, '10-practice')
+  await shot(a, '10-practice')
+
+  // Cards picked in one practice game are not carried into the next.
+  const picked = () => a.locator('.hand .playing-card.picked').count()
+  await pickThree(a)
+  check((await picked()) === 3, 'three cards are picked in practice')
+  const labels = () => handCards(a).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')).join())
+  const before = await labels()
+  await a.getByRole('button', { name: 'Open menu' }).click()
+  await a.getByRole('button', { name: 'New practice game' }).click()
+  // The old hand leaves as the new one arrives: wait for thirteen new cards alone.
+  for (let t = 0; t < 40 && ((await handSize(a)) !== 13 || (await labels()) === before); t++) await a.waitForTimeout(100)
+  check((await picked()) === 0, 'a new practice game starts with nothing picked')
+  await pickThree(a)
+  check((await picked()) === 3, 'and three of its own cards can be picked')
+  await a.getByRole('button', { name: 'Pass left' }).click()
+  check(await seen(a, 'Passed left', 10_000), 'and passed')
+
+  // A rule-breaking card's second tap carries the coach's warning. In practice the coach's line
+  // replaces the hint, so the player's turn is when the hand can be played.
+  let warned = false
+  for (let i = 0; i < 600 && !warned; i++) {
+    const proceed = a.getByRole('button', { name: 'Continue' })
+    if (await proceed.isVisible()) await proceed.click().catch(() => {})
+    const mine = (await a.locator('.hand .playing-card[data-playable="true"]').count()) > 0
+    const dimmed = a.locator('.hand .playing-card[data-dim="true"]')
+    // At the opening lead only the two of clubs may be played at all: no trick is complete and none is begun.
+    const opening = (await a.getByRole('button', { name: 'Last trick' }).isDisabled()) && (await a.locator('.trick-area .playing-card').count()) === 0
+    if (mine && !opening && (await dimmed.count()) > 0) {
+      await dimmed.first().click({ position: STRIP })
+      const why = a.locator('.play-anyway-why')
+      warned = await why.waitFor({ timeout: 2000 }).then(() => true, () => false)
+      check(warned && /accuse you/.test((await why.textContent()) ?? ''), `the second tap shows the coach's warning (${(await why.textContent().catch(() => null)) ?? 'none'})`)
+      await shot(a, '11-practice-warning')
+      await a.locator('.hand').click({ position: { x: 3, y: 3 } })
+    } else if (mine) await a.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500 }).catch(() => {})
+    await a.waitForTimeout(150)
+  }
+  check(warned, 'a practice turn offered a rule-breaking card')
+} else {
+  check(await seen(a, 'Practice is coming'), '/hearts/practice says practice is coming')
+  await shot(a, '10-practice')
+}
 
 if (problems.length) console.log('PROBLEMS:\n' + problems.join('\n'))
 await browser.close()
