@@ -11,7 +11,7 @@ export type RuleInfo<R> = {
     label: string
     /** Present for settings chosen from a list; absent for numbers. */
     choices?: Choice<R, K>[]
-    /** For numbers: the bounds the schema allows, and how far one press of − or + moves (1 unless given). */
+    /** For numbers: the bounds the schema allows, and how far one press of − or + moves (1 unless given). Any whole number between can be typed. */
     range?: { min: number; max: number; unit: string; step?: number }
   }
 }[keyof R]
@@ -58,6 +58,18 @@ export function differenceCount<R extends object>(book: RuleBook<R>, rules: R): 
 
 export function isDefault<R extends object>(book: RuleBook<R>, key: keyof R, rules: R): boolean {
   return rules[key] === book.defaults[key]
+}
+
+/** A number typed for a rule: whole, and held within its range. Null for anything that is not a number. */
+export function typedNumber(range: { min: number; max: number }, text: string): number | null {
+  const n = Number(text.trim())
+  if (text.trim() === '' || !Number.isFinite(n)) return null
+  return Math.min(range.max, Math.max(range.min, Math.round(n)))
+}
+
+/** What the rules editor stores when `patch` changes `rules`: only the settings that then differ from the defaults. */
+export function withRule<R extends object>(book: RuleBook<R>, rules: R, patch: Partial<R>): Partial<R> {
+  return diff(book.defaults, { ...rules, ...patch })
 }
 
 export function sameOverrides<R extends object>(book: RuleBook<R>, a: Partial<R>, b: Partial<R>): boolean {

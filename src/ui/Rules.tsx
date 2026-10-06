@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { diff, resolve } from '../kit/rules'
-import { type RuleInfo, type RulesOf, defaultsName, differenceCount, isDefault, sameOverrides, valueLabel } from '../presets/book'
+import { diff } from '../kit/rules'
+import { type RuleInfo, type RulesOf, defaultsName, differenceCount, isDefault, sameOverrides, typedNumber, valueLabel, withRule } from '../presets/book'
 import { shareUrl } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
 import { copyText } from './text'
@@ -54,16 +54,36 @@ function RuleControl<R extends object>({ info, rules, onChange }: { info: RuleIn
       </div>
     )
   }
-  const { min, max, unit, step = 1 } = info.range!
+  const range = info.range!
+  const { min, max, unit, step = 1 } = range
   const set = (n: number) => onChange({ [info.key]: Math.min(max, Math.max(min, n)) } as Partial<R>)
+  // Any whole number in the range can be typed; − and + move by the rule's step.
+  const commit = (input: HTMLInputElement) => {
+    const n = typedNumber(range, input.value)
+    if (n !== null && n !== value) set(n)
+    else input.value = String(value)
+  }
   return (
     <div className="flex items-center gap-2">
       <button className="btn btn-small" onClick={() => set((value as number) - step)} aria-label={`Less ${info.label}`}>
         −
       </button>
-      <span className="min-w-20 text-center font-semibold">
-        {value as number} {unit}
+      <span className="w-24 shrink-0">
+        <input
+          key={value as number}
+          className="field text-center"
+          type="number"
+          inputMode="numeric"
+          min={min}
+          max={max}
+          step={1}
+          defaultValue={value as number}
+          aria-label={info.label}
+          onBlur={(e) => commit(e.currentTarget)}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
       </span>
+      <span>{unit}</span>
       <button className="btn btn-small" onClick={() => set((value as number) + step)} aria-label={`More ${info.label}`}>
         +
       </button>
@@ -113,7 +133,7 @@ export function RulesEditor<R extends object>({ game, rules, onChange }: { game:
               {info.label}
               {!isDefault(book, info.key, rules) && <span className="text-on-surface-muted"> (house rule)</span>}
             </p>
-            <RuleControl info={info} rules={rules} onChange={(patch) => onChange(diff(book.defaults, resolve(book.defaults, { ...overrides, ...patch })))} />
+            <RuleControl info={info} rules={rules} onChange={(patch) => onChange(withRule(book, rules, patch))} />
           </div>
         ))}
       </div>

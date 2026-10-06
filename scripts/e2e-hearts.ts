@@ -68,6 +68,16 @@ check(!(await seen(a, /^Team /, 500)), 'Hearts has no teams in the lobby')
 await a.getByRole('button', { name: 'See every rule' }).click()
 check(await seen(a, 'Shooting the moon'), 'the rules sheet describes Hearts’ rules')
 await a.getByRole('button', { name: 'Close' }).click()
+// The end score moves by 25 with − and +, and any whole number between can be typed.
+await a.getByRole('button', { name: 'Change rules' }).click()
+const endsAt = a.getByRole('spinbutton', { name: 'The game ends at' })
+await endsAt.fill('101')
+await endsAt.press('Enter')
+await a.waitForTimeout(500)
+check((await endsAt.inputValue()) === '101', 'an end score of 101 can be typed in the rules editor')
+await shot(a, '2-rules-editor')
+await a.getByRole('button', { name: 'Close' }).click()
+check(await seen(a, 'Standard with 1 house rule'), 'the room keeps it as a house rule')
 await shot(a, '2-lobby')
 await a.getByRole('button', { name: 'Start game' }).click()
 
@@ -75,6 +85,7 @@ for (const [page, who] of [[a, 'A'], [b, 'B']] as const) {
   check(await seen(page, 'The Hearts table is being built', 10_000), `${who} sees the placeholder table`)
   check(await seen(page, /Passing three cards to the left/), `${who} sees the pass to the left`)
   check((await page.locator('[aria-label="Your hand"] .playing-card').count()) === 13, `${who} sees a hand of thirteen`)
+  check(await seen(page, 'reaches 101'), `${who} plays to the end score of 101`)
 }
 await shot(a, '3-passing')
 
