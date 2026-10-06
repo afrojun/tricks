@@ -16,6 +16,7 @@ import {
   cleanName,
   emptySeats,
   isAction,
+  isActor,
   isAiControlled,
   isTableAction,
   nextSeat,
@@ -377,6 +378,13 @@ describe('seats', () => {
       expect(isTableAction(bad)).toBe(false)
     }
     expect(isAction({ type: 'anything' })).toBe(true)
+  })
+
+  test('an actor is the system, a spectator, or a seat at this table', () => {
+    const two = { playerCount: 2 }
+    for (const actor of ['system', null, 0, 1] as const) expect(isActor(two, actor)).toBe(true)
+    for (const actor of [2, 3, -1, 1.5, Number.NaN, Infinity, '0', undefined, 'host', {}]) expect(isActor(two, actor)).toBe(false)
+    expect(isActor({ playerCount: 4 }, 3)).toBe(true)
   })
 })
 

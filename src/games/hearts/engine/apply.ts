@@ -1,9 +1,9 @@
 import { hasCard, sameCard } from '../../../kit/cards'
-import { type Actor, type Ctx, type Seat, allSeats, checkLobbyHost, emptySeats, isAction, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
+import { type Actor, type Ctx, type Seat, allSeats, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
 import { availableActions } from './available'
-import type { Card } from './cards'
 import { PASS_SIZE, PLAYERS, SEAT_COUNTS, STANDARD, resolveRules } from './rules'
 import * as round from './round'
+import { actionShape } from './schema'
 import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type RejectReason } from './types'
 import { viewFor } from './view'
 
@@ -28,11 +28,15 @@ export function createGame(): Game {
  * player input.
  */
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
-  // Checked before any field is read: a client could send anything at all.
+  // Checked before any field is read: a client could send anything at all. Only the system sends `tick` and `setConnected`.
   if (!isAction(action)) return { rejected: 'notAllowed' }
+  if (!isActor(game, actor)) return { rejected: 'notSeated' }
+  const system = action.type === 'tick' || action.type === 'setConnected'
+  const shaped = system ? { success: true as const, data: action } : actionShape.safeParse(action)
+  if (!shaped.success) return { rejected: 'notAllowed' }
   const draft = structuredClone(game)
   const events: GameEvent[] = []
-  const rejected = dispatch(draft, actor, action, ctx, events)
+  const rejected = dispatch(draft, actor, shaped.data, ctx, events)
   if (rejected !== null) return { rejected }
   // A new phase starts every wait afresh: whoever passes last may also hold the two of clubs.
   if (draft.phase.kind !== game.phase.kind) draft.waiting = []
@@ -95,7 +99,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
     case 'choosePass': {
       if (phase.kind !== 'passing') return 'wrongPhase'
       if (can.pass.length === 0) return 'notAllowed'
-      const cards = Array.isArray(action.cards) && action.cards.every(isCard) ? action.cards : []
+      const cards = action.cards
       const distinct = cards.every((c, i) => !cards.slice(0, i).some((d) => sameCard(c, d)))
       if (cards.length !== PASS_SIZE || !distinct || !cards.every((c) => hasCard(can.pass, c))) return 'badChoice'
       round.choosePass(game, phase, seat, cards.map((c) => ({ suit: c.suit, rank: c.rank })), events)
@@ -106,7 +110,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       if (phase.kind !== 'playing') return 'wrongPhase'
       if (phase.turn !== seat) return 'notYourTurn'
       const card = action.card
-      if (!isCard(card) || !hasCard(phase.play.hands[seat], card)) return 'cardNotInHand'
+      if (!hasCard(phase.play.hands[seat], card)) return 'cardNotInHand'
       if (!hasCard(can.play, card)) return 'illegalCard'
       round.playCard(game, phase.play, seat, { suit: card.suit, rank: card.rank }, ctx, events)
       return null
@@ -136,11 +140,6 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
     default:
       return 'notAllowed'
   }
-}
-
-/** Whether a value from a client is shaped like a card; the wire schema checks this too. */
-function isCard(value: unknown): value is Card {
-  return typeof value === 'object' && value !== null && typeof (value as Card).suit === 'string' && typeof (value as Card).rank === 'string'
 }
 
 /** Resolves a phase deadline that has passed. Computer turns are driven by the host. */

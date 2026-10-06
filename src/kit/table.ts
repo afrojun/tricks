@@ -122,6 +122,14 @@ export function isTableAction(action: unknown): action is TableAction {
   return isAction(action) && TABLE_ACTIONS.includes(action.type)
 }
 
+/**
+ * Whether an actor can be at this table: the system, a spectator, or one of its seats. A game
+ * refuses any other before reading a seat, so `apply` never throws on, say, seat 2 of two.
+ */
+export function isActor(game: Pick<TableState, 'playerCount'>, actor: unknown): actor is Actor {
+  return actor === 'system' || actor === null || (Number.isInteger(actor) && (actor as number) >= 0 && (actor as number) < game.playerCount)
+}
+
 // ── Seats ────────────────────────────────────────────────────────────────
 
 export const MAX_NAME_LENGTH = 16
