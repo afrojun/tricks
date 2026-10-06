@@ -1,5 +1,5 @@
 import { createContext, useContext, useSyncExternalStore } from 'react'
-import type { Note } from '../../coach/note'
+import type { Note } from '../../games/thunee/coach/note'
 import type { Action, Card } from '../../games/thunee/engine'
 import type { Coach, CoachState } from '../../practice/session'
 

@@ -1,7 +1,7 @@
 /** What the player can work out from cards played face up: who has run out of a suit, and the points so far. */
-import { type Seat, type Suit, type View, type ViewPlaying, pointsOf, teamOf } from '../games/thunee/engine'
-import { history } from '../games/thunee/ai/read'
-import { inPlay } from '../games/thunee/ai/suspicion'
+import { type Seat, type Suit, type View, type ViewPlaying, pointsOf, teamOf } from '../engine'
+import { history } from '../ai/read'
+import { inPlay } from '../ai/suspicion'
 
 export interface Read {
   seat: Seat

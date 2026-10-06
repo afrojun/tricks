@@ -1,5 +1,5 @@
 /** Short explanations of each part of Traditional Thunee, and when each first matters. */
-import { type Card, type GameEvent, type View, availableActions } from '../games/thunee/engine'
+import { type Card, type GameEvent, type View, availableActions } from '../engine'
 import type { TopicId } from './note'
 
 export interface Topic {

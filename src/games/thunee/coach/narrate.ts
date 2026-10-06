@@ -1,6 +1,6 @@
 /** What each event means for the player, from what they could see. Never a computer's private reasons. */
-import { type GameEvent, type Seat, type View, SUIT_NAME, teamOf } from '../games/thunee/engine'
-import { inPlay } from '../games/thunee/ai/suspicion'
+import { type GameEvent, type Seat, type View, SUIT_NAME, teamOf } from '../engine'
+import { inPlay } from '../ai/suspicion'
 import type { Note } from './note'
 import { runningPoints } from './reads'
 import { card, isPartner, sentence, suitPlural, target, verb, who } from './words'

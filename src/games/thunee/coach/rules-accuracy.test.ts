@@ -1,7 +1,7 @@
 /** Each case is a rule the coach once stated wrongly (review checkpoint B). */
 import { describe, expect, test } from 'vitest'
-import { type Game, type RoundSummary, type View, viewFor } from '../games/thunee/engine'
-import { Table, card } from '../games/thunee/engine/testing'
+import { type Game, type RoundSummary, type View, viewFor } from '../engine'
+import { Table, card } from '../engine/testing'
 import { advise } from './advise'
 import { check } from './check'
 import { narrate } from './narrate'

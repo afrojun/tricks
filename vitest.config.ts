@@ -8,7 +8,6 @@ export default defineConfig({
       'src/client/**/*.test.ts',
       'src/presets/**/*.test.ts',
       'src/practice/**/*.test.ts',
-      'src/coach/**/*.test.ts',
       'src/room/**/*.test.ts',
       'src/ui/**/*.test.ts',
       'src/kit/**/*.test.ts',

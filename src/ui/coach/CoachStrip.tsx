@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Note } from '../../coach/note'
+import type { Note } from '../../games/thunee/coach/note'
 import { useSession } from '../session'
 import { AdviceSheet, LogSheet, TopicSheet, WarningSheet } from './CoachSheets'
 import { useCoach } from './context'

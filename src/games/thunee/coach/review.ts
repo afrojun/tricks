@@ -1,6 +1,6 @@
 /** After a round: the score in words, the moments that went against the advice, and rules broken but not caught. */
-import { type Action, type Card, type RoundSummary, type ScoreLine, type Seat, type View, CARD_POINTS, availableActions, hasCard, pointsOf, sameCard, teamOf } from '../games/thunee/engine'
-import { inPlay } from '../games/thunee/ai/suspicion'
+import { type Action, type Card, type RoundSummary, type ScoreLine, type Seat, type View, CARD_POINTS, availableActions, hasCard, pointsOf, sameCard, teamOf } from '../engine'
+import { inPlay } from '../ai/suspicion'
 import { advise } from './advise'
 import type { DecisionRecord, Note } from './note'
 import { illegalKind } from './check'

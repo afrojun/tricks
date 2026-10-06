@@ -16,7 +16,7 @@ import {
 } from '../games/thunee/engine'
 import { CardBack, PlayingCard } from './Card'
 import { Hand, cardLayoutId } from './Hand'
-import { check } from '../coach/check'
+import { check } from '../games/thunee/coach/check'
 import { CoachStrip } from './coach/CoachStrip'
 import { HowToPlaySheet } from './coach/CoachSheets'
 import { useCoach } from './coach/context'

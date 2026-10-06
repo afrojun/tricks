@@ -1,5 +1,5 @@
 /** One or two sentences on what the player is deciding: what is at stake and who is winning. */
-import { type View, type ViewPlaying, SUIT_NAME, availableActions, teamOf, trickWinner } from '../games/thunee/engine'
+import { type View, type ViewPlaying, SUIT_NAME, availableActions, teamOf, trickWinner } from '../engine'
 import type { Note } from './note'
 import { reads, trickPoints } from './reads'
 import { highestTrump } from './check'
