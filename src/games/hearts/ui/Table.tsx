@@ -5,7 +5,7 @@ import { AccuseSheet } from '../../../ui/Accuse'
 import { CoachStrip } from '../../../ui/coach/CoachStrip'
 import { GameMenu } from '../../../ui/GameMenu'
 import { Hand } from '../../../ui/Hand'
-import { togglePick } from '../../../ui/hands'
+import { NO_PICKS, type Picks, pickFrom, pickedFrom } from '../../../ui/hands'
 import { RulesSheet, rulesSummary } from '../../../ui/Rules'
 import { SeatBadge, TakeOver, usePosition } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
@@ -39,23 +39,18 @@ function takenThisRound(view: View): number[] {
 }
 
 export function Table({ view, room }: { view: View; room: string }) {
-  const { send, store } = useSession()
+  const { send } = useSession()
   const game = useGameClient()
   const position = usePosition(view)
   const [sheet, setSheet] = useState<SheetName>(null)
-  // The cards picked to pass, until they are sent. Every deal starts a new choice.
-  const [picked, setPicked] = useState<Card[]>([])
-  useEffect(
-    () =>
-      store.onEvent((event) => {
-        if (event.type === 'dealt') setPicked([])
-      }),
-    [store],
-  )
   const me = view.seat ?? 0
   const watching = view.seat === null
   const phase = view.phase
   const can = availableActions(view)
+  // The cards picked to pass, until they are sent. They belong to the hand they were picked from,
+  // so a new deal or a new practice game starts a new choice.
+  const [picks, setPicks] = useState<Picks<Card>>(NO_PICKS)
+  const picked = pickedFrom(picks, can.pass)
   // No sound or buzz for the player's turn: no event marks it, and a view's change is not an event.
   const myTurn = phase.kind === 'playing' && phase.turn === view.seat
   const coached = useCoach()
@@ -135,7 +130,7 @@ export function Table({ view, room }: { view: View; room: string }) {
               most={HAND_SIZE}
               choose={
                 phase.kind === 'passing'
-                  ? { picked: phase.choice ?? picked, onPick: can.pass.length > 0 ? (card) => setPicked((p) => togglePick(p, card, PASS_SIZE)) : null }
+                  ? { picked: phase.choice ?? picked, onPick: can.pass.length > 0 ? (card) => setPicks((p) => pickFrom(p, can.pass, card, PASS_SIZE)) : null }
                   : undefined
               }
               marked={playing ? newCards(playing) : []}
@@ -147,7 +142,7 @@ export function Table({ view, room }: { view: View; room: string }) {
 
       {sheet === 'menu' && (
         <Sheet title="Menu" onClose={() => setSheet(null)}>
-          <MenuSheet view={view} room={room} onSheet={setSheet} />
+          <MenuSheet view={view} room={room} onSheet={setSheet} onRestart={() => setPicks(NO_PICKS)} />
         </Sheet>
       )}
       {sheet === 'rules' && <RulesSheet game={game} rules={view.rules} onClose={() => setSheet(null)} />}
@@ -288,7 +283,8 @@ function ActionBar({ view, can, picked, onSheet }: { view: View; can: Available;
   )
 }
 
-function MenuSheet({ view, room, onSheet }: { view: View; room: string; onSheet: (s: SheetName) => void }) {
+/** `onRestart`: a new practice game drops what was picked in the old one. */
+function MenuSheet({ view, room, onSheet, onRestart }: { view: View; room: string; onSheet: (s: SheetName) => void; onRestart: () => void }) {
   const coached = useCoach()
   const game = useGameClient()
   return (
@@ -304,6 +300,7 @@ function MenuSheet({ view, room, onSheet }: { view: View; room: string; onSheet:
               <button
                 className="btn btn-small"
                 onClick={() => {
+                  onRestart()
                   coached.coach.restart(view.playerCount)
                   onSheet(null)
                 }}
