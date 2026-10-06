@@ -35,7 +35,8 @@ src/kit/search/
   sample.ts    Dealing the hidden cards: hard constraints, then soft evidence.
   search.ts    Worlds, candidates, rollouts, scores; picks the action.
   explain.ts   What a coach may say about a decision (section 7).
-src/games/hearts/ai/search.ts    Hearts' SearchGame, and its decide() behind the gate.
+src/games/hearts/ai/search.ts    Hearts' SearchGame, and its decide() behind the gate: everything that reads the view.
+src/games/hearts/ai/imagine.ts   Its imagined games: rebuild, rollout, value. The only place a Game is made.
 ```
 
 `src/kit/search/` imports only the kit. A game's adapter imports its own engine and the kit.
@@ -54,28 +55,50 @@ These come from the spike's review. Each has a test.
 ## 4. What a game supplies
 
 ```ts
-export interface SearchGame<G, A, V> {
-  /** The in-place half of apply (rule 1). */
-  step(draft: G, actor: Actor, action: A, ctx: Ctx): { events: unknown[] } | { rejected: string }
-  /** Where every card is or may be, from one seat's view: known places, hidden places and their sizes,
-   *  hard constraints, and soft evidence (rule 3). */
-  knowledge(view: V): Knowledge
+export interface SearchGame<G, A, V extends TableView, C extends Card = Card> {
+  /** The in-place half of apply (rule 1). The kit sends the table's `tick` when nobody is to act. */
+  step(draft: G, actor: Actor, action: A | TableAction, ctx: Ctx): { events: unknown[] } | { rejected: string }
+  /** Where every card is or may be, from one seat's `full` view (rule 3). */
+  knowledge(view: V): Knowledge<C>
   /** A full game the engine accepts, from the view and one sampled placing of the hidden cards. */
-  rebuild(view: V, world: World): G
-  /** The legal actions open to the viewer now. */
+  rebuild(view: V, world: World<C>): G
+  /** The legal actions open to the viewer now, in an order that does not depend on chance. */
   candidates(view: V): A[]
-  /** A random legal action for any seat in an imagined game, for rollouts. */
-  rollout(view: V, rng: () => number): A
+  /** A random legal action for a seat to act in an imagined game, for rollouts. */
+  rollout(game: G, seat: Seat, rng: () => number): A
   /** The round's result for one seat once it is over: higher is better for that seat. */
   value(game: G, seat: Seat): number
   /** Names this decision from public facts (rule 4). */
   decisionId(view: V): string
   /** Worlds per decision. */
   worlds: number
+  /** For a card: the index of the trick it is played to, so the search can say how often it wins it. */
+  trick?(view: V): number | null
+  /** Who took trick `index`, once it is complete; null before. */
+  trickWinner?(game: G, index: number): Seat | null
+  /** The module's own: who has something to decide, and the next deadline. A round is over when neither is left. */
+  seatsToAct(game: G): Seat[]
+  nextDeadline(game: G): number | null
 }
 ```
 
-`Knowledge`, `World` and the sampler are the kit's. The sampler fills hidden places uniformly at random subject to the hard constraints, applies soft evidence while it is consistent, and never throws on a valid view.
+- **Rollouts read the imagined game.** `rollout` is given the game `rebuild` made and the seat to act, not a view of it: building a view for every action of every rollout cost about a sixth of the search's time. This does not touch honesty, since the imagined game was made from the seat's own view; the decision itself still starts from the view.
+- **Driving a rollout.** A rollout acts for the first of `seatsToAct`, ticks to `nextDeadline` when nobody is to act, and scores the round with `value` when neither is left.
+- **Trick wins.** `trick` and `trickWinner` are optional; with them the search counts how often each card won the trick it was played to (section 7).
+
+`Knowledge`, `World` and the sampler are the kit's:
+
+```ts
+/** Places are numbered by the game, from 0: Hearts' are the other seats. */
+type Constraint<C> =
+  | { kind: 'holds'; place: number; card: C; why: string }                          // the place holds this card
+  | { kind: 'none'; place: number; of: (card: C) => boolean; why: string }          // ...no card `of` matches
+  | { kind: 'some'; places: number[]; of: (card: C) => boolean; why: string }       // at least one such card lies in these places
+interface Knowledge<C> { hidden: C[]; sizes: number[]; hard: Constraint<C>[]; soft: Constraint<C>[] }  // soft: oldest first
+type World<C> = C[][]                                                                // the cards of each place, in a random order
+```
+
+The sampler groups the hidden cards by the places they may go to, counts the deals that keep the constraints exactly, and draws each world uniformly among them. It never breaks a hard constraint. Soft evidence that cannot hold with the rest is dropped newest first, preferring a piece whose loss alone lets the rest hold. It throws only when the hard constraints cannot hold, which no valid view gives.
 
 `value` is per seat, so games with and without teams are the same to the search: Thunee's adapter would return its team's balls as positive and the other team's as negative; Hearts' returns the negative of its own points for the round, with a moon scored as the rules say.
 
