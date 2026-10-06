@@ -1,12 +1,15 @@
 import { describe, expect, test } from 'vitest'
 import { chooseAction, chooseJodhi } from '../ai/choose'
 import { HONEST } from '../kit/mind'
-import type { Action, View } from '../engine'
+import type { Action, GameEvent, View } from '../engine'
 import { type Game, createGame } from '../engine'
 import { Table, card, seededRng } from '../engine/testing'
-import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, isRoomName, roomName } from '../protocol'
+import { isRoomName } from '../games'
+import { type View as HeartsView, availableActions as heartsAvailable, createGame as createHearts, FORMAT_VERSION as HEARTS_FORMAT } from '../games/hearts'
+import { type ServerMessage as GenericServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../protocol'
 import { type RoomConnection, type RoomHost, TableRoom } from './room'
 
+type ServerMessage = GenericServerMessage<View, GameEvent>
 type Sync = Extract<ServerMessage, { type: 'sync' }>
 
 class FakeConn implements RoomConnection {
@@ -130,7 +133,8 @@ describe('room names', () => {
   test('a room is named by a known game and a six-letter code', () => {
     expect(roomName('thunee', 'ABCDEF')).toBe('thunee-ABCDEF')
     expect(isRoomName('thunee-ABCDEF')).toBe(true)
-    for (const name of ['thunee-ABCDE', 'thunee-ABCDEFG', 'thunee-abcdef', 'thunee_ABCDEF', 'hearts-ABCDEF', 'ABCDEF', 'main', '']) {
+    expect(isRoomName('hearts-ABCDEF')).toBe(true)
+    for (const name of ['thunee-ABCDE', 'thunee-ABCDEFG', 'thunee-abcdef', 'thunee_ABCDEF', 'spades-ABCDEF', 'ABCDEF', 'main', '']) {
       expect(isRoomName(name)).toBe(false)
     }
   })
@@ -144,6 +148,98 @@ describe('room names', () => {
     expect(conn.raw).toEqual([])
     await w.send(conn, { type: 'sit', seat: 0, name: 'Nobody' })
     expect(w.data.size).toBe(0)
+  })
+
+  test('a room named by a game the server does not hold is refused the same way, saved state or not', async () => {
+    const w = new World()
+    w.host = { ...w.host, name: 'spades-ABCDEF' }
+    w.data.set('state', { game: createGame(), tokens: {}, version: 3, eventCount: 0, emptySince: null })
+    await w.boot()
+    const conn = await w.connect(TOKENS[0])
+    expect(conn.closed).toEqual({ code: UNKNOWN_ROOM_CLOSE_CODE, reason: expect.any(String) })
+    expect(conn.raw).toEqual([])
+    await w.send(conn, { type: 'sit', seat: 0, name: 'Nobody' })
+    await w.server.onAlarm()
+    await w.close(conn)
+    expect(w.writes).toEqual([])
+  })
+})
+
+describe('a room for any game', () => {
+  /** A Hearts room with one human at seat 0 and three computers, started. */
+  async function heartsGame() {
+    const w = new World()
+    w.host = { ...w.host, name: 'hearts-ABCDEF' }
+    await w.boot()
+    const me = await w.connect(TOKENS[0])
+    const lobby = me.view as unknown as HeartsView
+    expect(lobby).toMatchObject({ seat: null, playerCount: 4, phase: { kind: 'lobby' }, rules: { gameEndsAt: 100 } })
+    await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
+    for (const seat of [1, 2, 3]) await w.send(me, { type: 'addAi', seat })
+    await w.send(me, { type: 'start' })
+    return { w, me, view: () => me.view as unknown as HeartsView }
+  }
+
+  test('a Hearts room seats a player, takes computers and starts, and its views are Hearts’', async () => {
+    const { me, view } = await heartsGame()
+    expect(me.inbox.filter((m) => m.type === 'rejected' || m.type === 'error')).toEqual([])
+    expect(view()).toMatchObject({ seat: 0, phase: { kind: 'passing' }, direction: 'left' })
+    expect(view().seats.map((s) => s.kind)).toEqual(['human', 'ai', 'ai', 'ai'])
+    expect((view().phase as { hand: unknown[] }).hand).toHaveLength(13)
+  })
+
+  test('a Hearts round proceeds with its computer players, the human passing and playing', async () => {
+    const { w, me, view } = await heartsGame()
+    let mine = 0
+    for (let guard = 0; guard < 500 && view().phase.kind !== 'roundResult'; guard++) {
+      const can = heartsAvailable(view())
+      if (can.pass.length > 0) await w.send(me, { type: 'choosePass', cards: can.pass.slice(0, 3) } as never)
+      else if (can.legal.length > 0) {
+        mine++
+        await w.send(me, { type: 'playCard', card: can.legal[0] } as never)
+      } else await w.fireAlarm() // computers' passes and cards, and trick pauses
+    }
+    expect(view().phase.kind).toBe('roundResult')
+    expect(mine).toBe(13)
+    const played = me.inbox.flatMap((m) => (m.type === 'sync' ? m.events : [])).filter((e) => e.type === 'cardPlayed')
+    expect(played).toHaveLength(52)
+    expect(me.inbox.filter((m) => m.type === 'rejected' || m.type === 'error')).toEqual([])
+    expect(JSON.stringify(me.inbox)).not.toContain('"handBefore"')
+  })
+
+  test('each room reads messages with its own game’s schema', async () => {
+    const { w, me } = await heartsGame()
+    me.take()
+    await w.send(me, { type: 'call', amount: 10 })
+    await w.send(me, { type: 'choosePass', cards: [{ suit: 'clubs', rank: '2' }] })
+    expect(me.take()).toEqual(Array(2).fill({ type: 'rejected', reason: 'malformed' }))
+
+    const { w: t, conns } = await startedGame()
+    conns[0].take()
+    await t.send(conns[0], { type: 'choosePass', cards: [] })
+    expect(conns[0].take()).toEqual([{ type: 'rejected', reason: 'malformed' }])
+  })
+
+  test('a room saved in another format for its game starts a fresh lobby of that game', async () => {
+    const w = new World()
+    w.host = { ...w.host, name: 'hearts-ABCDEF' }
+    const old = { ...createHearts(), formatVersion: HEARTS_FORMAT + 1 }
+    old.seats[0] = { ...old.seats[0], name: 'Old', kind: 'human', connected: true }
+    w.data.set('state', { game: old, tokens: { [TOKENS[0]]: 0 }, version: 3, eventCount: 0, emptySince: null })
+    await w.boot()
+    const me = await w.connect(TOKENS[0])
+    expect(me.sync).toMatchObject({ seat: null, version: 0, view: { phase: { kind: 'lobby' }, rules: { gameEndsAt: 100 } } })
+    expect(me.view.seats.every((x) => x.kind === 'empty')).toBe(true)
+  })
+
+  test('a Hearts room keeps its saved game across a wake, with its sockets’ seats connected', async () => {
+    const { w, me, view } = await heartsGame()
+    const before = view()
+    await w.wake()
+    const watcher = await w.connect('w'.repeat(20))
+    expect(watcher.sync.version).toBe(me.sync.version)
+    expect((watcher.view as unknown as HeartsView).phase.kind).toBe(before.phase.kind)
+    expect(watcher.view.seats.map((s) => s.connected)).toEqual([true, true, true, true])
   })
 })
 

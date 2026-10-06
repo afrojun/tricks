@@ -1,17 +1,17 @@
 import { describe, expect, test } from 'vitest'
-import { type GameEvent, createGame, viewFor } from '../engine'
+import { type GameEvent, type View, createGame, viewFor } from '../engine'
 import type { NumberedEvent, ServerMessage } from '../protocol'
 import { MAX_WAITING, Playback } from './playback'
 
 const view = viewFor(createGame(), null)
 let n = 0
-const sync = (version: number, ...events: GameEvent[]): ServerMessage => ({
+const sync = (version: number, ...events: GameEvent[]): ServerMessage<View, GameEvent> => ({
   type: 'sync',
   version,
   now: 0,
   seat: null,
   view,
-  events: events.map((e) => ({ ...e, n: ++n }) as NumberedEvent),
+  events: events.map((e) => ({ ...e, n: ++n }) as NumberedEvent<GameEvent>),
 })
 const played: GameEvent = { type: 'cardPlayed', seat: 0, card: { suit: 'hearts', rank: 'J' } }
 const passed: GameEvent = { type: 'passed', seat: 1 }

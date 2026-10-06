@@ -179,7 +179,7 @@ export function openPracticeSession({ playerCount, storage = localStorage, seed 
   const sync = (events: readonly GameEvent[], snap: Snapshot | null) => {
     version++
     pending.set(version, snap ?? { said: [], newRound: false, rest: {} })
-    const numbered: NumberedEvent[] = events.map((e) => ({ ...e, n: ++eventN }))
+    const numbered: NumberedEvent<GameEvent>[] = events.map((e) => ({ ...e, n: ++eventN }))
     playback.push({ type: 'sync', version, now: game.virtualNow, seat: game.you, view: game.view(), events: numbered })
   }
 

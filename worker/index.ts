@@ -1,5 +1,6 @@
 import { type Lobby, routePartykitRequest } from 'partyserver'
-import { UNKNOWN_ROOM_CLOSE_CODE, isRoomName } from '../src/protocol'
+import { isRoomName } from '../src/games'
+import { UNKNOWN_ROOM_CLOSE_CODE } from '../src/protocol'
 
 export { Room } from './room'
 

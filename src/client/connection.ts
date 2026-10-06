@@ -1,6 +1,6 @@
 import PartySocket from 'partysocket'
-import type { Action } from '../engine'
-import { type GameId, PING, PONG, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
+import type { Action, GameEvent, View } from '../engine'
+import { PING, PONG, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
 import { deviceToken } from './identity'
 import { Playback } from './playback'
 import { GameStore } from './store'
@@ -15,7 +15,7 @@ export interface Session {
 }
 
 /** Opens a socket to a game's room and feeds everything it receives into a store. */
-export function openSession(game: GameId, code: string): Session {
+export function openSession(game: string, code: string): Session {
   const store = new GameStore()
   const playback = new Playback((message, receivedAt) => {
     store.receive(message, receivedAt)
@@ -78,7 +78,7 @@ export function openSession(game: GameId, code: string): Session {
   socket.addEventListener('message', (e) => {
     unanswered = 0
     if (e.data === PONG) return
-    let message: ServerMessage
+    let message: ServerMessage<View, GameEvent>
     try {
       message = JSON.parse(e.data as string)
     } catch {

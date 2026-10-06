@@ -39,7 +39,7 @@ interface Saved {
 }
 
 export interface Applied {
-  events: NumberedEvent[]
+  events: NumberedEvent<GameEvent>[]
 }
 
 export class PracticeGame {
@@ -200,7 +200,7 @@ export class PracticeGame {
     }
   }
 
-  private number(events: readonly GameEvent[]): NumberedEvent[] {
+  private number(events: readonly GameEvent[]): NumberedEvent<GameEvent>[] {
     return events.map((e) => ({ ...e, n: ++this.eventCount }))
   }
 

@@ -2,13 +2,14 @@
  * Plays a whole game against the running app over real sockets: two scripted
  * humans and two AI seats, with one human dropping and reconnecting mid-game.
  * First checks that a socket to a name that is not a room is closed with the
- * room's close code. The rooms share the app's origin. Usage: pnpm dev (in another terminal), then
+ * room's close code, and that a Hearts room opens as a lobby of four. The
+ * rooms share the app's origin. Usage: pnpm dev (in another terminal), then
  * pnpm e2e:sockets, with APP_URL set if the app is not on http://localhost:5173.
  */
 import PartySocket from 'partysocket'
 import { chooseAction, chooseJodhi } from '../src/ai/choose'
 import { HONEST } from '../src/kit/mind'
-import { type Action, type View, availableActions } from '../src/engine'
+import { type Action, type GameEvent, type View, availableActions } from '../src/engine'
 import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../src/protocol'
 
 const app = new URL(process.env.APP_URL ?? 'http://localhost:5173')
@@ -33,7 +34,7 @@ class Player {
   connect() {
     this.socket = new PartySocket({ host, protocol, party: 'room', room, query: { token: this.token } })
     this.socket.addEventListener('message', (e) => {
-      const msg = JSON.parse(e.data as string) as ServerMessage
+      const msg = JSON.parse(e.data as string) as ServerMessage<View, GameEvent>
       if (msg.type === 'sync') {
         this.view = msg.view
         this.seat = msg.seat
@@ -70,11 +71,34 @@ function closeCodeFor(name: string): Promise<number> {
     })
   })
 }
-for (const name of ['SIM123', 'thunee-abcdef', 'hearts-ABCDEF']) {
+for (const name of ['SIM123', 'thunee-abcdef', 'spades-ABCDEF']) {
   const closed = await closeCodeFor(name)
   if (closed !== UNKNOWN_ROOM_CLOSE_CODE) throw new Error(`a socket to ${name} closed with ${closed}, not ${UNKNOWN_ROOM_CLOSE_CODE}`)
 }
 console.log(`sockets to unknown room names closed with ${UNKNOWN_ROOM_CLOSE_CODE}`)
+
+/** The first view a plain WebSocket is sent by the room `name`. */
+function firstViewOf(name: string): Promise<{ playerCount: number; phase: { kind: string }; rules: object }> {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(`${protocol}://${host}/parties/room/${name}?token=script-token-hhhhhhhhhhhh`)
+    const timer = setTimeout(() => {
+      socket.close()
+      reject(new Error(`no view from ${name} within 5 seconds`))
+    }, 5000)
+    socket.addEventListener('message', (e) => {
+      const msg = JSON.parse(e.data as string) as ServerMessage<{ playerCount: number; phase: { kind: string }; rules: object }, unknown>
+      if (msg.type !== 'sync') return
+      clearTimeout(timer)
+      socket.close()
+      resolve(msg.view)
+    })
+    socket.addEventListener('close', (e) => reject(new Error(`a socket to ${name} closed with ${e.code}`)))
+  })
+}
+// Hearts has no screens yet, but the server holds its rooms.
+const hearts = await firstViewOf(roomName('hearts', code))
+if (hearts.playerCount !== 4 || hearts.phase.kind !== 'lobby' || !('gameEndsAt' in hearts.rules)) throw new Error(`a Hearts room opened as ${JSON.stringify(hearts)}`)
+console.log(`room ${roomName('hearts', code)}: a Hearts lobby of four`)
 
 const a = new Player('Asha', 'script-token-aaaaaaaaaaaa')
 const b = new Player('Bheki', 'script-token-bbbbbbbbbbbb')

@@ -1,4 +1,4 @@
-import type { GameEvent } from '../engine'
+import type { GameEvent, View } from '../engine'
 import type { ServerMessage } from '../protocol'
 
 /** How long each kind of event stays on screen before the next message is shown. */
@@ -35,14 +35,14 @@ function browserClock(): Clock {
   }
 }
 
-type Deliver = (message: ServerMessage, receivedAt: number) => void
+type Deliver = (message: ServerMessage<View, GameEvent>, receivedAt: number) => void
 
 /**
  * Paces server messages so each move can be seen. A message is shown as soon
  * as nothing is being held; it then holds the next one back for its dwell.
  */
 export class Playback {
-  private waiting: { message: ServerMessage; receivedAt: number }[] = []
+  private waiting: { message: ServerMessage<View, GameEvent>; receivedAt: number }[] = []
   private heldUntil = 0
 
   constructor(
@@ -50,7 +50,7 @@ export class Playback {
     private readonly clock: Clock = browserClock(),
   ) {}
 
-  push(message: ServerMessage): void {
+  push(message: ServerMessage<View, GameEvent>): void {
     const receivedAt = this.clock.now()
     if (message.type !== 'sync') return this.deliver(message, receivedAt)
     this.waiting.push({ message, receivedAt })
@@ -94,7 +94,7 @@ export class Playback {
   }
 }
 
-function dwell(message: ServerMessage): number {
+function dwell(message: ServerMessage<View, GameEvent>): number {
   if (message.type !== 'sync') return 0
   return Math.max(0, ...message.events.map((e) => DWELL_MS[e.type] ?? 0))
 }

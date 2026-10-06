@@ -1,4 +1,4 @@
-import type { RejectReason, Seat, View } from '../engine'
+import type { GameEvent, Seat, View } from '../engine'
 import type { NumberedEvent, ServerMessage } from '../protocol'
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting'
@@ -10,11 +10,11 @@ export interface ClientState {
   view: View | null
   version: number
   /** The most recent rejection, with a counter so repeats are distinguishable. */
-  rejection: { reason: RejectReason | 'malformed'; id: number } | null
+  rejection: { reason: string; id: number } | null
   error: string | null
 }
 
-type EventListener = (event: NumberedEvent, view: View, seat: Seat | null) => void
+type EventListener = (event: NumberedEvent<GameEvent>, view: View, seat: Seat | null) => void
 
 /**
  * Holds what the server last told this client. Components read it; nothing
@@ -57,7 +57,7 @@ export class GameStore {
     this.update({ connection })
   }
 
-  receive(message: ServerMessage, localNow: number): void {
+  receive(message: ServerMessage<View, GameEvent>, localNow: number): void {
     if (message.type === 'rejected') {
       this.update({ rejection: { reason: message.reason, id: ++this.rejections } })
       return
