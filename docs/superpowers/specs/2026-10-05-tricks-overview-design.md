@@ -1,7 +1,7 @@
 # Tricks — Overview
 
 Date: 2026-10-05
-Status: direction agreed in conversation; each sub-project below has its own spec
+Status: built on `tricks`. Sub-projects A to F are merged; G is in place and the first push to `main` waits on the owner (section 2)
 Builds on: `2026-10-04-thunee-rebuild-design.md`, `2026-10-04-ai-personas-design.md`, `2026-10-04-practice-and-coach-design.md`
 
 ## 1. Purpose
@@ -38,39 +38,48 @@ Accounts, matchmaking, chat, games beyond Hearts, Hearts for three or five playe
 
 ## 2. Sub-projects
 
-| | Sub-project | Spec | Depends on |
-|---|---|---|---|
-| A | Cloudflare hosting and the rename | `2026-10-05-cloudflare-and-rename-design.md` | nothing. **Merged.** |
-| B | Search-player spike (throwaway) | `2026-10-05-search-player-spike-design.md` | nothing. **Run and reviewed.** |
-| C | Shared kit and the Hearts engine | `2026-10-05-game-modules-design.md` sections 3 to 5, `2026-10-05-hearts-design.md` sections 2 to 6 | nothing. **Merged.** |
-| D1 | Thunee's engine and computer players onto the kit, and the cheating option | `2026-10-05-game-modules-design.md`, build steps 3 and 4 | A, C |
-| D2 | The module contract for Thunee; a room, protocol, client and practice for any game | the same, steps 5 and 7 | D1 |
-| D3 | Folder moves, the screens contract, the shell, on-demand loading, Hearts in the list | the same, steps 6 and 8 | D2 |
-| E1 | Hearts' hand-written computer players and personas | `2026-10-05-hearts-design.md` sections 7.1 and 7.2 | C. New files in the Hearts folder, so it runs beside D. |
-| E2 | The search player in the kit, gated on Hearts | `2026-10-06-search-player-design.md` | D2, E1 |
-| E3 | Hearts' screens, practice and presets | `2026-10-05-hearts-design.md` sections 8 and 9 | D3, E1 |
-| F | Coach in two tiers | `2026-10-05-coach-tiers-design.md` | D2, E1 |
-| G | Deploy configuration | `2026-10-05-deploy-design.md` | everything |
+| | Sub-project | Spec | Depends on | Status |
+|---|---|---|---|---|
+| A | Cloudflare hosting and the rename | `2026-10-05-cloudflare-and-rename-design.md` | nothing | **Merged.** |
+| B | Search-player spike (throwaway) | `2026-10-05-search-player-spike-design.md` | nothing | **Run and reviewed.** Never merged, by design; its results are in its spec, sections 6 and 7. |
+| C | Shared kit and the Hearts engine | `2026-10-05-game-modules-design.md` sections 3 to 5, `2026-10-05-hearts-design.md` sections 2 to 6 | nothing | **Merged.** |
+| D1 | Thunee's engine and computer players onto the kit, and the cheating option | `2026-10-05-game-modules-design.md`, build steps 3 and 4 | A, C | **Merged.** |
+| D2 | The module contract for Thunee; a room, protocol, client and practice for any game | the same, steps 5 and 7 | D1 | **Merged.** |
+| D3 | Folder moves, the screens contract, the shell, on-demand loading, Hearts in the list | the same, steps 6 and 8 | D2 | **Merged.** |
+| E1 | Hearts' hand-written computer players and personas | `2026-10-05-hearts-design.md` sections 7.1 and 7.2 | C. New files in the Hearts folder, so it runs beside D. | **Merged.** |
+| E2 | The search player in the kit, gated on Hearts | `2026-10-06-search-player-design.md` | D2, E1 | **Run; the gate failed** on strength and on speed, so Hearts keeps its hand-written player. The search player is merged and kept in the kit (`src/kit/search/`), with Hearts' adapter and gate in `src/games/hearts/ai/`, for another attempt or a third game. Results in its spec, section 9. |
+| E3 | Hearts' screens, practice and presets | `2026-10-05-hearts-design.md` sections 8 and 9 | D3, E1 | **Merged.** Hearts has its own table, round result and game over. |
+| F | Coach in two tiers | `2026-10-05-coach-tiers-design.md` | D2, E1 | **Merged.** Thunee's coach is written by hand; Hearts' is the kit's tier 1. |
+| G | Deploy configuration | `2026-10-05-deploy-design.md` | everything | **Built, not deployed.** The configuration, the workflow and the documents are in place; the first push to `main` waits on the owner (deploy spec, section 7). |
 
 A, B and C touched different files and ran in parallel. D is split in three so each part can be reviewed well; it is the work that moves Thunee's files, so only work in other folders runs beside it.
 
-## 3. Target layout
+## 3. Layout
+
+As built (`AGENTS.md` describes each folder in more detail):
 
 ```
-src/kit/            Shared and pure: cards, seats, the table (seats, lobby, host, stand-ins),
-                    tricks, integrity (cheating records, proofs), personas, the module contract.
+src/kit/            Shared and pure: cards, the table (seats, lobby, host, stand-ins), tricks,
+                    integrity (excuses, proofs), minds and personas, rule helpers, the module
+                    contract and its runner, the coach contract and the tier-1 coach (coach.ts).
+  search/           The search player, for any game. No game plays with it yet (E2).
 src/games/thunee/   engine/  ai/  coach/  ui/  index.ts (module)  client.ts (screens)
-src/games/hearts/   the same
-src/games/index.ts  The list of games.
+                    practice.ts  contract.ts (test fixture)
+src/games/hearts/   the same; ai/ also holds the search adapter and its gate (gate/)
+src/games/index.ts  The list of games the server holds.
+src/protocol.ts     Wire messages, generic over a game's types, and room names.
 src/room/           The room: identity, persistence, the alarm, driving computers. Any game, any host.
 worker/             Cloudflare only: the Durable Object and the fetch handler.
 src/client/         Socket, store, paced playback.
 src/practice/       A practice game in the browser, for any game.
-src/ui/             The shell: Tricks home, game home, lobby, game screen frame, shared parts.
+src/ui/             The shell: Tricks home, game home, lobby, practice screen, game screen frame,
+                    and the shared parts: hand, seat badge, trick area, sheets, the coach's strip,
+                    sheets and review (coach/).
 src/themes/  src/presets/  scripts/
+wrangler.jsonc  .github/workflows/deploy.yml
 ```
 
-Dependency direction: `games/* -> kit`; `room -> games, kit, protocol`; `worker -> room`; `ui -> games (screens), client, practice`; `practice -> client, games, kit`. Games never import each other. `kit` imports nothing from the app.
+Dependency direction: `games/* -> kit`; a game's `client.ts` and `ui/ -> src/ui, practice, presets`; `room -> games, kit, protocol`; `worker -> games, protocol, room`; `ui -> client, practice, presets, kit`, and `ui -> games (screens)` only through on-demand loading; `practice -> client, protocol, kit`. Games never import each other. `kit` imports nothing from the app.
 
 ## 4. Addresses
 
