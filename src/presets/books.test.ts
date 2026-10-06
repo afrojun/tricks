@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'vitest'
+import { ruleBook as hearts } from '../games/hearts/ui/rules'
 import { ruleBook as thunee } from '../games/thunee/ui/rules'
 import type { RuleBook } from './book'
 
 /** Every game's book, read as plain records. */
-const BOOKS = [['thunee', thunee]] as unknown as [string, RuleBook<Record<string, unknown>>][]
+const BOOKS = [
+  ['thunee', thunee],
+  ['hearts', hearts],
+] as unknown as [string, RuleBook<Record<string, unknown>>][]
 
 describe.each(BOOKS)('%s’s rule book', (_, book) => {
   test('describes every rule once', () => {

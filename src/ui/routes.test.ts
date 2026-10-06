@@ -33,9 +33,16 @@ describe('routes', () => {
   })
 
   test('old addresses and unknown games show the Tricks home', () => {
-    for (const path of ['/game/ABCDEF', '/practice', '/hearts', '/hearts/ABCDEF', '/thunee/ABCDEF/extra']) {
+    for (const path of ['/game/ABCDEF', '/practice', '/spades', '/spades/ABCDEF', '/thunee/ABCDEF/extra', '/constructor']) {
       expect(route(path)).toEqual({ screen: 'tricks' })
     }
+  })
+
+  test('every listed game has a home, rooms and practice', () => {
+    expect(route('/hearts')).toEqual({ screen: 'home', game: 'hearts' })
+    expect(route('/hearts/qwerty')).toEqual({ screen: 'room', game: 'hearts', code: 'QWERTY' })
+    expect(route('/hearts/practice')).toEqual({ screen: 'practice', game: 'hearts' })
+    expect(route(roomPath('hearts', 'ABCDEF'))).toEqual({ screen: 'room', game: 'hearts', code: 'ABCDEF' })
   })
 
   test('paths are built the way they are read', () => {

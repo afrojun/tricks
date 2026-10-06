@@ -13,13 +13,17 @@ export interface GameEntry {
   seatCounts: readonly number[]
 }
 
-export const GAMES = [{ id: 'thunee', name: 'Thunee', tagline: 'Jack high, twelve balls to win.', seatCounts: [2, 4] }] as const satisfies readonly GameEntry[]
+export const GAMES = [
+  { id: 'thunee', name: 'Thunee', tagline: 'Jack high, twelve balls to win.', seatCounts: [2, 4] },
+  { id: 'hearts', name: 'Hearts', tagline: 'Take no hearts, and never the queen of spades.', seatCounts: [4] },
+] as const satisfies readonly GameEntry[]
 
 export type GameId = (typeof GAMES)[number]['id']
 
 /** One dynamic import per game, so the build gives each game a chunk of its own. */
 const LOADERS: Record<GameId, () => Promise<AnyGameClient>> = {
   thunee: () => import('../games/thunee/client').then((m) => anyClient(m.thuneeClient)),
+  hearts: () => import('../games/hearts/client').then((m) => anyClient(m.heartsClient)),
 }
 
 const loaded = new Map<GameId, Promise<AnyGameClient>>()
