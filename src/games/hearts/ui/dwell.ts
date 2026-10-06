@@ -5,8 +5,9 @@ const DWELL_MS: Partial<Record<GameEvent['type'], number>> = {
   passChosen: 300,
   cardPlayed: 450,
   dealt: 600,
-  heartsBroken: 600,
   passesExchanged: 900,
+  // Its moment is seen before the next card lands.
+  heartsBroken: 1200,
   challengeResolved: 2200,
 }
 

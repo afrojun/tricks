@@ -41,8 +41,19 @@ describe('Hearts on the client', () => {
     expect(present({ type: 'dealt', roundNumber: 4, direction: 'none' }, view, 1)).toEqual({ toast: 'No passing this round.' })
   })
 
-  test('hearts breaking is announced', () => {
-    expect(present({ type: 'heartsBroken' }, seated(), 1)).toEqual({ toast: 'Hearts are broken.' })
+  test('hearts breaking takes the middle of the table, and holds the next card back until it has been seen', () => {
+    const shown = present({ type: 'heartsBroken' }, seated(), 1)
+    expect(shown.moments).toEqual([expect.objectContaining({ title: 'Hearts are broken', detail: 'Hearts may be led from now on.' })])
+    expect(dwell({ type: 'heartsBroken' })).toBeGreaterThanOrEqual(shown.moments![0].ms)
+  })
+
+  test('the exchange names who passed the viewer their cards', () => {
+    const view = (direction: View['direction']) => ({ ...seated(), direction })
+    // Seats are numbered clockwise: to the left, Bheki (1) is given Asha's (0) cards.
+    expect(present({ type: 'passesExchanged' }, view('left'), 1)).toEqual({ toast: 'Asha passed you three cards.' })
+    expect(present({ type: 'passesExchanged' }, view('right'), 1)).toEqual({ toast: 'Chan passed you three cards.' })
+    expect(present({ type: 'passesExchanged' }, view('across'), 1)).toEqual({ toast: 'Devi passed you three cards.' })
+    expect(present({ type: 'passesExchanged' }, view('left'), null)).toEqual({ toast: 'The cards have changed hands.' })
   })
 
   test('a moon is a moment, named for whoever shot it', () => {

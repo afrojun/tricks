@@ -1,17 +1,19 @@
-import type { GameEvent, View } from '../engine'
+import { type GameEvent, type View, passTarget } from '../engine'
 import type { Seat } from '../../../kit/table'
 import type { Presentation } from '../../../ui/contract'
 import { playSound } from '../../../ui/sound'
 import { seatName } from '../../../ui/text'
+import { BROKE } from './text'
 
 const CHALLENGE_BEAT_MS = 1000
 const VERDICT_BEAT_MS = 1300
+const HEARTS_BROKEN_MS = 1100
 
-/** What a guilty verdict says was done, by the rule broken. */
-const BROKE: Record<string, string> = {
-  followSuit: 'did not follow suit',
-  heartsLead: 'led a heart before hearts were broken',
-  firstTrickPoints: 'played points on the first trick',
+/** Who gave the viewer their three cards, by the round's direction: the rule is public, so this hides nothing. */
+function giverTo(view: View, seat: Seat): Seat | null {
+  const way = view.direction
+  if (way === 'none') return null
+  return view.seats.map((_, s) => s).find((s) => passTarget(s, way) === seat) ?? null
 }
 
 /** Turns one game event into a sound and, where it helps, a toast or a moment in the middle of the table. */
@@ -22,14 +24,17 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       playSound('deal')
       if (event.direction === 'none') return { toast: 'No passing this round.' }
       return { toast: `Pass three cards ${event.direction === 'across' ? 'across' : `to the ${event.direction}`}.` }
-    case 'passesExchanged':
+    case 'passesExchanged': {
       playSound('deal')
-      return {}
+      const giver = seat === null ? null : giverTo(view, seat)
+      return { toast: giver === null ? 'The cards have changed hands.' : `${seatName(view, giver)} passed you three cards.` }
+    }
     case 'cardPlayed':
       playSound('cardPlay')
       return {}
     case 'heartsBroken':
-      return { toast: 'Hearts are broken.' }
+      playSound('call')
+      return { moments: [{ title: 'Hearts are broken', detail: 'Hearts may be led from now on.', tone: 'call', ms: HEARTS_BROKEN_MS }] }
     case 'trickWon':
       if (event.seat === seat) playSound('trickWin')
       return {}
