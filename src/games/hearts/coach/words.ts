@@ -10,11 +10,11 @@ export function who(view: View, seat: Seat): string {
   return seat === view.seat ? 'You' : view.seats[seat]?.name || `Seat ${seat + 1}`
 }
 
-/** "2♣", "2♣ and 3♣", "2♣, 3♣ and 4♣"; `or` for a choice. */
-export function list(cards: readonly Card[], joiner: 'and' | 'or' = 'and'): string {
+/** "2♣", "2♣ and 3♣", "2♣, 3♣ and 4♣". */
+export function list(cards: readonly Card[]): string {
   const items = cards.map(card)
   if (items.length <= 1) return items.join('')
-  return `${items.slice(0, -1).join(', ')} ${joiner} ${items[items.length - 1]}`
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 }
 
 export function count(n: number, one: string, many = `${one}s`): string {
