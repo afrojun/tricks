@@ -12,6 +12,7 @@ import {
   jodhiPoints,
   teamOf,
 } from '../engine'
+import { AccuseSheet } from '../../../ui/Accuse'
 import { GameMenu } from '../../../ui/GameMenu'
 import { Hand } from '../../../ui/Hand'
 import { check } from '../coach/check'
@@ -19,7 +20,7 @@ import { CoachStrip } from './coach/CoachStrip'
 import { HowToPlaySheet } from './coach/CoachSheets'
 import { CHALLENGE_BEAT_MS, VERDICT_BEAT_MS } from './present'
 import { RoundResult } from './RoundResult'
-import { RulesList, rulesSummary } from '../../../ui/Rules'
+import { RulesSheet, rulesSummary } from '../../../ui/Rules'
 import { SeatBadge as Badge, TakeOver, usePosition, useTurnAlert } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
 import { Timer } from '../../../ui/Timer'
@@ -154,12 +155,7 @@ export function Table({ view, room }: { view: View; room: string }) {
           <MenuSheet view={view} room={room} onSheet={setSheet} />
         </Sheet>
       )}
-      {sheet === 'rules' && (
-        <Sheet title="Rules in this game" onClose={() => setSheet(null)}>
-          <p className="mb-3">{rulesSummary(game, view.rules)}</p>
-          <RulesList game={game} rules={view.rules} />
-        </Sheet>
-      )}
+      {sheet === 'rules' && <RulesSheet game={game} rules={view.rules} onClose={() => setSheet(null)} />}
       {sheet === 'howto' && <HowToPlaySheet onClose={() => setSheet(null)} />}
       {sheet === 'history' && (
         <Sheet title="Last trick" onClose={() => setSheet(null)}>
@@ -171,11 +167,7 @@ export function Table({ view, room }: { view: View; room: string }) {
           <JodhiSheet can={can} trump={playing.trump} challenged={view.rules.allowCheating} onDone={() => setSheet(null)} />
         </Sheet>
       )}
-      {sheet === 'challenge' && playing && (
-        <Sheet title="Challenge for 4 balls" onClose={() => setSheet(null)}>
-          <ChallengeSheet view={view} can={can} playing={playing} onDone={() => setSheet(null)} />
-        </Sheet>
-      )}
+      {sheet === 'challenge' && playing && <ChallengeSheet view={view} can={can} playing={playing} onClose={() => setSheet(null)} />}
     </div>
   )
 }
@@ -521,39 +513,29 @@ function JodhiSheet({ can, trump, challenged, onDone }: { can: Available; trump:
   )
 }
 
-function ChallengeSheet({ view, can, playing, onDone }: { view: View; can: Available; playing: ViewPlaying; onDone: () => void }) {
+function ChallengeSheet({ view, can, playing, onClose }: { view: View; can: Available; playing: ViewPlaying; onClose: () => void }) {
   const { send } = useSession()
   return (
-    <div className="grid gap-3">
-      <p>If they broke the rules your side takes 4 balls. If they did not, their side does. Either way the round ends.</p>
-      {can.challengePlay.map((seat) => (
-        <button
-          key={seat}
-          className="btn btn-danger"
-          onClick={() => {
-            send({ type: 'challengePlay', seat })
-            onDone()
-          }}
-        >
-          {seatName(view, seat)} did not follow suit
-        </button>
-      ))}
-      {can.challengeJodhi.map((index) => {
-        const claim = playing.jodhiClaims[index]
-        return (
-          <button
-            key={index}
-            className="btn btn-danger"
-            onClick={() => {
-              send({ type: 'challengeJodhi', claim: index })
-              onDone()
-            }}
-          >
-            {seatName(view, claim.seat)}'s Jodhi in {SUIT_NAME[claim.suit]} is false
-          </button>
-        )
-      })}
-    </div>
+    <AccuseSheet
+      title="Challenge for 4 balls"
+      risk="If they broke the rules your side takes 4 balls. If they did not, their side does. Either way the round ends."
+      accusations={[
+        ...can.challengePlay.map((seat) => ({
+          key: `play-${seat}`,
+          label: `${seatName(view, seat)} did not follow suit`,
+          send: () => send({ type: 'challengePlay', seat }),
+        })),
+        ...can.challengeJodhi.map((index) => {
+          const claim = playing.jodhiClaims[index]
+          return {
+            key: `jodhi-${index}`,
+            label: `${seatName(view, claim.seat)}'s Jodhi in ${SUIT_NAME[claim.suit]} is false`,
+            send: () => send({ type: 'challengeJodhi', claim: index }),
+          }
+        }),
+      ]}
+      onClose={onClose}
+    />
   )
 }
 

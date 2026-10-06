@@ -3,6 +3,7 @@ import { diff } from '../kit/rules'
 import { type RuleInfo, type RulesOf, defaultsName, differenceCount, isDefault, sameOverrides, typedNumber, valueLabel, withRule } from '../presets/book'
 import { shareUrl } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
+import { Sheet } from './Sheet'
 import { copyText } from './text'
 
 /** One line saying which rules are in force. */
@@ -33,6 +34,16 @@ export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>;
         )
       })}
     </dl>
+  )
+}
+
+/** The rules in force at a table, for its menu. */
+export function RulesSheet<R extends object>({ game, rules, onClose }: { game: RulesOf<R>; rules: R; onClose: () => void }) {
+  return (
+    <Sheet title="Rules in this game" onClose={onClose}>
+      <p className="mb-3">{rulesSummary(game, rules)}</p>
+      <RulesList game={game} rules={rules} />
+    </Sheet>
   )
 }
 
