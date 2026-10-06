@@ -3,7 +3,7 @@
  * fill the other seats with computers and start. Hearts' table is still a placeholder that shows
  * the game without taking a card, so once each player has been waited on for a minute the other
  * lets the computer play for them, and the placeholder must then follow the round to its end.
- * Also checks that the home loads no game's code and that Hearts' practice says it is coming.
+ * Also checks that the home loads no game's code, and that Hearts' practice opens and waits for you.
  * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
 import { type Page, chromium } from 'playwright-core'
@@ -43,7 +43,7 @@ await a.getByRole('link', { name: /^Hearts/ }).click()
 await a.getByRole('heading', { name: 'Hearts' }).waitFor()
 check(a.url().endsWith('/hearts'), 'the Hearts card leads to /hearts')
 check(!requested.some((p) => /\/src\/games\/thunee\/|\/assets\/thunee-/.test(p)), 'Hearts loads without Thunee')
-check(await seen(a, 'are coming to Hearts'), 'the home says practice is coming')
+check(await a.getByRole('button', { name: 'Practice with four' }).isVisible(), 'the home offers practice')
 await shot(a, '1-home')
 
 // A creates the room and sits; B joins by its code.
@@ -118,8 +118,10 @@ check(total === 26 || total === 78, `this round's points add up (${taken.join(',
 check(await seen(b, /The round is over|shot the moon/, 10_000), 'both players see the round end')
 await shot(a, '5-round-over')
 
+// Practice runs in this browser; the placeholder follows it, though it cannot pass for you yet.
 await a.goto(`${base}/hearts/practice`)
-check(await seen(a, 'Practice is coming'), '/hearts/practice says practice is coming')
+check(await seen(a, /Passing three cards to the left/, 10_000), '/hearts/practice opens a practice game at the pass')
+check(await seen(a, 'Still choosing: You.', 10_000), 'the computers choose their cards and the table waits for you')
 await shot(a, '6-practice')
 
 if (problems.length) console.log('PROBLEMS:\n' + problems.join('\n'))

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { GAMES } from '../games'
+import { heartsPractice } from '../games/hearts/practice'
 import { thuneeCoach } from '../games/thunee/coach'
 import { advise } from '../games/thunee/coach/advise'
 import { check } from '../games/thunee/coach/check'
@@ -57,11 +58,12 @@ function followTheCoach<G extends TableState, A extends { type: string }, E, V e
 /** Every game with a practice, the table sizes it is practised at, and how the player moves on between rounds. */
 const COACHED: Record<string, { counts: number[]; play: (playerCount: number, seed: number) => Seen }> = {
   thunee: { counts: [2, 4], play: (n, seed) => followTheCoach(thuneePractice, { type: 'nextRound' }, n, seed, 3000) },
+  hearts: { counts: [4], play: (n, seed) => followTheCoach(heartsPractice, { type: 'nextRound' }, n, seed, 20_000) },
 }
 
 describe('every game’s coach', () => {
-  test('each is a game in the list', () => {
-    for (const id of Object.keys(COACHED)) expect(GAMES.has(id), id).toBe(true)
+  test('every game in the list has a practice with a coach', () => {
+    expect(Object.keys(COACHED).sort()).toEqual([...GAMES.keys()].sort())
   })
 
   test('Thunee’s practice coach is its hand-written coach, every member', () => {
