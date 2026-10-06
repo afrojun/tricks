@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'vitest'
 import { GAMES, gameOf, isRoomName } from '.'
-import { TRADITIONAL } from '../engine'
-import { checkMalformed } from '../kit/contract'
-import type { Actor } from '../kit/table'
+import { type Game, TRADITIONAL } from '../engine'
+import { type Contract, type ContractRun, checkMalformed, runContract } from '../kit/contract'
+import type { Actor, TableState, TableView } from '../kit/table'
 import { STANDARD, hearts } from './hearts'
+import { heartsContract } from './hearts/contract'
 import { thunee } from './thunee'
+import { thuneeContract } from './thunee/contract'
 
 describe('the list of games', () => {
   test('holds every game under its own id', () => {
@@ -112,4 +114,69 @@ describe('every game in the list', () => {
       expect(() => checkMalformed(careless(fault)), name).toThrow(/threw TypeError: a careless read/)
     }
   }, 60_000)
+})
+
+describe('every game in the list keeps the module contract', () => {
+  /** A game's contract fixture under one setting, its own types put away. */
+  interface Fixture {
+    module: unknown
+    play(seed: number): ContractRun<TableState>
+    tally: { cheats: number; accusations: number }
+  }
+  const fixture = <G extends TableState, A, E, V extends TableView>({ contract, tally }: { contract: Contract<G, A, E, V>; tally: Fixture['tally'] }): Fixture => ({
+    module: contract.module,
+    play: (seed) => runContract(contract, seed),
+    tally,
+  })
+
+  /** Each game's random legal player, mischief and hidden cards, at a seat count and with cheating on or off. */
+  const FIXTURES: Record<string, (playerCount: number, allowCheating: boolean) => Fixture> = {
+    thunee: (playerCount, allowCheating) => fixture(thuneeContract({ allowCheating }, playerCount as 2 | 4)),
+    hearts: (_, allowCheating) => fixture(heartsContract({ allowCheating })),
+  }
+  /** Seeded whole games per game, seat count and setting. The games' own simulations play many more. */
+  const SEEDS = 3
+
+  test('no game is listed without a contract fixture', () => {
+    expect(Object.keys(FIXTURES).sort()).toEqual([...GAMES.keys()].sort())
+  })
+
+  test('the gate finds a view that shows another seat’s cards or a secret', () => {
+    const { contract } = thuneeContract({}, 4)
+    const hands = (game: Game) => ('hands' in game.phase ? game.phase.hands : 'play' in game.phase ? game.phase.play.hands : [])
+    const showing = (extra: (game: Game) => object): typeof contract => ({
+      ...contract,
+      module: { ...thunee, viewFor: (game, seat, memory) => ({ ...thunee.viewFor(game, seat, memory), ...extra(game) }) },
+    })
+    expect(() => runContract(showing((game) => ({ peek: hands(game) })), 1)).toThrow(/^thunee seed 1, calling: the view for 0 leaks/)
+    expect(() => runContract(showing((game) => ({ aiSalt: game.aiSalt })), 1)).toThrow(/^thunee seed 1, calling: the view for 0 holds aiSalt/)
+  })
+
+  for (const [id, module] of GAMES) {
+    for (const playerCount of module.seatCounts) {
+      for (const allowCheating of [true, false]) {
+        test(`${id}, ${playerCount} players, cheating ${allowCheating ? 'on' : 'off'}: seeded games end with invariants and views intact after every action`, () => {
+          const gate = FIXTURES[id](playerCount, allowCheating)
+          // The listed module itself is what is played, not a copy of its parts.
+          expect(gate.module).toBe(module)
+          let actions = 0
+          let refused = 0
+          for (let seed = 1; seed <= SEEDS; seed++) {
+            const run = gate.play(seed)
+            expect(run.game.phase.kind).toBe('gameOver')
+            expect(run.game.playerCount).toBe(playerCount)
+            actions += run.actions
+            refused += run.refused
+          }
+          expect(actions).toBeGreaterThan(SEEDS * 50)
+          // The mischief must reach the corners it is meant to, or this proves little.
+          if (allowCheating) expect(gate.tally.cheats).toBeGreaterThan(0)
+          else {
+            expect(gate.tally).toMatchObject({ cheats: 0, accusations: 0 })
+            expect(refused).toBeGreaterThan(0)
+          }
+        }, 120_000)
+      }
+    }
+  }
 })
