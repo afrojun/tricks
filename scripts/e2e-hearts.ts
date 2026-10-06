@@ -128,13 +128,11 @@ for (const [page, who] of [[a, 'A'], [b, 'B']] as const) {
 
 // ── Round 1: play, the same trick in both browsers, and an accusation ─────
 
-/** Plays the first card the rules allow, at the player's turn. Returns whether one was played. */
+/** Plays the first card the rules allow, at the player's turn. Returns whether one was played: the turn has passed on. */
 async function playLegal(page: Page) {
   if (!(await myTurn(page))) return false
-  const before = await handSize(page)
   await page.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500 }).catch(() => {})
-  await page.waitForTimeout(300)
-  return (await handSize(page)) < before
+  return page.getByText(/^Your turn/).waitFor({ state: 'hidden', timeout: 1500 }).then(() => true, () => false)
 }
 
 let played = 0
@@ -206,7 +204,8 @@ for (let i = 0; i < 600 && !anyway; i++) {
     check((await confirm.isVisible()) && (await handSize(a)) === before, 'a rule-breaking card asks before it is played')
     await shot(a, '8-play-anyway')
     await confirm.click()
-    await a.waitForTimeout(600)
+    // A played card leaves the hand once it has travelled to the trick.
+    for (let t = 0; t < 20 && (await handSize(a)) === before; t++) await a.waitForTimeout(100)
     check(before - (await handSize(a)) === 1, 'the second tap plays that one card')
     anyway = true
   } else await playLegal(a)
