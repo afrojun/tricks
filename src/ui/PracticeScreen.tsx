@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { dwell } from '../games/thunee/dwell'
+import { dwell } from '../games/thunee/ui/dwell'
 import { type ThuneePracticeSession, thuneePractice } from '../games/thunee/practice'
 import { openPracticeSession } from '../practice/session'
 import { CoachContext } from './coach/context'

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { type GameEvent, type View, createGame, viewFor } from '../games/thunee/engine'
 import type { NumberedEvent, ServerMessage } from '../protocol'
-import { dwell } from '../games/thunee/dwell'
+import { dwell } from '../games/thunee/ui/dwell'
 import { MAX_WAITING, Playback } from './playback'
 
 const view = viewFor(createGame(), null)

@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import type { Advice } from '../../games/thunee/coach/advise'
-import type { Note, TopicId } from '../../games/thunee/coach/note'
-import { TOPICS } from '../../games/thunee/coach/topics'
-import type { Card, View } from '../../games/thunee/engine'
-import { PlayingCard } from '../Card'
-import { Sheet } from '../Sheet'
-import { seatName, sortHand } from '../text'
+import type { Advice } from '../../coach/advise'
+import type { Note, TopicId } from '../../coach/note'
+import { TOPICS } from '../../coach/topics'
+import type { Card, View } from '../../engine'
+import { PlayingCard } from '../../../../ui/Card'
+import { Sheet } from '../../../../ui/Sheet'
+import { seatName } from '../../../../ui/text'
+import { sortHand } from '../text'
 
 function CardRow({ cards }: { cards: readonly Card[] }) {
   return (

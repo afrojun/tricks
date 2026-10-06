@@ -3,7 +3,7 @@ import { type ReactNode, createContext, useContext, useEffect, useState, useSync
 import { type Session, type SessionGame, openSession } from '../client/connection'
 import type { ClientState } from '../client/store'
 import type { Action, GameEvent, View } from '../games/thunee/engine'
-import { dwell } from '../games/thunee/dwell'
+import { dwell } from '../games/thunee/ui/dwell'
 import { type Theme, applyTheme, currentCardBack, currentTheme } from '../themes'
 
 /** A Thunee table, online or in practice: what these screens read and send. */

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { availableActions } from '../games/thunee/engine'
 import type { Note } from '../games/thunee/coach/note'
-import { dwell } from '../games/thunee/dwell'
+import { dwell } from '../games/thunee/ui/dwell'
 import { type ThuneePracticeSession, thuneePractice } from '../games/thunee/practice'
 import { playPractice } from '../games/thunee/testing'
 import { PracticeGame, practiceKey } from './game'

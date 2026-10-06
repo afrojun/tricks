@@ -1,4 +1,4 @@
-import { type RuleOverrides, type RuleSet, TRADITIONAL, diffRules } from '../games/thunee/engine'
+import { type RuleOverrides, type RuleSet, TRADITIONAL, diffRules } from '../engine'
 
 type Choice<K extends keyof RuleSet> = { value: RuleSet[K]; label: string }
 

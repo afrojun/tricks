@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { Note } from '../../games/thunee/coach/note'
-import { useSession } from '../session'
+import type { Note } from '../../coach/note'
+import { useSession } from '../../../../ui/session'
 import { AdviceSheet, LogSheet, TopicSheet, WarningSheet } from './CoachSheets'
-import { useCoach } from './context'
+import { useCoach } from '../../../../ui/coach/context'
 
 /** The coach's line above the hand: the situation and Hint on your decision, otherwise the latest news. */
 export function CoachStrip() {

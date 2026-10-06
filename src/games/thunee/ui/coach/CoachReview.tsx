@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { View } from '../../games/thunee/engine'
+import type { View } from '../../engine'
 import { HandsSheet } from './CoachSheets'
-import { useCoach } from './context'
+import { useCoach } from '../../../../ui/coach/context'
 
 /** In practice, the coach's look back at the round, under the score. */
 export function CoachReview({ view }: { view: View }) {

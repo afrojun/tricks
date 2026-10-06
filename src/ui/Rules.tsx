@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { type RuleOverrides, type RuleSet, TRADITIONAL, diffRules, resolveRules } from '../games/thunee/engine'
-import { RULE_INFO, type RuleInfo, differenceCount, isTraditional, sameOverrides, valueLabel } from '../presets/describe'
+import { RULE_INFO, type RuleInfo, differenceCount, isTraditional, sameOverrides, valueLabel } from '../games/thunee/ui/rules'
 import { shareUrl } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
 import { copyText } from './text'
