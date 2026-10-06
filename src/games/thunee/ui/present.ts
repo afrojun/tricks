@@ -6,6 +6,9 @@ import { SUIT_NAME, seatName } from '../../../ui/text'
 export const CHALLENGE_BEAT_MS = 1000
 export const VERDICT_BEAT_MS = 1300
 
+/** What a guilty play did, by the first rule it broke. */
+const BROKE: Record<string, string> = { renege: 'did not follow suit', undercut: 'undercut a trump' }
+
 /** Turns one game event into a sound and, where it helps, a toast or a moment in the middle of the table. */
 export function present(event: GameEvent, view: View, seat: Seat | null): Presentation {
   const name = (s: Seat) => (s === seat ? 'You' : seatName(view, s))
@@ -59,7 +62,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       return {
         moments: [
           c.guilty
-            ? { title: 'Caught', detail: `${accused} ${c.kind === 'play' ? 'did not follow suit' : 'called a false Jodhi'}`, tone: 'danger', ms: VERDICT_BEAT_MS, card: c.card }
+            ? { title: 'Caught', detail: `${accused} ${c.kind === 'play' ? BROKE[c.rule ?? 'renege'] : 'called a false Jodhi'}`, tone: 'danger', ms: VERDICT_BEAT_MS, card: c.card }
             : { title: 'Fair play', detail: `${accused} ${what}`, tone: 'good', ms: VERDICT_BEAT_MS, card: c.card },
         ],
       }

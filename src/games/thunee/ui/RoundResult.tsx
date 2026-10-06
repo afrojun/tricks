@@ -12,13 +12,16 @@ const LINE_LABEL: Record<ScoreLine['label'], string> = {
   opponentJodhi: "Opponents' Jodhi",
 }
 
+/** What a guilty play was caught doing, by the first rule it broke. */
+const CAUGHT: Record<string, string> = { renege: 'not following suit', undercut: 'undercutting a trump' }
+
 /** One sentence saying why the round ended as it did. */
-function headline(view: View, s: RoundSummary): string {
+export function headline(view: View, s: RoundSummary): string {
   const name = (seat: number) => seatName(view, seat)
   if (s.challenge) {
     const what = s.challenge.kind === 'play' ? (s.challenge.card ? `playing ${cardText(s.challenge.card)}` : 'a play') : `a Jodhi in ${SUIT_NAME[s.challenge.suit!]}`
     return s.challenge.guilty
-      ? `${name(s.challenge.challenger)} caught ${name(s.challenge.accused)} ${s.challenge.kind === 'play' ? 'not following suit' : 'calling a false Jodhi'}.`
+      ? `${name(s.challenge.challenger)} caught ${name(s.challenge.accused)} ${s.challenge.kind === 'play' ? CAUGHT[s.challenge.rule ?? 'renege'] : 'calling a false Jodhi'}.`
       : `${name(s.challenge.challenger)} challenged ${name(s.challenge.accused)} over ${what}, and was wrong.`
   }
   if (s.thunee) {
