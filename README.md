@@ -1,6 +1,6 @@
 # Tricks
 
-Trick-taking card games to play with friends or the computer, built with React, TypeScript and Cloudflare Workers. The first game is Thunee, the South African card game for two or four players, at `/thunee`.
+Trick-taking card games to play with friends or the computer, built with React, TypeScript and Cloudflare Workers. The first game is Thunee, the South African card game for two or four players, at `/thunee`. Hearts, for four, is at `/hearts`: its rooms, lobby and computer players work, and its table is still being built.
 
 ## Features
 
