@@ -1,10 +1,11 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { chooseAction, chooseJodhi } from '../games/thunee/ai/choose'
 import { HONEST } from '../kit/mind'
+import type { TableState } from '../kit/table'
 import type { Action, GameEvent, View } from '../games/thunee/engine'
 import { type Game, createGame } from '../games/thunee/engine'
 import { Table, card, seededRng } from '../games/thunee/engine/testing'
-import { isRoomName } from '../games'
+import { gameOf, isRoomName } from '../games'
 import { type View as HeartsView, availableActions as heartsAvailable, createGame as createHearts, FORMAT_VERSION as HEARTS_FORMAT } from '../games/hearts'
 import { type ServerMessage as GenericServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../protocol'
 import { type RoomConnection, type RoomHost, TableRoom } from './room'
@@ -291,6 +292,132 @@ describe('identity', () => {
     expect(conn.sync.seat).toBe(0)
     await w.close(conn)
     expect((await w.connect('short')).sync.seat).toBeNull()
+  })
+})
+
+describe('tokens are looked up only among the room’s own', () => {
+  // Names every object inherits. The first two are long enough to be kept as tokens; the others are
+  // too short and become anonymous, but are checked all the same.
+  const INHERITED = ['__defineGetter__', 'propertyIsEnumerable', 'constructor', 'toString']
+  const GAMES = ['thunee-TESTAB', 'hearts-ABCDEF']
+
+  async function room(name: string) {
+    const w = new World()
+    w.host = { ...w.host, name }
+    return w.boot()
+  }
+  /** Seats `me` at 0, fills the other seats with computers and starts. */
+  async function start(w: World, me: FakeConn) {
+    await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
+    for (const seat of [1, 2, 3]) await w.send(me, { type: 'addAi', seat })
+    await w.send(me, { type: 'start' })
+  }
+  const saved = (w: World) => w.data.get('state') as { game: TableState; version: number }
+  /** The one alarm is set to the saved game's next deadline (no human has left, so no abandonment clock). */
+  function expectArmed(w: World) {
+    const due = gameOf(w.host.name)!.nextDeadline(saved(w).game)
+    expect(due).not.toBeNull()
+    expect(w.alarm).toBe(Math.max(due!, w.now + 1))
+  }
+  const troubles = (conns: FakeConn[]) => conns.flatMap((c) => c.inbox).filter((m) => m.type === 'error' || m.type === 'rejected')
+
+  for (const name of GAMES) {
+    for (const token of INHERITED) {
+      test(`${name}: "${token}" in the lobby is a spectator, and the game still starts, is saved and has its alarm`, async () => {
+        const w = await room(name)
+        const stranger = await w.connect(token)
+        expect(stranger.sync.seat).toBeNull()
+        const me = await w.connect(TOKENS[0])
+        await start(w, me)
+        expect(saved(w).game.phase.kind).not.toBe('lobby')
+        expectArmed(w)
+        expect(stranger.sync).toMatchObject({ seat: null, version: saved(w).version })
+        expect(me.sync.version).toBe(saved(w).version)
+        expect(troubles([me, stranger])).toEqual([])
+      })
+    }
+
+    test(`${name}: inherited names connecting during play are spectators, and play goes on`, async () => {
+      const w = await room(name)
+      const me = await w.connect(TOKENS[0])
+      await start(w, me)
+      const strangers = []
+      for (const token of INHERITED) strangers.push(await w.connect(token))
+      for (const s of strangers) expect(s.sync).toMatchObject({ seat: null, version: me.sync.version })
+      const version = me.sync.version
+      await w.fireAlarm() // a computer's turn
+      expect(me.sync.version).toBeGreaterThan(version)
+      for (const s of strangers) expect(s.sync.version).toBe(me.sync.version)
+      expectArmed(w)
+      expect(troubles([me, ...strangers])).toEqual([])
+    })
+
+    test(`${name}: a wake that must tell the table of a lost seat completes with inherited names connected`, async () => {
+      const w = await room(name)
+      const me = await w.connect(TOKENS[0])
+      const other = await w.connect(TOKENS[1])
+      await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
+      await w.send(other, { type: 'sit', seat: 1, name: 'Other' })
+      for (const seat of [2, 3]) await w.send(me, { type: 'addAi', seat })
+      await w.send(me, { type: 'start' })
+      const strangers = []
+      for (const token of INHERITED) strangers.push(await w.connect(token))
+      const version = me.sync.version
+      w.lose(other)
+      w.alarm = null // as if the alarm were lost with the old instance
+      await w.wake()
+      expect(me.sync.version).toBe(version + 1)
+      expect(me.view.seats[1].connected).toBe(false)
+      for (const s of strangers) expect(s.sync).toMatchObject({ seat: null, version: version + 1 })
+      expectArmed(w)
+      expect(troubles([me, ...strangers])).toEqual([])
+    })
+  }
+
+  test('a token named like an inherited property may still sit, and comes back to its seat', async () => {
+    const w = await new World().boot()
+    const odd = await w.connect('__defineGetter__')
+    await w.send(odd, { type: 'sit', seat: 2, name: 'Odd' })
+    expect(odd.sync.seat).toBe(2)
+    await w.close(odd)
+    const back = await w.connect('__defineGetter__')
+    expect(back.sync.seat).toBe(2)
+    expect(back.view.seats[2]).toMatchObject({ kind: 'human', connected: true })
+  })
+
+  test('a token saved against a seat no human holds is a spectator', async () => {
+    const w = new World()
+    w.data.set('state', { game: createGame(), tokens: { [TOKENS[0]]: 1, [TOKENS[1]]: 1.5, [TOKENS[2]]: 'x' }, version: 3, eventCount: 0, emptySince: null })
+    await w.boot()
+    for (const token of TOKENS.slice(0, 3)) {
+      const conn = await w.connect(token)
+      expect(conn.sync.seat).toBeNull()
+      expect(troubles([conn])).toEqual([])
+    }
+  })
+
+  test('a socket whose send throws keeps nobody else from the new view, and the room keeps its alarm', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { w, conns } = await startedGame()
+      const [broken, ...rest] = conns // the first socket the room tells
+      broken.send = () => {
+        throw new Error('the socket is gone')
+      }
+      const version = rest[0].sync.version
+      await w.send(conns[2], { type: 'pass' })
+      for (const c of rest) expect(c.sync.version).toBe(version + 1)
+      expect(saved(w).version).toBe(version + 1)
+      expectArmed(w)
+      expect(errors).toHaveBeenCalled()
+      // The room is not stuck: its alarm closes the call window and everyone else sees that too.
+      await w.fireAlarm()
+      for (const c of rest) expect(c.view.phase.kind).toBe('trumpSelection')
+      for (const c of rest) expect(c.sync.version).toBe(saved(w).version)
+      expect(troubles(rest)).toEqual([])
+    } finally {
+      errors.mockRestore()
+    }
   })
 })
 
