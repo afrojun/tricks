@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import { type Game, type GameEvent, type RoundSummary, type View, viewFor } from '../engine'
 import { Table, card } from '../engine/testing'
+import { thuneePractice } from '../games/thunee/practice'
+import { playPractice } from '../games/thunee/testing'
 import { PracticeGame } from '../practice/game'
-import { playPractice } from '../practice/testing'
 import { SILENT, narrate } from './narrate'
 import type { DecisionRecord } from './note'
 import { review } from './review'
@@ -50,7 +51,7 @@ describe('narrate', () => {
 
   test('every event in whole practice games is narrated or deliberately silent', () => {
     for (const players of [2, 4] as const) {
-      const p = PracticeGame.start(players, 3, 'Ann')
+      const p = PracticeGame.start(thuneePractice, players, 3, 'Ann')
       const seen: GameEvent[] = []
       const original = p.advance.bind(p)
       p.advance = (ms, sheet) => {

@@ -3,7 +3,8 @@ import { type RuleOverrides, resolveRules } from '../engine'
 import { SHARE_PARAM, decodeShare } from '../presets/share'
 import { type Preset, listPresets, savePreset } from '../presets/storage'
 import { RulesList } from './Rules'
-import { PRACTICE_KEY, PracticeGame } from '../practice/game'
+import { thuneePractice } from '../games/thunee/practice'
+import { PracticeGame, practiceKey } from '../practice/game'
 import { ThemePicker } from './ThemePicker'
 import { CODE_LENGTH, cleanCode, practicePath, roomPath } from './routes'
 import { navigate } from './session'
@@ -61,7 +62,7 @@ function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
 }
 
 function LearnToPlay() {
-  const [saved] = useState(() => PracticeGame.load(localStorage.getItem(PRACTICE_KEY)) !== null)
+  const [saved] = useState(() => PracticeGame.load(thuneePractice, localStorage.getItem(practiceKey('thunee'))) !== null)
   const start = (players: 2 | 4) => navigate(practicePath('thunee', players))
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">

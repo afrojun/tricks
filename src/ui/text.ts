@@ -46,8 +46,9 @@ const REJECTIONS: Record<RejectReason | 'malformed', string> = {
   malformed: "The server didn't understand that. Reload and try again.",
 }
 
-export function rejectionText(reason: RejectReason | 'malformed'): string {
-  return REJECTIONS[reason]
+/** The room sends the game's own reason, or `malformed`; anything else reads as a plain refusal. */
+export function rejectionText(reason: string): string {
+  return Object.hasOwn(REJECTIONS, reason) ? REJECTIONS[reason as keyof typeof REJECTIONS] : REJECTIONS.notAllowed
 }
 
 export function plural(n: number, word: string): string {

@@ -1,21 +1,4 @@
-import type { GameEvent } from '../engine'
 import type { ServerMessage } from '../protocol'
-
-/** How long each kind of event stays on screen before the next message is shown. */
-const DWELL_MS: Partial<Record<GameEvent['type'], number>> = {
-  passed: 300,
-  cardPlayed: 450,
-  dealt: 600,
-  trumpRevealed: 600,
-  trumpChosen: 700,
-  called: 800,
-  jodhiClaimed: 2800,
-  dealCancelled: 1500,
-  doubleCalled: 1600,
-  khanaakCalled: 1600,
-  thuneeCalled: 1800,
-  challengeResolved: 2200,
-}
 
 /** With more than this many messages waiting, skip to the newest instead of replaying. */
 export const MAX_WAITING = 6
@@ -35,22 +18,25 @@ function browserClock(): Clock {
   }
 }
 
-type Deliver = (message: ServerMessage, receivedAt: number) => void
+type Deliver<V, E> = (message: ServerMessage<V, E>, receivedAt: number) => void
 
 /**
  * Paces server messages so each move can be seen. A message is shown as soon
- * as nothing is being held; it then holds the next one back for its dwell.
+ * as nothing is being held; it then holds the next one back for its dwell:
+ * the longest the game gives any of its events.
  */
-export class Playback {
-  private waiting: { message: ServerMessage; receivedAt: number }[] = []
+export class Playback<V, E> {
+  private waiting: { message: ServerMessage<V, E>; receivedAt: number }[] = []
   private heldUntil = 0
 
   constructor(
-    private readonly deliver: Deliver,
+    private readonly deliver: Deliver<V, E>,
+    /** How long one of the game's events holds the screen. */
+    private readonly dwell: (event: E) => number,
     private readonly clock: Clock = browserClock(),
   ) {}
 
-  push(message: ServerMessage): void {
+  push(message: ServerMessage<V, E>): void {
     const receivedAt = this.clock.now()
     if (message.type !== 'sync') return this.deliver(message, receivedAt)
     this.waiting.push({ message, receivedAt })
@@ -88,13 +74,13 @@ export class Playback {
         return
       }
       const { message, receivedAt } = this.waiting.shift()!
-      this.heldUntil = now + dwell(message)
+      this.heldUntil = now + this.holdFor(message)
       this.deliver(message, receivedAt)
     }
   }
-}
 
-function dwell(message: ServerMessage): number {
-  if (message.type !== 'sync') return 0
-  return Math.max(0, ...message.events.map((e) => DWELL_MS[e.type] ?? 0))
+  private holdFor(message: ServerMessage<V, E>): number {
+    if (message.type !== 'sync') return 0
+    return Math.max(0, ...message.events.map((e) => this.dwell(e)))
+  }
 }

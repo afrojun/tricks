@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { type PracticeSession, openPracticeSession } from '../practice/session'
+import { dwell } from '../games/thunee/dwell'
+import { type ThuneePracticeSession, thuneePractice } from '../games/thunee/practice'
+import { openPracticeSession } from '../practice/session'
 import { CoachContext } from './coach/context'
 import { ErrorBoundary, Screen } from './GameScreen'
 import { practicePath } from './routes'
@@ -12,9 +14,9 @@ function requestedPlayers(): 2 | 4 | null {
 }
 
 export function PracticeScreen() {
-  const [session, setSession] = useState<PracticeSession | null>(null)
+  const [session, setSession] = useState<ThuneePracticeSession | null>(null)
   useEffect(() => {
-    const opened = openPracticeSession({ playerCount: requestedPlayers() })
+    const opened = openPracticeSession(thuneePractice, dwell, { playerCount: requestedPlayers() })
     // A reload should continue this game, not start another.
     history.replaceState(null, '', practicePath('thunee'))
     setSession(opened)

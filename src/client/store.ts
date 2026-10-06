@@ -1,28 +1,29 @@
-import type { RejectReason, Seat, View } from '../engine'
+import type { Seat } from '../kit/table'
 import type { NumberedEvent, ServerMessage } from '../protocol'
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting'
 
-export interface ClientState {
+export interface ClientState<V> {
   connection: ConnectionStatus
   seat: Seat | null
   /** The latest view from the server; null until the first sync. */
-  view: View | null
+  view: V | null
   version: number
   /** The most recent rejection, with a counter so repeats are distinguishable. */
-  rejection: { reason: RejectReason | 'malformed'; id: number } | null
+  rejection: { reason: string; id: number } | null
   error: string | null
 }
 
-type EventListener = (event: NumberedEvent, view: View, seat: Seat | null) => void
+type EventListener<V, E> = (event: NumberedEvent<E>, view: V, seat: Seat | null) => void
 
 /**
  * Holds what the server last told this client. Components read it; nothing
  * else keeps a copy of game state. Events are handed to listeners exactly
- * once, in order, and are never derived by comparing views.
+ * once, in order, and are never derived by comparing views. The game supplies
+ * the view and event types.
  */
-export class GameStore {
-  private state: ClientState = {
+export class GameStore<V, E> {
+  private state: ClientState<V> = {
     connection: 'connecting',
     seat: null,
     view: null,
@@ -31,7 +32,7 @@ export class GameStore {
     error: null,
   }
   private listeners = new Set<() => void>()
-  private eventListeners = new Set<EventListener>()
+  private eventListeners = new Set<EventListener<V, E>>()
   private lastEvent = 0
   private rejections = 0
   /** After a (re)connect the next sync is taken as-is, whatever its version. */
@@ -39,7 +40,7 @@ export class GameStore {
   /** Server clock minus local clock, measured at the last sync. */
   private clockOffset = 0
 
-  getState = (): ClientState => this.state
+  getState = (): ClientState<V> => this.state
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
@@ -47,7 +48,7 @@ export class GameStore {
   }
 
   /** Registers a consumer for game events (sounds, toasts, animations). */
-  onEvent(listener: EventListener): () => void {
+  onEvent(listener: EventListener<V, E>): () => void {
     this.eventListeners.add(listener)
     return () => this.eventListeners.delete(listener)
   }
@@ -57,7 +58,7 @@ export class GameStore {
     this.update({ connection })
   }
 
-  receive(message: ServerMessage, localNow: number): void {
+  receive(message: ServerMessage<V, E>, localNow: number): void {
     if (message.type === 'rejected') {
       this.update({ rejection: { reason: message.reason, id: ++this.rejections } })
       return
@@ -90,7 +91,7 @@ export class GameStore {
     if (this.state.rejection !== null) this.update({ rejection: null })
   }
 
-  private update(patch: Partial<ClientState>): void {
+  private update(patch: Partial<ClientState<V>>): void {
     this.state = { ...this.state, ...patch }
     for (const listener of this.listeners) listener()
   }

@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest'
-import { createGame, viewFor } from '../engine'
+import { type GameEvent, type View, createGame, viewFor } from '../engine'
 import type { NumberedEvent, ServerMessage } from '../protocol'
 import { GameStore } from './store'
 
 const view = viewFor(createGame(), null)
-const event = (n: number): NumberedEvent => ({ type: 'passed', seat: n % 4, n })
-const sync = (version: number, events: NumberedEvent[] = [], now = 5000): ServerMessage => ({
+const event = (n: number): NumberedEvent<GameEvent> => ({ type: 'passed', seat: n % 4, n })
+const sync = (version: number, events: NumberedEvent<GameEvent>[] = [], now = 5000): ServerMessage<View, GameEvent> => ({
   type: 'sync',
   version,
   now,

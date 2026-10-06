@@ -202,6 +202,30 @@ describe('lobby', () => {
     expect(t.game.phase.kind).toBe('trumpSelection')
   })
 
+  test('an actor outside the table is refused, never thrown, whatever it sends', () => {
+    const two = new Table(2)
+    const games = [createGame(), two.game, new Table(2, { redealIfNoTrumps: false }).do(0, { type: 'start' }).game, new Table(4).do(0, { type: 'start' }).game]
+    const actions: Action[] = [
+      { type: 'rename', name: 'Ghost' },
+      { type: 'leaveSeat' },
+      { type: 'sit', seat: 0, name: 'Ghost' },
+      { type: 'reclaimSeat' },
+      { type: 'pass' },
+      { type: 'call', amount: 10 },
+      { type: 'setRules', overrides: {} },
+      { type: 'nextRound' },
+    ]
+    for (const game of games) {
+      deepFreeze(game)
+      for (const actor of [game.playerCount, 7, -1, 1.5, Number.NaN]) {
+        for (const action of actions) expect(apply(game, actor, action, ctx), `${action.type} by ${actor}`).toEqual({ rejected: 'notSeated' })
+      }
+    }
+    // Seats 2 and 3 of a two-player table were never there; in a four-player game they are.
+    expect(reject(two.game, 2, { type: 'rename', name: 'Ghost' })).toBe('notSeated')
+    expect(reject(new Table(4).game, 2, { type: 'rename', name: 'Ghost' })).toBeNull()
+  })
+
   test('apply never mutates its input', () => {
     const game = deepFreeze(new Table().game)
     expect(() => apply(game, 0, { type: 'start' }, ctx)).not.toThrow()

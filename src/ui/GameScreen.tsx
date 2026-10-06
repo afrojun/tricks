@@ -1,5 +1,5 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import type { Seat, Team, View } from '../engine'
+import type { GameEvent, Seat, Team, View } from '../engine'
 import type { NumberedEvent } from '../protocol'
 import { Lobby } from './Lobby'
 import { Celebration, type Moment, MomentOverlay, useMoments } from './Moments'
@@ -18,7 +18,7 @@ interface Presentation {
 }
 
 /** Turns one game event into a sound and, where it helps, a toast or a moment in the middle of the table. */
-function present(event: NumberedEvent, view: View, seat: Seat | null): Presentation {
+function present(event: NumberedEvent<GameEvent>, view: View, seat: Seat | null): Presentation {
   const name = (s: Seat) => (s === seat ? 'You' : seatName(view, s))
   const verb = (s: Seat, you: string, they: string) => (s === seat ? you : they)
   const call = (s: Seat, what: string, detail?: string, ms = 1500): Presentation => {

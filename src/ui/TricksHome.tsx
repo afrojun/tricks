@@ -1,7 +1,6 @@
 import type { MouseEvent } from 'react'
-import type { GameId } from '../protocol'
 import { ThemePicker } from './ThemePicker'
-import { gamePath, opensInPlace } from './routes'
+import { type GameId, gamePath, opensInPlace } from './routes'
 import { navigate } from './session'
 
 interface GameCard {

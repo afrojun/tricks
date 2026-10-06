@@ -1,29 +1,31 @@
 import { describe, expect, test } from 'vitest'
-import { type GameEvent, createGame, viewFor } from '../engine'
+import { type GameEvent, type View, createGame, viewFor } from '../engine'
 import type { NumberedEvent, ServerMessage } from '../protocol'
+import { dwell } from '../games/thunee/dwell'
 import { MAX_WAITING, Playback } from './playback'
 
 const view = viewFor(createGame(), null)
 let n = 0
-const sync = (version: number, ...events: GameEvent[]): ServerMessage => ({
+const sync = (version: number, ...events: GameEvent[]): ServerMessage<View, GameEvent> => ({
   type: 'sync',
   version,
   now: 0,
   seat: null,
   view,
-  events: events.map((e) => ({ ...e, n: ++n }) as NumberedEvent),
+  events: events.map((e) => ({ ...e, n: ++n }) as NumberedEvent<GameEvent>),
 })
 const played: GameEvent = { type: 'cardPlayed', seat: 0, card: { suit: 'hearts', rank: 'J' } }
 const passed: GameEvent = { type: 'passed', seat: 1 }
 const thunee: GameEvent = { type: 'thuneeCalled', seat: 2 }
 
 /** A playback wired to a hand-cranked clock. */
-function harness() {
+function harness(dwellOf: (event: GameEvent) => number = dwell) {
   let now = 1000
   let timer: { at: number; run: () => void } | null = null
   const delivered: { version: number | string; receivedAt: number; at: number }[] = []
-  const playback = new Playback(
+  const playback = new Playback<View, GameEvent>(
     (message, receivedAt) => delivered.push({ version: message.type === 'sync' ? message.version : message.type, receivedAt, at: now }),
+    dwellOf,
     {
       now: () => now,
       setTimer: (run, ms) => void (timer = { at: now + ms, run }),
@@ -133,5 +135,23 @@ describe('playback', () => {
     h.playback.push(sync(9))
     h.advance(10_000)
     expect(h.versions()).toEqual([1, 9])
+  })
+
+  test('the game says how long each of its events holds the screen', () => {
+    const seen: string[] = []
+    const h = harness((e) => {
+      seen.push(e.type)
+      return e.type === 'passed' ? 1000 : 10
+    })
+    h.playback.push(sync(1, played, passed)) // 1000, the longer of the two
+    h.playback.push(sync(2, played)) // 10
+    h.playback.push(sync(3))
+    h.advance(999)
+    expect(h.versions()).toEqual([1])
+    h.advance(1)
+    expect(h.versions()).toEqual([1, 2])
+    h.advance(10)
+    expect(h.versions()).toEqual([1, 2, 3])
+    expect(seen).toEqual(['cardPlayed', 'passed', 'cardPlayed'])
   })
 })

@@ -1,5 +1,8 @@
 /** Where each address leads, and how addresses are built. Pure, so it is tested without a browser. */
-import { GAME_IDS, type GameId } from '../protocol'
+
+/** The games with screens. A game the server holds has an address here only once it has them. */
+export const GAME_IDS = ['thunee'] as const
+export type GameId = (typeof GAME_IDS)[number]
 
 export type Route =
   | { screen: 'tricks' }

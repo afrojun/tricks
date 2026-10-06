@@ -1,30 +1,33 @@
-/** Messages exchanged between the client and a room. */
+/** Messages exchanged between the client and a room. The envelope is every game's; the game supplies the view, action and event types. */
 import { z } from 'zod'
-import { type Action, type GameEvent, type RejectReason, type Seat, type View, actionSchema } from './engine'
-
-/** The games a room can hold. */
-export const GAME_IDS = ['thunee'] as const
-export type GameId = (typeof GAME_IDS)[number]
+import type { Seat } from './kit/table'
 
 /** A room is named `<game>-<CODE>`, so which game it holds is never stored separately. */
-export function roomName(game: GameId, code: string): string {
+export function roomName(game: string, code: string): string {
   return `${game}-${code}`
 }
 
-const ROOM_NAME = new RegExp(`^(${GAME_IDS.join('|')})-[A-Z]{6}$`)
-export function isRoomName(name: string): boolean {
-  return ROOM_NAME.test(name)
+const NAME_SHAPE = /^([a-z]+)-([A-Z]{6})$/
+
+/** A room name's game and code, by its shape alone: whether the game is known is the list of games' business. */
+export function splitRoomName(name: string): { game: string; code: string } | null {
+  const match = NAME_SHAPE.exec(name)
+  return match ? { game: match[1], code: match[2] } : null
 }
 
 /** The close code for a socket opened to a name that is not a game and a code. */
 export const UNKNOWN_ROOM_CLOSE_CODE = 4404
 
-export type ClientMessage = { action: Action }
-export const clientMessageSchema = z.object({ action: actionSchema })
+export type ClientMessage<A> = { action: A }
 
-export type NumberedEvent = GameEvent & { n: number }
+/** What a client may send to a room whose game admits `action`. */
+export function clientMessageSchema<A>(action: z.ZodType<A>) {
+  return z.object({ action })
+}
 
-export type ServerMessage =
+export type NumberedEvent<E> = E & { n: number }
+
+export type ServerMessage<V, E> =
   | {
       type: 'sync'
       /** Increases by one for every applied action. */
@@ -32,10 +35,11 @@ export type ServerMessage =
       /** Server clock when this was sent, for countdowns. */
       now: number
       seat: Seat | null
-      view: View
-      events: NumberedEvent[]
+      view: V
+      events: NumberedEvent<E>[]
     }
-  | { type: 'rejected'; reason: RejectReason | 'malformed' }
+  /** The game's own reason for refusing an action, or `malformed` for a message it could not read. */
+  | { type: 'rejected'; reason: string }
   | { type: 'error'; message: string }
 
 /** The connection query parameter carrying the device's secret token. */
