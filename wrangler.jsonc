@@ -20,6 +20,9 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
   "observability": {
     "enabled": true,
+    // A socket's URL carries the device token, which owns a seat (?token=...). Logs and traces
+    // must never hold it, so every URL they record loses its query string.
+    "redact_query_string": true,
     "logs": {
       "enabled": true,
       "head_sampling_rate": 1,
@@ -28,7 +31,8 @@
       "invocation_logs": true
     }
   },
-  // Cloudflare creates the DNS record for the custom domain on the first deploy.
+  // Cloudflare creates the DNS record for the custom domain on the first deploy. From CI, wrangler
+  // replaces any record or Worker already on this hostname without asking: check before deploying.
   "routes": [{ "pattern": "tricks.afrojun.dev", "custom_domain": true }],
   // No <name>.workers.dev address and no per-version preview addresses: the custom domain only.
   "workers_dev": false,
