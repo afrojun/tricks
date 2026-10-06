@@ -52,4 +52,12 @@ export class Room extends Server<Env> {
   onAlarm() {
     return this.table.onAlarm()
   }
+
+  /**
+   * A room is reached only by socket. A plain request is refused without a word to the log:
+   * partyserver's default logs the URL, and a socket's URL carries the device's secret token.
+   */
+  onRequest() {
+    return new Response('Not found', { status: 404 })
+  }
 }

@@ -3,10 +3,13 @@
  * it from a second browser, fill the other seats with computers and start. Both players pass
  * three cards and play; both see the same trick; the host accuses a computer, both see the round
  * result, and the second round passes to the right. There the host plays a rule-breaking card
- * after a second tap. Last, the second player goes away, the host lets the computer play for
- * them, and they take the seat back on return. Also checks that the home loads no game's code,
- * and Hearts' practice: the coach, a new practice game dropping the old game's picks, and the
- * coach's warning on a second tap. Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
+ * after a second tap. Then the second player goes away, the host lets the computer play for
+ * them, and they take the seat back on return. Next a whole game in a new room, one human and
+ * three computers with the end score typed and stepped down to 25: every round played through
+ * its thirteen tricks to the result, each result's points added up, on to game over and the
+ * host's rematch. Also checks that the home loads no game's code, and Hearts' practice: the coach,
+ * a new practice game dropping the old game's picks, and the coach's warning on a second tap.
+ * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
 import { type Browser, type Page, chromium } from 'playwright-core'
 
@@ -232,6 +235,96 @@ watch(b, 'B again')
 await b.goto(`${base}/hearts/${code}`)
 check(await seen(b, 'Round 2', 10_000), 'B comes back to the table')
 check(await a.getByText('computer playing').waitFor({ state: 'hidden', timeout: 10_000 }).then(() => true, () => false), 'B takes the seat back')
+
+// ── A whole game: every round to its result, game over and a rematch ─────
+
+// The rule changes A's browser sends to its room.
+const ruleChanges: string[] = []
+a.on('websocket', (ws) => ws.on('framesent', (f) => typeof f.payload === 'string' && f.payload.includes('"setRules"') && ruleChanges.push(f.payload)))
+await a.goto(`${base}/hearts`)
+await a.getByRole('button', { name: 'Create game' }).click()
+await a.waitForURL(/\/hearts\/[A-Z]{6}$/)
+check(a.url().split('/').pop() !== code, 'A opens a new room for a whole game')
+await a.getByPlaceholder('Name').fill('Asha')
+await a.getByRole('button', { name: 'Sit here' }).first().click()
+for (let i = 0; i < 3; i++) {
+  await a.getByRole('button', { name: 'Add computer' }).first().click()
+  await a.getByRole('button', { name: /^Straight/ }).click()
+}
+// Typed and then stepped at once, before the room has answered: one change, from what was typed.
+await a.getByRole('button', { name: 'Change rules' }).click()
+const gameEnds = a.getByRole('spinbutton', { name: 'The game ends at' })
+ruleChanges.length = 0 // sitting down sent the creator's choices from the home screen
+await gameEnds.fill('50')
+await a.getByRole('button', { name: 'Less The game ends at' }).click()
+await a.waitForTimeout(500)
+check((await gameEnds.inputValue()) === '25', `typing 50 then − sets the end score to 25 (${await gameEnds.inputValue()})`)
+check(ruleChanges.length === 1 && ruleChanges[0].includes('"gameEndsAt":25'), `and sends one change (${ruleChanges.join(' ')})`)
+await a.getByRole('button', { name: 'Close' }).click()
+await a.getByRole('button', { name: 'Start game' }).click()
+check(await seen(a, 'Ends at 25', 10_000), 'the whole game plays to 25')
+
+/** Picks cards from the left of the hand until three are picked. */
+async function pickToThree(page: Page) {
+  const picked = page.locator('.hand .playing-card.picked')
+  for (let i = 0; i < 13 && (await picked.count()) < 3; i++) {
+    const card = handCards(page).nth(i)
+    if (!((await card.getAttribute('class')) ?? '').includes('picked')) await card.click({ position: STRIP })
+  }
+}
+const numberOf = (text: string) => Number(text.trim().replace('−', '-').replace('+', ''))
+const result = a.getByRole('heading', { name: /( is over| the game)$/ })
+const passButton = a.getByRole('button', { name: /^Pass (left|right|across)$/ })
+let scores = [0, 0, 0, 0]
+const summed = [0, 0, 0, 0]
+let rounds = 0
+let mine = 0
+let winner: string | null = null
+const wholeGameEnds = Date.now() + 12 * 60_000
+while (winner === null && Date.now() < wholeGameEnds) {
+  if (await result.isVisible()) {
+    rounds++
+    const title = (await result.textContent())!
+    const headline = (await a.locator('section.panel > p').first().textContent()) ?? ''
+    const column = async (n: number) => (await a.locator(`tbody tr td:nth-child(${n})`).allTextContents()).map(numberOf)
+    const points = await column(2)
+    const after = await column(3)
+    check(!/accused|caught/.test(headline), `round ${rounds} ended with its tricks, not an accusation (${headline})`)
+    check(mine === 13, `A played all thirteen of their cards in round ${rounds} by tapping them (${mine})`)
+    const total = points.reduce((s, p) => s + p, 0)
+    // 26 points are taken every round; a moon gives the three others 26 each.
+    check(total === 26 || total === 78, `round ${rounds}'s points add up (${points.join(', ')})`)
+    check(
+      after.every((t, i) => t === scores[i] + points[i]),
+      `round ${rounds}: each total is the last plus this round (${scores.join(', ')} + ${points.join(', ')} = ${after.join(', ')})`,
+    )
+    points.forEach((p, i) => (summed[i] += p))
+    scores = after
+    mine = 0
+    if (rounds === 1) await shot(a, 'whole-1-round-result')
+    if (/ the game$/.test(title)) {
+      winner = title.replace(/ wins? the game$/, '')
+      continue
+    }
+    await a.getByRole('button', { name: 'Next round' }).click()
+    await result.waitFor({ state: 'hidden', timeout: 10_000 })
+  } else if (await passButton.isVisible()) {
+    await pickToThree(a)
+    await passButton.click({ timeout: 1500 }).catch(() => {})
+  } else if (await playLegal(a)) mine++
+  else await a.waitForTimeout(100)
+}
+check(winner !== null, `the whole game ends, after ${rounds} rounds`)
+check(Math.max(...scores) >= 25, `someone reached 25 (${scores.join(', ')})`)
+check(JSON.stringify(scores) === JSON.stringify(summed), `the final scores are the sums of every round (${summed.join(', ')})`)
+const names = await a.locator('tbody tr td:nth-child(1)').allTextContents()
+check(winner !== null && scores[names.indexOf(winner)] === Math.min(...scores), `the winner, ${winner}, has the fewest points (${names.join(', ')})`)
+await shot(a, 'whole-2-game-over')
+await a.getByRole('button', { name: 'Play again' }).click()
+check(await seen(a, 'Passing left', 10_000), 'the host’s rematch starts a new game at the pass to the left')
+check(await seen(a, 'Round 1'), 'the rematch starts at round 1')
+check((await a.getByText('0 total', { exact: true }).count()) === 4, 'every score is back to 0')
+await shot(a, 'whole-3-rematch')
 
 // ── Practice ─────────────────────────────────────────────────────────────
 

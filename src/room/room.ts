@@ -218,13 +218,12 @@ class Table {
     }
     this.module.checkInvariants(result.game) // throws on an engine bug; the previous state is kept
 
-    const tokens = { ...this.saved.tokens }
+    const entries = Object.entries(this.saved.tokens)
     const senderToken = sender?.state?.token
     // Sitting down is a table action, the same in every game.
-    if (isTableAction(action) && action.type === 'sit' && senderToken) tokens[senderToken] = action.seat
-    for (const [token, seat] of Object.entries(tokens)) {
-      if (result.game.seats[seat]?.kind !== 'human') delete tokens[token]
-    }
+    if (isTableAction(action) && action.type === 'sit' && senderToken) entries.push([senderToken, action.seat])
+    // Built from entries, every token is an own property, whatever its name; a later entry for a token wins.
+    const tokens = Object.fromEntries(entries.filter(([, seat]) => result.game.seats[seat]?.kind === 'human'))
 
     const events: NumberedEvent<Event>[] = result.events.map((e, i) => ({ ...e, n: this.saved.eventCount + i + 1 }))
     this.saved = {
@@ -235,8 +234,8 @@ class Table {
       emptySince: emptySince(result.game, this.saved.emptySince, this.deps.now()),
     }
     await this.host.storage.put(STORAGE_KEY, this.saved)
-    for (const conn of this.host.connections()) this.send(conn, events)
     await this.armAlarm()
+    for (const conn of this.host.connections()) this.send(conn, events)
 
     for (const ask of this.module.reactions(this.saved.game, result.events)) {
       const step = ask(this.saved.game)
@@ -290,25 +289,45 @@ class Table {
 
   // ── Connections ────────────────────────────────────────────────────────
 
+  /**
+   * The seat a connection's token was given, if a human still holds it. Only the room's own tokens
+   * count: a token named like a property every object inherits, such as `constructor`, is a stranger.
+   */
   private seatOf(conn: RoomConnection): Seat | null {
     const token = conn.state?.token
-    return token !== undefined && token in this.saved.tokens ? this.saved.tokens[token] : null
+    if (token === undefined || !Object.hasOwn(this.saved.tokens, token)) return null
+    const seat = this.saved.tokens[token]
+    return Number.isInteger(seat) && this.saved.game.seats[seat]?.kind === 'human' ? seat : null
   }
 
   private send(conn: RoomConnection, events: NumberedEvent<Event>[]) {
-    const seat = this.seatOf(conn)
-    this.sendTo(conn, {
-      type: 'sync',
-      version: this.saved.version,
-      now: this.deps.now(),
-      seat,
-      view: this.module.viewFor(this.saved.game, seat),
-      events,
+    this.deliver(conn, () => {
+      const seat = this.seatOf(conn)
+      return {
+        type: 'sync',
+        version: this.saved.version,
+        now: this.deps.now(),
+        seat,
+        view: this.module.viewFor(this.saved.game, seat),
+        events,
+      }
     })
   }
 
   private sendTo(conn: RoomConnection, message: Message) {
-    conn.send(JSON.stringify(message))
+    this.deliver(conn, () => message)
+  }
+
+  /**
+   * Tells one connection, on its own: if building its message or sending it fails, that is logged and
+   * goes no further, so everyone else is still told and nothing after the broadcast is skipped.
+   */
+  private deliver(conn: RoomConnection, message: () => Message) {
+    try {
+      conn.send(JSON.stringify(message()))
+    } catch (error) {
+      console.error(`room send to ${conn.id} failed`, error)
+    }
   }
 
   private broadcast(message: Message) {

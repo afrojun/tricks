@@ -70,10 +70,12 @@ export class GameStore<V, E> {
     if (!this.awaitingFirstSync && message.version < this.state.version) return // stale
     this.clockOffset = message.now - localNow
 
-    const fresh = message.events.filter((e) => e.n > this.lastEvent)
-    // The first sync after connecting only sets the baseline: nothing is replayed.
-    const toPlay = this.awaitingFirstSync ? [] : fresh
-    this.lastEvent = Math.max(this.lastEvent, ...message.events.map((e) => e.n))
+    const numbers = message.events.map((e) => e.n)
+    // The first sync after connecting only sets the baseline, for events as for the view: nothing is
+    // replayed, and later events count from its own. The room tells a new connection only of events
+    // after it, so nothing seen before can come again; and a room that was reset numbers from one.
+    const toPlay = this.awaitingFirstSync ? [] : message.events.filter((e) => e.n > this.lastEvent)
+    this.lastEvent = Math.max(this.awaitingFirstSync ? 0 : this.lastEvent, ...numbers)
     this.awaitingFirstSync = false
 
     this.update({ seat: message.seat, view: message.view, version: message.version, error: null })

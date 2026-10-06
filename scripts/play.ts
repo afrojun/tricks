@@ -2,7 +2,8 @@
  * Plays a whole game against the running app over real sockets: two scripted
  * humans and two AI seats, with one human dropping and reconnecting mid-game.
  * First checks that a socket to a name that is not a room is closed with the
- * room's close code, and that a Hearts room opens as a lobby of four. The
+ * room's close code, that a plain request to a room's address gets a 404, and
+ * that a Hearts room opens as a lobby of four. The
  * rooms share the app's origin. Usage: pnpm dev (in another terminal), then
  * pnpm e2e:sockets, with APP_URL set if the app is not on http://localhost:5173.
  */
@@ -77,6 +78,22 @@ for (const name of ['SIM123', 'thunee-abcdef', 'spades-ABCDEF']) {
 }
 console.log(`sockets to unknown room names closed with ${UNKNOWN_ROOM_CLOSE_CODE}`)
 
+// Rooms are reached only by socket. A plain request to a room's address is refused: an unknown
+// name at the edge, a room by the room itself, which logs nothing (its URL may carry a token).
+async function plainRequest(name: string): Promise<string> {
+  const response = await fetch(`${app.origin}/parties/room/${name}?token=script-token-plainrequest`)
+  return `${response.status} ${await response.text()}`
+}
+for (const [name, want] of [
+  ['SIM123', '404 Unknown room'],
+  [roomName('hearts', code), '404 Not found'],
+  [room, '404 Not found'],
+]) {
+  const got = await plainRequest(name)
+  if (got !== want) throw new Error(`a plain request to ${name} got ${got}, not ${want}`)
+}
+console.log('plain requests to rooms are refused with 404')
+
 /** The first view a plain WebSocket is sent by the room `name`. */
 function firstViewOf(name: string): Promise<{ playerCount: number; phase: { kind: string }; rules: object }> {
   return new Promise((resolve, reject) => {
@@ -95,7 +112,7 @@ function firstViewOf(name: string): Promise<{ playerCount: number; phase: { kind
     socket.addEventListener('close', (e) => reject(new Error(`a socket to ${name} closed with ${e.code}`)))
   })
 }
-// Hearts has no screens yet, but the server holds its rooms.
+// The server holds Hearts' rooms too. Hearts is played through its screens by scripts/e2e-hearts.ts.
 const hearts = await firstViewOf(roomName('hearts', code))
 if (hearts.playerCount !== 4 || hearts.phase.kind !== 'lobby' || !('gameEndsAt' in hearts.rules)) throw new Error(`a Hearts room opened as ${JSON.stringify(hearts)}`)
 console.log(`room ${roomName('hearts', code)}: a Hearts lobby of four`)

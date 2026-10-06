@@ -65,37 +65,75 @@ function RuleControl<R extends object>({ info, rules, onChange }: { info: RuleIn
       </div>
     )
   }
+  // A new value from the room starts the field again from it.
+  return <NumberRule key={value as number} info={info} value={value as number} onChange={onChange} />
+}
+
+/** What a number rule's field holds, and whether the player has typed in it since it last showed a value. */
+export interface NumberDraft {
+  text: string
+  typed: boolean
+}
+
+/** What one event in a number rule's field does: what the field then shows, and the one change to send, if any. */
+export interface FieldChange {
+  draft: NumberDraft
+  send: number | null
+}
+
+type Range = { min: number; max: number; step?: number }
+
+/** Leaving the field sends a typed number, whole and in range, if it is not the room's value already. */
+export function leaveField(range: Range, value: number, draft: NumberDraft): FieldChange {
+  if (!draft.typed) return { draft, send: null }
+  const n = typedNumber(range, draft.text)
+  if (n === null) return { draft: { text: String(value), typed: false }, send: null }
+  return { draft: { text: String(n), typed: false }, send: n === value ? null : n }
+}
+
+/**
+ * − (`direction` −1) or + (1) moves by the rule's step from the number in the field, so a number
+ * typed and not yet sent, or a step the room has not answered yet, is stepped from rather than lost;
+ * from the room's value when the field holds no number. One change, and none at a limit unless a number was typed.
+ */
+export function stepField(range: Range, value: number, draft: NumberDraft, direction: 1 | -1): FieldChange {
+  const from = typedNumber(range, draft.text) ?? value
+  const next = Math.min(range.max, Math.max(range.min, from + direction * (range.step ?? 1)))
+  return { draft: { text: String(next), typed: false }, send: next === from && !draft.typed ? null : next }
+}
+
+/** Any whole number in the range can be typed; − and + move by the rule's step. */
+function NumberRule<R extends object>({ info, value, onChange }: { info: RuleInfo<R>; value: number; onChange: (patch: Partial<R>) => void }) {
   const range = info.range!
-  const { min, max, unit, step = 1 } = range
-  const set = (n: number) => onChange({ [info.key]: Math.min(max, Math.max(min, n)) } as Partial<R>)
-  // Any whole number in the range can be typed; − and + move by the rule's step.
-  const commit = (input: HTMLInputElement) => {
-    const n = typedNumber(range, input.value)
-    if (n !== null && n !== value) set(n)
-    else input.value = String(value)
+  const [draft, setDraft] = useState<NumberDraft>({ text: String(value), typed: false })
+  const take = (change: FieldChange) => {
+    setDraft(change.draft)
+    if (change.send !== null) onChange({ [info.key]: change.send } as Partial<R>)
   }
+  // A tap on − or + leaves the focus in the field, so the typed number is not sent on its own first: the tap sends one change.
+  const keepFocus = (e: React.MouseEvent) => e.preventDefault()
   return (
     <div className="flex items-center gap-2">
-      <button className="btn btn-small" onClick={() => set((value as number) - step)} aria-label={`Less ${info.label}`}>
+      <button className="btn btn-small" onMouseDown={keepFocus} onClick={() => take(stepField(range, value, draft, -1))} aria-label={`Less ${info.label}`}>
         −
       </button>
       <span className="w-24 shrink-0">
         <input
-          key={value as number}
           className="field text-center"
           type="number"
           inputMode="numeric"
-          min={min}
-          max={max}
+          min={range.min}
+          max={range.max}
           step={1}
-          defaultValue={value as number}
+          value={draft.text}
           aria-label={info.label}
-          onBlur={(e) => commit(e.currentTarget)}
+          onChange={(e) => setDraft({ text: e.currentTarget.value, typed: true })}
+          onBlur={() => take(leaveField(range, value, draft))}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
       </span>
-      <span>{unit}</span>
-      <button className="btn btn-small" onClick={() => set((value as number) + step)} aria-label={`More ${info.label}`}>
+      <span>{range.unit}</span>
+      <button className="btn btn-small" onMouseDown={keepFocus} onClick={() => take(stepField(range, value, draft, 1))} aria-label={`More ${info.label}`}>
         +
       </button>
     </div>
