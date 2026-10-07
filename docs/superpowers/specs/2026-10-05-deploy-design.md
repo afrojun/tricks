@@ -63,7 +63,7 @@ A deploy restarts every room. Games in progress survive, because everything a ro
 Updated 2026-10-06, at the end of sub-project G (branch `tricks-deploy`, plan `docs/superpowers/plans/2026-10-06-deploy.md`), and again the same day when the deploy moved from a GitHub Action to Cloudflare Workers Builds. Deployed on 2026-10-06:
 
 - The first deploy ran from this machine (`wrangler deploy`), creating the Worker `tricks` (tag `e7057f1ddf744788b9365a227bb20f19`), applying migration `v1` and attaching `tricks.afrojun.dev`.
-- The build trigger was then created with the `cf` CLI: repository connection `92b8cc42-de90-443f-ada5-28e93480e7f3` (`afrojun/tuscan-thunee`), trigger `03dd1b7f-c5b8-47cd-9d7a-541189452da3` on `main`, build command `pnpm check && pnpm test && pnpm build`, deploy command `pnpm exec wrangler deploy`, build caching on, and the account's existing `afrojun-dev build token`, which proved to carry the routes permission.
+- The build trigger was then created with the `cf` CLI: repository connection `92b8cc42-de90-443f-ada5-28e93480e7f3` (`afrojun/tricks`), trigger `03dd1b7f-c5b8-47cd-9d7a-541189452da3` on `main`, build command `pnpm check && pnpm test && pnpm build`, deploy command `pnpm exec wrangler deploy`, build caching on, and the account's existing `afrojun-dev build token`, which proved to carry the routes permission.
 - `main` was fast-forwarded to `tricks` and pushed. The first Cloudflare build (`3298a7ed-a95d-44f7-93ee-dbb87c0153a2`) used Node 24.21.0 and pnpm 12.9.1, installed with `--frozen-lockfile`, passed 863 tests, and deployed.
 - After it: every address answered 200, unknown and plain room requests 404, and `APP_URL=https://tricks.afrojun.dev pnpm e2e:sockets` played a whole Thunee game and opened a Hearts lobby.
 
@@ -107,7 +107,7 @@ The account checks above and disconnecting Vercel from `main` were done on 2026-
    git checkout main && git merge --ff-only tricks && git push origin main
    ```
 
-2. **Create the Worker from the repository.** Cloudflare dashboard, Workers & Pages, Create, Import a repository, `afrojun/tuscan-thunee`:
+2. **Create the Worker from the repository.** Cloudflare dashboard, Workers & Pages, Create, Import a repository, `afrojun/tricks`:
    - Project name: `tricks` (it must match `name` in `wrangler.jsonc`).
    - Production branch: `main`. Root directory: `/`.
    - Build command: `pnpm check && pnpm test && pnpm build`.
