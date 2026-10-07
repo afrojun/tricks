@@ -197,7 +197,8 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
       {([0, 1] as const).map((team) => {
         const tricks = playing ? playing.tricks.filter((t) => teamOf(t.winner) === team).length : null
         return (
-          <div key={team} className={`min-w-0 grid gap-1 ${team === 1 ? 'order-3 justify-items-end' : ''}`}>
+          // Both tickets fill their column, so the two teams' labels are the same size.
+          <div key={team} className={`min-w-0 grid gap-1 ${team === 1 ? 'order-3' : ''}`}>
             <div className="ticket max-w-full" data-team={team} style={{ '--team': `var(--team${team})`, '--on-team': `var(--on-team${team})` } as React.CSSProperties}>
               <b className="ticket-num" aria-label={`${view.balls[team]} of ${view.ballsTarget} balls`}>
                 {view.balls[team]}
@@ -220,7 +221,7 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
               </span>
             </div>
             {tricks !== null && (
-              <button key={tricks} className="trick-pile" onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show the last trick.`}>
+              <button key={tricks} className={`trick-pile ${team === 1 ? 'justify-self-end' : ''}`} onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show the last trick.`}>
                 <span aria-hidden className="trick-pile-icon" />
                 {plural(tricks, 'trick')}
               </button>
