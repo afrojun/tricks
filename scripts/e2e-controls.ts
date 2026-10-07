@@ -16,7 +16,9 @@ const check = (ok: boolean, what: string) => {
   if (!ok) problems.push(what)
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`)
 }
-const tap = (target: Locator) => target.click({ timeout: 1500 }).catch(() => {})
+/** A point on the strip a card shows in the fanned hand: its centre can be under the next card. */
+const STRIP = { x: 24, y: 30 }
+const tap = (target: Locator) => target.click({ position: STRIP, timeout: 1500 }).catch(() => {})
 const handCount = () => page.locator('.hand .playing-card').count()
 /** The hand's count once a play has left it: a played card stays in the hand's DOM until its travel to the table ends. */
 async function settledCount(from: number): Promise<number> {
@@ -59,8 +61,8 @@ async function toMyTurn(needIllegal = false) {
 
 async function dragUp(card: Locator, distance: number) {
   const box = (await card.boundingBox())!
-  const x = box.x + box.width / 2
-  const y = box.y + box.height / 2
+  const x = box.x + STRIP.x
+  const y = box.y + STRIP.y
   await page.mouse.move(x, y)
   await page.mouse.down()
   for (let step = 1; step <= 8; step++) await page.mouse.move(x, y - (distance * step) / 8, { steps: 2 })
@@ -77,11 +79,11 @@ check(before - (await settledCount(before)) === 1, 'a long drag plays exactly on
 
 await toMyTurn(true)
 before = await handCount()
-await illegal().click()
+await illegal().click({ position: STRIP })
 check((await page.getByRole('button', { name: /anyway/ }).isVisible()) && (await handCount()) === before, 'an illegal card asks before it is played')
 await page.locator('.hand').click({ position: { x: 3, y: 3 } })
 check(!(await page.getByRole('button', { name: /anyway/ }).isVisible()), 'tapping away cancels')
-await illegal().click()
+await illegal().click({ position: STRIP })
 await page.getByRole('button', { name: /anyway/ }).click()
 check(before - (await settledCount(before)) === 1, 'confirming plays exactly that one card')
 

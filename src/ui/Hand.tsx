@@ -70,9 +70,7 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
     return false
   }
 
-  // Tighter overlap as the hand grows, so six cards still fit a phone.
-  const overlap = cards.length >= 6 ? -0.16 : cards.length === 5 ? -0.1 : -0.04
-  // Many cards close up as far as the row needs (see `.hand[data-many]`).
+  // Smaller cards for a hand of many (see `.hand[data-many]`).
   const many = most !== undefined && most > 6
   const confirm = (card: C) => {
     setPending(null)
@@ -90,7 +88,8 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
       ref={handRef}
       className="hand"
       data-many={many || undefined}
-      style={{ '--overlap': overlap, ...(many && { '--count': Math.max(2, cards.length) }) } as React.CSSProperties}
+      // The row closes up as far as this many cards need (see `.hand-slot`).
+      style={{ '--count': Math.max(2, cards.length) } as React.CSSProperties}
       onClick={() => !dragging.current && setPending(null)}
     >
       {/* Over a long row, a card's own "Play anyway" could run off the screen: it sits above the middle of the row. */}

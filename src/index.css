@@ -239,7 +239,7 @@ button:disabled {
   --w: 1.5rem;
 }
 .playing-card[data-size='trick'] {
-  --w: 3.1rem;
+  --w: var(--trick-w, 3.1rem);
 }
 .playing-card[data-red='true'] {
   color: var(--card-red);
@@ -331,8 +331,15 @@ button:disabled {
 
 /* ── Hand ───────────────────────────────────────────────────────────────── */
 
+/*
+ * The hand is sized by the screen: a card is about a quarter of the width, held back on a short
+ * screen, so a phone shows cards it can read. The row closes up as far as it must to fit, and no
+ * closer than --spread of a card apart, so a few cards spread out and a full hand overlaps.
+ */
 .hand {
-  --w: clamp(3.4rem, 17.5vw, 5.2rem);
+  --w: clamp(3.4rem, min(24vw, 15dvh), 7.5rem);
+  --spread: 0.9;
+  position: relative;
   display: flex;
   justify-content: center;
   padding: 0.8rem 0.5rem 0.3rem;
@@ -340,7 +347,8 @@ button:disabled {
 }
 .hand-slot {
   position: relative;
-  margin-inline: calc(var(--w) * var(--overlap, -0.1) / 2);
+  /* The slack keeps the leaning outer cards' top corners on the screen. */
+  margin-inline: calc((min((100% - var(--w) * 1.6) / (var(--count) - 1), var(--w) * var(--spread)) - var(--w)) / 2);
   touch-action: none;
   cursor: grab;
   /* Each card is its own layer, so carrying one does not repaint the others. */
@@ -348,13 +356,10 @@ button:disabled {
 }
 .hand .playing-card {
   --w: inherit;
-  width: clamp(3.4rem, 17.5vw, 5.2rem);
+  width: var(--w);
   transition: transform var(--motion);
   transform: translateY(var(--lift, 0)) rotate(var(--tilt, 0deg));
   transform-origin: 50% 120%;
-}
-.hand .playing-card .ix {
-  font-size: clamp(1.25rem, 6.5vw, 1.9rem);
 }
 .hand .playing-card[data-playable='true']:hover {
   --lift: -0.5rem;
@@ -404,20 +409,12 @@ button:disabled {
 }
 
 /*
- * A hand of many cards (Hearts' thirteen): smaller cards, sized by the screen and not the theme's
- * type, each showing a strip as wide as the row allows (at most the six-card spacing), so the row
- * fits and every index shows. Its "Play anyway" sits over the middle of the row.
+ * A hand of many cards (Hearts' thirteen): smaller cards, each showing a strip as wide as the row
+ * allows, so the row fits and every index shows. Its "Play anyway" sits over the middle of the row.
  */
 .hand[data-many] {
-  --w: clamp(52px, 15.5vw, 76px);
-  position: relative;
-}
-.hand[data-many] .hand-slot {
-  /* 36px keeps the leaning outer cards' top corners on the screen. */
-  margin-inline: calc((min((100% - var(--w) - 36px) / (var(--count) - 1), var(--w) * 0.84) - var(--w)) / 2);
-}
-.hand[data-many] .playing-card {
-  width: var(--w);
+  --w: clamp(52px, min(18vw, 12dvh), 5.5rem);
+  --spread: 0.84;
 }
 .hand[data-many] .playing-card .ix {
   left: 6%;
@@ -448,15 +445,27 @@ button:disabled {
 /* ── Table pieces ───────────────────────────────────────────────────────── */
 
 .trick-area {
+  --trick-w: clamp(3.1rem, min(19vw, 11dvh), 5.5rem);
   display: grid;
   /* Narrower than the cards, so the cross closes up and fits between the side seats. */
-  grid-template-columns: repeat(3, 2.5rem);
-  grid-template-rows: repeat(3, 2.9rem);
+  grid-template-columns: repeat(3, calc(var(--trick-w) * 0.8));
+  grid-template-rows: repeat(3, calc(var(--trick-w) * 0.95));
   place-items: center;
   gap: 0.35rem;
 }
 .trick-area > div {
   will-change: transform;
+}
+/* Who took the trick: under the cross, clear of the cards that overhang it, with its space kept while a trick is played. */
+.trick-cue {
+  grid-column: 1 / -1;
+  /* Its own row under the cross, so it does not fill an empty row inside it and shift the cards as they arrive. */
+  grid-row: 4;
+  margin-top: calc(var(--trick-w) * 0.3);
+  min-height: 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 /* Cards land as hands put them down: each seat's a little askew. */
 .trick-area .col-start-2.row-start-1 .playing-card {
@@ -470,9 +479,6 @@ button:disabled {
 }
 .trick-area .col-start-2.row-start-3 .playing-card {
   rotate: 3deg;
-}
-.trick-area .col-start-2.row-start-2 {
-  white-space: nowrap;
 }
 
 .pip-track {
@@ -849,6 +855,7 @@ button:disabled {
   animation: stamp 500ms 120ms both;
 }
 .moment .playing-card {
+  --trick-w: clamp(3.4rem, 20vw, 5rem);
   rotate: 4deg;
   animation: stamp 500ms 60ms both;
 }

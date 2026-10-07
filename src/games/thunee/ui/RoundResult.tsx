@@ -53,7 +53,7 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
   const verb = (team: Team, base: string) =>
     view.playerCount === 2 && !(view.seat !== null && teamOf(view.seat) === team) ? `${base}s` : base
   return (
-    <section className="panel p-4 w-full max-w-xs grid gap-3">
+    <section className="panel p-4 w-full max-w-sm grid gap-3">
       <h2 className="display text-xl">
         {winner !== null
           ? `${teamName(view, winner, view.seat)} ${verb(winner, 'win')} the game`

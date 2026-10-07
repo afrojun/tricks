@@ -102,24 +102,31 @@ export function Table({ view, room }: { view: View; room: string }) {
   const at = (where: Where) => others.find((seat) => position(seat) === where)
   const hand = 'hand' in phase ? sortHand(phase.hand) : []
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
-  // Result panels may need to scroll; during play nothing may clip a travelling card.
-  const centreScrolls = phase.kind === 'roundResult' || phase.kind === 'gameOver'
+  const over = phase.kind === 'roundResult' || phase.kind === 'gameOver'
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden">
       <StatusStrip view={view} burst={burst} onMenu={() => setSheet('menu')} onTricks={() => setSheet('history')} />
       <RoundFacts view={view} />
 
-      <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-1 px-2">
-        <div className="flex justify-center">{at('top') !== undefined && <SeatBadge view={view} seat={at('top')!} />}</div>
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 min-h-0">
-          <div>{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side="left" />}</div>
-          <div className={`h-full min-h-0 flex items-center justify-center py-1 ${centreScrolls ? 'overflow-y-auto' : ''}`}>
-            <Centre view={view} can={can} />
-          </div>
-          <div>{at('right') !== undefined && <SeatBadge view={view} seat={at('right')!} side="right" />}</div>
+      {over ? (
+        // The result takes the width, and may need to scroll; the seats have no cards to show.
+        <div className="flex-1 min-h-0 overflow-y-auto grid justify-items-center items-start px-3 py-2">
+          <Centre view={view} can={can} />
         </div>
-      </div>
+      ) : (
+        // During play nothing may clip a travelling card.
+        <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-1 px-2">
+          <div className="flex justify-center">{at('top') !== undefined && <SeatBadge view={view} seat={at('top')!} />}</div>
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 min-h-0">
+            <div>{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side="left" />}</div>
+            <div className="h-full min-h-0 flex items-center justify-center py-1">
+              <Centre view={view} can={can} />
+            </div>
+            <div>{at('right') !== undefined && <SeatBadge view={view} seat={at('right')!} side="right" />}</div>
+          </div>
+        </div>
+      )}
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {coached && <CoachStrip lessons={TOPICS} />}
@@ -151,7 +158,7 @@ export function Table({ view, room }: { view: View; room: string }) {
               suggested={advised?.type === 'playCard' ? advised.card : null}
               explain={coached ? (card) => check(view, { type: 'playCard', card })?.body ?? null : undefined}
             />
-            <ActionBar can={can} playing={playing} accuse={view.rules.allowCheating} onSheet={setSheet} />
+            <ActionBar can={can} playing={playing} over={over} accuse={view.rules.allowCheating} onSheet={setSheet} />
           </>
         )}
       </div>
@@ -485,8 +492,10 @@ function Hint({ view, can }: { view: View; can: Available }) {
 }
 
 /** `accuse`: whether accusations are part of this game; with cheating off there is no Challenge button. */
-function ActionBar({ can, playing, accuse, onSheet }: { can: Available; playing: ViewPlaying | null; accuse: boolean; onSheet: (s: SheetName) => void }) {
+function ActionBar({ can, playing, over, accuse, onSheet }: { can: Available; playing: ViewPlaying | null; over: boolean; accuse: boolean; onSheet: (s: SheetName) => void }) {
   const { send } = useSession()
+  // A round's result has the room; before play the space is kept, so the table does not jump when the first trick starts.
+  if (over) return null
   if (!playing) return <div className="h-12" />
   const canChallenge = can.challengePlay.length > 0 || can.challengeJodhi.length > 0
   return (

@@ -246,11 +246,7 @@ function TrickMiddle({ view, phase }: { view: View; phase: ViewPlaying }) {
   const last = phase.tricks[phase.tricks.length - 1]
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* Who takes the trick, with its points, is too long for the space between the cards: it goes under them, clear of the cards that overhang the area. */}
-      <TrickArea view={view} phase={phase} wins={() => null} />
-      <p className="mt-3 text-sm font-semibold min-h-6 text-center" aria-live="polite">
-        {phase.kind === 'trickPause' && last ? trickTaken(view, last.winner, last.plays.map((p) => p.card)) : ''}
-      </p>
+      <TrickArea view={view} phase={phase} wins={(winner) => (last ? trickTaken(view, winner, last.plays.map((p) => p.card)) : null)} />
       <ul className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-sm">
         <li className="fact">{passedWay(view.direction)}</li>
         <li className="fact" data-on={phase.heartsBroken}>

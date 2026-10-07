@@ -87,7 +87,8 @@ while (Date.now() - started < 6 * 60_000) {
       console.log(`refreshed mid-hand, same ${after.length} cards`)
     }
     const legal = page.locator('.hand .playing-card[data-dim="false"]').first()
-    await legal.click({ timeout: 1500 }).catch(() => {})
+    // On the strip the card shows: its centre can be under the next card in the fan.
+    await legal.click({ position: { x: 24, y: 30 }, timeout: 1500 }).catch(() => {})
   }
   await page.waitForTimeout(150)
 }
