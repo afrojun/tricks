@@ -106,6 +106,17 @@ button:disabled {
   rotate: -4deg;
 }
 
+/* The Tricks mark (the favicon) as a plate on the table, sharing the wordmark's red offset. */
+.tricks-mark {
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 0.75rem;
+  border: var(--line-width) solid var(--line);
+  border-radius: calc(12 / 64 * 4.5rem + var(--line-width));
+  --plate: var(--red);
+  box-shadow: 5px 6px 0 var(--plate), 5px 6px 0 2px var(--line);
+}
+
 /* A phrase that matters on the felt, such as "Your turn": yellow text alone does not read on green. */
 .cue {
   display: inline-block;

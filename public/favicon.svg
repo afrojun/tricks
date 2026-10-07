@@ -1,4 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" fill="#1a4d2e"/>
-  <text x="16" y="22" font-size="16" text-anchor="middle" fill="#f5f0e6" font-family="serif" font-weight="bold">T</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <clipPath id="r"><rect width="64" height="64" rx="12"/></clipPath>
+  <g clip-path="url(#r)">
+    <rect width="64" height="64" fill="#0b6d58"/>
+    <path id="w" d="M32 32 79.08 22.64 79.08 41.36Z" fill="#f8b81c"/>
+    <use href="#w" transform="rotate(45 32 32)"/>
+    <use href="#w" transform="rotate(90 32 32)"/>
+    <use href="#w" transform="rotate(135 32 32)"/>
+    <use href="#w" transform="rotate(180 32 32)"/>
+    <use href="#w" transform="rotate(225 32 32)"/>
+    <use href="#w" transform="rotate(270 32 32)"/>
+    <use href="#w" transform="rotate(315 32 32)"/>
+  </g>
+  <g transform="rotate(8 32 32)">
+    <rect x="18" y="12" width="28" height="40" rx="4" fill="#f6eedb" stroke="#1e1a17" stroke-width="3"/>
+    <path transform="translate(23 23) scale(0.18)" fill="#1e1a17" d="M50 6C62 26 92 42 92 62c0 13-10 21-21 21-8 0-14-4-17-10 1 9 5 17 12 22H34c7-5 11-13 12-22-3 6-9 10-17 10C18 83 8 75 8 62 8 42 38 26 50 6Z"/>
+  </g>
 </svg>

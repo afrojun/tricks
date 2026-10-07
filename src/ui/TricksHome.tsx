@@ -16,7 +16,8 @@ export function TricksHome() {
   }
   return (
     <main className="min-h-full flex flex-col items-center gap-5 p-4 pb-10">
-      <header className="text-center mt-8 mb-2">
+      <header className="text-center mt-8 mb-2 flex flex-col items-center">
+        <img src="/favicon.svg?v=2" alt="" width={72} height={72} className="tricks-mark" />
         <h1 className="wordmark text-[5.5rem]">Tricks</h1>
         <p className="font-semibold mt-3 max-w-[19em] mx-auto">Trick-taking card games to play with friends or the computer.</p>
       </header>
