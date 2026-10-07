@@ -1,0 +1,24 @@
+Sounds for Tricks. Every file is CC0 (public domain); no credit is required.
+All are mono mp3, used as downloaded. src/ui/sound.ts names what plays each one.
+
+Kenney (kenney.nl), CC0: http://creativecommons.org/publicdomain/zero/1.0/
+"You may use these assets in personal and commercial projects.
+Credit (Kenney or www.kenney.nl) would be nice but is not mandatory."
+card-shuffle.mp3          Casino Audio
+card-place-2.mp3          Casino Audio
+card-place-3.mp3          Casino Audio
+card-shove-2.mp3          Casino Audio
+card-fan-1.mp3            Casino Audio
+impactWood_light_000.mp3  Impact Sounds
+impactWood_light_001.mp3  Impact Sounds
+bookFlip1.mp3             RPG Audio
+
+Freesound previews, all CC0:
+fs-knock-table.mp3  freesound.org/s/388269/  CC0
+fs-slam-desk.mp3  freesound.org/s/718357/  CC0
+fs-stamp-1.mp3  freesound.org/s/362624/  CC0
+fs-bell-desk.mp3  freesound.org/s/685111/  CC0
+fs-chip-0.mp3  freesound.org/s/817552/  CC0
+fs-chip-1.mp3  freesound.org/s/817553/  CC0
+fs-chip-2.mp3  freesound.org/s/817554/  CC0
+fs-chips-push.mp3  freesound.org/s/532861/  CC0

@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react'
 import { GAMES, type GameId } from './games'
+import { PlayingCard } from './Card'
 import { ThemePicker } from './ThemePicker'
 import { gamePath, opensInPlace } from './routes'
 import { tableSizes } from './seats'
@@ -15,24 +16,26 @@ export function TricksHome() {
   }
   return (
     <main className="min-h-full flex flex-col items-center gap-5 p-4 pb-10">
-      <header className="text-center mt-6">
-        <h1 className="display text-7xl text-accent">Tricks</h1>
-        <p className="text-muted mt-2">Trick-taking card games to play with friends or the computer.</p>
+      <header className="text-center mt-8 mb-2">
+        <h1 className="wordmark text-[5.5rem]">Tricks</h1>
+        <p className="font-semibold mt-3 max-w-[19em] mx-auto">Trick-taking card games to play with friends or the computer.</p>
       </header>
 
-      <section className="w-full max-w-sm grid gap-3" aria-label="Games">
-        {GAMES.map((game) => (
-          <a key={game.id} href={gamePath(game.id)} onClick={open(game.id)} className="panel p-4 grid gap-1">
-            <h2 className="display text-xl">{game.name}</h2>
-            <p>
-              {game.tagline} {tableSizes(game.seatCounts)}
-            </p>
+      <section className="w-full max-w-sm grid gap-5" aria-label="Games">
+        {GAMES.map((game, i) => (
+          <a key={game.id} href={gamePath(game.id)} onClick={open(game.id)} className={`panel relative grid gap-1 py-4 pl-4 pr-24 ${i % 2 ? 'panel-danger' : ''}`}>
+            <h2 className="display text-3xl">{game.name}</h2>
+            <p>{game.tagline}</p>
+            <p className="justify-self-start role-badge !text-on-surface !border-on-surface">{tableSizes(game.seatCounts)}</p>
+            <span className="absolute right-4 -top-2.5 rotate-[8deg]" aria-hidden>
+              <PlayingCard card={game.emblem} size="trick" />
+            </span>
           </a>
         ))}
       </section>
 
-      <section className="panel p-4 w-full max-w-sm grid gap-3">
-        <h2 className="display text-lg">Look</h2>
+      <section className="panel panel-info p-4 w-full max-w-sm grid gap-3">
+        <h2 className="display text-2xl">Look</h2>
         <ThemePicker />
       </section>
     </main>

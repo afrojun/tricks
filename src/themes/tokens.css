@@ -1,153 +1,97 @@
 /*
- * A theme is a set of tokens. Components use only these names, so a theme
- * changes the look without touching layout or logic.
+ * One look, Sunburst: ink on paper over a table of rays. A theme is a table colour; the rest of
+ * the tokens are shared. Components use only these names, so a table changes the colour of the
+ * felt and nothing else. Design: docs/superpowers/specs/2026-10-06-sunburst-look-and-sound-design.md
  */
 
-:root[data-theme='retro'] {
-  --bg: #1a4d2e;
-  --bg-image: repeating-linear-gradient(45deg, transparent 0 2px, rgb(0 0 0 / 0.05) 2px 4px);
-  --text: #f5f0e6;
-  --text-muted: rgb(245 240 230 / 0.68);
-  --surface: #f5f0e6;
-  --on-surface: #1a1a1a;
-  --on-surface-muted: #5b574e;
-  --accent: #d4a847;
-  --on-accent: #1a1a1a;
-  --danger: #c23a3a;
-  --on-danger: #f5f0e6;
-  --line: #1a1a1a;
+:root {
+  /* The four inks of a court card, on card stock. */
+  --paper: #f6eedb;
+  --paper-shade: #e8dfc6;
+  --ink: #1e1a17;
+  --red: #e2412e;
+  --blue: #2850d8;
+  --yellow: #f8b81c;
+
+  --text: var(--paper);
+  --text-muted: rgb(246 238 219 / 0.82);
+  --surface: var(--paper);
+  --on-surface: var(--ink);
+  --on-surface-muted: #6a625a;
+  --accent: var(--yellow);
+  --on-accent: var(--ink);
+  --accent-on-surface: #8a5606;
+  --primary: var(--yellow);
+  --on-primary: var(--ink);
+  --info: var(--blue);
+  /* Darker than the red ink, so paper text reads on a button or a banner. */
+  --danger: #c42f1d;
+  --on-danger: var(--paper);
+  --field: #fffbf1;
+  --line: var(--ink);
   --line-width: 2px;
-  --radius: 0px;
-  --shadow: 4px 4px 0 #000;
-  --shadow-sm: 2px 2px 0 #000;
-  --team0: #d4a847;
-  --team1: #8fd3e0;
-  --font-display-family: 'Press Start 2P', monospace;
-  --font-body-family: 'VT323', monospace;
-  --root-size: 20px;
-  --leading: 1.15;
-  --display-scale: 0.52;
+  --radius: 10px;
+  --radius-sm: 6px;
+  /* A plate behind a panel: a spot colour offset, outlined in ink. */
+  --plate: var(--yellow);
+  --shadow: 5px 6px 0 var(--plate), 5px 6px 0 2px var(--ink);
+  /* A drop under a button or ticket, pressed flat on tap. */
+  --shadow-sm: 0 4px 0 var(--ink);
+  --team0: var(--yellow);
+  --team1: var(--blue);
+  --on-team0: var(--ink);
+  --on-team1: var(--paper);
+  --font-display-family: 'Shrikhand', 'Archivo', system-ui, serif;
+  --font-body-family: 'Archivo', system-ui, sans-serif;
+  --root-size: 16px;
+  --leading: 1.4;
   --display-tracking: 0;
-  --card-face: #fffdf7;
-  --card-ink: #1a1a1a;
-  --card-red: #c23a3a;
-  --card-line: #1a1a1a;
-  --card-radius: 4px;
-  --card-font: 'VT323', monospace;
-  --motion: 90ms;
+  --card-face: var(--paper);
+  --card-ink: var(--ink);
+  --card-red: var(--red);
+  --card-line: var(--ink);
+  --card-radius: 7px;
+  --card-font: 'Archivo', system-ui, sans-serif;
+  --card-shadow: 2px 3px 0 rgb(0 0 0 / 0.3);
+  --motion: 160ms;
   /* Over a card that may not be played, and behind an open sheet. */
-  --card-dim: rgb(60 60 60 / 0.22);
-  --backdrop: rgb(0 0 0 / 0.5);
+  --card-dim: rgb(30 26 23 / 0.28);
+  --backdrop: rgb(20 16 12 / 0.55);
 }
 
-:root[data-theme='modern'] {
-  --bg: #0e3b3c;
-  --bg-image: radial-gradient(120% 80% at 50% 35%, #175556 0%, #0e3b3c 55%, #082728 100%);
-  --text: #f3efe3;
-  --text-muted: rgb(243 239 227 / 0.66);
-  --surface: #fbf7ee;
-  --on-surface: #1c2321;
-  --on-surface-muted: #5d6763;
-  --accent: #e8a33d;
-  --on-accent: #1c2321;
-  --danger: #c8452f;
-  --on-danger: #fff8f1;
-  --line: rgb(28 35 33 / 0.16);
-  --line-width: 1px;
-  --radius: 14px;
-  --shadow: 0 14px 34px -14px rgb(0 0 0 / 0.6);
-  --shadow-sm: 0 4px 10px -4px rgb(0 0 0 / 0.45);
-  --team0: #e8a33d;
-  --team1: #8fd0c4;
-  --font-display-family: 'Bricolage Grotesque', system-ui, sans-serif;
-  --font-body-family: 'Figtree', system-ui, sans-serif;
-  --root-size: 16px;
-  --leading: 1.45;
-  --display-scale: 1;
-  --display-tracking: -0.01em;
-  --card-face: #fffdf8;
-  --card-ink: #1c2321;
-  --card-red: #c8452f;
-  --card-line: rgb(28 35 33 / 0.2);
-  --card-radius: 9px;
-  --card-font: 'Bricolage Grotesque', system-ui, sans-serif;
-  --motion: 180ms;
-  /* Over a card that may not be played, and behind an open sheet. */
-  --card-dim: rgb(60 60 60 / 0.22);
-  --backdrop: rgb(0 0 0 / 0.5);
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+
+:root,
+:root[data-theme='green'] {
+  /* Both rays stay dark enough for paper text to read on them (4.5:1). */
+  --bg: #0b6d58;
+  --felt-a: #0b6d58;
+  --felt-b: #0e7a63;
+  --felt-c: #084e40;
 }
 
-:root[data-theme='minimal'] {
-  --bg: #f4f4f0;
-  --bg-image: none;
-  --text: #15171a;
-  --text-muted: #666b73;
-  --surface: #ffffff;
-  --on-surface: #15171a;
-  --on-surface-muted: #666b73;
-  --accent: #2747d6;
-  --on-accent: #ffffff;
-  --danger: #c8102e;
-  --on-danger: #ffffff;
-  --line: #d6d7d2;
-  --line-width: 1px;
-  --radius: 6px;
-  --shadow: none;
-  --shadow-sm: none;
-  --team0: #2747d6;
-  --team1: #b85c00;
-  --font-display-family: 'Hanken Grotesk', system-ui, sans-serif;
-  --font-body-family: 'Hanken Grotesk', system-ui, sans-serif;
-  --root-size: 16px;
-  --leading: 1.45;
-  --display-scale: 1;
-  --display-tracking: -0.015em;
-  --card-face: #ffffff;
-  --card-ink: #15171a;
-  --card-red: #c8102e;
-  --card-line: #b9bbb5;
-  --card-radius: 5px;
-  --card-font: 'Hanken Grotesk', system-ui, sans-serif;
-  --motion: 120ms;
-  /* Over a card that may not be played, and behind an open sheet. */
-  --card-dim: rgb(60 60 60 / 0.22);
-  --backdrop: rgb(0 0 0 / 0.5);
+:root[data-theme='blue'] {
+  --bg: #24488f;
+  --felt-a: #24488f;
+  --felt-b: #2b55a4;
+  --felt-c: #1a366d;
 }
 
-/* ── Card backs ─────────────────────────────────────────────────────────── */
+:root[data-theme='red'] {
+  --bg: #9c3127;
+  --felt-a: #9c3127;
+  --felt-b: #ad3b2e;
+  --felt-c: #76231b;
+}
 
-.card-back[data-back='crosshatch'] {
-  background-color: #fff;
-  background-image:
-    repeating-linear-gradient(45deg, transparent 0 4px, #c23a3a 4px 5px),
-    repeating-linear-gradient(-45deg, transparent 0 4px, #c23a3a 4px 5px);
-  box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #8f1d1d;
-}
-.card-back[data-back='arcade'] {
-  background-color: #14122b;
-  background-image:
-    radial-gradient(circle at 50% 50%, rgb(255 92 205 / 0.75) 0 12%, transparent 46%),
-    repeating-linear-gradient(0deg, rgb(110 231 255 / 0.28) 0 1px, transparent 1px 4px);
-  box-shadow: inset 0 0 0 2px #6ee7ff;
-}
-.card-back[data-back='ornamental'] {
-  background-color: #17402a;
-  background-image:
-    radial-gradient(circle at 50% 50%, #d4a847 0 9%, transparent 10%),
-    repeating-conic-gradient(from 45deg, rgb(212 168 71 / 0.22) 0 25%, transparent 0 50%);
-  background-size: auto, 10px 10px;
-  box-shadow: inset 0 0 0 2px #d4a847, inset 0 0 0 4px #17402a, inset 0 0 0 5px #d4a847;
-}
-.card-back[data-back='brass'] {
-  background-color: #7a2a1d;
-  background-image:
-    radial-gradient(circle at 50% 50%, rgb(232 163 61 / 0.9) 0 7%, transparent 8%),
-    repeating-linear-gradient(60deg, rgb(232 163 61 / 0.2) 0 1px, transparent 1px 7px),
-    repeating-linear-gradient(-60deg, rgb(232 163 61 / 0.2) 0 1px, transparent 1px 7px);
-  box-shadow: inset 0 0 0 3px #fbf7ee, inset 0 0 0 4px rgb(232 163 61 / 0.8);
-}
-.card-back[data-back='plain'] {
-  background-color: #2747d6;
-  background-image: linear-gradient(135deg, rgb(255 255 255 / 0.12) 0 50%, transparent 50%);
-  box-shadow: inset 0 0 0 3px #fff;
+:root {
+  /* The rays while a call is up, and while a challenge is. */
+  --felt-call-a: #d8841c;
+  --felt-call-b: #e8962a;
+  --felt-call-c: #a86210;
+  --felt-danger-a: #cf3827;
+  --felt-danger-b: #e6543c;
+  --felt-danger-c: #9f2618;
+  /* The table without WebGL: the same rays, still. */
+  --bg-image: repeating-conic-gradient(from 0deg at 50% 45%, var(--felt-a) 0 7.5deg, var(--felt-b) 7.5deg 15deg);
 }

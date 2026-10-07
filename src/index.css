@@ -11,6 +11,7 @@
   --color-accent: var(--accent);
   --color-on-accent: var(--on-accent);
   --color-danger: var(--danger);
+  --color-info: var(--info);
   --color-line: var(--line);
   --color-team0: var(--team0);
   --color-team1: var(--team1);
@@ -34,20 +35,30 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body-family);
+  font-weight: 500;
   line-height: var(--leading);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
 /*
- * The table surface is its own fixed layer. A fixed background on the body
- * itself makes some mobile browsers repaint the whole page on every frame.
+ * The table surface is its own fixed layer: the rays, still, for a browser without WebGL;
+ * the felt canvas draws them turning on top of it. A fixed background on the body itself makes
+ * some mobile browsers repaint the whole page on every frame.
  */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: -2;
   background: var(--bg) var(--bg-image);
+  pointer-events: none;
+}
+.felt {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 button {
@@ -59,11 +70,16 @@ button:disabled {
   cursor: default;
 }
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
+/* On paper, yellow would vanish: the ring is ink there. */
+.panel :focus-visible,
+.ticket :focus-visible {
+  outline-color: var(--ink);
+}
 
-/* Keep each theme's own leading on Tailwind's sized text. */
+/* Keep the theme's own leading on Tailwind's sized text. */
 .text-xs,
 .text-sm,
 .text-lg,
@@ -71,13 +87,37 @@ button:disabled {
   line-height: var(--leading);
 }
 
-/* Display type: pixel fonts run large, so each theme scales its own. */
+/* Display type: the lettering face, at whatever size the utility asks for. */
 .display {
   font-family: var(--font-display-family);
-  font-size: calc(1em * var(--display-scale));
+  font-weight: 400;
   letter-spacing: var(--display-tracking);
-  line-height: 1.25;
-  font-weight: 700;
+  line-height: 1.15;
+}
+/* The name of the app or a game, as printed on the box. */
+.wordmark {
+  font-family: var(--font-display-family);
+  font-weight: 400;
+  line-height: 1.05;
+  color: var(--yellow);
+  -webkit-text-stroke: 0.085em var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0.05em 0.06em 0 var(--red);
+  rotate: -4deg;
+}
+
+/* A phrase that matters on the felt, such as "Your turn": yellow text alone does not read on green. */
+.cue {
+  display: inline-block;
+  padding: 0 0.45em;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 800;
+}
+/* Yellow reads on the felt, not on paper: accent text inside a panel darkens. */
+.panel .text-accent {
+  color: var(--accent-on-surface);
 }
 
 .panel {
@@ -85,7 +125,20 @@ button:disabled {
   color: var(--on-surface);
   border: var(--line-width) solid var(--line);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  /* Written out rather than var(--shadow), so a panel's own --plate is the one used. */
+  box-shadow:
+    5px 6px 0 var(--plate),
+    5px 6px 0 2px var(--line);
+}
+.panel-info {
+  --plate: var(--blue);
+}
+.panel-danger {
+  --plate: var(--red);
+}
+/* A panel with no plate behind it, such as one inside another. */
+.panel-flat {
+  box-shadow: none;
 }
 
 .btn {
@@ -100,19 +153,20 @@ button:disabled {
   border: var(--line-width) solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
+  font-weight: 800;
   transition: transform var(--motion), box-shadow var(--motion), opacity var(--motion);
   line-height: 1.1;
 }
 .btn:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: none;
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--line);
 }
 .btn:disabled {
   opacity: 0.45;
 }
 .btn-primary {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--primary);
+  color: var(--on-primary);
 }
 .btn-danger {
   background: var(--danger);
@@ -123,11 +177,12 @@ button:disabled {
   color: inherit;
   border-color: currentColor;
   box-shadow: none;
-  opacity: 0.85;
 }
 .btn-small {
-  min-height: 2.1rem;
-  padding: 0.25rem 0.7rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+  box-shadow: 0 3px 0 var(--line);
 }
 .btn[aria-pressed='true'] {
   background: var(--accent);
@@ -140,7 +195,7 @@ button:disabled {
   padding: 0.4rem 0.75rem;
   font: inherit;
   font-size: max(1rem, 16px); /* stops iOS zooming on focus */
-  background: var(--card-face);
+  background: var(--field);
   color: var(--card-ink);
   border: var(--line-width) solid var(--line);
   border-radius: var(--radius);
@@ -150,22 +205,24 @@ button:disabled {
 
 .playing-card {
   --w: 3.4rem;
+  --suit: var(--card-ink);
   position: relative;
+  display: block;
   flex: none;
   width: var(--w);
   aspect-ratio: 5 / 7;
   padding: 0;
   background: var(--card-face);
   color: var(--card-ink);
-  border: 1px solid var(--card-line);
+  border: 1.5px solid var(--card-line);
   border-radius: var(--card-radius);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--card-shadow);
   font-family: var(--card-font);
-  font-weight: 700;
+  font-weight: 900;
+  font-stretch: 78%;
   line-height: 1;
-  display: grid;
-  place-items: center;
   user-select: none;
+  overflow: hidden;
 }
 .playing-card[data-size='small'] {
   --w: 1.5rem;
@@ -175,25 +232,90 @@ button:disabled {
 }
 .playing-card[data-red='true'] {
   color: var(--card-red);
+  --suit: var(--card-red);
 }
-.playing-card .corner {
+.pip {
+  display: block;
+  fill: currentColor;
+}
+/* The index: rank over a small pip, top left. */
+.playing-card .ix {
   position: absolute;
-  top: 0.18rem;
-  left: 0.26rem;
-  font-size: calc(var(--w) * 0.34);
+  top: 6%;
+  left: 8%;
   display: grid;
   justify-items: center;
-  gap: 0.05rem;
+  gap: 0.08em;
+  font-size: calc(var(--w) * 0.38);
+  letter-spacing: -0.05em;
 }
-.playing-card .corner .pip {
-  font-size: 0.8em;
+.playing-card .ix .pip {
+  width: 0.6em;
+  height: 0.6em;
 }
-.playing-card .centre {
-  font-size: calc(var(--w) * 0.62);
-  margin-top: calc(var(--w) * 0.3);
+/* One large pip, lower right. */
+.playing-card .art {
+  position: absolute;
+  right: 9%;
+  bottom: 8%;
+  width: 50%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
 }
-.card-back {
-  border-color: var(--card-line);
+.playing-card .art .pip {
+  width: 100%;
+  height: 100%;
+}
+/* A court card wears a panel beside its index, cut from the four inks, with its pip on a paper disc. */
+.playing-card[data-court] .art {
+  inset: 9% 8% 8% 38%;
+  width: auto;
+  aspect-ratio: auto;
+  border: 1.5px solid var(--card-line);
+  border-radius: 4px;
+}
+.playing-card[data-court] .art .pip {
+  width: 76%;
+  height: auto;
+  aspect-ratio: 1;
+  padding: 9%;
+  background: var(--card-face);
+  border: 1.5px solid var(--card-line);
+  border-radius: 50%;
+}
+.playing-card[data-court='K'] .art {
+  background: repeating-linear-gradient(135deg, var(--yellow) 0 4px, var(--suit) 4px 6px, var(--yellow) 6px 10px, var(--blue) 10px 12px);
+}
+.playing-card[data-court='Q'] .art {
+  background:
+    repeating-linear-gradient(45deg, transparent 0 5px, var(--suit) 5px 6.5px),
+    repeating-linear-gradient(-45deg, transparent 0 5px, var(--blue) 5px 6.5px),
+    var(--yellow);
+}
+.playing-card[data-court='J'] .art {
+  background:
+    radial-gradient(circle, var(--suit) 0 1.6px, transparent 2px) 0 0 / 7px 7px,
+    radial-gradient(circle, var(--blue) 0 1.6px, transparent 2px) 3.5px 3.5px / 7px 7px,
+    var(--yellow);
+}
+/* A card face down: a lattice in one of the inks on paper, inside an ink border. */
+.playing-card.card-back {
+  --back: var(--red);
+  background-color: var(--card-face);
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 3px, var(--back) 3px 4.5px),
+    repeating-linear-gradient(-45deg, transparent 0 3px, var(--back) 3px 4.5px);
+  box-shadow:
+    inset 0 0 0 2px var(--card-face),
+    inset 0 0 0 3.5px var(--back),
+    var(--card-shadow);
+}
+.card-back[data-back='blue'] {
+  --back: var(--blue);
+}
+.card-back[data-back='ink'] {
+  --back: var(--ink);
 }
 
 /* ── Hand ───────────────────────────────────────────────────────────────── */
@@ -202,7 +324,7 @@ button:disabled {
   --w: clamp(3.4rem, 17.5vw, 5.2rem);
   display: flex;
   justify-content: center;
-  padding: 0.7rem 0.5rem 0.3rem;
+  padding: 0.8rem 0.5rem 0.3rem;
   touch-action: pan-x;
 }
 .hand-slot {
@@ -220,19 +342,15 @@ button:disabled {
   transform: translateY(var(--lift, 0)) rotate(var(--tilt, 0deg));
   transform-origin: 50% 120%;
 }
-.hand .playing-card .corner {
-  font-size: clamp(1.15rem, 6vw, 1.75rem);
-}
-.hand .playing-card .centre {
-  font-size: clamp(2.1rem, 11vw, 3.2rem);
-  margin-top: 30%;
+.hand .playing-card .ix {
+  font-size: clamp(1.25rem, 6.5vw, 1.9rem);
 }
 .hand .playing-card[data-playable='true']:hover {
   --lift: -0.5rem;
 }
 .hand .playing-card[data-selected='true'] {
   --lift: -0.9rem;
-  outline: 2px solid var(--danger);
+  outline: 3px solid var(--danger);
 }
 /* Dimmed with a flat overlay, not a CSS filter: filters are costly to animate on phones. */
 .hand .playing-card[data-dim='true']::after {
@@ -290,12 +408,9 @@ button:disabled {
 .hand[data-many] .playing-card {
   width: var(--w);
 }
-.hand[data-many] .playing-card .corner {
-  left: 0.15rem;
-  font-size: calc(var(--w) * 0.3);
-}
-.hand[data-many] .playing-card .centre {
-  font-size: calc(var(--w) * 0.56);
+.hand[data-many] .playing-card .ix {
+  left: 6%;
+  font-size: calc(var(--w) * 0.34);
 }
 /* Picked to pass: raised and ringed, in the accent rather than the warning of "Play anyway". */
 .hand .playing-card.picked {
@@ -308,12 +423,13 @@ button:disabled {
   position: absolute;
   left: calc(var(--w) * 0.03);
   bottom: calc(var(--w) * 0.12);
-  padding: 0.05em 0.15em;
+  padding: 0.05em 0.25em;
   font-family: var(--font-body-family);
   font-size: calc(var(--w) * 0.15);
-  font-weight: 700;
+  font-weight: 800;
+  font-stretch: 100%;
   line-height: 1.2;
-  border-radius: var(--radius);
+  border-radius: 3px;
   background: var(--accent);
   color: var(--on-accent);
 }
@@ -331,6 +447,19 @@ button:disabled {
 .trick-area > div {
   will-change: transform;
 }
+/* Cards land as hands put them down: each seat's a little askew. */
+.trick-area .col-start-2.row-start-1 .playing-card {
+  rotate: -4deg;
+}
+.trick-area .col-start-1.row-start-2 .playing-card {
+  rotate: 5deg;
+}
+.trick-area .col-start-3.row-start-2 .playing-card {
+  rotate: -3deg;
+}
+.trick-area .col-start-2.row-start-3 .playing-card {
+  rotate: 3deg;
+}
 .trick-area .col-start-2.row-start-2 {
   white-space: nowrap;
 }
@@ -341,15 +470,69 @@ button:disabled {
   flex-wrap: wrap;
 }
 .pip-track i {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.45rem;
+  height: 0.45rem;
   border-radius: 999px;
-  border: 1px solid currentColor;
-  opacity: 0.4;
+  border: 1.5px solid currentColor;
+  opacity: 0.6;
 }
 .pip-track i[data-on='true'] {
   background: currentColor;
   opacity: 1;
+}
+
+/* A team's score: a coloured numeral block beside its name and ball track. */
+.ticket {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--on-surface);
+  border: var(--line-width) solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 3px 0 var(--line);
+}
+.ticket-num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 2.5rem;
+  padding: 0 0.3rem;
+  font-size: 1.8rem;
+  font-weight: 900;
+  font-stretch: 70%;
+  line-height: 1;
+  background: var(--team);
+  color: var(--on-team);
+}
+.ticket-who {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.3rem;
+  align-content: center;
+  padding: 0.35rem 0.45rem;
+}
+.ticket-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-stretch: 85%;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ticket[data-team='1'] .ticket-num {
+  order: 2;
+}
+.ticket[data-team='1'] .ticket-who {
+  justify-items: end;
+}
+.ticket .pip-track {
+  display: grid;
+  grid-template-columns: repeat(6, 0.45rem);
+  gap: 2.5px;
 }
 
 .turn-marker {
@@ -360,9 +543,25 @@ button:disabled {
     opacity: 0.45;
   }
 }
+/* The card that took the trick, on a starburst. */
 .winner-ring {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  position: relative;
+  isolation: isolate;
+}
+.winner-ring::before {
+  content: '';
+  position: absolute;
+  inset: -26% -34%;
+  z-index: -1;
+  background: var(--yellow);
+  clip-path: polygon(50% 0%, 58% 14.9%, 71.7% 5%, 72.4% 21.9%, 89.1% 18.8%, 82.4% 34.4%, 98.7% 38.9%, 86% 50%, 98.7% 61.1%, 82.4% 65.6%, 89.1% 81.2%, 72.4% 78.1%, 71.7% 95%, 58% 85.1%, 50% 100%, 42% 85.1%, 28.3% 95%, 27.6% 78.1%, 10.9% 81.2%, 17.6% 65.6%, 1.3% 61.1%, 14% 50%, 1.3% 38.9%, 17.6% 34.4%, 10.9% 18.8%, 27.6% 21.9%, 28.3% 5%, 42% 14.9%);
+  animation: burst 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes burst {
+  from {
+    scale: 0.3;
+    rotate: -40deg;
+  }
 }
 .card-in {
   display: inline-flex;
@@ -388,6 +587,8 @@ button:disabled {
   overflow-y: auto;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+  border-bottom: 0;
+  box-shadow: none;
   padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
   width: min(100%, 34rem);
   margin-inline: auto;
@@ -402,6 +603,8 @@ button:disabled {
   padding: 0.5rem 0.9rem;
   max-width: calc(100% - 2rem);
   text-align: center;
+  font-weight: 700;
+  box-shadow: 0 4px 0 var(--line);
   animation: toast 2.6s ease forwards;
   pointer-events: none;
 }
@@ -441,7 +644,7 @@ button:disabled {
 @keyframes pip-fill {
   0% {
     background: transparent;
-    opacity: 0.4;
+    opacity: 0.6;
     scale: 1;
   }
   55% {
@@ -457,14 +660,15 @@ button:disabled {
   padding: 0;
   background: none;
   border: 0;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 700;
   line-height: 1;
   animation: pop 320ms ease-out;
 }
 .trick-pile-icon {
   width: 0.7rem;
   height: 0.95rem;
-  border: 1px solid currentColor;
+  border: 1.5px solid currentColor;
   border-radius: 2px;
   box-shadow: 2px 2px 0 -0.5px currentColor;
 }
@@ -474,17 +678,24 @@ button:disabled {
   }
 }
 
+/* A fact about the round, on a paper tag. */
 .fact {
-  padding: 0.05rem 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--text) 35%, transparent);
-  border-radius: var(--radius);
-  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.1rem 0.5rem;
+  background: var(--surface);
+  color: var(--on-surface);
+  border: 1.5px solid var(--line);
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 700;
   white-space: nowrap;
 }
-/* A fact that has come true, such as hearts broken. */
+/* A fact that has come true, such as hearts broken, or the one that matters most, such as trump. */
 .fact[data-on='true'] {
-  color: var(--accent);
-  border-color: currentColor;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 .suit-chip {
   display: inline-block;
@@ -492,41 +703,54 @@ button:disabled {
   margin-left: 0.15em;
   text-align: center;
   line-height: 1.15;
-  /* A scrap of card face, so red and black suits both read on any table colour. */
-  background: var(--card-face);
   color: var(--card-ink);
-  border-radius: 3px;
 }
 .suit-chip[data-red='true'] {
   color: var(--card-red);
 }
+.suit-chip .pip {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  vertical-align: -0.1em;
+}
+/* A small outlined tag on the table: the dealer, the trumper, ready. */
 .role-badge {
-  padding: 0 0.35rem;
-  font-size: 0.72rem;
+  padding: 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
   line-height: 1.5;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--text) 16%, transparent);
+  border: 1.5px solid var(--text);
+  border-radius: 5px;
   color: var(--text);
   white-space: nowrap;
 }
 
+/* A player's name, on an ink pill; yellow while the table waits on them. */
 .seat-name {
-  padding: 0.05rem 0.5rem;
+  padding: 0.15rem 0.65rem;
   border-radius: 999px;
-  color: var(--text-muted);
-  outline: 2px solid transparent;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 800;
+  font-size: 0.85rem;
 }
 .seat-name[data-turn='true'] {
-  color: var(--accent);
-  font-weight: 600;
-  outline-color: var(--accent);
-  animation: pulse 1.4s ease-in-out infinite;
+  background: var(--accent);
+  color: var(--on-accent);
+  animation: seat-pulse 1.4s ease-in-out infinite;
+}
+@keyframes seat-pulse {
+  50% {
+    scale: 1.08;
+  }
 }
 
 .timer-bar {
-  height: 0.4rem;
-  background: color-mix(in srgb, var(--on-surface) 14%, transparent);
-  border-radius: var(--radius);
+  height: 0.5rem;
+  background: var(--paper-shade);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
   overflow: hidden;
 }
 .timer-bar i {
@@ -553,7 +777,9 @@ button:disabled {
 }
 @keyframes attention {
   50% {
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 35%, transparent);
+    box-shadow:
+      0 4px 0 var(--line),
+      0 0 0 5px color-mix(in srgb, var(--accent) 45%, transparent);
   }
 }
 
@@ -567,29 +793,66 @@ button:disabled {
   place-items: center;
   pointer-events: none;
 }
-.moment-layer {
-  transition: background-color 150ms;
+/* While a moment is up, the table under it steps back; the felt keeps turning. */
+#root > :not(.felt, .moment-layer, .celebration, .toast, [role='status'], [role='alert']) {
+  transition: opacity 150ms;
 }
-/* While a moment plays, what is underneath (such as a result it leads up to) is veiled. */
-.moment-layer[data-active='true'] {
-  background: color-mix(in srgb, var(--bg) 86%, transparent);
+#root:has(.moment-layer[data-active='true']) > :not(.felt, .moment-layer, .celebration, .toast, [role='status'], [role='alert']) {
+  opacity: 0.2;
 }
+/* The call as lettering, the way it is shouted. */
 .moment {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  max-width: calc(100% - 2rem);
-  padding: 1rem 1.3rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  max-width: calc(100% - 1.5rem);
   text-align: center;
-  border-width: calc(var(--line-width) + 1px);
+  rotate: -6deg;
 }
-.moment[data-tone='call'] {
-  background: var(--accent);
-  color: var(--on-accent);
+.moment-title {
+  font-family: var(--font-display-family);
+  font-weight: 400;
+  /* As large as the screen allows for the word's length, up to a cap. */
+  font-size: max(2.2rem, min(4.4rem, calc(150vw / var(--chars, 6))));
+  line-height: 1;
+  color: var(--yellow);
+  -webkit-text-stroke: 0.09em var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0.055em 0.065em 0 var(--ink);
+  animation: stamp 500ms both;
 }
-.moment[data-tone='danger'] {
-  background: var(--danger);
-  color: var(--on-danger);
+.moment[data-tone='danger'] .moment-title {
+  color: var(--red);
+  -webkit-text-stroke: 0.09em var(--paper);
+}
+.moment[data-tone='good'] .moment-title {
+  color: var(--paper);
+}
+.moment-detail {
+  padding: 0.4rem 0.8rem;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  animation: stamp 500ms 120ms both;
+}
+.moment .playing-card {
+  rotate: 4deg;
+  animation: stamp 500ms 60ms both;
+}
+@keyframes stamp {
+  0% {
+    scale: 2.6;
+    opacity: 0;
+  }
+  55% {
+    scale: 0.93;
+    opacity: 1;
+  }
+  78% {
+    scale: 1.04;
+  }
 }
 
 .celebration {
@@ -609,8 +872,11 @@ button:disabled {
   animation: fall linear forwards;
 }
 .celebration i:nth-child(3n) {
-  background: var(--accent);
+  background: var(--red);
   border-radius: 0;
+}
+.celebration i:nth-child(3n + 1) {
+  background: var(--paper);
 }
 @keyframes fall {
   to {
@@ -627,15 +893,15 @@ button:disabled {
   position: relative;
   margin-top: 0.3rem;
   padding: 0.15rem 0.6rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 800;
   line-height: 1.3;
   white-space: nowrap;
-  border-radius: calc(var(--radius) + 6px);
+  border-radius: 999px;
   background: var(--surface);
   color: var(--on-surface);
   border: var(--line-width) solid var(--line);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 3px 0 var(--line);
   transform-origin: 50% 0;
   animation: bubble-in 2200ms ease-out backwards;
   z-index: 5;
@@ -690,13 +956,13 @@ button:disabled {
   left: 50%;
   bottom: -0.55rem;
   translate: -50% 0;
-  padding: 0 0.3rem;
+  padding: 0.05rem 0.4rem;
   font-size: 0.65rem;
+  font-weight: 800;
   line-height: 1.4;
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--text) 40%, transparent);
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 /* ── Practice coach ─────────────────────────────────────────────────────── */
@@ -720,6 +986,14 @@ button:disabled {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.coach-line strong {
+  display: inline-block;
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 800;
+}
 .hand .playing-card.suggested {
   --lift: -0.9rem;
   outline: 3px solid var(--accent);
@@ -734,6 +1008,7 @@ button:disabled {
   padding: 0.5rem 0.65rem;
   font-size: 0.8rem;
   line-height: 1.3;
+  box-shadow: 0 3px 0 var(--line);
   z-index: 30;
 }
 .hand-slot:first-child .play-anyway-why {

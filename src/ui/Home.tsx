@@ -7,6 +7,7 @@ import { ThemePicker } from './ThemePicker'
 import { CODE_LENGTH, cleanCode, practicePath, roomPath } from './routes'
 import { countWord, playersLabel, teamsAt } from './seats'
 import { navigate, useGameClient } from './session'
+import { playSound } from './sound'
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // no I or O
 
@@ -72,23 +73,36 @@ function LearnToPlay() {
   if (!practice) {
     return (
       <section className="panel p-4 w-full max-w-sm grid gap-3">
-        <h2 className="display text-lg">Learn to play</h2>
+        <h2 className="display text-2xl">Learn to play</h2>
         <p>Practice games against the computer, with a coach, are coming to {game.name}.</p>
       </section>
     )
   }
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">
-      <h2 className="display text-lg">Learn to play</h2>
+      <h2 className="display text-2xl">Learn to play</h2>
       <p>Play against the computer with a coach who explains every move, gives hints, and warns you before a mistake.</p>
       {saved && (
-        <button className="btn btn-primary" onClick={() => navigate(practicePath(game.id))}>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            playSound('tap')
+            navigate(practicePath(game.id))
+          }}
+        >
           Continue practice
         </button>
       )}
       <div className="flex gap-2">
         {bySize(game.seatCounts).map((n, i) => (
-          <button key={n} className={`btn flex-1 ${saved || i > 0 ? '' : 'btn-primary'}`} onClick={() => navigate(practicePath(game.id, n))}>
+          <button
+            key={n}
+            className={`btn flex-1 ${saved || i > 0 ? '' : 'btn-primary'}`}
+            onClick={() => {
+              playSound('tap')
+              navigate(practicePath(game.id, n))
+            }}
+          >
             {saved ? `New: ${countWord(n).toLowerCase()} players` : `Practice with ${countWord(n).toLowerCase()}`}
           </button>
         ))}
@@ -107,6 +121,7 @@ export function Home() {
   const shared = new URLSearchParams(location.search).get(SHARE_PARAM)
 
   const create = () => {
+    playSound('tap')
     const code = newGameCode()
     const overrides = presets.find((p) => p.id === presetId)?.overrides ?? {}
     sessionStorage.setItem(setupKey(game.id, code), JSON.stringify({ playerCount, overrides } satisfies GameSetup))
@@ -115,9 +130,9 @@ export function Home() {
 
   return (
     <main className="min-h-full flex flex-col items-center gap-5 p-4 pb-10">
-      <header className="text-center mt-6">
-        <h1 className="display text-7xl text-accent">{game.name}</h1>
-        <p className="text-muted mt-2">{game.tagline}</p>
+      <header className="text-center mt-8 mb-2">
+        <h1 className="wordmark text-[4.6rem]">{game.name}</h1>
+        <p className="font-semibold mt-3">{game.tagline}</p>
       </header>
 
       {shared !== null && (
@@ -136,7 +151,7 @@ export function Home() {
       <LearnToPlay />
 
       <section className="panel p-4 w-full max-w-sm grid gap-4">
-        <h2 className="display text-lg">New game</h2>
+        <h2 className="display text-2xl">New game</h2>
         {game.seatCounts.length > 1 && (
           <div className="grid gap-1">
             <span>Players</span>
@@ -172,7 +187,7 @@ export function Home() {
           if (joinCode.length === CODE_LENGTH) navigate(roomPath(game.id, joinCode))
         }}
       >
-        <h2 className="display text-lg">Join a game</h2>
+        <h2 className="display text-2xl">Join a game</h2>
         <label className="grid gap-1">
           <span>Game code</span>
           <input
@@ -194,8 +209,8 @@ export function Home() {
         </button>
       </form>
 
-      <section className="panel p-4 w-full max-w-sm grid gap-3">
-        <h2 className="display text-lg">Look</h2>
+      <section className="panel panel-info p-4 w-full max-w-sm grid gap-3">
+        <h2 className="display text-2xl">Look</h2>
         <ThemePicker />
       </section>
     </main>

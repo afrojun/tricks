@@ -2,6 +2,7 @@ import type { Available, RoundSummary, View } from '../engine'
 import type { Seat } from '../../../kit/table'
 import { CoachReview } from '../../../ui/coach/CoachReview'
 import { useSession } from './session'
+import { playSound } from '../../../ui/sound'
 import { headline, nameFor, points, sortHand } from './text'
 
 /** This round's points by seat and the totals after it, the reason when it ended unusually, and what comes next. */
@@ -40,14 +41,20 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
 
       {winner === null ? (
         can.nextRound ? (
-          <button className="btn btn-primary" onClick={() => send({ type: 'nextRound' })}>
+          <button className="btn btn-primary" onClick={() => {
+              playSound('tap')
+              send({ type: 'nextRound' })
+            }}>
             Next round
           </button>
         ) : (
           <p className="text-on-surface-muted">Waiting for a player to start the next round.</p>
         )
       ) : can.rematch ? (
-        <button className="btn btn-primary" onClick={() => send({ type: 'rematch' })}>
+        <button className="btn btn-primary" onClick={() => {
+              playSound('tap')
+              send({ type: 'rematch' })
+            }}>
           Play again
         </button>
       ) : (

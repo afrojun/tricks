@@ -48,7 +48,7 @@ export function TrickArea({ view, phase, wins }: { view: ShellView; phase: Trick
           return (
             <motion.div
               key={`${trickNumber}-${play.seat}`}
-              className={`relative ${AREA[where]}`}
+              className={`relative ${AREA[where]} ${winner === play.seat ? 'winner-ring' : ''}`}
               // The player's own card arrives from the hand by shared layout; others come from their seat.
               layoutId={mine ? cardLayoutId(play.card) : undefined}
               custom={exitTo}
@@ -61,15 +61,17 @@ export function TrickArea({ view, phase, wins }: { view: ShellView; phase: Trick
               animate="down"
               exit="taken"
             >
-              <PlayingCard card={play.card} size="trick" className={winner === play.seat ? 'winner-ring' : ''} />
+              <PlayingCard card={play.card} size="trick" />
               {play === showing[0] && <span className="led-tag">Led</span>}
             </motion.div>
           )
         })}
       </AnimatePresence>
       {winner !== null && (wins === undefined || wins(winner) !== null) && (
-        <p className="col-start-2 row-start-2 text-center text-sm text-accent">
-          {wins ? wins(winner) : winner === view.seat ? 'You win it' : `${seatName(view, winner)} wins`}
+        <p className="col-start-2 row-start-2 text-center text-sm">
+          <span className="cue">
+            {wins ? wins(winner) : winner === view.seat ? 'You win it' : `${seatName(view, winner)} wins`}
+          </span>
         </p>
       )}
     </div>
@@ -88,7 +90,9 @@ export function LastTrick({ view, playing }: { view: ShellView; playing: TrickRo
       <div className="flex gap-2">
         {trick.plays.map((play) => (
           <div key={play.seat} className="grid justify-items-center gap-1">
-            <PlayingCard card={play.card} size="trick" className={play.seat === trick.winner ? 'winner-ring' : ''} />
+            <span className={`inline-flex ${play.seat === trick.winner ? 'winner-ring' : ''}`}>
+              <PlayingCard card={play.card} size="trick" />
+            </span>
             <span className="text-xs truncate max-w-14">{play.seat === view.seat ? 'You' : seatName(view, play.seat)}</span>
           </div>
         ))}

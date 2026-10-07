@@ -25,19 +25,23 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       playSound('deal')
       if (event.direction === 'none') return { toast: 'No passing this round.' }
       return { toast: `Pass three cards ${event.direction === 'across' ? 'across' : `to the ${event.direction}`}.` }
+    case 'passChosen':
+      playSound('card')
+      return {}
     case 'passesExchanged': {
       playSound('deal')
       const giver = seat === null ? null : giverTo(view, seat)
       return { toast: giver === null ? 'The cards have changed hands.' : `${seatName(view, giver)} passed you three cards.` }
     }
     case 'cardPlayed':
-      playSound('cardPlay')
+      playSound(event.card.suit === 'spades' && event.card.rank === 'Q' ? 'slam' : 'card')
       return {}
     case 'heartsBroken':
-      playSound('call')
+      // Nobody calls it; the heart that broke them has already been heard.
       return { moments: [{ title: 'Hearts are broken', detail: 'Hearts may be led from now on.', tone: 'call', ms: HEARTS_BROKEN_MS }] }
     case 'trickWon':
-      if (event.seat === seat) playSound('trickWin')
+      // A spectator wins no tricks: every one is someone else's.
+      playSound(event.seat === seat ? 'sweep' : 'sweepTheirs')
       return {}
     case 'challengeResolved':
       playSound('challenge')
@@ -48,6 +52,8 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       const { moon, challenge } = event.summary
       if (moon !== null) return { moments: [{ title: 'Shot the moon', detail: `${name(moon)} took every point`, tone: 'call', ms: VERDICT_BEAT_MS }] }
       if (!challenge) return {}
+      // The verdict comes in the same message as the challenge, and its moment shows after the challenge's.
+      playSound(challenge.guilty ? 'caught' : 'fair', CHALLENGE_BEAT_MS)
       const accused = seatName(view, challenge.accused)
       return {
         moments: [
@@ -58,7 +64,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       }
     }
     case 'gameOver':
-      playSound('gameOver')
+      playSound('gameWon')
       return { celebrate: 'var(--accent)' }
     default:
       return {}

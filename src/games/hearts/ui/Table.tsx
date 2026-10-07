@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { type Available, type Card, HAND_SIZE, PASS_SIZE, type View, type ViewPhase, type ViewPlaying, availableActions, passTarget } from '../engine'
 import type { Seat } from '../../../kit/table'
 import { AccuseSheet } from '../../../ui/Accuse'
+import { SuitChip } from '../../../ui/Card'
 import { CoachStrip } from '../../../ui/coach/CoachStrip'
 import { GameMenu } from '../../../ui/GameMenu'
 import { Hand } from '../../../ui/Hand'
@@ -107,7 +108,7 @@ export function Table({ view, room }: { view: View; room: string }) {
         {!watching && phase.kind !== 'roundResult' && phase.kind !== 'gameOver' && <Mine view={view} turn={myTurn} />}
         <div className="flex items-center justify-center gap-2 px-3 min-h-7" aria-live="polite">
           {!coached && (
-            <span className={`text-center ${line?.mine ? 'text-accent font-semibold' : ''}`}>{watching ? 'You are watching this game.' : line?.text}</span>
+            <span className={`text-center ${line?.mine ? 'font-semibold' : ''}`}>{watching ? 'You are watching this game.' : line?.mine ? <Cued text={line.text} /> : line?.text}</span>
           )}
         </div>
         {can.reclaimSeat && <TakeOver />}
@@ -164,6 +165,17 @@ export function Table({ view, room }: { view: View; room: string }) {
         />
       )}
     </div>
+  )
+}
+
+/** The player's own line, with its first sentence (such as "Your turn") on the yellow cue. */
+function Cued({ text }: { text: string }) {
+  const end = text.indexOf('. ')
+  if (end === -1) return <b className="cue">{text}</b>
+  return (
+    <>
+      <b className="cue">{text.slice(0, end)}</b> {text.slice(end + 2)}
+    </>
   )
 }
 
@@ -236,16 +248,14 @@ function TrickMiddle({ view, phase }: { view: View; phase: ViewPlaying }) {
     <div className="flex flex-col items-center gap-3">
       {/* Who takes the trick, with its points, is too long for the space between the cards: it goes under them, clear of the cards that overhang the area. */}
       <TrickArea view={view} phase={phase} wins={() => null} />
-      <p className="mt-3 text-sm text-accent min-h-6 text-center" aria-live="polite">
+      <p className="mt-3 text-sm font-semibold min-h-6 text-center" aria-live="polite">
         {phase.kind === 'trickPause' && last ? trickTaken(view, last.winner, last.plays.map((p) => p.card)) : ''}
       </p>
       <ul className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-sm">
         <li className="fact">{passedWay(view.direction)}</li>
         <li className="fact" data-on={phase.heartsBroken}>
           Hearts {phase.heartsBroken ? 'broken' : 'not broken'}
-          <span className="suit-chip" data-red="true" aria-hidden>
-            ♥
-          </span>
+          <SuitChip suit="hearts" />
         </li>
       </ul>
     </div>

@@ -13,6 +13,7 @@ import {
   teamOf,
 } from '../engine'
 import { AccuseSheet } from '../../../ui/Accuse'
+import { Pip, SuitChip } from '../../../ui/Card'
 import { GameMenu } from '../../../ui/GameMenu'
 import { Hand } from '../../../ui/Hand'
 import { check } from '../coach/check'
@@ -29,8 +30,9 @@ import { LastTrick, TrickArea } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
 import { playSound } from '../../../ui/sound'
-import { SUIT_NAME, SUIT_SYMBOL, isRed, plural, seatName } from '../../../ui/text'
+import { SUIT_NAME, plural, seatName } from '../../../ui/text'
 import { useCoach, useSession } from './session'
+import { isRed as isRedSuit } from '../../../ui/text'
 import { sortHand, teamName } from './text'
 
 type SheetName = 'menu' | 'history' | 'rules' | 'jodhi' | 'challenge' | 'howto' | null
@@ -60,7 +62,7 @@ function useBallBurst(): BallBurst | null {
         // After a challenge, the balls wait for the verdict.
         const wait = challenge ? CHALLENGE_BEAT_MS + VERDICT_BEAT_MS / 2 : 0
         later(() => setBurst({ team: winner, from: ballsAfter[winner] - balls, count: balls, id: event.n }), wait)
-        for (let i = 0; i < balls; i++) later(() => playSound('pip'), wait + i * BALL_STAGGER_MS)
+        for (let i = 0; i < balls; i++) later(() => playSound('ball'), wait + i * BALL_STAGGER_MS)
       }
       if (event.type === 'dealt') setBurst(null)
     })
@@ -93,8 +95,7 @@ export function Table({ view, room }: { view: View; room: string }) {
 
   useEffect(() => {
     if (!myTurn) return
-    playSound('yourTurn')
-    navigator.vibrate?.(30)
+    playSound('turn')
   }, [myTurn])
 
   const others = view.seats.map((_, seat) => seat).filter((seat) => seat !== me)
@@ -185,24 +186,31 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
   const myTeam = view.seat === null ? null : teamOf(view.seat)
 
   return (
-    <header className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-start gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1">
+    <header className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-start gap-2 px-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1">
       {([0, 1] as const).map((team) => {
         const tricks = playing ? playing.tricks.filter((t) => teamOf(t.winner) === team).length : null
         return (
-          <div key={team} className={`min-w-0 grid gap-1 ${team === 1 ? 'order-3 justify-items-end text-right' : ''}`} style={{ color: team === 0 ? 'var(--team0)' : 'var(--team1)' }}>
-            <p className="truncate max-w-full text-sm">{teamName(view, team, myTeam === team ? view.seat : null)}</p>
-            <div className={`pip-track ${team === 1 ? 'justify-end' : ''}`} aria-label={`${view.balls[team]} of ${view.ballsTarget} balls`}>
-              {Array.from({ length: view.ballsTarget }, (_, i) => {
-                const fresh = burst !== null && burst.team === team && i >= burst.from && i < burst.from + burst.count
-                return (
-                  <i
-                    key={fresh ? `${burst.id}-${i}` : i}
-                    data-on={i < view.balls[team]}
-                    data-fresh={fresh}
-                    style={fresh ? { animationDelay: `${(i - burst.from) * BALL_STAGGER_MS}ms` } : undefined}
-                  />
-                )
-              })}
+          <div key={team} className={`min-w-0 grid gap-1 ${team === 1 ? 'order-3 justify-items-end' : ''}`}>
+            <div className="ticket max-w-full" data-team={team} style={{ '--team': `var(--team${team})`, '--on-team': `var(--on-team${team})` } as React.CSSProperties}>
+              <b className="ticket-num" aria-label={`${view.balls[team]} of ${view.ballsTarget} balls`}>
+                {view.balls[team]}
+              </b>
+              <span className="ticket-who">
+                <span className="ticket-name">{teamName(view, team, myTeam === team ? view.seat : null)}</span>
+                <span className="pip-track" aria-hidden>
+                  {Array.from({ length: view.ballsTarget }, (_, i) => {
+                    const fresh = burst !== null && burst.team === team && i >= burst.from && i < burst.from + burst.count
+                    return (
+                      <i
+                        key={fresh ? `${burst.id}-${i}` : i}
+                        data-on={i < view.balls[team]}
+                        data-fresh={fresh}
+                        style={fresh ? { animationDelay: `${(i - burst.from) * BALL_STAGGER_MS}ms` } : undefined}
+                      />
+                    )
+                  })}
+                </span>
+              </span>
             </div>
             {tricks !== null && (
               <button key={tricks} className="trick-pile" onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show the last trick.`}>
@@ -213,7 +221,7 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
           </div>
         )
       })}
-      <button className="order-2 btn btn-quiet btn-small" onClick={onMenu} aria-label="Open menu">
+      <button className="order-2 btn btn-small" onClick={onMenu} aria-label="Open menu">
         Menu
       </button>
     </header>
@@ -226,30 +234,36 @@ export const BALL_STAGGER_MS = 280
 function RoundFacts({ view }: { view: View }) {
   const phase = view.phase
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
-  const facts: React.ReactNode[] = []
+  /** Each fact, and whether it is the one that matters most: trump, once it is known. */
+  const facts: { text: React.ReactNode; on?: boolean }[] = []
+  const say = (text: React.ReactNode) => facts.push({ text })
+  const trump = (suit: Suit) => facts.push({ text: <Trump suit={suit} />, on: true })
 
   if (playing?.thunee) {
-    facts.push(`Thunee: ${seatName(view, playing.thunee.caller)} must win every trick`)
-    if (playing.trump) facts.push(<Trump suit={playing.trump} />)
+    say(`Thunee: ${seatName(view, playing.thunee.caller)} must win every trick`)
+    if (playing.trump) trump(playing.trump)
   } else if (playing) {
-    facts.push(playing.trump ? <Trump suit={playing.trump} /> : 'Trump shows after the first card')
-    if (playing.callAmount > 0) facts.push(`Call ${playing.callAmount}`)
+    if (playing.trump) trump(playing.trump)
+    else say('Trump shows after the first card')
+    if (playing.callAmount > 0) say(`Call ${playing.callAmount}`)
     const counting = (1 - teamOf(playing.trumper)) as Team
     const target = view.playerCount === 2 ? view.rules.twoPlayerTarget : 105
     const who = view.seat !== null && teamOf(view.seat) === counting ? 'You count' : `${teamName(view, counting)} count`
-    facts.push(`${who} to ${target}`)
+    say(`${who} to ${target}`)
   } else if (phase.kind === 'thuneeWindow') {
-    facts.push(phase.trump ? <Trump suit={phase.trump} /> : 'Trump is chosen')
-    if (phase.callAmount > 0) facts.push(`Call ${phase.callAmount}`)
+    if (phase.trump) trump(phase.trump)
+    else say('Trump is chosen')
+    if (phase.callAmount > 0) say(`Call ${phase.callAmount}`)
   } else if (phase.kind === 'calling' || phase.kind === 'trumpSelection') {
-    facts.push(`Round ${view.roundNumber}`, 'No trump yet')
+    say(`Round ${view.roundNumber}`)
+    say('No trump yet')
   }
   if (facts.length === 0) return null
   return (
-    <ul className="shrink-0 flex flex-wrap justify-center gap-x-2 gap-y-1 px-3 pb-1 text-sm">
+    <ul className="shrink-0 flex flex-wrap justify-center gap-x-1.5 gap-y-1 px-3 pt-1 pb-1">
       {facts.map((fact, i) => (
-        <li key={i} className="fact">
-          {fact}
+        <li key={i} className="fact" data-on={fact.on ?? false}>
+          {fact.text}
         </li>
       ))}
     </ul>
@@ -260,9 +274,7 @@ function Trump({ suit }: { suit: Suit }) {
   return (
     <>
       Trump
-      <span className="suit-chip" data-red={isRed(suit)} aria-label={SUIT_NAME[suit]}>
-        {SUIT_SYMBOL[suit]}
-      </span>
+      <SuitChip suit={suit} />
     </>
   )
 }
@@ -355,9 +367,7 @@ function TrumpButtons({ choices, chosen, onChoose }: { choices: TrumpChoice[]; c
           {choice === 'lastCard' ? (
             'Last card'
           ) : (
-            <span className={`text-2xl ${isRed(choice) ? 'text-danger' : ''}`} aria-label={SUIT_NAME[choice]}>
-              {SUIT_SYMBOL[choice]}
-            </span>
+            <Pip suit={choice} label={SUIT_NAME[choice]} className={`w-7 h-7 ${isRedSuit(choice) ? 'text-danger' : ''}`} />
           )}
         </button>
       ))}
@@ -365,8 +375,18 @@ function TrumpButtons({ choices, chosen, onChoose }: { choices: TrumpChoice[]; c
   )
 }
 
+/** Sends an action that commits the player, with the soft sound a committing button makes. */
+function useCommit() {
+  const { send } = useSession()
+  return (action: Parameters<typeof send>[0]) => {
+    playSound('tap')
+    send(action)
+  }
+}
+
 function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase, { kind: 'calling' }>; can: Available }) {
   const { send } = useSession()
+  const commit = useCommit()
   const trumper = phase.call?.seat ?? phase.defaultTrumper
   const mine = trumper === view.seat
   return (
@@ -388,12 +408,12 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
           <p className="text-center text-sm text-on-surface-muted">Call to choose trump. The other side starts that many points up.</p>
           <div className="grid grid-cols-4 gap-1.5">
             {can.calls.map((amount) => (
-              <button key={amount} className="btn btn-primary btn-small !px-1" onClick={() => send({ type: 'call', amount })} aria-label={`Call ${amount}`}>
+              <button key={amount} className="btn btn-primary btn-small !px-1" onClick={() => commit({ type: 'call', amount })} aria-label={`Call ${amount}`}>
                 {amount}
               </button>
             ))}
           </div>
-          <button className="btn btn-small" onClick={() => send({ type: 'pass' })}>
+          <button className="btn btn-small" onClick={() => commit({ type: 'pass' })}>
             Pass
           </button>
         </div>
@@ -404,13 +424,13 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
 }
 
 function TrumpPanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase, { kind: 'trumpSelection' }>; can: Available }) {
-  const { send } = useSession()
+  const commit = useCommit()
   return (
     <section className="panel p-3 w-full max-w-xs grid gap-3">
       {can.chooseTrump.length > 0 ? (
         <>
           <p className="text-center">Choose trump{phase.callAmount > 0 ? ` for your call of ${phase.callAmount}` : ''}.</p>
-          <TrumpButtons choices={can.chooseTrump} onChoose={(choice) => send({ type: 'chooseTrump', choice })} />
+          <TrumpButtons choices={can.chooseTrump} onChoose={(choice) => commit({ type: 'chooseTrump', choice })} />
           <p className="text-center text-sm text-on-surface-muted">Last card makes trump the suit of the final card you are dealt.</p>
         </>
       ) : (
@@ -421,7 +441,7 @@ function TrumpPanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase
 }
 
 function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase, { kind: 'thuneeWindow' }>; can: Available }) {
-  const { send } = useSession()
+  const commit = useCommit()
   return (
     <section className="panel p-3 w-full max-w-xs grid gap-3">
       <Timer deadline={phase.deadline} totalSeconds={view.rules.thuneeWindowSeconds} />
@@ -433,11 +453,11 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
       {(can.callThunee || can.pass) && (
         <div className="flex gap-2">
           {can.callThunee && (
-            <button className="btn btn-danger flex-1" onClick={() => send({ type: 'callThunee' })}>
+            <button className="btn btn-danger flex-1" onClick={() => commit({ type: 'callThunee' })}>
               Call Thunee
             </button>
           )}
-          <button className="btn flex-1" onClick={() => send({ type: 'pass' })}>
+          <button className="btn flex-1" onClick={() => commit({ type: 'pass' })}>
             No Thunee
           </button>
         </div>
@@ -451,7 +471,12 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
 function Hint({ view, can }: { view: View; can: Available }) {
   const phase = view.phase
   if (phase.kind === 'playing') {
-    if (phase.turn === view.seat) return <span className="text-accent font-semibold">Your turn{phase.current.length === 0 ? ' to lead' : ''}. Tap a card or drag it onto the table.</span>
+    if (phase.turn === view.seat)
+      return (
+        <span className="font-semibold">
+          <b className="cue">Your turn{phase.current.length === 0 ? ' to lead' : ''}</b> Tap a card or drag it onto the table.
+        </span>
+      )
     return <>{seatName(view, phase.turn!)} to play.</>
   }
   if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <>Your side won the trick. You can call Jodhi now.</>
@@ -503,9 +528,7 @@ function JodhiSheet({ can, trump, challenged, onDone }: { can: Available; trump:
       <p>Name the suit you hold the King and Queen of.{challenged && ' Opponents can challenge a false call for 4 balls.'}</p>
       {can.claimJodhi.map((suit) => (
         <div key={suit} className="flex items-center gap-2">
-          <span className={`text-2xl w-8 text-center ${isRed(suit) ? 'text-danger' : ''}`} aria-label={SUIT_NAME[suit]}>
-            {SUIT_SYMBOL[suit]}
-          </span>
+          <Pip suit={suit} label={SUIT_NAME[suit]} className={`w-7 h-7 shrink-0 ${isRedSuit(suit) ? 'text-danger' : ''}`} />
           <button className="btn btn-small flex-1" onClick={() => claim(suit, false)}>
             King and Queen, {jodhiPoints(suit, false, trump)}
           </button>

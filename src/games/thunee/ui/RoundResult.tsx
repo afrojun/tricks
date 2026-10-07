@@ -2,6 +2,7 @@ import { type Available, type Card, type RoundSummary, type ScoreLine, type Team
 import { CoachReview } from '../../../ui/coach/CoachReview'
 import type { DealShown } from '../../../ui/coach/CoachSheets'
 import { useSession } from './session'
+import { playSound } from '../../../ui/sound'
 import { SUIT_NAME, cardText, plural, seatName } from '../../../ui/text'
 import { sortHand, teamName } from './text'
 
@@ -88,14 +89,20 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
 
       {winner === null ? (
         can.nextRound ? (
-          <button className="btn btn-primary" onClick={() => send({ type: 'nextRound' })}>
+          <button className="btn btn-primary" onClick={() => {
+              playSound('tap')
+              send({ type: 'nextRound' })
+            }}>
             Deal next round
           </button>
         ) : (
           <p className="text-on-surface-muted">Waiting for a player to deal the next round.</p>
         )
       ) : can.rematch ? (
-        <button className="btn btn-primary" onClick={() => send({ type: 'rematch' })}>
+        <button className="btn btn-primary" onClick={() => {
+              playSound('tap')
+              send({ type: 'rematch' })
+            }}>
           Play again
         </button>
       ) : (

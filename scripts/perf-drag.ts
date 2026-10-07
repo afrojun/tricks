@@ -6,7 +6,7 @@
 import { chromium, firefox } from 'playwright-core'
 
 const engine = process.argv[2] ?? 'firefox'
-const theme = process.argv[3] ?? 'modern'
+const theme = process.argv[3] ?? 'green'
 const browser = engine === 'firefox' ? await firefox.launch() : await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
 await context.addInitScript((t) => {

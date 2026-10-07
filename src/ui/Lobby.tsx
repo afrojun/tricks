@@ -9,6 +9,7 @@ import { partnersLine, seatLabel, teamsAt } from './seats'
 import { Sheet } from './Sheet'
 import { navigate, useGameClient, useSession } from './session'
 import { copyText } from './text'
+import { playSound } from './sound'
 
 const NAME_KEY = 'tricks-name'
 
@@ -56,6 +57,7 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
     const clean = cleanName(name)
     if (clean === null) return
     localStorage.setItem(NAME_KEY, clean)
+    playSound('tap')
     send({ type: 'sit', seat, name: clean })
   }
   const copyInvite = async () => {
@@ -157,7 +159,14 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
 
       <div className="w-full max-w-sm grid gap-2">
         {isHost ? (
-          <button className="btn btn-primary" disabled={!canStart(view)} onClick={() => send({ type: 'start' })}>
+          <button
+            className="btn btn-primary"
+            disabled={!canStart(view)}
+            onClick={() => {
+              playSound('tap')
+              send({ type: 'start' })
+            }}
+          >
             {empty > 0 ? `Waiting for ${empty} more` : 'Start game'}
           </button>
         ) : (

@@ -3,6 +3,7 @@
  * from. Nothing here loads a game; its code is fetched only when one of its addresses is visited.
  * The server's list, `src/games/index.ts`, is never imported by the browser.
  */
+import type { Card } from '../kit/cards'
 import { type AnyGameClient, anyClient } from './contract'
 
 /** A game as the Tricks home lists it, without loading it. Each game's own client says the same. */
@@ -11,11 +12,13 @@ export interface GameEntry {
   name: string
   tagline: string
   seatCounts: readonly number[]
+  /** The card that stands for the game on its box: Thunee's high Jack, Hearts' queen of spades. */
+  emblem: Card
 }
 
 export const GAMES = [
-  { id: 'thunee', name: 'Thunee', tagline: 'Jack high, twelve balls to win.', seatCounts: [2, 4] },
-  { id: 'hearts', name: 'Hearts', tagline: 'Take no hearts, and never the queen of spades.', seatCounts: [4] },
+  { id: 'thunee', name: 'Thunee', tagline: 'Jack high, twelve balls to win.', seatCounts: [2, 4], emblem: { rank: 'J', suit: 'spades' } },
+  { id: 'hearts', name: 'Hearts', tagline: 'Take no hearts, and never the queen of spades.', seatCounts: [4], emblem: { rank: 'Q', suit: 'spades' } },
 ] as const satisfies readonly GameEntry[]
 
 export type GameId = (typeof GAMES)[number]['id']

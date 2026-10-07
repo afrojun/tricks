@@ -5,7 +5,7 @@ import { tableSizes } from './seats'
 describe('the browser’s list of games', () => {
   test.each(GAMES.map((entry) => [entry.id, entry] as const))('%s is listed as its own client says', async (_, entry) => {
     const client = await loadGame(entry.id)
-    expect({ id: client.id, name: client.name, tagline: client.tagline, seatCounts: [...client.seatCounts] }).toEqual({ ...entry, seatCounts: [...entry.seatCounts] })
+    expect({ id: client.id, name: client.name, tagline: client.tagline, seatCounts: [...client.seatCounts] }).toEqual({ id: entry.id, name: entry.name, tagline: entry.tagline, seatCounts: [...entry.seatCounts] })
   })
 
   test('a game is loaded once', async () => {

@@ -1,9 +1,13 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
+import type { Seat } from '../../../kit/table'
+import { playSound } from '../../../ui/sound'
 import { heartsClient } from '../client'
 import { type GameEvent, type RoundSummary, type View, OMNIBUS, STANDARD, resolveRules, viewFor } from '../engine'
 import { Table } from '../engine/testing'
 import { dwell } from './dwell'
-import { present } from './present'
+import { CHALLENGE_BEAT_MS, present } from './present'
+
+vi.mock('../../../ui/sound', async (original) => ({ ...(await original<object>()), playSound: vi.fn() }))
 
 /** A view of four seated players, Asha at seat 0 and the viewer at seat 1. */
 function seated(): View {
@@ -100,5 +104,47 @@ describe('Hearts on the client', () => {
 
   test('a won game is celebrated', () => {
     expect(present({ type: 'gameOver', winner: 2 }, seated(), 1)).toEqual({ celebrate: 'var(--accent)' })
+  })
+})
+
+describe('each event is heard, and only where something happens at the table', () => {
+  /** The sounds one event plays, for the viewer at seat 1 unless another seat, or a spectator, is given. */
+  const heard = (event: GameEvent, at: Seat | null = 1) => {
+    vi.mocked(playSound).mockClear()
+    present(event, seated(), at)
+    return vi.mocked(playSound).mock.calls
+  }
+  const card = { suit: 'hearts', rank: '9' } as const
+
+  test('the deal and the exchange riffle the deck; each pass chosen is put down', () => {
+    expect(heard({ type: 'dealt', roundNumber: 1, direction: 'left' })).toEqual([['deal']])
+    expect(heard({ type: 'passChosen', seat: 0 })).toEqual([['card']])
+    expect(heard({ type: 'passesExchanged' })).toEqual([['deal']])
+  })
+
+  test('the queen of spades is slammed down; any other card is put down, and hearts breaking adds nothing', () => {
+    expect(heard({ type: 'cardPlayed', seat: 0, card: { suit: 'spades', rank: 'Q' } })).toEqual([['slam']])
+    expect(heard({ type: 'cardPlayed', seat: 0, card: { suit: 'hearts', rank: 'Q' } })).toEqual([['card']])
+    expect(heard({ type: 'heartsBroken' })).toEqual([])
+  })
+
+  test("the viewer's trick is gathered in loudly, anyone else's quietly", () => {
+    expect(heard({ type: 'trickWon', seat: 1, points: 0 })).toEqual([['sweep']])
+    expect(heard({ type: 'trickWon', seat: 3, points: 0 })).toEqual([['sweepTheirs']])
+    expect(heard({ type: 'trickWon', seat: 1, points: 0 }, null)).toEqual([['sweepTheirs']])
+  })
+
+  test('a challenge knocks, and its verdict sounds as the verdict shows, after the challenge', () => {
+    const challenge = { challenger: 1, accused: 0, guilty: true, rule: 'followSuit', card }
+    expect(heard({ type: 'challengeResolved', challenger: 1, accused: 0, guilty: true })).toEqual([['challenge']])
+    expect(heard({ type: 'roundScored', summary: summary({ reason: 'challenge', challenge }) })).toEqual([['caught', CHALLENGE_BEAT_MS]])
+    expect(heard({ type: 'roundScored', summary: summary({ reason: 'challenge', challenge: { ...challenge, guilty: false, rule: null } }) })).toEqual([
+      ['fair', CHALLENGE_BEAT_MS],
+    ])
+    expect(heard({ type: 'roundScored', summary: summary({}) })).toEqual([])
+  })
+
+  test('a won game pushes the pot over', () => {
+    expect(heard({ type: 'gameOver', winner: 2 })).toEqual([['gameWon']])
   })
 })

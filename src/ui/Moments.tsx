@@ -26,23 +26,25 @@ export function useMoments() {
 }
 
 export function MomentOverlay({ moment }: { moment: (Moment & { id: number }) | null }) {
+  // The felt reads the mood: a call floods and spins the rays, a challenge turns them red.
+  useEffect(() => {
+    const tone = moment?.tone
+    if (tone === 'call' || tone === 'danger') document.documentElement.dataset.mood = tone
+    else delete document.documentElement.dataset.mood
+    return () => {
+      delete document.documentElement.dataset.mood
+    }
+  }, [moment])
   return (
     <div className="moment-layer" data-active={moment !== null} aria-live="assertive">
       <AnimatePresence mode="wait">
         {moment && (
-          <motion.div
-            key={moment.id}
-            className="panel moment"
-            data-tone={moment.tone}
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.08 }}
-          >
+          <motion.div key={moment.id} className="moment" data-tone={moment.tone} initial={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.08 }}>
+            <p className="moment-title" style={{ '--chars': moment.title.length } as React.CSSProperties}>
+              {moment.title}
+            </p>
             {moment.card && <PlayingCard card={moment.card} size="trick" />}
-            <div>
-              <p className="display text-2xl">{moment.title}</p>
-              {moment.detail && <p className="mt-1">{moment.detail}</p>}
-            </div>
+            {moment.detail && <p className="moment-detail">{moment.detail}</p>}
           </motion.div>
         )}
       </AnimatePresence>

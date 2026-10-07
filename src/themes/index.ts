@@ -1,6 +1,7 @@
 import type { Transition } from 'motion/react'
 import './tokens.css'
 
+/** A table: the one Sunburst look over a colour of felt. */
 export interface Theme {
   id: string
   name: string
@@ -12,40 +13,24 @@ export interface Theme {
   motion: Transition
 }
 
+const CARD_BACKS = [
+  { id: 'red', name: 'Red' },
+  { id: 'blue', name: 'Blue' },
+  { id: 'ink', name: 'Ink' },
+]
+/* An ease that overshoots a little, on a fixed clock: a spring's bounce without a spring's long settle, which held played cards in the hand too long. */
+const MOTION: Transition = { type: 'tween', duration: 0.22, ease: [0.3, 1.3, 0.5, 1] }
+
 export const THEMES: Theme[] = [
-  {
-    id: 'retro',
-    name: 'Retro',
-    blurb: 'Pixel type on green felt',
-    chrome: '#1a4d2e',
-    motion: { type: 'tween', duration: 0.18, ease: 'linear' },
-    cardBacks: [
-      { id: 'crosshatch', name: 'Crosshatch' },
-      { id: 'arcade', name: 'Arcade' },
-      { id: 'ornamental', name: 'Ornamental' },
-    ],
-  },
-  {
-    id: 'modern',
-    name: 'Modern table',
-    blurb: 'Peacock baize and brass',
-    chrome: '#0e3b3c',
-    motion: { type: 'spring', stiffness: 380, damping: 30 },
-    cardBacks: [{ id: 'brass', name: 'Brass' }],
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    blurb: 'Flat, quiet, quick to read',
-    chrome: '#f4f4f0',
-    motion: { type: 'tween', duration: 0.2, ease: 'easeOut' },
-    cardBacks: [{ id: 'plain', name: 'Plain' }],
-  },
+  { id: 'green', name: 'Green', blurb: 'Green baize', chrome: '#0b6d58', motion: MOTION, cardBacks: CARD_BACKS },
+  { id: 'blue', name: 'Blue', blurb: 'Blue baize', chrome: '#24488f', motion: MOTION, cardBacks: CARD_BACKS },
+  { id: 'red', name: 'Red', blurb: 'Red baize', chrome: '#9c3127', motion: MOTION, cardBacks: CARD_BACKS },
 ]
 
 const THEME_KEY = 'tricks-theme'
 const BACK_KEY = 'tricks-card-back'
 
+/** The saved table; one saved from before there were tables falls back to the first. */
 export function currentTheme(): Theme {
   return THEMES.find((t) => t.id === localStorage.getItem(THEME_KEY)) ?? THEMES[0]
 }

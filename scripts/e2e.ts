@@ -5,7 +5,7 @@
  */
 import { chromium } from 'playwright-core'
 
-const theme = process.argv[2] ?? 'retro'
+const theme = process.argv[2] ?? 'green'
 const shots = process.argv[3] ?? '/tmp/shots'
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 

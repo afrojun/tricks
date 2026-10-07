@@ -18,6 +18,15 @@ const check = (ok: boolean, what: string) => {
 }
 const tap = (target: Locator) => target.click({ timeout: 1500 }).catch(() => {})
 const handCount = () => page.locator('.hand .playing-card').count()
+/** The hand's count once a play has left it: a played card stays in the hand's DOM until its travel to the table ends. */
+async function settledCount(from: number): Promise<number> {
+  for (let i = 0; i < 20; i++) {
+    const now = await handCount()
+    if (now !== from) return now
+    await page.waitForTimeout(100)
+  }
+  return handCount()
+}
 const legal = () => page.locator('.hand .playing-card[data-dim="false"]').first()
 const illegal = () => page.locator('.hand .playing-card[data-dim="true"]').first()
 
@@ -64,7 +73,7 @@ let before = await handCount()
 await dragUp(legal(), 30)
 check((await handCount()) === before && (await page.getByText(/Your turn/).isVisible()), 'a short drag returns the card and plays nothing')
 await dragUp(legal(), 130)
-check(before - (await handCount()) === 1, 'a long drag plays exactly one card')
+check(before - (await settledCount(before)) === 1, 'a long drag plays exactly one card')
 
 await toMyTurn(true)
 before = await handCount()
@@ -74,8 +83,7 @@ await page.locator('.hand').click({ position: { x: 3, y: 3 } })
 check(!(await page.getByRole('button', { name: /anyway/ }).isVisible()), 'tapping away cancels')
 await illegal().click()
 await page.getByRole('button', { name: /anyway/ }).click()
-await page.waitForTimeout(600)
-check(before - (await handCount()) === 1, 'confirming plays exactly that one card')
+check(before - (await settledCount(before)) === 1, 'confirming plays exactly that one card')
 
 if (problems.length) console.log('PROBLEMS:\n' + problems.join('\n'))
 await browser.close()

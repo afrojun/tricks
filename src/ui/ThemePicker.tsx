@@ -5,7 +5,8 @@ export function ThemePicker() {
   const { theme, cardBack, setTheme } = useTheme()
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span>Table</span>
         {THEMES.map((t) => (
           <button key={t.id} className="btn btn-small" aria-pressed={t.id === theme.id} onClick={() => setTheme(t)} title={t.blurb}>
             {t.name}
