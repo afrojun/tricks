@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type Card, cardId, hasCard, sameCard } from '../kit/cards'
 import { PlayingCard } from './Card'
 import { fanTilt } from './hands'
+import { useShowsPlayable } from './prefs'
 import { cardText } from './text'
 
 /** Shared between a card in the hand and the same card on the table, so it travels between them. */
@@ -49,6 +50,8 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
   // An illegal card needs a second, explicit confirmation.
   const [pending, setPending] = useState<C | null>(null)
   const [shake, setShake] = useState(0)
+  // The player may turn off the marking of cards they may not play (the menu's switch).
+  const marksPlayable = useShowsPlayable()
   const handRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   useEffect(() => {
@@ -64,7 +67,11 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
       onPlay(card)
       return true
     }
-    if (!anyway) return false
+    // Unmarked, a card the table will refuse is still offered to it, so the refusal says why.
+    if (!anyway) {
+      if (!marksPlayable) onPlay(card)
+      return false
+    }
     setPending(card)
     setShake((n) => n + 1)
     return false
@@ -103,7 +110,7 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
             count={cards.length}
             playable={choose ? choose.onPick !== null : playable}
             choosing={choose !== undefined}
-            legal={choose !== undefined || legal.some((c) => sameCard(c, card))}
+            legal={choose !== undefined || !marksPlayable || legal.some((c) => sameCard(c, card))}
             pending={pending !== null && sameCard(pending, card)}
             picked={choose !== undefined && hasCard(choose.picked, card)}
             marked={hasCard(marked, card)}

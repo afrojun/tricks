@@ -4,6 +4,7 @@ import { useCoach } from './coach/context'
 import type { ShellView } from './contract'
 import { gamePath } from './routes'
 import { navigate, useGameClient, useSession } from './session'
+import { setShowsPlayable, useShowsPlayable } from './prefs'
 import { isMuted, setMuted } from './sound'
 import { seatName } from './text'
 import { ThemePicker } from './ThemePicker'
@@ -17,6 +18,7 @@ export function GameMenu({ view, intro, actions }: { view: ShellView; intro: Rea
   const { send, store } = useSession()
   const game = useGameClient()
   const [muted, setMutedState] = useState(isMuted)
+  const marksPlayable = useShowsPlayable()
   const coached = useCoach()
   const replaceable = coached ? [] : replaceableSeats(view, store.serverNow(Date.now()))
   return (
@@ -33,6 +35,9 @@ export function GameMenu({ view, intro, actions }: { view: ShellView; intro: Rea
           }}
         >
           Sound {muted ? 'off' : 'on'}
+        </button>
+        <button className="btn btn-small" aria-pressed={marksPlayable} onClick={() => setShowsPlayable(!marksPlayable)}>
+          Highlight playable cards: {marksPlayable ? 'on' : 'off'}
         </button>
       </div>
       <ThemePicker />

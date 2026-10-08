@@ -463,7 +463,10 @@ button:disabled {
   grid-column: 1 / -1;
   /* Its own row under the cross, so it does not fill an empty row inside it and shift the cards as they arrive. */
   grid-row: 4;
-  margin-top: calc(var(--trick-w) * 0.3);
+  /* Clear of the bottom card and the winner's starburst, which reach well below their cell; drawn over them all the same. */
+  position: relative;
+  z-index: 2;
+  margin-top: calc(var(--trick-w) * 0.6);
   min-height: 1.5rem;
   text-align: center;
   font-size: 0.875rem;
@@ -687,6 +690,9 @@ button:disabled {
   font-size: 0.8rem;
   font-weight: 700;
   line-height: 1;
+}
+/* A trick won pops the count; the 0 a round starts with arrives quietly. */
+.trick-pile[data-won='true'] {
   animation: pop 320ms ease-out;
 }
 .trick-pile-icon {

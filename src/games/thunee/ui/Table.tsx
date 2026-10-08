@@ -199,7 +199,9 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
   return (
     <header className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-start gap-2 px-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1">
       {([0, 1] as const).map((team) => {
-        const tricks = playing ? playing.tricks.filter((t) => teamOf(t.winner) === team).length : null
+        // Shown from the deal, at 0 until a trick is won, so nothing new appears at the top when play starts.
+        const dealt = phase.kind === 'calling' || phase.kind === 'trumpSelection' || phase.kind === 'thuneeWindow'
+        const tricks = playing ? playing.tricks.filter((t) => teamOf(t.winner) === team).length : dealt ? 0 : null
         return (
           // Both tickets fill their column, so the two teams' labels are the same size.
           <div key={team} className={`min-w-0 grid gap-1 ${team === 1 ? 'order-3' : ''}`}>
@@ -225,7 +227,7 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
               </span>
             </div>
             {tricks !== null ? (
-              <button key={tricks} className={`trick-pile ${team === 1 ? 'justify-self-end' : ''}`} onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show the last trick.`}>
+              <button key={tricks} className={`trick-pile ${team === 1 ? 'justify-self-end' : ''}`} data-won={tricks > 0} onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show the last trick.`}>
                 <span aria-hidden className="trick-pile-icon" />
                 {plural(tricks, 'trick')}
               </button>
