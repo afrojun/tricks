@@ -116,14 +116,15 @@ export function Table({ view, room }: { view: View; room: string }) {
         </div>
       ) : (
         // During play nothing may clip a travelling card.
-        <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-1 px-2">
+        <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] grid-cols-[minmax(0,1fr)] gap-1 px-2">
           <div className="flex justify-center">{at('top') !== undefined && <SeatBadge view={view} seat={at('top')!} />}</div>
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 min-h-0">
-            <div>{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side="left" />}</div>
-            <div className="h-full min-h-0 flex items-center justify-center py-1">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[minmax(0,1fr)] items-center gap-1 min-h-0">
+            <div className="self-stretch min-h-0">{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side="left" />}</div>
+            {/* A panel taller than a short screen's table scrolls, from its top; during play nothing may clip a travelling card. */}
+            <div className={`h-full min-h-0 flex justify-center py-1 ${playing ? 'items-center' : 'items-center-safe overflow-y-auto'}`}>
               <Centre view={view} can={can} />
             </div>
-            <div>{at('right') !== undefined && <SeatBadge view={view} seat={at('right')!} side="right" />}</div>
+            <div className="self-stretch min-h-0">{at('right') !== undefined && <SeatBadge view={view} seat={at('right')!} side="right" />}</div>
           </div>
         </div>
       )}
@@ -146,7 +147,8 @@ export function Table({ view, room }: { view: View; room: string }) {
             <SeatBadge view={view} seat={0} />
           </div>
         )}
-        {!watching && (
+        {/* A round's result has the room: the hand, empty by then, keeps a card's height in play. */}
+        {!watching && !over && (
           <>
             <Hand
               cards={hand}
@@ -158,7 +160,7 @@ export function Table({ view, room }: { view: View; room: string }) {
               suggested={advised?.type === 'playCard' ? advised.card : null}
               explain={coached ? (card) => check(view, { type: 'playCard', card })?.body ?? null : undefined}
             />
-            <ActionBar can={can} playing={playing} over={over} accuse={view.rules.allowCheating} onSheet={setSheet} />
+            <ActionBar can={can} playing={playing} accuse={view.rules.allowCheating} onSheet={setSheet} />
           </>
         )}
       </div>
@@ -220,11 +222,16 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
                 </span>
               </span>
             </div>
-            {tricks !== null && (
+            {tricks !== null ? (
               <button key={tricks} className={`trick-pile ${team === 1 ? 'justify-self-end' : ''}`} onClick={onTricks} aria-label={`${plural(tricks, 'trick')} won. Show the last trick.`}>
                 <span aria-hidden className="trick-pile-icon" />
                 {plural(tricks, 'trick')}
               </button>
+            ) : (
+              // Its room is kept outside play, so the table does not move down when the first trick starts.
+              <span aria-hidden className="trick-pile invisible">
+                <span className="trick-pile-icon" />0 tricks
+              </span>
             )}
           </div>
         )
@@ -251,11 +258,13 @@ function RoundFacts({ view }: { view: View }) {
     if (playing.trump) trump(playing.trump)
   } else if (playing) {
     if (playing.trump) trump(playing.trump)
-    else say('Trump shows after the first card')
+    // Short enough that the round's facts keep to one line on a phone.
+    else say('Trump hidden')
     if (playing.callAmount > 0) say(`Call ${playing.callAmount}`)
     const counting = (1 - teamOf(playing.trumper)) as Team
     const target = view.playerCount === 2 ? view.rules.twoPlayerTarget : 105
-    const who = view.seat !== null && teamOf(view.seat) === counting ? 'You count' : `${teamName(view, counting)} count`
+    // The teams' names are on the score tickets; a spectator, who is on neither side, gets the name here.
+    const who = view.seat === null ? `${teamName(view, counting)} count` : teamOf(view.seat) === counting ? 'You count' : 'They count'
     say(`${who} to ${target}`)
   } else if (phase.kind === 'thuneeWindow') {
     if (phase.trump) trump(phase.trump)
@@ -330,18 +339,7 @@ function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: 'left'
   const phase = view.phase
   const count = 'handCounts' in phase ? phase.handCounts[seat] : 0
   const turn = (phase.kind === 'playing' && phase.turn === seat) || (phase.kind === 'trumpSelection' && phase.trumper === seat)
-  return (
-    <Badge view={view} seat={seat} side={side} turn={turn} count={count}>
-      <div className="flex gap-1 empty:hidden">
-        <RoleBadges view={view} seat={seat} />
-      </div>
-      {said(view, seat).map((text) => (
-        <p key={text} className="bubble">
-          {text}
-        </p>
-      ))}
-    </Badge>
-  )
+  return <Badge view={view} seat={seat} side={side} turn={turn} count={count} tags={<RoleBadges view={view} seat={seat} />} said={said(view, seat)} />
 }
 
 // ── Centre of the table ──────────────────────────────────────────────────
@@ -458,7 +456,8 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
           : 'Anyone for Thunee? Win all six tricks for 4 balls.'}
       </p>
       {(can.callThunee || can.pass) && (
-        <div className="flex gap-2">
+        // The middle of the table never widens for a panel, so its buttons wrap when a narrow screen needs it.
+        <div className="flex flex-wrap gap-2">
           {can.callThunee && (
             <button className="btn btn-danger flex-1" onClick={() => commit({ type: 'callThunee' })}>
               Call Thunee
@@ -492,14 +491,14 @@ function Hint({ view, can }: { view: View; can: Available }) {
 }
 
 /** `accuse`: whether accusations are part of this game; with cheating off there is no Challenge button. */
-function ActionBar({ can, playing, over, accuse, onSheet }: { can: Available; playing: ViewPlaying | null; over: boolean; accuse: boolean; onSheet: (s: SheetName) => void }) {
+function ActionBar({ can, playing, accuse, onSheet }: { can: Available; playing: ViewPlaying | null; accuse: boolean; onSheet: (s: SheetName) => void }) {
   const { send } = useSession()
-  // A round's result has the room; before play the space is kept, so the table does not jump when the first trick starts.
-  if (over) return null
-  if (!playing) return <div className="h-12" />
+  // Before play the space is kept, so the table does not jump when the first trick starts.
+  if (!playing) return <div className="h-13" />
   const canChallenge = can.challengePlay.length > 0 || can.challengeJodhi.length > 0
+  // Tall enough for a full-size call button, so one appearing does not lift the hand.
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 px-2 pb-2 min-h-12">
+    <div className="flex flex-wrap items-center justify-center gap-2 px-2 pb-2 min-h-13">
       {can.claimJodhi.length > 0 && (
         <button className="btn btn-primary attention" onClick={() => onSheet('jodhi')}>
           Call Jodhi

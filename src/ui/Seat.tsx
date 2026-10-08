@@ -15,35 +15,59 @@ export function usePosition(view: ShellView): (seat: Seat) => Where {
 interface SeatBadgeProps {
   view: ShellView
   seat: Seat
-  /** A seat at the left or right edge stacks its cards upright. */
+  /** A seat at the left or right edge: it stacks its cards upright, and its name holds still (see `.seat[data-side]`). */
   side?: 'left' | 'right'
   /** Whether the table is waiting on this seat. */
   turn: boolean
   /** Cards held, shown face down. */
   count: number
-  /** The game's own lines for this seat, under its name. */
+  /** Small tags beside the persona, such as the dealer or ready: their row is always there, so one appearing moves nothing. */
+  tags?: ReactNode
+  /** What this seat has said out loud, as speech bubbles hanging from the name: they take no room. */
+  said?: readonly string[]
+  /** The game's own lines for this seat, under the tags: they should keep their size through a round. */
   children?: ReactNode
 }
 
-/** Another player at the table: name, persona, the game's lines, whether they are away, and their cards face down. */
-export function SeatBadge({ view, seat, side, turn, count, children }: SeatBadgeProps) {
+/**
+ * Another player at the table: name, persona and tags, the game's lines, whether they are away, and
+ * their cards face down. Nothing that comes and goes during a round takes room above the name or
+ * beside it, so the table does not jump as calls are made and cards are played.
+ */
+export function SeatBadge({ view, seat, side, turn, count, tags, said = [], children }: SeatBadgeProps) {
   const info = view.seats[seat]
   const away = info.kind === 'human' && !info.connected
   const persona = personaLabel(info, view.rules.allowCheating)
   return (
-    <div className="flex flex-col items-center gap-1 max-w-24" data-side={side}>
-      <p className="seat-name truncate max-w-full text-sm" data-turn={turn}>
-        {info.name}
-      </p>
-      {persona && <p className="text-xs text-muted">{persona}</p>}
-      {children}
-      {(away || info.standIn) && <p className="text-xs text-muted">{info.standIn ? 'computer playing' : 'disconnected'}</p>}
-      <div className={`flex ${side ? 'flex-col -space-y-7' : '-space-x-3'}`}>
-        {Array.from({ length: count }, (_, i) => (
-          <span key={i} className="card-in" style={{ animationDelay: `${i * 60}ms` }}>
-            <CardBack />
-          </span>
-        ))}
+    <div className="seat" data-side={side}>
+      <div className="seat-head">
+        <p className="seat-name truncate max-w-full text-sm" data-turn={turn}>
+          {info.name}
+        </p>
+        {said.length > 0 && (
+          <div className="seat-said">
+            {said.map((text) => (
+              <p key={text} className="bubble">
+                {text}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="seat-body">
+        <div className="seat-tags">
+          {persona && <span className="text-xs text-muted">{persona}</span>}
+          {tags}
+        </div>
+        {children}
+        {(away || info.standIn) && <p className="text-xs text-muted">{info.standIn ? 'computer playing' : 'disconnected'}</p>}
+        <div className="seat-stack">
+          {Array.from({ length: count }, (_, i) => (
+            <span key={i} className="card-in" style={{ animationDelay: `${i * 60}ms` }}>
+              <CardBack />
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )

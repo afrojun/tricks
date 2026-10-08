@@ -91,14 +91,15 @@ export function Table({ view, room }: { view: View; room: string }) {
           <RoundResult view={view} summary={phase.summary} winner={phase.kind === 'gameOver' ? phase.winner : null} can={can} />
         </div>
       ) : (
-        <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-1 px-2">
+        <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] grid-cols-[minmax(0,1fr)] gap-1 px-2">
           <div className="flex justify-center">{at('top')}</div>
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 min-h-0">
-            <div>{at('left', 'left')}</div>
-            <div className="h-full min-h-0 flex items-center justify-center py-1">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[minmax(0,1fr)] items-center gap-1 min-h-0">
+            <div className="self-stretch min-h-0">{at('left', 'left')}</div>
+            {/* A panel taller than a short screen's table scrolls, from its top; during play nothing may clip a travelling card. */}
+            <div className={`h-full min-h-0 flex justify-center py-1 ${playing ? 'items-center' : 'items-center-safe overflow-y-auto'}`}>
               <Centre view={view} />
             </div>
-            <div>{at('right', 'right')}</div>
+            <div className="self-stretch min-h-0">{at('right', 'right')}</div>
           </div>
         </div>
       )}
@@ -116,7 +117,8 @@ export function Table({ view, room }: { view: View; room: string }) {
           <div className="flex justify-center pb-3">
             <HeartsSeat view={view} seat={0} />
           </div>
-        ) : (
+        ) : phase.kind === 'roundResult' || phase.kind === 'gameOver' ? null : (
+          // A round's result has the room: the hand, empty by then, keeps a card's height in play.
           <>
             <Hand
               cards={hand}
@@ -200,8 +202,14 @@ function HeartsSeat({ view, seat, side }: { view: View; seat: Seat; side?: 'left
   const phase = view.phase
   const count = 'handCounts' in phase ? phase.handCounts[seat] : 0
   return (
-    <SeatBadge view={view} seat={seat} side={side} turn={phase.kind === 'playing' && phase.turn === seat} count={count}>
-      {phase.kind === 'passing' && phase.chosen.includes(seat) && <span className="role-badge">Ready</span>}
+    <SeatBadge
+      view={view}
+      seat={seat}
+      side={side}
+      turn={phase.kind === 'playing' && phase.turn === seat}
+      count={count}
+      tags={phase.kind === 'passing' && phase.chosen.includes(seat) && <span className="role-badge">Ready</span>}
+    >
       <Points view={view} seat={seat} />
     </SeatBadge>
   )
@@ -267,16 +275,17 @@ function ActionBar({ view, can, picked, onSheet }: { view: View; can: Available;
   if (phase.kind === 'passing' && can.pass.length > 0 && view.direction !== 'none') {
     const ready = picked.length === PASS_SIZE
     return (
-      <div className="flex justify-center px-2 pb-2 min-h-12">
+      <div className="flex justify-center px-2 pb-2 min-h-13">
         <button className={`btn btn-primary ${ready ? 'attention' : ''}`} disabled={!ready} onClick={() => send({ type: 'choosePass', cards: picked })}>
           {passButton(view.direction)}
         </button>
       </div>
     )
   }
-  if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return <div className="h-12" />
+  if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return <div className="h-13" />
+  // As tall as the pass bar's full-size button, so the hand does not move when passing ends.
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 px-2 pb-2 min-h-12">
+    <div className="flex flex-wrap items-center justify-center gap-2 px-2 pb-2 min-h-13">
       <button className="btn btn-quiet btn-small" disabled={phase.tricks.length === 0} onClick={() => onSheet('history')}>
         Last trick
       </button>

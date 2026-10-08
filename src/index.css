@@ -342,6 +342,8 @@ button:disabled {
   position: relative;
   display: flex;
   justify-content: center;
+  /* A card's height, so the table does not move when the last card is played. */
+  min-height: calc(var(--w) * 1.4 + 1.1rem);
   padding: 0.8rem 0.5rem 0.3rem;
   touch-action: pan-x;
 }
@@ -743,6 +745,110 @@ button:disabled {
   white-space: nowrap;
 }
 
+/*
+ * Another player's seat. Nothing that comes and goes in a round takes room above or beside the
+ * name: speech hangs over the seat, the tags have a row of their own, and an empty stack keeps
+ * the height of a card.
+ */
+.seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 14rem;
+}
+/*
+ * A side seat fills its column, never more, and holds its name a fifth of the way down; the rest
+ * hangs under it, so nothing in the seat can move the name. Its least width fits any tag or line
+ * of points, so one appearing does not widen the seat and move it sideways.
+ */
+.seat[data-side] {
+  min-width: 4.75rem;
+  max-width: 6rem;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto minmax(0, 4fr);
+  justify-items: center;
+  align-items: start;
+  height: 100%;
+}
+.seat[data-side] > .seat-head {
+  grid-row: 2;
+}
+.seat[data-side] > .seat-body {
+  grid-row: 3;
+  margin-top: 0.25rem;
+}
+/* No wider than the seat, so a long name is cut short rather than pushing past it. */
+.seat-head {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
+}
+.seat-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+/* Tall enough for a tag, so the first one moves nothing. */
+.seat-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 1.3rem;
+}
+/* A side seat is narrow: the persona and a tag take a line each, with room kept for both. */
+.seat[data-side] .seat-tags {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  min-height: calc(0.75rem * 1.4 + 0.25rem + 1.3rem);
+}
+/*
+ * Each card overlaps the one before it. The margin sits on the later card, never on all but the
+ * last, so taking the last card away leaves the others where they were.
+ */
+.seat-stack {
+  display: flex;
+  min-height: 2.1rem;
+}
+.seat-stack > * + * {
+  margin-left: -0.75rem;
+}
+.seat[data-side] .seat-stack {
+  flex-direction: column;
+}
+/* Each card shows a strip, a little narrower on a short screen, so Hearts' thirteen fit under the name. */
+.seat[data-side] .seat-stack > * + * {
+  margin-left: 0;
+  margin-top: calc(min(0.35rem, 0.45dvh) - 2.1rem);
+}
+/* What a seat says hangs from its name, over whatever is under it. */
+.seat-said {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 20;
+  display: grid;
+  justify-items: center;
+}
+[data-side='left'] .seat-said {
+  left: 0;
+  translate: none;
+  justify-items: start;
+}
+[data-side='right'] .seat-said {
+  left: auto;
+  right: 0;
+  translate: none;
+  justify-items: end;
+}
+
 /* A player's name, on an ink pill; yellow while the table waits on them. */
 .seat-name {
   padding: 0.15rem 0.65rem;
@@ -1031,11 +1137,9 @@ button:disabled {
 /* Side seats sit at the screen edge: their bubbles grow inward so nothing is cut off. */
 [data-side='left'] .bubble {
   transform-origin: 0 0;
-  align-self: flex-start;
 }
 [data-side='right'] .bubble {
   transform-origin: 100% 0;
-  align-self: flex-end;
 }
 .bubble[data-mine] {
   margin-top: 0;
@@ -1075,10 +1179,12 @@ button:disabled {
 
 /* ── Practice coach ─────────────────────────────────────────────────────── */
 
+/* Always as tall as two lines of the coach's text, so the table does not move as notes and Continue come and go. */
 .coach-strip {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-height: calc(2 * 1.3 * 0.875rem + 0.5rem);
   padding: 0.25rem 0.75rem;
 }
 .coach-line {
