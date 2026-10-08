@@ -273,52 +273,59 @@ async function pickToThree(page: Page) {
   }
 }
 const numberOf = (text: string) => Number(text.trim().replace('−', '-').replace('+', ''))
-const result = a.getByRole('heading', { name: /( is over| the game)$/ })
+const roundOver = a.getByRole('heading', { name: / is over$/ })
+// The game over has its own screen: the standings by total, and the last round's headline under them.
+const gameOver = a.getByText('Game over', { exact: true })
 const passButton = a.getByRole('button', { name: /^Pass (left|right|across)$/ })
-let scores = [0, 0, 0, 0]
-const summed = [0, 0, 0, 0]
+/** Each player's total so far, by the name the table shows them by. */
+let scores = new Map<string, number>()
+const listed = (totals: Map<string, number>) => [...totals].map(([name, total]) => `${name} ${total}`).join(', ')
 let rounds = 0
 let mine = 0
 let winner: string | null = null
 const wholeGameEnds = Date.now() + 12 * 60_000
 while (winner === null && Date.now() < wholeGameEnds) {
-  if (await result.isVisible()) {
+  const over = await gameOver.isVisible()
+  if (over || (await roundOver.isVisible())) {
     rounds++
-    const title = (await result.textContent())!
-    const headline = (await a.locator('section.panel > p').first().textContent()) ?? ''
-    const column = async (n: number) => (await a.locator(`tbody tr td:nth-child(${n})`).allTextContents()).map(numberOf)
-    const points = await column(2)
-    const after = await column(3)
+    const headline = (await (over ? a.getByText(/^Last round:/) : a.locator('section.panel > p').first()).textContent()) ?? ''
+    // A round's table is name, this round, total; the game over's is place, name, total.
+    const column = async (n: number) => (await a.locator(`tbody tr td:nth-child(${n})`).allTextContents()).map((text) => text.trim())
+    const names = await column(over ? 2 : 1)
+    const totals = (await column(3)).map(numberOf)
+    // The game over shows only the totals: the last round's points are what each total rose by.
+    const points = over ? names.map((name, i) => totals[i] - (scores.get(name) ?? 0)) : (await column(2)).map(numberOf)
     check(!/accused|caught/.test(headline), `round ${rounds} ended with its tricks, not an accusation (${headline})`)
     check(mine === 13, `A played all thirteen of their cards in round ${rounds} by tapping them (${mine})`)
     const total = points.reduce((s, p) => s + p, 0)
     // 26 points are taken every round; a moon gives the three others 26 each.
     check(total === 26 || total === 78, `round ${rounds}'s points add up (${points.join(', ')})`)
-    check(
-      after.every((t, i) => t === scores[i] + points[i]),
-      `round ${rounds}: each total is the last plus this round (${scores.join(', ')} + ${points.join(', ')} = ${after.join(', ')})`,
-    )
-    points.forEach((p, i) => (summed[i] += p))
-    scores = after
+    if (!over) {
+      check(
+        names.every((name, i) => totals[i] === (scores.get(name) ?? 0) + points[i]),
+        `round ${rounds}: each total is the last plus this round (${listed(scores)} + ${points.join(', ')} = ${totals.join(', ')})`,
+      )
+    }
+    scores = new Map(names.map((name, i) => [name, totals[i]]))
     mine = 0
-    if (rounds === 1) await shot(a, 'whole-1-round-result')
-    if (/ the game$/.test(title)) {
-      winner = title.replace(/ wins? the game$/, '')
+    if (rounds === 1) await shot(a, over ? 'whole-1-game-over' : 'whole-1-round-result')
+    if (over) {
+      const title = (await a.getByRole('heading', { name: /^You win$| wins$/ }).textContent())!.trim()
+      winner = title === 'You win' ? 'You' : title.replace(/ wins$/, '')
       continue
     }
     await a.getByRole('button', { name: 'Next round' }).click()
-    await result.waitFor({ state: 'hidden', timeout: 10_000 })
+    await roundOver.waitFor({ state: 'hidden', timeout: 10_000 })
   } else if (await passButton.isVisible()) {
     await pickToThree(a)
     await passButton.click({ timeout: 1500 }).catch(() => {})
   } else if (await playLegal(a)) mine++
   else await a.waitForTimeout(100)
 }
+const finals = [...scores.values()]
 check(winner !== null, `the whole game ends, after ${rounds} rounds`)
-check(Math.max(...scores) >= 25, `someone reached 25 (${scores.join(', ')})`)
-check(JSON.stringify(scores) === JSON.stringify(summed), `the final scores are the sums of every round (${summed.join(', ')})`)
-const names = await a.locator('tbody tr td:nth-child(1)').allTextContents()
-check(winner !== null && scores[names.indexOf(winner)] === Math.min(...scores), `the winner, ${winner}, has the fewest points (${names.join(', ')})`)
+check(Math.max(...finals) >= 25, `someone reached 25 (${listed(scores)})`)
+check(winner !== null && scores.get(winner) === Math.min(...finals), `the winner, ${winner}, has the fewest points (${listed(scores)})`)
 await shot(a, 'whole-2-game-over')
 await a.getByRole('button', { name: 'Play again' }).click()
 check(await seen(a, 'Passing left', 10_000), 'the host’s rematch starts a new game at the pass to the left')

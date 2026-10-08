@@ -54,7 +54,8 @@ const seen = new Set<string>()
 let refreshed = false
 const started = Date.now()
 while (Date.now() - started < 6 * 60_000) {
-  if (await page.getByText(/win the game/).isVisible()) break
+  // The game over has its own screen, marked "Game over" over the winner.
+  if (await page.getByText('Game over', { exact: true }).isVisible()) break
 
   const once = async (key: string, when: boolean) => {
     if (when && !seen.has(key)) {
@@ -94,7 +95,7 @@ while (Date.now() - started < 6 * 60_000) {
 }
 
 await shot('9-game-over')
-const finished = await page.getByText(/win the game/).isVisible()
+const finished = await page.getByText('Game over', { exact: true }).isVisible()
 await page.getByRole('button', { name: 'Open menu' }).click().catch(() => {})
 await shot('10-menu')
 // Old addresses are not redirected: they show the Tricks home.
