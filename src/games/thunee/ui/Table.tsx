@@ -106,7 +106,7 @@ export function Table({ view, room }: { view: View; room: string }) {
   const over = phase.kind === 'roundResult' || phase.kind === 'gameOver'
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden" data-felt-table>
+    <div className="h-[calc(100dvh-var(--update-h,0px))] flex flex-col overflow-hidden" data-felt-table>
       <StatusStrip view={view} burst={burst} onMenu={() => setSheet('menu')} onTricks={() => setSheet('history')} />
       <RoundFacts view={view} />
 

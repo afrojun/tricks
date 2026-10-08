@@ -76,7 +76,7 @@ export function Table({ view, room }: { view: View; room: string }) {
   const dealFrom = playing && giver !== undefined ? TOWARD[position(giver)] : TOWARD.top
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden" data-felt-table>
+    <div className="h-[calc(100dvh-var(--update-h,0px))] flex flex-col overflow-hidden" data-felt-table>
       <header className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 text-sm">
         <p className="text-muted">Round {view.roundNumber}</p>
         <button className="btn btn-quiet btn-small" onClick={() => setSheet('menu')} aria-label="Open menu">

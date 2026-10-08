@@ -111,6 +111,8 @@ Nothing else may be assumed to survive in memory. `saved` is reloaded in `onStar
 
 ## 4. The client
 
+The app installs as a web app (added 2026-10-08). `vite-plugin-pwa` writes a manifest (`Tricks`, `scope: /`, `start_url: /`, `display: standalone`, the felt green as theme and background, 192 and 512 icons and a maskable 512 drawn from `public/favicon.svg`) and a Workbox service worker that precaches the pages, icons and sounds, caches Google Fonts at runtime, and sends every address that is not a file to the page except `/parties/*`. The worker waits: `src/ui/Update.tsx` offers each new version with a Reload button, since a deploy must not reload a table under a player, and asks the browser for updates every hour. Links in the scope open in the installed app on Android (Chrome's WebAPK registers intent filters for the scope; no `assetlinks.json` is involved, that file is for Trusted Web Activities) and in Safari on iOS, which never routes links to a home-screen web app. No protocol handler: an invite is the room's URL, which anyone can open.
+
 - `openSession(game, code)` connects with `new PartySocket({ host: location.host, party: 'room', room: `${game}-${code}`, query })`. `VITE_PARTYKIT_HOST` is removed: the app and the rooms always share an origin.
 - A name that is not a known game id (only `thunee` for now), then `-`, then six capital letters is unknown. The Worker refuses an unknown name before any Durable Object is created: a socket is accepted and closed with the same close code `TableRoom` uses (`UNKNOWN_ROOM_CLOSE_CODE`), and a plain request gets a 404. `TableRoom` also checks `host.name` on connect and refuses an unknown name with that close code. The game is always read from the name and never saved.
 

@@ -63,7 +63,7 @@ export function Screen({ room }: { room: string }) {
   return (
     <>
       {client.connection !== 'open' && (
-        <p className="fixed top-0 inset-x-0 z-50 bg-danger text-center py-1" style={{ color: 'var(--on-danger)' }} role="status">
+        <p className="fixed top-[var(--update-h,0px)] inset-x-0 z-50 bg-danger text-center py-1" style={{ color: 'var(--on-danger)' }} role="status">
           Connection lost. Reconnecting.
         </p>
       )}

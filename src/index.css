@@ -30,6 +30,13 @@ body,
 #root {
   height: 100%;
 }
+/* Room for the update strip (src/ui/Update.tsx) while it shows: the screens start below it, and a full-height screen takes 100dvh less this. */
+html[data-update] {
+  --update-h: calc(2.6rem + env(safe-area-inset-top));
+}
+#root {
+  padding-top: var(--update-h, 0px);
+}
 body {
   margin: 0;
   background: var(--bg);
@@ -630,6 +637,35 @@ button:disabled {
   padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
   width: min(100%, 34rem);
   margin-inline: auto;
+}
+
+/* A new version waiting: a strip across the top, in the room --update-h makes for it, so it covers nothing. */
+.update {
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  z-index: 50;
+  height: var(--update-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: env(safe-area-inset-top) 0.75rem 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  border-bottom: var(--line-width) solid var(--line);
+  font-weight: 700;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.update p {
+  margin-right: 0.25rem;
+}
+.update .btn {
+  min-height: 1.9rem;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 0 var(--line);
 }
 
 .toast {

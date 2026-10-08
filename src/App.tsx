@@ -6,6 +6,7 @@ import { PracticeScreen } from './ui/PracticeScreen'
 import { TricksHome } from './ui/TricksHome'
 import { type Route, route } from './ui/routes'
 import { GameProvider, ThemeProvider, usePath } from './ui/session'
+import { Update } from './ui/Update'
 import { startFelt } from './themes/felt'
 
 type GameRoute = Exclude<Route, { screen: 'tricks' }>
@@ -53,6 +54,7 @@ export function App() {
     <ThemeProvider>
       <Felt />
       <Routes />
+      <Update />
     </ThemeProvider>
   )
 }
