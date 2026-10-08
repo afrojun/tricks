@@ -17,6 +17,9 @@ export interface ShellView extends TableView {
   rules: CommonRules
 }
 
+/** How long a won game's moment holds the middle of the table; a game's `dwell` for game over covers it. */
+export const WIN_BEAT_MS = 2600
+
 /** What one event shows besides its sound, which `present` plays itself. */
 export interface Presentation {
   /** A line over the foot of the screen. */
@@ -25,6 +28,14 @@ export interface Presentation {
   moments?: Moment[]
   /** A won game: confetti in this colour, a theme token such as `var(--team0)`. */
   celebrate?: string
+  /**
+   * Show all of this only after so many ms, for a climax that waits on what the table is still
+   * showing: Thunee's win waits for its balls to fill. Sounds are not held; `present` plays them
+   * with `playSound(name, after)` to match.
+   */
+  after?: number
+  /** Called if the table moves on to another phase (a rematch) before `after` passes and this is dropped: takes back the sound scheduled with it. */
+  cancel?: () => void
 }
 
 export interface GameClient<V extends ShellView, A, E extends { type: string }> {

@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import type { Seat } from '../../../kit/table'
+import { WIN_BEAT_MS } from '../../../ui/contract'
 import { playSound } from '../../../ui/sound'
 import { heartsClient } from '../client'
 import { type GameEvent, type RoundSummary, type View, OMNIBUS, STANDARD, resolveRules, viewFor } from '../engine'
@@ -48,6 +49,7 @@ describe('Hearts on the client', () => {
       [{ type: 'cardPlayed', seat: 0, card }, { type: 'heartsBroken' }],
       [{ type: 'trickWon', seat: 0, points: 1 }, { type: 'roundScored', summary: summary({ reason: 'moon', moon: 2, points: [26, 26, 0, 26] }) }],
       [{ type: 'roundScored', summary: summary({ reason: 'moon', moon: 1 }) }, { type: 'gameOver', winner: 1 }],
+      [{ type: 'challengeResolved', challenger: 1, accused: 0, guilty: true }, { type: 'roundScored', summary: summary({ reason: 'challenge', challenge }) }, { type: 'gameOver', winner: 1 }],
       [{ type: 'challengeResolved', challenger: 1, accused: 0, guilty: true }, { type: 'roundScored', summary: summary({ reason: 'challenge', challenge }) }],
       [{ type: 'challengeResolved', challenger: 1, accused: 0, guilty: false }, { type: 'roundScored', summary: summary({ reason: 'challenge', challenge: { ...challenge, guilty: false, rule: null } }) }],
     ]
@@ -57,6 +59,24 @@ describe('Hearts on the client', () => {
       expect(shown, events.map((e) => e.type).join(' + ')).toBeGreaterThan(0)
       expect(Math.max(...events.map(dwell)), events.map((e) => e.type).join(' + ')).toBeGreaterThanOrEqual(shown)
     }
+  })
+
+  test('a won game is stamped for the winner in gold under confetti, named quietly for the others, and holds the screen', () => {
+    const view = { ...seated(), scores: [101, 43, 60, 77] }
+    vi.mocked(playSound).mockClear()
+    const won = present({ type: 'gameOver', winner: 1 }, view, 1)
+    expect(won.moments).toEqual([{ title: 'You win', detail: 'On 43 points', tone: 'win', ms: WIN_BEAT_MS, colour: 'var(--accent)' }])
+    expect(won.celebrate).toBe('var(--accent)')
+    expect(vi.mocked(playSound).mock.calls).toEqual([['gameWon']])
+    vi.mocked(playSound).mockClear()
+    const lost = present({ type: 'gameOver', winner: 1 }, view, 0)
+    expect(lost.moments).toEqual([expect.objectContaining({ title: 'Bheki wins', tone: 'good' })])
+    expect(lost.celebrate).toBeUndefined()
+    expect(vi.mocked(playSound).mock.calls).toEqual([['gameLost']])
+    const watched = present({ type: 'gameOver', winner: 1 }, view, null)
+    expect(watched.moments).toEqual([expect.objectContaining({ title: 'Bheki wins', tone: 'win' })])
+    expect(watched.celebrate).toBeUndefined()
+    expect(dwell({ type: 'gameOver', winner: 1 })).toBeGreaterThanOrEqual(WIN_BEAT_MS)
   })
 
   test('a deal says which way to pass', () => {
@@ -102,9 +122,6 @@ describe('Hearts on the client', () => {
     expect(verdict(null, false)).toMatchObject({ title: 'Fair play', detail: 'Asha played by the rules', tone: 'good' })
   })
 
-  test('a won game is celebrated', () => {
-    expect(present({ type: 'gameOver', winner: 2 }, seated(), 1)).toEqual({ celebrate: 'var(--accent)' })
-  })
 })
 
 describe('each event is heard, and only where something happens at the table', () => {
@@ -144,7 +161,9 @@ describe('each event is heard, and only where something happens at the table', (
     expect(heard({ type: 'roundScored', summary: summary({}) })).toEqual([])
   })
 
-  test('a won game pushes the pot over', () => {
-    expect(heard({ type: 'gameOver', winner: 2 })).toEqual([['gameWon']])
+  test('a won game pushes the pot over and cheers for the winner; the others, and a spectator, hear the pot alone', () => {
+    expect(heard({ type: 'gameOver', winner: 1 })).toEqual([['gameWon']])
+    expect(heard({ type: 'gameOver', winner: 2 })).toEqual([['gameLost']])
+    expect(heard({ type: 'gameOver', winner: 1 }, null)).toEqual([['gameLost']])
   })
 })

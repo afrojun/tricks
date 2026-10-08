@@ -1,8 +1,10 @@
 import { describe, expect, test, vi } from 'vitest'
-import { type GameEvent, type RoundSummary, type Seat, viewFor } from '../engine'
+import { type GameEvent, type RoundSummary, type Seat, type View, viewFor } from '../engine'
 import { Table, card } from '../engine/testing'
+import { WIN_BEAT_MS } from '../../../ui/contract'
 import { playSound } from '../../../ui/sound'
-import { CHALLENGE_BEAT_MS, present } from './present'
+import { dwell } from './dwell'
+import { BALL_STAGGER_MS, CHALLENGE_BEAT_MS, MAX_WIN_WAIT_MS, VERDICT_BEAT_MS, present, winWait } from './present'
 import { headline } from './RoundResult'
 
 vi.mock('../../../ui/sound', async (original) => ({ ...(await original<object>()), playSound: vi.fn() }))
@@ -52,9 +54,9 @@ describe('a verdict says what was done', () => {
 })
 
 /** The sounds one event plays, for a viewer at seat 1 (team 1) unless another seat, or a spectator, is given. */
-function heard(event: GameEvent, at: Seat | null = 1) {
+function heard(event: GameEvent, at: Seat | null = 1, seen: View = view) {
   vi.mocked(playSound).mockClear()
-  present(event, view, at)
+  present(event, seen, at)
   return vi.mocked(playSound).mock.calls
 }
 
@@ -92,7 +94,44 @@ describe('each event is heard', () => {
     expect(heard({ type: 'roundScored', summary: challenged(undefined) })).toEqual([])
   })
 
-  test('a won game pushes the pot over', () => {
-    expect(heard({ type: 'gameOver', winner: 0 })).toEqual([['gameWon']])
+  test('a won game pushes the pot over and cheers for the side that won, and only pushes the pot for the other and a spectator', () => {
+    expect(heard({ type: 'gameOver', winner: 1 })).toEqual([['gameWon', 0]])
+    expect(heard({ type: 'gameOver', winner: 0 })).toEqual([['gameLost', 0]])
+    expect(heard({ type: 'gameOver', winner: 1 }, null)).toEqual([['gameLost', 0]])
+  })
+})
+
+describe('the win', () => {
+  /** The view as the message carrying game over shows it: the last round scored, 4 balls to team 1. */
+  function over(challenge?: RoundSummary['challenge']): View {
+    const summary = { ...challenged(challenge), ballsAfter: [7, 12] as [number, number] }
+    return { ...view, balls: [7, 12], phase: { kind: 'gameOver', winner: 1, summary } }
+  }
+
+  test('is stamped for the winners in their colour under confetti, named quietly for the losers, and coloured but not showered for a spectator', () => {
+    const won = present({ type: 'gameOver', winner: 1 }, over(), 1)
+    expect(won.moments).toEqual([{ title: 'You win', detail: '12 balls to 7', tone: 'win', ms: WIN_BEAT_MS, colour: 'var(--team1)' }])
+    expect(won.celebrate).toBe('var(--team1)')
+    const lost = present({ type: 'gameOver', winner: 1 }, over(), 0)
+    expect(lost.moments).toEqual([expect.objectContaining({ title: 'P1 & P3 win', tone: 'good' })])
+    expect(lost.celebrate).toBeUndefined()
+    const watched = present({ type: 'gameOver', winner: 1 }, over(), null)
+    expect(watched.moments).toEqual([expect.objectContaining({ title: 'P1 & P3 win', tone: 'win', colour: 'var(--team1)' })])
+    expect(watched.celebrate).toBeUndefined()
+  })
+
+  test('waits for the balls to fill, and for the verdict when a challenge ended the game, and the sound waits with it', () => {
+    const plain = present({ type: 'gameOver', winner: 1 }, over(), 1)
+    expect(plain.after).toBe(4 * BALL_STAGGER_MS + 350)
+    expect(winWait(challenged(undefined))).toBe(plain.after)
+    const caught = over({ ...play, guilty: true, rule: 'renege' })
+    const after = present({ type: 'gameOver', winner: 1 }, caught, 1).after
+    expect(after).toBe(CHALLENGE_BEAT_MS + VERDICT_BEAT_MS / 2 + 4 * BALL_STAGGER_MS + 350)
+    expect(heard({ type: 'gameOver', winner: 1 }, 1, caught)).toEqual([['gameWon', after]])
+    expect(after).toBeLessThanOrEqual(MAX_WIN_WAIT_MS)
+  })
+
+  test('holds the screen until the win has been seen', () => {
+    expect(dwell({ type: 'gameOver', winner: 1 })).toBeGreaterThanOrEqual(MAX_WIN_WAIT_MS + WIN_BEAT_MS)
   })
 })

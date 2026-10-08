@@ -66,7 +66,7 @@ Every sound is a gesture at a real table or an object from the print world; noth
 | Challenge upheld | a rubber stamp | Freesound 362624 |
 | Challenge fails | a desk bell | Freesound 685111, cut at 1.4 s |
 | Each ball | a poker chip laid | Freesound 817552–817554 |
-| Game won | the pot pushed over | Freesound 532861 |
+| Game won | the pot pushed over, and the table cheering for the side that won; the pot alone for the other | Freesound 532861, 505717 |
 | A committing button (sit, start, deal, call) | a page turned, soft | Kenney `bookFlip1`, cut at 350 ms |
 
 Arjun approved the table and button sounds. The call and score rows are second-round candidates he had not settled on; they stand in until the voices arrive. All recordings are CC0 (Kenney packs; Freesound ids as listed, previews used as-is). The files go in `public/sounds/` as mono mp3, with a `SOURCES.txt`. `src/ui/sound.ts` keeps its `Sound` names and mute switch, plays decoded buffers through Web Audio with a random `playbackRate` of ±4%, and layers parts with offsets. Haptics pair with the knock, the slam and each chip.

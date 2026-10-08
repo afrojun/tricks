@@ -20,7 +20,7 @@ import { check } from '../coach/check'
 import { TOPICS } from '../coach/topics'
 import { CoachStrip } from '../../../ui/coach/CoachStrip'
 import { HowToPlaySheet } from '../../../ui/coach/CoachSheets'
-import { CHALLENGE_BEAT_MS, VERDICT_BEAT_MS } from './present'
+import { BALL_STAGGER_MS, CHALLENGE_BEAT_MS, VERDICT_BEAT_MS } from './present'
 import { RoundResult } from './RoundResult'
 import { RulesSheet, rulesSummary } from '../../../ui/Rules'
 import { SeatBadge as Badge, TakeOver, usePosition } from '../../../ui/Seat'
@@ -236,7 +236,6 @@ function StatusStrip({ view, burst, onMenu, onTricks }: { view: View; burst: Bal
   )
 }
 
-export const BALL_STAGGER_MS = 280
 
 /** Trump, the call and the target for this round, in one line. */
 function RoundFacts({ view }: { view: View }) {

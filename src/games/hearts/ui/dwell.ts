@@ -1,5 +1,6 @@
 /** How long each of Hearts' events holds the screen before the next message is shown. For its screens. */
 import type { GameEvent } from '../engine'
+import { WIN_BEAT_MS } from '../../../ui/contract'
 import { CHALLENGE_BEAT_MS, HEARTS_BROKEN_MS, VERDICT_BEAT_MS } from './present'
 
 const DWELL_MS: Partial<Record<GameEvent['type'], number>> = {
@@ -11,6 +12,8 @@ const DWELL_MS: Partial<Record<GameEvent['type'], number>> = {
   heartsBroken: HEARTS_BROKEN_MS + 100,
   // The verdict comes in the same message, as the round's score: both beats are seen.
   challengeResolved: CHALLENGE_BEAT_MS + VERDICT_BEAT_MS,
+  // The win comes with the last round's score, and a challenge and its verdict, or a moon, show first.
+  gameOver: CHALLENGE_BEAT_MS + VERDICT_BEAT_MS + WIN_BEAT_MS + 100,
 }
 
 export function dwell(event: GameEvent): number {

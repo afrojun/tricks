@@ -1,6 +1,7 @@
-import { Component, type ReactNode, useEffect, useState } from 'react'
+import { Component, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { HeldPresentations } from './held'
 import { Lobby } from './Lobby'
-import { Celebration, MomentOverlay, useMoments } from './Moments'
+import { CELEBRATION_MS, Celebration, MomentOverlay, useMoments } from './Moments'
 import { gamePath } from './routes'
 import { SessionProvider, navigate, useClient, useGameClient, useSession } from './session'
 import { rejectionText } from './text'
@@ -15,19 +16,35 @@ export function Screen({ room }: { room: string }) {
   const moments = useMoments()
   const pushMoment = moments.push
 
-  useEffect(
+  // A presentation with `after` waits, unless the table moves on (a quick rematch) or the screen goes away first.
+  const lastEvent = useRef(0)
+  const held = useMemo(
     () =>
-      store.onEvent((event, view, seat) => {
-        const shown = game.present(event, view, seat)
-        if (shown.toast) setToast({ text: shown.toast, id: event.n })
+      new HeldPresentations((shown) => {
+        if (shown.toast) setToast({ text: shown.toast, id: lastEvent.current })
         shown.moments?.forEach(pushMoment)
-        if (shown.celebrate) setCelebrate({ colour: shown.celebrate, id: event.n })
+        if (shown.celebrate) setCelebrate({ colour: shown.celebrate, id: lastEvent.current })
       }),
-    [store, pushMoment, game],
+    [pushMoment],
   )
   useEffect(() => {
+    const stop = store.onEvent((event, view, seat) => {
+      lastEvent.current = event.n
+      held.take(game.present(event, view, seat), view.phase.kind)
+    })
+    return () => {
+      stop()
+      held.clear()
+    }
+  }, [store, held, game])
+  // A reconnect can land in a new phase with no event to say so.
+  const phase = client.view?.phase.kind
+  useEffect(() => {
+    if (phase) held.moved(phase)
+  }, [held, phase])
+  useEffect(() => {
     if (!celebrate) return
-    const timer = setTimeout(() => setCelebrate(null), 3200)
+    const timer = setTimeout(() => setCelebrate(null), CELEBRATION_MS)
     return () => clearTimeout(timer)
   }, [celebrate])
   useEffect(() => {

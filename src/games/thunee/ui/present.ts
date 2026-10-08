@@ -1,10 +1,23 @@
-import { type GameEvent, type Seat, type View, teamOf } from '../engine'
-import type { Presentation } from '../../../ui/contract'
+import { type GameEvent, type RoundSummary, type Seat, type View, teamOf } from '../engine'
+import { type Presentation, WIN_BEAT_MS } from '../../../ui/contract'
 import { type Sound, playSound } from '../../../ui/sound'
 import { SUIT_NAME, seatName } from '../../../ui/text'
+import { teamName } from './text'
 
 export const CHALLENGE_BEAT_MS = 1000
 export const VERDICT_BEAT_MS = 1300
+/** The balls a round won fill one at a time on the score track, this far apart. */
+export const BALL_STAGGER_MS = 280
+/** A breath between the last ball landing and the win. */
+const WIN_PAUSE_MS = 350
+
+/** How long after the round's score the game's win shows: after the verdict, if there was a challenge, and after every ball has filled. */
+export function winWait(summary: RoundSummary): number {
+  const verdict = summary.challenge ? CHALLENGE_BEAT_MS + VERDICT_BEAT_MS / 2 : 0
+  return verdict + summary.balls * BALL_STAGGER_MS + WIN_PAUSE_MS
+}
+/** The longest `winWait`: a challenge wins 4 balls, and a partner-caught Thunee up to 8 without one. */
+export const MAX_WIN_WAIT_MS = Math.max(CHALLENGE_BEAT_MS + VERDICT_BEAT_MS / 2 + 4 * BALL_STAGGER_MS, 8 * BALL_STAGGER_MS) + WIN_PAUSE_MS
 
 /** What a guilty play did, by the first rule it broke. */
 const BROKE: Record<string, string> = { renege: 'did not follow suit', undercut: 'undercut a trump' }
@@ -71,9 +84,22 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
         ],
       }
     }
-    case 'gameOver':
-      playSound('gameWon')
-      return { celebrate: event.winner === 0 ? 'var(--team0)' : 'var(--team1)' }
+    case 'gameOver': {
+      // Arrives with the round's score, while its balls are still filling: the win waits for the last of them.
+      const after = view.phase.kind === 'gameOver' ? winWait(view.phase.summary) : 0
+      const balls = view.phase.kind === 'gameOver' ? view.phase.summary.ballsAfter : view.balls
+      const mine = seat !== null && teamOf(seat) === event.winner
+      const colour = `var(--team${event.winner})`
+      const cancel = playSound(mine ? 'gameWon' : 'gameLost', after)
+      // The winners see "You win" and their colour floods the table under confetti; the losers see who did, quietly; a spectator sees the colour without the confetti.
+      const title = mine ? 'You win' : `${teamName(view, event.winner)} ${view.playerCount === 2 ? 'wins' : 'win'}`
+      return {
+        after,
+        cancel,
+        moments: [{ title, detail: `${balls[event.winner]} balls to ${balls[1 - event.winner]}`, tone: mine || seat === null ? 'win' : 'good', ms: WIN_BEAT_MS, colour }],
+        celebrate: mine ? colour : undefined,
+      }
+    }
     default:
       return {}
   }

@@ -22,3 +22,4 @@ fs-chip-0.mp3  freesound.org/s/817552/  CC0
 fs-chip-1.mp3  freesound.org/s/817553/  CC0
 fs-chip-2.mp3  freesound.org/s/817554/  CC0
 fs-chips-push.mp3  freesound.org/s/532861/  CC0
+fs-cheer.mp3  freesound.org/s/505717/  CC0

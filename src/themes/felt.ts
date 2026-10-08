@@ -2,7 +2,8 @@
  * The table: rays turning slowly around the trick, halftone dots growing toward the edges,
  * drawn by a small shader at a modest resolution. The colours come from the theme's tokens, and
  * change with the mood the moment layer sets on the document: a call floods the rays and spins
- * them, a challenge floods them red. Without WebGL the still rays in `--bg-image` show instead.
+ * them, a challenge floods them red, a won game floods them with the winner's colour (the
+ * `--mood-colour` the layer sets with it). Without WebGL the still rays in `--bg-image` show instead.
  */
 
 const VERTEX = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}'
@@ -25,7 +26,8 @@ const FRAME_MS = 33
 const MAX_SCALE = 1.5
 
 type Rgb = [number, number, number]
-type Mood = 'call' | 'danger'
+type Mood = 'call' | 'danger' | 'win'
+const MOODS: readonly string[] = ['call', 'danger', 'win']
 
 function rgb(css: string): Rgb {
   const hex = css.trim()
@@ -35,11 +37,26 @@ function rgb(css: string): Rgb {
   return m && m.length >= 3 ? [+m[0] / 255, +m[1] / 255, +m[2] / 255] : [0, 0, 0]
 }
 
-/** The three felt colours for a mood, from the document's tokens. */
+/** `c` moved toward white (`by` > 0) or black (`by` < 0) by that fraction of the way. */
+function shade(c: Rgb, by: number): Rgb {
+  return c.map((v) => (by > 0 ? v + (1 - v) * by : v + v * by)) as Rgb
+}
+
+/** The three felt colours for a mood, from the document's tokens; a win's from the winner's colour. */
 function palette(mood: Mood | null): Rgb[] {
   const style = getComputedStyle(document.documentElement)
+  if (mood === 'win') {
+    const win = rgb(style.getPropertyValue('--mood-colour') || style.getPropertyValue('--yellow'))
+    return [win, shade(win, 0.12), shade(win, -0.38)]
+  }
   const prefix = mood ? `--felt-${mood}-` : '--felt-'
   return ['a', 'b', 'c'].map((k) => rgb(style.getPropertyValue(`${prefix}${k}`)))
+}
+
+/** What the felt is showing for: the mood, the win's colour and the theme, as one string. */
+function key(): string {
+  const root = document.documentElement
+  return `${root.dataset.mood ?? ''}/${root.style.getPropertyValue('--mood-colour')}/${root.dataset.theme ?? ''}`
 }
 
 /** Where the rays meet: the trick if one is on screen, the middle of a table otherwise, else under a title. */
@@ -79,7 +96,7 @@ export function startFelt(canvas: HTMLCanvasElement): () => void {
   let colours = palette(null)
   let target = colours
   let mood: Mood | null = null
-  let theme = document.documentElement.dataset.theme
+  let shown = key()
   let phase = 0
   let last = 0
   let frame = 0
@@ -92,11 +109,11 @@ export function startFelt(canvas: HTMLCanvasElement): () => void {
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
     last = now
     // The mood is whatever the moment layer last set; the theme is whatever the picker last set.
-    const nextMood = (document.documentElement.dataset.mood as Mood | undefined) ?? null
-    const nextTheme = document.documentElement.dataset.theme
-    if (nextMood !== mood || nextTheme !== theme) {
-      mood = nextMood === 'call' || nextMood === 'danger' ? nextMood : null
-      theme = nextTheme
+    const next = key()
+    if (next !== shown) {
+      shown = next
+      const nextMood = document.documentElement.dataset.mood ?? ''
+      mood = MOODS.includes(nextMood) ? (nextMood as Mood) : null
       target = palette(mood)
     }
     const settling = colours.some((c, i) => c.some((v, j) => Math.abs(target[i][j] - v) > 0.002))

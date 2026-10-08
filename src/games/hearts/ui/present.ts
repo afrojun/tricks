@@ -1,9 +1,9 @@
 import { type GameEvent, type View, passTarget } from '../engine'
 import type { Seat } from '../../../kit/table'
-import type { Presentation } from '../../../ui/contract'
+import { type Presentation, WIN_BEAT_MS } from '../../../ui/contract'
 import { playSound } from '../../../ui/sound'
 import { seatName } from '../../../ui/text'
-import { BROKE } from './text'
+import { BROKE, pointsWord } from './text'
 
 /** How long each moment holds the middle of the table; `dwell` holds playback at least as long. */
 export const CHALLENGE_BEAT_MS = 1000
@@ -63,9 +63,16 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
         ],
       }
     }
-    case 'gameOver':
-      playSound('gameWon')
-      return { celebrate: 'var(--accent)' }
+    case 'gameOver': {
+      const mine = event.winner === seat
+      const colour = 'var(--accent)'
+      playSound(mine ? 'gameWon' : 'gameLost')
+      // The winner sees "You win" over a golden table under confetti; the others see who did, quietly; a spectator sees the gold without the confetti.
+      return {
+        moments: [{ title: mine ? 'You win' : `${seatName(view, event.winner)} wins`, detail: `On ${pointsWord(view.scores[event.winner])}`, tone: mine || seat === null ? 'win' : 'good', ms: WIN_BEAT_MS, colour }],
+        celebrate: mine ? colour : undefined,
+      }
+    }
     default:
       return {}
   }

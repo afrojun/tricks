@@ -845,6 +845,11 @@ button:disabled {
 .moment[data-tone='good'] .moment-title {
   color: var(--paper);
 }
+/* A won game: paper lettering, since the felt behind it floods with the winner's colour. */
+.moment[data-tone='win'] .moment-title {
+  color: var(--paper);
+  -webkit-text-stroke: 0.09em var(--ink);
+}
 .moment-detail {
   padding: 0.4rem 0.8rem;
   background: var(--ink);
@@ -873,6 +878,11 @@ button:disabled {
   }
 }
 
+/*
+ * Confetti for a won game: card-shaped pieces in the winner's colour, yellow and paper, thrown
+ * up from the middle of the table (where the winner's name is stamped) and falling past the foot
+ * of the screen. Each piece's throw, spin, delay and length come from its own custom properties.
+ */
 .celebration {
   position: fixed;
   inset: 0;
@@ -882,25 +892,105 @@ button:disabled {
 }
 .celebration i {
   position: absolute;
-  top: -1rem;
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 999px;
+  top: 50%;
+  left: 50%;
+  width: 0.55rem;
+  height: 0.85rem;
+  border-radius: 2px;
   background: currentColor;
-  animation: fall linear forwards;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 25%, transparent);
+  opacity: 0;
+  animation: confetti var(--dur, 3s) linear var(--delay, 0ms) forwards;
 }
 .celebration i:nth-child(3n) {
-  background: var(--red);
-  border-radius: 0;
+  background: var(--yellow);
 }
 .celebration i:nth-child(3n + 1) {
   background: var(--paper);
 }
-@keyframes fall {
-  to {
-    transform: translateY(105vh) rotate(540deg);
-    opacity: 0.2;
+.celebration i:nth-child(2n) {
+  width: 0.7rem;
+  height: 0.5rem;
+}
+@keyframes confetti {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+    opacity: 0;
+    animation-timing-function: ease-out;
   }
+  6% {
+    opacity: 1;
+  }
+  28% {
+    translate: calc(var(--dx) * 0.65) calc(var(--up) * -1);
+    rotate: calc(var(--spin) * 0.3);
+    animation-timing-function: cubic-bezier(0.35, 0, 0.75, 0.55);
+  }
+  100% {
+    translate: var(--dx) 75vh;
+    rotate: var(--spin);
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .celebration {
+    display: none;
+  }
+}
+
+/* ── Game over ──────────────────────────────────────────────────────────── */
+
+/* The final score: each side's number on its colour, the winner's a little larger. */
+.final-score {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: end;
+}
+.final-side {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  min-width: 0;
+}
+.final-side b {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: 0.45rem 0.5rem;
+  font-size: 2.4rem;
+  font-weight: 900;
+  font-stretch: 70%;
+  line-height: 1;
+  background: var(--team, var(--paper-shade));
+  color: var(--on-team, var(--ink));
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 3px 0 var(--line);
+}
+.final-side[data-winner='true'] b {
+  font-size: 3rem;
+  padding-block: 0.55rem;
+}
+.final-side span {
+  max-width: 100%;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-stretch: 85%;
+  line-height: 1.1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* "Game over", small over the lettering. */
+.eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
 }
 
 /*

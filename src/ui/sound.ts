@@ -18,6 +18,7 @@ export type Sound =
   | 'fair'
   | 'ball'
   | 'gameWon'
+  | 'gameLost'
   | 'tap'
 
 /** One recording in a sound: a file in `public/sounds/` (one of several, at random), how loud, ms after the sound starts, and where it is faded out. */
@@ -50,7 +51,10 @@ const SOUNDS: Record<Sound, Recipe> = {
   caught: { parts: [{ file: 'fs-stamp-1', volume: 1 }], haptic: 80 },
   fair: { parts: [{ file: 'fs-bell-desk', volume: 0.8, cut: 1400 }] },
   ball: { parts: [{ file: ['fs-chip-0', 'fs-chip-1', 'fs-chip-2'], volume: 0.9 }], haptic: 15 },
-  gameWon: { parts: [{ file: 'fs-chips-push', volume: 1 }] },
+  // The pot pushed over to the winners, and their table cheering: for the side that won.
+  gameWon: { parts: [{ file: 'fs-chips-push', volume: 1 }, { file: 'fs-cheer', volume: 0.55, at: 250 }], haptic: [40, 70, 40, 70, 160] },
+  // For the side that lost, and a spectator: the pot pushed over, to someone else.
+  gameLost: { parts: [{ file: 'fs-chips-push', volume: 0.8 }] },
   tap: { parts: [{ file: 'bookFlip1', volume: 0.5, cut: 350 }] },
 }
 
@@ -112,7 +116,7 @@ function load(ctx: AudioContext, file: string): Promise<AudioBuffer | null> {
   return buffer
 }
 
-function start(ctx: AudioContext, buffer: AudioBuffer, when: number, part: Part, rate: number): void {
+function start(ctx: AudioContext, buffer: AudioBuffer, when: number, part: Part, rate: number): AudioBufferSourceNode {
   const source = ctx.createBufferSource()
   const gain = ctx.createGain()
   source.buffer = buffer
@@ -122,15 +126,18 @@ function start(ctx: AudioContext, buffer: AudioBuffer, when: number, part: Part,
   source.onended = () => playing.delete(source)
   playing.add(source)
   source.start(when)
-  if (part.cut === undefined) return
-  const end = when + part.cut / 1000 / rate
-  const fade = Math.min(0.15, (part.cut / 1000) * 0.2)
-  gain.gain.setValueAtTime(part.volume, end - fade)
-  gain.gain.linearRampToValueAtTime(0, end)
-  source.stop(end)
+  if (part.cut !== undefined) {
+    const end = when + part.cut / 1000 / rate
+    const fade = Math.min(0.15, (part.cut / 1000) * 0.2)
+    gain.gain.setValueAtTime(part.volume, end - fade)
+    gain.gain.linearRampToValueAtTime(0, end)
+    source.stop(end)
+  }
+  return source
 }
 
-function buzz(pattern: number | number[] | undefined, after: number): void {
+/** Buzzes now, or `after` ms from now; returns the timer of a buzz still to come. */
+function buzz(pattern: number | number[] | undefined, after: number): ReturnType<typeof setTimeout> | undefined {
   if (pattern === undefined || typeof navigator === 'undefined' || !('vibrate' in navigator)) return
   const go = () => {
     try {
@@ -139,38 +146,56 @@ function buzz(pattern: number | number[] | undefined, after: number): void {
       // Not allowed yet, or not here.
     }
   }
-  if (after > 0) setTimeout(go, after)
-  else go()
+  if (after > 0) return setTimeout(go, after)
+  go()
 }
 
 /**
  * Plays a sound now, or `after` ms from now on the audio clock. Its haptic plays even with the
- * sound muted, as the turn's always has.
+ * sound muted, as the turn's always has. Returns a function that stops it, parts scheduled on the
+ * audio clock and the haptic included: for a sound played with `after` whose moment is then dropped.
  */
-export function playSound(sound: Sound, after = 0): void {
+export function playSound(sound: Sound, after = 0): () => void {
+  let cancelled = false
+  let pending: ReturnType<typeof setTimeout> | undefined
+  // This call's parts, scheduled on the audio clock and perhaps not yet heard.
+  const scheduled: AudioBufferSourceNode[] = []
+  const cancel = () => {
+    cancelled = true
+    if (pending !== undefined) clearTimeout(pending)
+    for (const source of scheduled) {
+      try {
+        source.stop()
+      } catch {
+        // Never started, or already ended.
+      }
+    }
+    scheduled.length = 0
+  }
   try {
     const recipe = SOUNDS[sound]
-    buzz(recipe.haptic, after)
-    if (isMuted()) return
+    pending = buzz(recipe.haptic, after)
+    if (isMuted()) return cancel
     const ctx = audio()
-    if (!ctx) return
+    if (!ctx) return cancel
     const due = performance.now() + after
     const rate = 1 + (Math.random() * 2 - 1) * PITCH_SPREAD
     for (const part of recipe.parts) {
       const file = typeof part.file === 'string' ? part.file : part.file[Math.floor(Math.random() * part.file.length)]
       load(ctx, file)
         .then((buffer) => {
-          // Muted while it loaded; or a context not running, which would play everything queued at once when it resumes.
-          if (!buffer || isMuted() || ctx.state !== 'running') return
+          // Taken back; muted while it loaded; or a context not running, which would play everything queued at once when it resumes.
+          if (cancelled || !buffer || isMuted() || ctx.state !== 'running') return
           const wait = due + (part.at ?? 0) - performance.now()
           if (wait < -LATE_MS) return
-          start(ctx, buffer, ctx.currentTime + Math.max(0, wait) / 1000, part, rate)
+          scheduled.push(start(ctx, buffer, ctx.currentTime + Math.max(0, wait) / 1000, part, rate))
         })
         .catch(() => {})
     }
   } catch {
     // Audio is a nicety; never let it break the game.
   }
+  return cancel
 }
 
 /** Fetches and decodes every recording, so the first play of each is on time. */

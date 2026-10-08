@@ -46,19 +46,17 @@ export function headline(view: View, s: RoundSummary): string {
     : `The counting side made ${n.total}, short of ${n.target}.`
 }
 
+/** "You take", "Asha & Chan take", but "Asha takes" in a two-player game. */
+function verbFor(view: View, team: Team, base: string): string {
+  return view.playerCount === 2 && !(view.seat !== null && teamOf(view.seat) === team) ? `${base}s` : base
+}
+
 export function RoundResult({ view, summary, winner, can }: { view: View; summary: RoundSummary; winner: Team | null; can: Available }) {
   const { send } = useSession()
-  const mine = view.seat !== null && teamOf(view.seat) === summary.winner
-  // "You take", "Asha & Chan take", but "Asha takes" in a two-player game.
-  const verb = (team: Team, base: string) =>
-    view.playerCount === 2 && !(view.seat !== null && teamOf(view.seat) === team) ? `${base}s` : base
+  if (winner !== null) return <GameOver view={view} summary={summary} winner={winner} can={can} />
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">
-      <h2 className="display text-xl">
-        {winner !== null
-          ? `${teamName(view, winner, view.seat)} ${verb(winner, 'win')} the game`
-          : `${teamName(view, summary.winner, view.seat)} ${verb(summary.winner, 'take')} ${plural(summary.balls, 'ball')}`}
-      </h2>
+      <h2 className="display text-xl">{`${teamName(view, summary.winner, view.seat)} ${verbFor(view, summary.winner, 'take')} ${plural(summary.balls, 'ball')}`}</h2>
       <p>{headline(view, summary)}</p>
 
       {summary.normal && (
@@ -87,22 +85,54 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
 
       <CoachReview view={view} shown={HALVES} />
 
-      {winner === null ? (
-        can.nextRound ? (
-          <button className="btn btn-primary" onClick={() => {
-              playSound('tap')
-              send({ type: 'nextRound' })
-            }}>
-            Deal next round
-          </button>
-        ) : (
-          <p className="text-on-surface-muted">Waiting for a player to deal the next round.</p>
-        )
-      ) : can.rematch ? (
+      {can.nextRound ? (
         <button className="btn btn-primary" onClick={() => {
-              playSound('tap')
-              send({ type: 'rematch' })
-            }}>
+            playSound('tap')
+            send({ type: 'nextRound' })
+          }}>
+          Deal next round
+        </button>
+      ) : (
+        <p className="text-on-surface-muted">Waiting for a player to deal the next round.</p>
+      )}
+    </section>
+  )
+}
+
+/** The game's end: who won, the final balls side by side, how long it took, and the last round under it. */
+function GameOver({ view, summary, winner, can }: { view: View; summary: RoundSummary; winner: Team; can: Available }) {
+  const { send } = useSession()
+  const mine = view.seat !== null && teamOf(view.seat) === winner
+  const loser = (1 - winner) as Team
+  const side = (team: Team) => (
+    <div className="final-side" data-winner={team === winner} style={{ '--team': `var(--team${team})`, '--on-team': `var(--on-team${team})` } as React.CSSProperties}>
+      <b>{summary.ballsAfter[team]}</b>
+      <span>{teamName(view, team, view.seat)}</span>
+    </div>
+  )
+  return (
+    <section className="panel p-4 w-full max-w-sm grid gap-3">
+      <div>
+        <p className="eyebrow">Game over</p>
+        <h2 className="display text-2xl">{mine ? 'You win' : `${teamName(view, winner)} ${verbFor(view, winner, 'win')}`}</h2>
+      </div>
+      <div className="final-score">
+        {side(winner)}
+        {side(loser)}
+      </div>
+      <p>
+        {mine ? 'Well played: ' : ''}
+        {`${plural(view.ballsTarget, 'ball')} in ${plural(summary.roundNumber, 'round')}.`}
+      </p>
+      <p className="text-on-surface-muted">Last round: {headline(view, summary)}</p>
+
+      <CoachReview view={view} shown={HALVES} />
+
+      {can.rematch ? (
+        <button className="btn btn-primary" onClick={() => {
+            playSound('tap')
+            send({ type: 'rematch' })
+          }}>
           Play again
         </button>
       ) : (

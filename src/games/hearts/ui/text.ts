@@ -33,7 +33,7 @@ export function points(n: number): string {
 }
 
 /** "3 points", "1 point", "−10 points". */
-function pointsWord(n: number): string {
+export function pointsWord(n: number): string {
   return `${points(n)} point${Math.abs(n) === 1 ? '' : 's'}`
 }
 
