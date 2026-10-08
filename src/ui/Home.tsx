@@ -64,6 +64,17 @@ function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
   )
 }
 
+/**
+ * A practice button's label. One table size: "Practice", or "Start over" beside "Continue practice".
+ * Several: the size alone, since the panel already says what it is, so the buttons share a row
+ * at phone width without wrapping.
+ */
+export function practiceLabel(players: number, several: boolean, saved: boolean): string {
+  const size = countWord(players).toLowerCase()
+  if (!several) return saved ? 'Start over' : 'Practice'
+  return saved ? `New: ${size}` : `${countWord(players)} players`
+}
+
 /** Larger tables first. */
 const bySize = (counts: readonly number[]) => [...counts].sort((a, b) => b - a)
 
@@ -82,7 +93,8 @@ function LearnToPlay() {
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">
       <h2 className="display text-xl">Learn to play</h2>
-      <p>Against the computer, with a coach who explains every move.</p>
+      {/* A returning learner knows what practice is; the line it saves keeps the page on one screen. */}
+      {!saved && <p>Against the computer, with a coach who explains every move.</p>}
       {saved && (
         <button
           className="btn btn-primary"
@@ -104,7 +116,7 @@ function LearnToPlay() {
               navigate(practicePath(game.id, n))
             }}
           >
-            {saved ? `New: ${countWord(n).toLowerCase()} players` : `Practice with ${countWord(n).toLowerCase()}`}
+            {practiceLabel(n, game.seatCounts.length > 1, saved)}
           </button>
         ))}
       </div>
@@ -121,7 +133,8 @@ export function Home() {
   const [joinCode, setJoinCode] = useState('')
   const [rules, setRules] = useState(false)
   const shared = new URLSearchParams(location.search).get(SHARE_PARAM)
-  const overrides = presets.find((p) => p.id === presetId)?.overrides ?? {}
+  const preset = presets.find((p) => p.id === presetId)
+  const overrides = preset?.overrides ?? {}
 
   const create = () => {
     playSound('tap')
@@ -140,7 +153,7 @@ export function Home() {
           </button>
         }
       />
-      {rules && <RulesSheet game={game} rules={resolve(game.rules.defaults, overrides)} title="House rules" onClose={() => setRules(false)} />}
+      {rules && <RulesSheet game={game} rules={resolve(game.rules.defaults, overrides)} title="House rules" summary={preset?.name} onClose={() => setRules(false)} />}
       <header className="text-center">
         <h1 className="wordmark text-[4.2rem]">{game.name}</h1>
         <p className="font-semibold mt-1">{game.tagline}</p>

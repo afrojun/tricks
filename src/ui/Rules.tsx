@@ -37,11 +37,26 @@ export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>;
   )
 }
 
-/** The rules in force at a table, for its menu, or those a game's home would create one with. */
-export function RulesSheet<R extends object>({ game, rules, onClose, title = 'Rules in this game' }: { game: RulesOf<R>; rules: R; onClose: () => void; title?: string }) {
+/**
+ * The rules in force at a table, for its menu, or those a game's home would create one with. The
+ * home passes the chosen preset's name as `summary`, since two presets may hold the same rules.
+ */
+export function RulesSheet<R extends object>({
+  game,
+  rules,
+  onClose,
+  title = 'Rules in this game',
+  summary,
+}: {
+  game: RulesOf<R>
+  rules: R
+  onClose: () => void
+  title?: string
+  summary?: string
+}) {
   return (
     <Sheet title={title} onClose={onClose}>
-      <p className="mb-3">{rulesSummary(game, rules)}</p>
+      <p className="mb-3">{summary ?? rulesSummary(game, rules)}</p>
       <RulesList game={game} rules={rules} />
     </Sheet>
   )

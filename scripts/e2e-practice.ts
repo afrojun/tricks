@@ -29,7 +29,7 @@ const showing = (name: string | RegExp) => button(name).isVisible()
 
 await page.goto(`${base}/thunee`)
 await shot('1-home')
-await button('Practice with four').click()
+await button('Four players').click()
 // A new game drops its ?players= so that a reload continues it.
 await page.waitForURL(/\/thunee\/practice$/)
 
