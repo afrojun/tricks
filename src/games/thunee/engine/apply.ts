@@ -50,8 +50,11 @@ export function step(draft: Game, actor: Actor, action: Action, ctx: Ctx): { eve
   const shaped = system ? { success: true as const, data: action } : actionShape.safeParse(action)
   if (!shaped.success) return { rejected: 'notAllowed' }
   const events: GameEvent[] = []
+  const decision = decisionOf(draft)
   const rejected = dispatch(draft, actor, shaped.data, ctx, events)
   if (rejected !== null) return { rejected }
+  // A new decision starts its wait afresh: a trumper slow to choose is not already stalled in the Thunee window.
+  if (decisionOf(draft) !== decision) draft.waiting = []
   settle(draft, ctx, seatsToAct(draft), untimedSeats(draft))
   return { events }
 }
@@ -73,10 +76,27 @@ export function seatsToAct(game: Game): Seat[] {
   }
 }
 
-/** The seats the table waits on with no deadline: the trumper choosing trump, and the seat to play. */
+/** The seats the table waits on with no deadline: the trumper choosing trump, the seat to play, and, without timers, the callers. */
 export function untimedSeats(game: Game): Seat[] {
   const phase = game.phase
-  return phase.kind === 'trumpSelection' ? [phase.trumper] : phase.kind === 'playing' ? [phase.turn] : []
+  switch (phase.kind) {
+    case 'calling':
+      return phase.deadline === null ? seatsToAct(game) : []
+    case 'trumpSelection':
+      return [phase.trumper]
+    case 'thuneeWindow':
+      return phase.deadline === null ? round.waitingOnThunee(game, phase) : []
+    case 'playing':
+      return [phase.turn]
+    default:
+      return []
+  }
+}
+
+/** What the table is asking: a new phase, or a new call to answer, is a new question. */
+function decisionOf(game: Game): string {
+  const phase = game.phase
+  return phase.kind === 'calling' ? `calling ${phase.call?.amount ?? 0}` : phase.kind
 }
 
 /** The earliest moment the server must wake up for, if any. */
@@ -214,7 +234,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
 /** Resolves a phase deadline that has passed. AI turns are driven by the server. */
 function tick(game: Game, ctx: Ctx, events: GameEvent[]): void {
   const phase = game.phase
-  if (!('deadline' in phase) || phase.deadline > ctx.now) return
+  if (!('deadline' in phase) || phase.deadline === null || phase.deadline > ctx.now) return
   if (phase.kind === 'calling') round.closeCalling(game, phase, ctx, events)
   else if (phase.kind === 'thuneeWindow') round.closeThunee(game, phase)
   else if (phase.kind === 'trickPause') round.afterTrick(game, phase.play, events)

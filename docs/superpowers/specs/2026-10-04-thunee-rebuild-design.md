@@ -137,10 +137,10 @@ Host-only: `addAi`, `removeAi`, `setRules`, `setPlayerCount`, `start`, `nextRoun
 ### 4.5 Round flow (four players)
 
 1. **Deal 4.** The deck is shuffled with `ctx.rng`. Four cards go to each seat starting at the dealer's right. Phase: `calling`.
-2. **Calling.** A window of `callTimerSeconds` opens. Valid calls are 10 to 100 in tens, then 104, and must exceed the current call. The first call may come from any seat except the default trumper; after that only an opponent of the current highest caller may raise. Each valid call restarts the window. A seat may `pass`; the window closes early once every seat that could still call has passed. The default trumper or current highest caller may `preselectTrump`; a preselect is private and is cleared when that seat is outcalled.
+2. **Calling.** A window of `callTimerSeconds` opens (with `timers` off, it has no time limit). Valid calls are 10 to 100 in tens, then 104, and must exceed the current call. The first call may come from any seat except the default trumper; after that only an opponent of the current highest caller may raise. Each valid call restarts the window. A seat may `pass`; the window closes early once every seat that could still call has passed. The default trumper or current highest caller may `preselectTrump`; a preselect is private and is cleared when that seat is outcalled.
 3. **Trump.** The highest caller, or the default trumper if nobody called, is the trumper. They choose a suit they hold among their four cards, or "last card" (the suit of the last card dealt to them). If they preselected, this step is skipped. Phase: `trumpSelection`, then two more cards are dealt to each seat.
 4. **No-trump redeal** (setting). If neither member of the counting team holds a trump, the deal is cancelled and redealt by the same dealer.
-5. **Thunee window.** A window of `thuneeWindowSeconds`. Eligible seats may `callThunee` or `pass`. A call from the trumper's team ends the window at once. A call from the other team is held until the window closes and is overridden by a later call from the trumper's team. A seat holding six cards of one suit may not call. The window closes early when every eligible seat has passed.
+5. **Thunee window.** A window of `thuneeWindowSeconds` (with `timers` off, it has no time limit, and 0 seconds does not skip it). Eligible seats may `callThunee` or `pass`. A call from the trumper's team ends the window at once. A call from the other team is held until the window closes and is overridden by a later call from the trumper's team. A seat holding six cards of one suit may not call. The window closes early when every eligible seat has passed.
 6. **Play.** Leader: `next(trumper)` normally; under Thunee, per the `thuneeLeader` setting. Trump is revealed to everyone after the first card is led. Six tricks. A completed trick is shown for 2 seconds (`trickPause`), then its winner leads.
 7. **Score.** Phase `roundResult`, or `gameOver` if a team has reached the target.
 
@@ -210,12 +210,14 @@ Each player gets 4 cards, calling and trump selection run as above with the non-
 | `ballsToWin` | number | 12 | 12 |
 | `twoToClear` | boolean | false | false |
 | `twoPlayerTarget` | number | 125 | 105 |
+| `timers` | boolean | false | false |
 | `callTimerSeconds` | number | 10 | 10 |
 | `thuneeWindowSeconds` | number | 5 | 5 |
 
 Definitions:
 - `jodhiCards: inHand` means the cards are in hand when the claim is made; `dealt` means they were among the six cards dealt.
 - `defaultTrumper: teamAhead` means the team ahead in balls, or on a tie the last round's winner, or failing that the dealer's right; the trumper is that team's member nearest the dealer's right.
+- `timers: false` means calling and the Thunee window have no deadline: each waits until every seat it waits on has called or passed, and those seats count as waited on, so a stalled one can be handed to the computer. `callTimerSeconds` and `thuneeWindowSeconds` apply only with `timers` on.
 - `dealerRotation: stayWhileBehind` means the deal passes to the right only when the dealer's team has at least as many balls as the other team after scoring.
 
 Fixed for every rule set: the 24-card deck, card ranks and values, the 105 four-player target, call amounts, call-and-lost paying 2 balls, challenge paying 4 balls, the 2-second trick pause.

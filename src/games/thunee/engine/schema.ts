@@ -32,6 +32,7 @@ function ruleOverrides(bounded: boolean) {
       ballsToWin: whole(1, 30),
       twoToClear: z.boolean(),
       twoPlayerTarget: whole(50, 250),
+      timers: z.boolean(),
       callTimerSeconds: whole(3, 60),
       thuneeWindowSeconds: whole(0, 30),
     })

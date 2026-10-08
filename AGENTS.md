@@ -103,9 +103,10 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 
 - South African trick-taking card game, 2 or 4 players (4 play in teams of 2)
 - 24-card deck: J, 9, A, 10, K, Q in each suit; values J=30, 9=20, A=11, 10=10, K=3, Q=2
-- Play is counterclockwise. Four cards are dealt, players may call for the right to choose trump (10s window), trump is chosen, two more cards are dealt, then anyone may call Thunee.
+- Play is counterclockwise. Four cards are dealt, players may call for the right to choose trump, trump is chosen, two more cards are dealt, then anyone may call Thunee.
 - The counting team (the trumper's opponents) needs 105 points. First to 12 balls wins.
 - Must follow suit. Breaking the rules is allowed by the app and recorded; an opponent may challenge for 4 balls. The house rule `allowCheating` turns this off: the app then refuses a rule-breaking card or a false Jodhi, and nobody may challenge.
+- Calling and the Thunee window wait for every player by default; the house rule `timers` closes them after `callTimerSeconds` and `thuneeWindowSeconds`.
 - Special calls: Jodhi, Thunee, Double, Khanaak. Section 4 of the spec has the details and every configurable rule.
 
 ## Game Rules (Hearts)

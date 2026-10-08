@@ -1,6 +1,7 @@
 /** Helpers for tests and simulations. Not used by the app. */
 import { deepFreeze, seededRng } from '../../../kit/testing'
-import { apply, createGame } from './apply'
+import { settle } from '../../../kit/table'
+import { apply, createGame, seatsToAct, untimedSeats } from './apply'
 import { type Card, type Rank, type Suit, createDeck, sameCard } from './cards'
 import { type RuleOverrides, resolveRules } from './rules'
 import { type Seat, allSeats, next, seatsFrom } from './seats'
@@ -37,7 +38,8 @@ export class Table {
     this.do(null, { type: 'sit', seat: 0, name: 'P0' })
     if (playerCount === 2) this.do(0, { type: 'setPlayerCount', playerCount: 2 })
     for (const seat of allSeats(playerCount).slice(1)) this.do(null, { type: 'sit', seat, name: `P${seat}` })
-    this.game = { ...this.game, rules: resolveRules(overrides) }
+    // Timed unless a test says otherwise: most close calling and the Thunee window by letting the clock run.
+    this.game = { ...this.game, rules: resolveRules({ timers: true, ...overrides }) }
   }
 
   get ctx(): Ctx {
@@ -91,6 +93,7 @@ export class Table {
         defaultTrumper: next(dealer, n),
       },
     }
+    settle(this.game, this.ctx, seatsToAct(this.game), untimedSeats(this.game))
     return this
   }
 

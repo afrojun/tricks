@@ -65,7 +65,7 @@ export function checkInvariants(game: Game): void {
 
   const waiting = seatsToAct(game)
   const idle = phase.kind === 'lobby' || phase.kind === 'roundResult' || phase.kind === 'gameOver'
-  if (!idle && waiting.length === 0 && !('deadline' in phase)) fail('nobody to act and no deadline')
+  if (!idle && waiting.length === 0 && !('deadline' in phase && phase.deadline !== null)) fail('nobody to act and no deadline')
   const aiNeeded = waiting.some((s) => isAiControlled(game, s))
   if (aiNeeded !== (game.aiActAt !== null)) fail(`aiActAt ${game.aiActAt} but aiNeeded ${aiNeeded}`)
   const untimed = untimedSeats(game)

@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest'
 import { availableActions } from './available'
 import { sameCard } from './cards'
-import { CLASSIC_APP_OVERRIDES } from './rules'
+import { nextDeadline } from './apply'
+import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL } from './rules'
 import { Table, collectCards } from './testing'
 import type { Game, RoundSummary } from './types'
 import { viewFor } from './view'
@@ -82,6 +83,41 @@ describe('calling', () => {
     expect(t.try(0, { type: 'call', amount: 10 })).toBe('notAllowed')
     t.do(3, { type: 'pass' })
     expect(t.game.phase).toMatchObject({ kind: 'trumpSelection', trumper: 1, callAmount: 0 })
+  })
+
+  test('without timers calling has no deadline, and waits until every seat that may call has passed', () => {
+    const t = new Table(4, { timers: false }).deal(D1)
+    expect(calling(t).deadline).toBeNull()
+    expect(viewFor(t.game, 0).phase).toMatchObject({ deadline: null })
+    expect(nextDeadline(t.game)).toBeNull()
+    expect(t.game.waiting.map((w) => w.seat)).toEqual([0, 2, 3])
+    t.do(2, { type: 'call', amount: 10 })
+    t.now += 600_000
+    t.do('system', { type: 'tick' }) // the system's tick changes nothing
+    expect(t.game.waiting.map((w) => w.seat)).toEqual([1, 3])
+    t.do(1, { type: 'pass' }).do(3, { type: 'pass' })
+    expect(t.game.phase).toMatchObject({ kind: 'trumpSelection', trumper: 2, callAmount: 10 })
+  })
+
+  test('without timers each new question starts its wait afresh', () => {
+    const t = new Table(4, { redealIfNoTrumps: false, timers: false }).deal(D1)
+    const dealt = t.now
+    t.now += 50_000
+    t.do(0, { type: 'pass' })
+    expect(t.game.waiting).toEqual([{ seat: 2, since: dealt }, { seat: 3, since: dealt }])
+    t.do(2, { type: 'call', amount: 10 })
+    expect(t.game.waiting).toEqual([{ seat: 1, since: t.now }, { seat: 3, since: t.now }])
+    t.now += 50_000
+    t.do(1, { type: 'call', amount: 104 })
+    expect(t.game.waiting).toEqual([{ seat: 1, since: t.now }]) // now choosing trump
+    t.now += 50_000
+    t.do(1, { type: 'chooseTrump', choice: 'spades' })
+    expect(t.game.waiting).toEqual([0, 1, 2, 3].map((seat) => ({ seat, since: t.now })))
+  })
+
+  test('the default rules have no timers', () => {
+    expect(TRADITIONAL.timers).toBe(false)
+    expect(CLASSIC_APP.timers).toBe(false)
   })
 
   test('a preselected trump is honoured when the window closes', () => {
@@ -201,6 +237,21 @@ describe('thunee window', () => {
     expect(overridden.game.phase).toMatchObject({ kind: 'playing', play: { thunee: { caller: 1 } } })
     held.advance(5000)
     expect(held.game.phase).toMatchObject({ kind: 'playing', turn: 0, play: { thunee: { caller: 0 } } })
+  })
+
+  test('without timers the window waits for everyone eligible; a held call waits only for the trumper’s team', () => {
+    const t = new Table(4, { redealIfNoTrumps: false, timers: false, thuneeWindowSeconds: 0 }).deal(D1)
+    t.do(0, { type: 'pass' }).do(2, { type: 'pass' }).do(3, { type: 'pass' }).do(1, { type: 'chooseTrump', choice: 'spades' })
+    expect(t.game.phase).toMatchObject({ kind: 'thuneeWindow', deadline: null })
+    expect(t.game.waiting.map((w) => w.seat)).toEqual([0, 1, 2, 3])
+    t.do(0, { type: 'callThunee' })
+    expect(t.game.waiting.map((w) => w.seat)).toEqual([1, 3])
+    t.now += 600_000
+    t.do('system', { type: 'tick' })
+    t.do(1, { type: 'pass' })
+    expect(t.game.phase.kind).toBe('thuneeWindow')
+    t.do(3, { type: 'pass' })
+    expect(t.game.phase).toMatchObject({ kind: 'playing', play: { thunee: { caller: 0 } } })
   })
 
   test('the window closes early when everyone passes, and play starts at the trumper’s right', () => {

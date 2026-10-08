@@ -22,6 +22,8 @@ export interface RuleSet extends CommonRules {
   ballsToWin: number
   twoToClear: boolean
   twoPlayerTarget: number
+  /** Calling and the Thunee window close when their time runs out; off, they wait until every player has called or passed. */
+  timers: boolean
   callTimerSeconds: number
   thuneeWindowSeconds: number
 }
@@ -48,6 +50,7 @@ export const TRADITIONAL: RuleSet = {
   ballsToWin: 12,
   twoToClear: false,
   twoPlayerTarget: 125,
+  timers: false,
   callTimerSeconds: 10,
   thuneeWindowSeconds: 5,
 }

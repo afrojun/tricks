@@ -13,7 +13,7 @@ export type Ask = KitAsk<Game, Action>
 /** A passed phase deadline, or a computer turn whose time has come. Null when nothing is due. */
 export function dueStep(game: Game, now: number): Step | null {
   const phase = game.phase
-  if ('deadline' in phase && phase.deadline <= now) return { actor: 'system', action: { type: 'tick' } }
+  if ('deadline' in phase && phase.deadline !== null && phase.deadline <= now) return { actor: 'system', action: { type: 'tick' } }
   if (game.aiActAt === null || game.aiActAt > now) return null
   const seat = seatsToAct(game).find((s) => isAiControlled(game, s))
   if (seat === undefined) return null

@@ -396,7 +396,7 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
   const mine = trumper === view.seat
   return (
     <section className="panel p-3 w-full max-w-xs grid gap-3">
-      <Timer deadline={phase.deadline} totalSeconds={view.rules.callTimerSeconds} />
+      {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.rules.callTimerSeconds} />}
       <p className="text-center">
         {phase.call
           ? `${mine ? 'You called' : `${seatName(view, phase.call.seat)} called`} ${phase.call.amount}.`
@@ -449,7 +449,7 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
   const commit = useCommit()
   return (
     <section className="panel p-3 w-full max-w-xs grid gap-3">
-      <Timer deadline={phase.deadline} totalSeconds={view.rules.thuneeWindowSeconds} />
+      {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.rules.thuneeWindowSeconds} />}
       <p className="text-center">
         {phase.pending !== null
           ? `${seatName(view, phase.pending)} wants Thunee. The trumping side can take it instead.`

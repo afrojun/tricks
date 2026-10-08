@@ -28,6 +28,7 @@ const RULE_INFO: RuleInfo<RuleSet>[] = [
   { key: 'ballsToWin', label: 'Balls to win', range: { min: 1, max: 30, unit: 'balls' } },
   { key: 'twoToClear', label: 'Must win by two balls', choices: onOff('Yes', 'No') },
   { key: 'twoPlayerTarget', label: 'Two-player counting target', range: { min: 50, max: 250, unit: 'points' } },
+  { key: 'timers', label: 'Time limits on calling and Thunee', choices: onOff('On', 'Off: the table waits for everyone') },
   { key: 'callTimerSeconds', label: 'Time to call', range: { min: 3, max: 60, unit: 'seconds' } },
   { key: 'thuneeWindowSeconds', label: 'Time to call Thunee', range: { min: 0, max: 30, unit: 'seconds' } },
 ]

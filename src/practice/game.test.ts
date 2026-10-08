@@ -104,16 +104,11 @@ describe('saving', () => {
     expect(PracticeGame.load(thuneePractice, null)).toBeNull()
   })
 
-  test('a game saved before practice served any game loads, and plays on as it would have', () => {
-    // Written by the Thunee-only practice: four players, seed 7, played to the player's first card after three decisions.
+  test('a game saved in an earlier Thunee format is not loaded', () => {
+    // Written by the Thunee-only practice, in Thunee's format 3, before calling could wait without a timer.
     const before = readFileSync(new URL('./saved-before-generic.json', import.meta.url), 'utf8')
-    const q = PracticeGame.load(thuneePractice, before)!
-    expect(q).not.toBeNull()
-    expect(q.round.decisions).toHaveLength(3)
-    const p = PracticeGame.start(thuneePractice, 4, 7, 'You')
-    playPractice(p, 400, undefined, (g) => g.round.decisions.length >= 3 && g.game.phase.kind === 'playing' && g.game.phase.turn === 0)
-    expect(JSON.parse(p.save())).toEqual(JSON.parse(before))
-    expect(playPractice(q, 200).view()).toEqual(playPractice(p, 200).view())
+    expect(JSON.parse(before).game.formatVersion).not.toBe(thuneePractice.module.formatVersion)
+    expect(PracticeGame.load(thuneePractice, before)).toBeNull()
   })
 
   test('a save keeps its shape, under the game’s own key', () => {

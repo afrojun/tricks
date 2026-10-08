@@ -47,9 +47,14 @@ export function beginRound(game: Game, ctx: Ctx, events: GameEvent[]): void {
     call: null,
     passed: [],
     preselect: null,
-    deadline: ctx.now + game.rules.callTimerSeconds * 1000,
+    deadline: deadlineIn(game, ctx, game.rules.callTimerSeconds),
   }
   events.push({ type: 'dealt', roundNumber: game.roundNumber, dealer: game.dealer, half: 1 })
+}
+
+/** When a timed window closes, or null without timers. */
+function deadlineIn(game: Game, ctx: Ctx, seconds: number): number | null {
+  return game.rules.timers ? ctx.now + seconds * 1000 : null
 }
 
 // ── Calling ──────────────────────────────────────────────────────────────
@@ -57,7 +62,7 @@ export function beginRound(game: Game, ctx: Ctx, events: GameEvent[]): void {
 export function call(game: Game, phase: Calling, seat: Seat, action: RoundAction<'call'>, ctx: Ctx, events: GameEvent[]) {
   phase.call = { seat, amount: action.amount }
   phase.preselect = null
-  phase.deadline = ctx.now + game.rules.callTimerSeconds * 1000
+  phase.deadline = deadlineIn(game, ctx, game.rules.callTimerSeconds)
   events.push({ type: 'called', seat, amount: action.amount })
   closeCallingIfDone(game, phase, ctx, events)
 }
@@ -106,10 +111,10 @@ export function chooseTrump(game: Game, choice: TrumpChoice, ctx: Ctx, events: G
     callAmount,
     pending: null,
     passed: [],
-    deadline: ctx.now + game.rules.thuneeWindowSeconds * 1000,
+    deadline: deadlineIn(game, ctx, game.rules.thuneeWindowSeconds),
   }
   game.phase = window
-  if (game.rules.thuneeWindowSeconds <= 0 || undecidedThunee(game, window).length === 0) {
+  if ((game.rules.timers && game.rules.thuneeWindowSeconds <= 0) || undecidedThunee(game, window).length === 0) {
     startPlay(game, window, null)
   }
 }
@@ -141,12 +146,13 @@ export function passThunee(game: Game, phase: ThuneeWindow, seat: Seat) {
   closeThuneeIfDone(game, phase)
 }
 
+/** Seats the window still waits for. A held call only waits for the trumper's team, who alone can override it. */
+export function waitingOnThunee(game: Game, phase: ThuneeWindow): Seat[] {
+  return undecidedThunee(game, phase).filter((s) => phase.pending === null || teamOf(s) === teamOf(phase.trumper))
+}
+
 function closeThuneeIfDone(game: Game, phase: ThuneeWindow) {
-  // A held call only waits for the trumper's team, who alone can override it.
-  const waitingOn = undecidedThunee(game, phase).filter(
-    (s) => phase.pending === null || teamOf(s) === teamOf(phase.trumper),
-  )
-  if (waitingOn.length === 0) closeThunee(game, phase)
+  if (waitingOnThunee(game, phase).length === 0) closeThunee(game, phase)
 }
 
 export function closeThunee(game: Game, phase: ThuneeWindow) {

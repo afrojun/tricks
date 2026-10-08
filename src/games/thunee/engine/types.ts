@@ -7,7 +7,7 @@ import type { Seat, Team } from './seats'
 export { type Persona, PERSONAS } from '../../../kit/mind'
 export type { Actor, Ctx, SeatInfo, ViewSeat, Waiting } from '../../../kit/table'
 
-export const FORMAT_VERSION = 3
+export const FORMAT_VERSION = 4
 
 export type TrumpChoice = Suit | 'lastCard'
 
@@ -39,7 +39,8 @@ export interface Calling {
   call: { seat: Seat; amount: number } | null
   passed: Seat[]
   preselect: { seat: Seat; choice: TrumpChoice } | null
-  deadline: number
+  /** Null without timers: calling then waits for every seat that may call. */
+  deadline: number | null
 }
 
 export interface TrumpSelection {
@@ -60,7 +61,8 @@ export interface ThuneeWindow {
   /** A Thunee call from the counting team, held until the window closes. */
   pending: Seat | null
   passed: Seat[]
-  deadline: number
+  /** Null without timers: the window then waits for every seat that may still call Thunee. */
+  deadline: number | null
 }
 
 export interface Playing {
@@ -240,7 +242,7 @@ export type ViewPhase =
       passed: Seat[]
       /** The viewer's own preselected trump, if any. */
       preselect: TrumpChoice | null
-      deadline: number
+      deadline: number | null
     }
   | { kind: 'trumpSelection'; hand: Card[]; handCounts: number[]; trumper: Seat; callAmount: number }
   | {
@@ -253,7 +255,7 @@ export type ViewPhase =
       callAmount: number
       pending: Seat | null
       passed: Seat[]
-      deadline: number
+      deadline: number | null
     }
   | ViewPlaying
   | { kind: 'roundResult'; summary: RoundSummary }

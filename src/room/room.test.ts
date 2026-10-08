@@ -3,7 +3,7 @@ import { chooseAction, chooseJodhi } from '../games/thunee/ai/choose'
 import { HONEST } from '../kit/mind'
 import type { TableState } from '../kit/table'
 import type { Action, GameEvent, View } from '../games/thunee/engine'
-import { type Game, createGame } from '../games/thunee/engine'
+import { type Game, availableActions, createGame } from '../games/thunee/engine'
 import { Table, card, seededRng } from '../games/thunee/engine/testing'
 import { gameOf, isRoomName } from '../games'
 import { type View as HeartsView, availableActions as heartsAvailable, createGame as createHearts, FORMAT_VERSION as HEARTS_FORMAT } from '../games/hearts'
@@ -119,6 +119,7 @@ class World {
 const TOKENS = ['a', 'b', 'c', 'd'].map((x) => x.repeat(20))
 
 /** Four humans seated and the game started. */
+/** Four humans, with the call windows timed: most tests here are about the alarm. */
 async function startedGame() {
   const w = await new World().boot()
   const conns: FakeConn[] = []
@@ -127,6 +128,7 @@ async function startedGame() {
     await w.send(conn, { type: 'sit', seat, name: `P${seat}` })
     conns.push(conn)
   }
+  await w.send(conns[0], { type: 'setRules', overrides: { timers: true } })
   await w.send(conns[0], { type: 'start' })
   return { w, conns }
 }
@@ -639,7 +641,8 @@ describe('AI seats', () => {
       if (phase.kind === 'roundResult') {
         rounds++
         await w.send(me, { type: 'nextRound' })
-      } else if (phase.kind === 'trumpSelection' && phase.trumper === 0) {
+      } else if ((phase.kind === 'trumpSelection' && phase.trumper === 0) || availableActions(me.view).pass) {
+        // Without timers, calling and the Thunee window wait for the human too.
         await w.send(me, chooseAction(me.view, HONEST))
       } else if (phase.kind === 'playing' && phase.turn === 0) {
         await w.send(me, chooseJodhi(me.view, HONEST) ?? chooseAction(me.view, HONEST))
