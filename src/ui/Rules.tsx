@@ -37,10 +37,10 @@ export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>;
   )
 }
 
-/** The rules in force at a table, for its menu. */
-export function RulesSheet<R extends object>({ game, rules, onClose }: { game: RulesOf<R>; rules: R; onClose: () => void }) {
+/** The rules in force at a table, for its menu, or those a game's home would create one with. */
+export function RulesSheet<R extends object>({ game, rules, onClose, title = 'Rules in this game' }: { game: RulesOf<R>; rules: R; onClose: () => void; title?: string }) {
   return (
-    <Sheet title="Rules in this game" onClose={onClose}>
+    <Sheet title={title} onClose={onClose}>
       <p className="mb-3">{rulesSummary(game, rules)}</p>
       <RulesList game={game} rules={rules} />
     </Sheet>

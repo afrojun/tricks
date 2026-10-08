@@ -123,6 +123,14 @@ button:disabled {
   --plate: var(--red);
   box-shadow: 5px 6px 0 var(--plate), 5px 6px 0 2px var(--line);
 }
+/* Small, beside the name in a home's top bar. */
+.tricks-mark-small {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-bottom: 0;
+  border-radius: calc(12 / 64 * 1.75rem + var(--line-width));
+  box-shadow: 2px 2px 0 var(--plate), 2px 2px 0 2px var(--line);
+}
 
 /* A phrase that matters on the felt, such as "Your turn": yellow text alone does not read on green. */
 .cue {

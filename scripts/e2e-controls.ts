@@ -1,6 +1,7 @@
 /**
  * Hand controls in a real browser: a short drag does nothing, a long drag
- * plays one card, and an illegal card asks before it is played.
+ * plays one card, and an illegal card asks before it is played. First, the game home's
+ * "House rules" and "Look" sheets open and close.
  * Needs `pnpm dev`.
  */
 import { type Locator, chromium } from 'playwright-core'
@@ -33,6 +34,20 @@ const legal = () => page.locator('.hand .playing-card[data-dim="false"]').first(
 const illegal = () => page.locator('.hand .playing-card[data-dim="true"]').first()
 
 await page.goto(`${base}/thunee`)
+// The home's bar: the house rules of the chosen preset, and the look.
+await page.getByRole('button', { name: 'House rules', exact: true }).click()
+const rules = page.getByRole('dialog', { name: 'House rules' })
+check((await rules.isVisible()) && (await rules.getByText('Traditional', { exact: true }).isVisible()), 'House rules opens a sheet naming the chosen preset')
+await rules.getByRole('button', { name: 'Close' }).click()
+check(!(await rules.isVisible()), 'the house rules close')
+await page.getByRole('button', { name: 'Look', exact: true }).click()
+const look = page.getByRole('dialog', { name: 'Look' })
+const themeBefore = await page.evaluate(() => document.documentElement.dataset.theme)
+await look.getByRole('button', { name: 'Blue', exact: true }).first().click()
+const themeAfter = await page.evaluate(() => document.documentElement.dataset.theme)
+check(themeAfter !== themeBefore, `a theme button changes the table (${themeBefore} to ${themeAfter})`)
+await look.getByRole('button', { name: 'Close' }).click()
+check(!(await look.isVisible()), 'the look closes')
 await page.getByRole('button', { name: 'Create game' }).click()
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()

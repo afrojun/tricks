@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { resolve } from '../kit/rules'
 import { SHARE_PARAM, decodeShare } from '../presets/share'
 import { listPresets, savePreset } from '../presets/storage'
-import { RulesList } from './Rules'
-import { ThemePicker } from './ThemePicker'
+import { GameStrip } from './GameStrip'
+import { RulesList, RulesSheet } from './Rules'
 import { CODE_LENGTH, cleanCode, practicePath, roomPath } from './routes'
 import { countWord, playersLabel, teamsAt } from './seats'
 import { navigate, useGameClient } from './session'
 import { playSound } from './sound'
+import { TopBar, TricksLink } from './TopBar'
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // no I or O
 
@@ -73,15 +74,15 @@ function LearnToPlay() {
   if (!practice) {
     return (
       <section className="panel p-4 w-full max-w-sm grid gap-3">
-        <h2 className="display text-2xl">Learn to play</h2>
+        <h2 className="display text-xl">Learn to play</h2>
         <p>Practice games against the computer, with a coach, are coming to {game.name}.</p>
       </section>
     )
   }
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">
-      <h2 className="display text-2xl">Learn to play</h2>
-      <p>Play against the computer with a coach who explains every move, gives hints, and warns you before a mistake.</p>
+      <h2 className="display text-xl">Learn to play</h2>
+      <p>Against the computer, with a coach who explains every move.</p>
       {saved && (
         <button
           className="btn btn-primary"
@@ -111,28 +112,38 @@ function LearnToPlay() {
   )
 }
 
-/** `/<game>`: a game's home. Create, join, presets, practice. */
+/** `/<game>`: a game's home. Practice, create, join, presets, and the way to Tricks and its other games. */
 export function Home() {
   const game = useGameClient()
   const [playerCount, setPlayerCount] = useState(() => bySize(game.seatCounts)[0])
   const [presets, setPresets] = useState(() => listPresets(game))
   const [presetId, setPresetId] = useState(presets[0].id)
   const [joinCode, setJoinCode] = useState('')
+  const [rules, setRules] = useState(false)
   const shared = new URLSearchParams(location.search).get(SHARE_PARAM)
+  const overrides = presets.find((p) => p.id === presetId)?.overrides ?? {}
 
   const create = () => {
     playSound('tap')
     const code = newGameCode()
-    const overrides = presets.find((p) => p.id === presetId)?.overrides ?? {}
     sessionStorage.setItem(setupKey(game.id, code), JSON.stringify({ playerCount, overrides } satisfies GameSetup))
     navigate(roomPath(game.id, code))
   }
 
   return (
-    <main className="min-h-full flex flex-col items-center gap-5 p-4 pb-10">
-      <header className="text-center mt-8 mb-2">
-        <h1 className="wordmark text-[4.6rem]">{game.name}</h1>
-        <p className="font-semibold mt-3">{game.tagline}</p>
+    <main className="min-h-full flex flex-col items-center gap-3 p-4">
+      <TopBar
+        left={<TricksLink />}
+        right={
+          <button className="btn btn-quiet btn-small" onClick={() => setRules(true)}>
+            House rules
+          </button>
+        }
+      />
+      {rules && <RulesSheet game={game} rules={resolve(game.rules.defaults, overrides)} title="House rules" onClose={() => setRules(false)} />}
+      <header className="text-center">
+        <h1 className="wordmark text-[4.2rem]">{game.name}</h1>
+        <p className="font-semibold mt-1">{game.tagline}</p>
       </header>
 
       {shared !== null && (
@@ -150,14 +161,14 @@ export function Home() {
 
       <LearnToPlay />
 
-      <section className="panel p-4 w-full max-w-sm grid gap-4">
-        <h2 className="display text-2xl">New game</h2>
+      <section className="panel p-4 w-full max-w-sm grid gap-3">
+        <h2 className="display text-xl">Play with friends</h2>
         {game.seatCounts.length > 1 && (
           <div className="grid gap-1">
             <span>Players</span>
             <div className="flex gap-2">
               {bySize(game.seatCounts).map((n) => (
-                <button key={n} className="btn flex-1" aria-pressed={playerCount === n} onClick={() => setPlayerCount(n)}>
+                <button key={n} className="btn btn-small flex-1" aria-pressed={playerCount === n} onClick={() => setPlayerCount(n)}>
                   {playersLabel(teamsAt((seat, count) => game.lobbyTeams(seat, count), n))}
                 </button>
               ))}
@@ -173,46 +184,41 @@ export function Home() {
               </button>
             ))}
           </div>
-          <p className="text-sm text-on-surface-muted">You can change individual rules in the lobby.</p>
         </div>
         <button className="btn btn-primary" onClick={create}>
           Create game
         </button>
-      </section>
-
-      <form
-        className="panel p-4 w-full max-w-sm grid gap-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (joinCode.length === CODE_LENGTH) navigate(roomPath(game.id, joinCode))
-        }}
-      >
-        <h2 className="display text-2xl">Join a game</h2>
-        <label className="grid gap-1">
-          <span>Game code</span>
-          <input
-            className="field text-center tracking-[0.3em]"
-            value={joinCode}
-            onChange={(e) => setJoinCode(cleanCode(e.target.value))}
-            placeholder="ABCDEF"
-            autoCapitalize="characters"
-            autoComplete="off"
-            spellCheck={false}
-            aria-describedby="code-help"
-          />
-          <span id="code-help" className="text-sm text-on-surface-muted">
+        <form
+          className="grid gap-1 border-t-2 border-dashed border-line/40 pt-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (joinCode.length === CODE_LENGTH) navigate(roomPath(game.id, joinCode))
+          }}
+        >
+          <label htmlFor="join-code">Or join with a code</label>
+          <div className="flex gap-2">
+            <input
+              id="join-code"
+              className="field text-center tracking-[0.3em]"
+              value={joinCode}
+              onChange={(e) => setJoinCode(cleanCode(e.target.value))}
+              placeholder="ABCDEF"
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              aria-describedby="code-help"
+            />
+            <button className="btn" disabled={joinCode.length !== CODE_LENGTH}>
+              Join
+            </button>
+          </div>
+          <span id="code-help" className="sr-only">
             Six letters from whoever created the game.
           </span>
-        </label>
-        <button className="btn btn-primary" disabled={joinCode.length !== CODE_LENGTH}>
-          Join game
-        </button>
-      </form>
-
-      <section className="panel panel-info p-4 w-full max-w-sm grid gap-3">
-        <h2 className="display text-2xl">Look</h2>
-        <ThemePicker />
+        </form>
       </section>
+
+      <GameStrip current={game.id} />
     </main>
   )
 }

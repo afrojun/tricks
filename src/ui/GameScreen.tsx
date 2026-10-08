@@ -55,8 +55,13 @@ export function Screen({ room }: { room: string }) {
 
   if (!client.view) {
     return (
-      <main className="h-full grid place-items-center p-6 text-center">
-        <p className="display text-xl turn-marker">Connecting to game {room}</p>
+      <main className="h-full flex flex-col items-center p-4">
+        <header className="w-full max-w-sm mt-2">
+          <button className="btn btn-quiet btn-small" onClick={() => navigate(gamePath(game.id))}>
+            Leave
+          </button>
+        </header>
+        <p className="display text-xl turn-marker my-auto text-center">Connecting to game {room}</p>
       </main>
     )
   }

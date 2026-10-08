@@ -3,6 +3,7 @@ import { ErrorBoundary, GameScreen } from './ui/GameScreen'
 import { GAMES, loadGame } from './ui/games'
 import { Home } from './ui/Home'
 import { PracticeScreen } from './ui/PracticeScreen'
+import { TricksLink } from './ui/TopBar'
 import { TricksHome } from './ui/TricksHome'
 import { type Route, route } from './ui/routes'
 import { GameProvider, ThemeProvider, usePath } from './ui/session'
@@ -24,8 +25,11 @@ function GameRoutes({ at }: { at: GameRoute }) {
 function Loading({ at }: { at: GameRoute }) {
   const name = GAMES.find((game) => game.id === at.game)?.name
   return (
-    <main className="h-full grid place-items-center p-6 text-center">
-      <p className="display text-xl turn-marker">Opening {name}</p>
+    <main className="h-full flex flex-col items-center p-4">
+      <header className="w-full max-w-sm">
+        <TricksLink />
+      </header>
+      <p className="display text-xl turn-marker my-auto text-center">Opening {name}</p>
     </main>
   )
 }

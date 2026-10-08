@@ -36,7 +36,7 @@ check((await a.page.locator('li').count()) === 2, 'two-player choice from the ho
 // B joins by typing the code in lower case.
 await b.page.goto(`${base}/thunee`)
 await b.page.getByPlaceholder('ABCDEF').fill(code.toLowerCase())
-await b.page.getByRole('button', { name: 'Join game' }).click()
+await b.page.getByRole('button', { name: 'Join', exact: true }).click()
 await b.page.getByPlaceholder('Name').fill('Bheki')
 await b.page.getByRole('button', { name: 'Sit here' }).first().click()
 check(b.page.url().endsWith(`/thunee/${code}`), 'lower-case code joined the same room')
