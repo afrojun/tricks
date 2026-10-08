@@ -446,8 +446,14 @@ button:disabled {
 
 /* ── Table pieces ───────────────────────────────────────────────────────── */
 
+/* The centre of a table, and the trick in it, share the trick's card size. */
+.trick-stage,
 .trick-area {
   --trick-w: clamp(3.1rem, min(19vw, 11dvh), 5.5rem);
+}
+/* Only the cross of cards: what hangs under it is placed outside, so the area's centre is the trick's. */
+.trick-area {
+  position: relative;
   display: grid;
   /* Narrower than the cards, so the cross closes up and fits between the side seats. */
   grid-template-columns: repeat(3, calc(var(--trick-w) * 0.8));
@@ -458,19 +464,24 @@ button:disabled {
 .trick-area > div {
   will-change: transform;
 }
-/* Who took the trick: under the cross, clear of the cards that overhang it, with its space kept while a trick is played. */
+/*
+ * Who took the trick: hung under the cross, clear of the bottom card and the winner's starburst
+ * (which reach well below their cell), and drawn over them all the same.
+ */
 .trick-cue {
-  grid-column: 1 / -1;
-  /* Its own row under the cross, so it does not fill an empty row inside it and shift the cards as they arrive. */
-  grid-row: 4;
-  /* Clear of the bottom card and the winner's starburst, which reach well below their cell; drawn over them all the same. */
-  position: relative;
+  position: absolute;
+  top: calc(100% + var(--trick-w) * 0.6);
+  left: 50%;
+  translate: -50% 0;
   z-index: 2;
-  margin-top: calc(var(--trick-w) * 0.6);
-  min-height: 1.5rem;
+  white-space: nowrap;
   text-align: center;
   font-size: 0.875rem;
   font-weight: 600;
+}
+/* A game's own lines under the trick start below the winner's line. */
+.trick-below {
+  margin-top: calc(var(--trick-w) * 0.6 + 2rem);
 }
 /* Cards land as hands put them down: each seat's a little askew. */
 .trick-area .col-start-2.row-start-1 .playing-card {

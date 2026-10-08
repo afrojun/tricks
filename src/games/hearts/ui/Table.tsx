@@ -10,7 +10,7 @@ import { NO_PICKS, type Picks, pickFrom, pickedFrom } from '../../../ui/hands'
 import { RulesSheet, rulesSummary } from '../../../ui/Rules'
 import { SeatBadge, TakeOver, usePosition } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
-import { LastTrick, TrickArea } from '../../../ui/Trick'
+import { LastTrick, NO_TRICK, TrickArea } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
 import { seatName } from '../../../ui/text'
@@ -76,7 +76,7 @@ export function Table({ view, room }: { view: View; room: string }) {
   const dealFrom = playing && giver !== undefined ? TOWARD[position(giver)] : TOWARD.top
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden">
+    <div className="h-dvh flex flex-col overflow-hidden" data-felt-table>
       <header className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 text-sm">
         <p className="text-muted">Round {view.roundNumber}</p>
         <button className="btn btn-quiet btn-small" onClick={() => setSheet('menu')} aria-label="Open menu">
@@ -95,9 +95,17 @@ export function Table({ view, room }: { view: View; room: string }) {
           <div className="flex justify-center">{at('top')}</div>
           <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[minmax(0,1fr)] items-center gap-1 min-h-0">
             <div className="self-stretch min-h-0">{at('left', 'left')}</div>
-            {/* A panel taller than a short screen's table scrolls, from its top; during play nothing may clip a travelling card. */}
-            <div className={`h-full min-h-0 flex justify-center py-1 ${playing ? 'items-center' : 'items-center-safe overflow-y-auto'}`}>
-              <Centre view={view} />
+            {/*
+              The trick keeps one place all round, empty under the pass, so the rays behind it never move.
+              A panel taller than a short screen's table scrolls, from its top.
+            */}
+            <div className="trick-stage relative h-full min-h-0 flex items-center justify-center py-1">
+              <TrickMiddle view={view} playing={playing} />
+              {phase.kind === 'passing' && (
+                <div className="absolute inset-0 flex justify-center items-center-safe overflow-y-auto py-1">
+                  <PassPanel view={view} phase={phase} />
+                </div>
+              )}
             </div>
             <div className="self-stretch min-h-0">{at('right', 'right')}</div>
           </div>
@@ -230,13 +238,6 @@ function Mine({ view, turn }: { view: View; turn: boolean }) {
 
 // ── Centre of the table ──────────────────────────────────────────────────
 
-function Centre({ view }: { view: View }) {
-  const phase = view.phase
-  if (phase.kind === 'passing') return <PassPanel view={view} phase={phase} />
-  if (phase.kind === 'playing' || phase.kind === 'trickPause') return <TrickMiddle view={view} phase={phase} />
-  return null
-}
-
 function PassPanel({ view, phase }: { view: View; phase: Extract<ViewPhase, { kind: 'passing' }> }) {
   const way = view.direction
   if (way === 'none') return null
@@ -250,16 +251,19 @@ function PassPanel({ view, phase }: { view: View; phase: Extract<ViewPhase, { ki
   )
 }
 
-/** The trick, with who takes it and what it is worth, and under it the round's pass and whether hearts are broken. */
-function TrickMiddle({ view, phase }: { view: View; phase: ViewPlaying }) {
-  const last = phase.tricks[phase.tricks.length - 1]
+/**
+ * The trick, with who takes it and what it is worth, and under it the round's pass and whether
+ * hearts are broken. Out of play it keeps its place, empty, with the lines under it hidden.
+ */
+function TrickMiddle({ view, playing }: { view: View; playing: ViewPlaying | null }) {
+  const last = playing?.tricks[playing.tricks.length - 1]
   return (
-    <div className="flex flex-col items-center gap-3">
-      <TrickArea view={view} phase={phase} wins={(winner) => (last ? trickTaken(view, winner, last.plays.map((p) => p.card)) : null)} />
-      <ul className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-sm">
+    <div className="flex flex-col items-center">
+      <TrickArea view={view} phase={playing ?? NO_TRICK} wins={(winner) => (last ? trickTaken(view, winner, last.plays.map((p) => p.card)) : null)} />
+      <ul className={`trick-below flex flex-wrap justify-center gap-x-2 gap-y-1 text-sm ${playing ? '' : 'invisible'}`}>
         <li className="fact">{passedWay(view.direction)}</li>
-        <li className="fact" data-on={phase.heartsBroken}>
-          Hearts {phase.heartsBroken ? 'broken' : 'not broken'}
+        <li className="fact" data-on={playing?.heartsBroken ?? false}>
+          Hearts {playing?.heartsBroken ? 'broken' : 'not broken'}
           <SuitChip suit="hearts" />
         </li>
       </ul>

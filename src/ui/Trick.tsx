@@ -21,6 +21,9 @@ export interface TrickRound {
   current: readonly TrickPlay[]
 }
 
+/** No trick yet: the area stays in its place, empty, under whatever panel the table shows. */
+export const NO_TRICK: TrickRound = { kind: 'playing', tricks: [], current: [] }
+
 const AREA: Record<Where, string> = { top: 'col-start-2 row-start-1', left: 'col-start-1 row-start-2', right: 'col-start-3 row-start-2', bottom: 'col-start-2 row-start-3' }
 
 /**

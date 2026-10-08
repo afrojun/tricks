@@ -27,7 +27,7 @@ import { RulesSheet, rulesSummary } from '../../../ui/Rules'
 import { SeatBadge as Badge, TakeOver, usePosition } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
 import { Timer } from '../../../ui/Timer'
-import { LastTrick, TrickArea } from '../../../ui/Trick'
+import { LastTrick, NO_TRICK, TrickArea } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
 import { playSound } from '../../../ui/sound'
@@ -106,7 +106,7 @@ export function Table({ view, room }: { view: View; room: string }) {
   const over = phase.kind === 'roundResult' || phase.kind === 'gameOver'
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden">
+    <div className="h-dvh flex flex-col overflow-hidden" data-felt-table>
       <StatusStrip view={view} burst={burst} onMenu={() => setSheet('menu')} onTricks={() => setSheet('history')} />
       <RoundFacts view={view} />
 
@@ -121,9 +121,17 @@ export function Table({ view, room }: { view: View; room: string }) {
           <div className="flex justify-center">{at('top') !== undefined && <SeatBadge view={view} seat={at('top')!} />}</div>
           <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[minmax(0,1fr)] items-center gap-1 min-h-0">
             <div className="self-stretch min-h-0">{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side="left" />}</div>
-            {/* A panel taller than a short screen's table scrolls, from its top; during play nothing may clip a travelling card. */}
-            <div className={`h-full min-h-0 flex justify-center py-1 ${playing ? 'items-center' : 'items-center-safe overflow-y-auto'}`}>
-              <Centre view={view} can={can} />
+            {/*
+              The trick keeps one place all round, empty under the calling and Thunee panels, so the rays
+              behind it never move. A panel taller than a short screen's table scrolls, from its top.
+            */}
+            <div className="trick-stage relative h-full min-h-0 flex items-center justify-center py-1">
+              <TrickArea view={view} phase={playing ?? NO_TRICK} />
+              {!playing && (
+                <div className="absolute inset-0 flex justify-center items-center-safe overflow-y-auto py-1">
+                  <Centre view={view} can={can} />
+                </div>
+              )}
             </div>
             <div className="self-stretch min-h-0">{at('right') !== undefined && <SeatBadge view={view} seat={at('right')!} side="right" />}</div>
           </div>
@@ -359,7 +367,7 @@ function Centre({ view, can }: { view: View; can: Available }) {
       return <ThuneePanel view={view} phase={phase} can={can} />
     case 'playing':
     case 'trickPause':
-      return <TrickArea view={view} phase={phase} />
+      return null
     case 'roundResult':
     case 'gameOver':
       return <RoundResult view={view} summary={phase.summary} winner={phase.kind === 'gameOver' ? phase.winner : null} can={can} />
@@ -503,31 +511,37 @@ function ActionBar({ can, playing, accuse, onSheet }: { can: Available; playing:
   // Before play the space is kept, so the table does not jump when the first trick starts.
   if (!playing) return <div className="h-13" />
   const canChallenge = can.challengePlay.length > 0 || can.challengeJodhi.length > 0
+  const noJodhi = playing.kind === 'trickPause' && can.pass
+  const calls = [can.claimJodhi.length > 0, noJodhi, can.callDouble, can.callKhanaak].filter(Boolean).length
+  // Three buttons or more are small and close up, and four drop "Call", so they keep to one row and the hand does not rise.
+  const buttons = calls + (accuse ? 1 : 0)
+  const size = buttons >= 3 ? 'btn-small !px-2' : ''
+  const call = (name: string) => (buttons >= 4 ? name : `Call ${name}`)
   // Tall enough for a full-size call button, so one appearing does not lift the hand.
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 px-2 pb-2 min-h-13">
       {can.claimJodhi.length > 0 && (
-        <button className="btn btn-primary attention" onClick={() => onSheet('jodhi')}>
-          Call Jodhi
+        <button className={`btn btn-primary attention ${size}`} onClick={() => onSheet('jodhi')} aria-label="Call Jodhi">
+          {call('Jodhi')}
         </button>
       )}
-      {playing.kind === 'trickPause' && can.pass && (
-        <button className="btn" onClick={() => send({ type: 'pass' })}>
+      {noJodhi && (
+        <button className={`btn ${size}`} onClick={() => send({ type: 'pass' })}>
           No Jodhi
         </button>
       )}
       {can.callDouble && (
-        <button className="btn btn-primary attention" onClick={() => send({ type: 'callDouble' })}>
-          Call Double
+        <button className={`btn btn-primary attention ${size}`} onClick={() => send({ type: 'callDouble' })} aria-label="Call Double">
+          {call('Double')}
         </button>
       )}
       {can.callKhanaak && (
-        <button className="btn btn-primary attention" onClick={() => send({ type: 'callKhanaak' })}>
-          Call Khanaak
+        <button className={`btn btn-primary attention ${size}`} onClick={() => send({ type: 'callKhanaak' })} aria-label="Call Khanaak">
+          {call('Khanaak')}
         </button>
       )}
       {accuse && (
-        <button className="btn btn-quiet btn-small" disabled={!canChallenge} onClick={() => onSheet('challenge')}>
+        <button className={`btn btn-quiet btn-small ${buttons >= 3 ? '!px-2' : ''}`} disabled={!canChallenge} onClick={() => onSheet('challenge')}>
           Challenge
         </button>
       )}

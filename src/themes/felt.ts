@@ -59,12 +59,21 @@ function key(): string {
   return `${root.dataset.mood ?? ''}/${root.style.getPropertyValue('--mood-colour')}/${root.dataset.theme ?? ''}`
 }
 
-/** Where the rays meet: the trick if one is on screen, the middle of a table otherwise, else under a title. */
-function origin(canvas: HTMLCanvasElement): [number, number] {
+/**
+ * Where the rays meet. A table keeps its trick in one place all game, empty under any panel, so
+ * the rays turn behind it and never move; while a result covers it they stay where they were.
+ * Pages without a table have them under the title.
+ */
+function origin(canvas: HTMLCanvasElement, remembered: { table: [number, number] | null }): [number, number] {
   const trick = document.querySelector('.trick-area')
-  if (!trick) return document.querySelector('.hand') ? [0.5, 0.44] : [0.5, 0.22]
-  const a = trick.getBoundingClientRect()
-  return [(a.left + a.width / 2) / canvas.clientWidth, (a.top + a.height / 2) / canvas.clientHeight]
+  if (trick) {
+    const a = trick.getBoundingClientRect()
+    remembered.table = [(a.left + a.width / 2) / canvas.clientWidth, (a.top + a.height / 2) / canvas.clientHeight]
+    return remembered.table
+  }
+  if (document.querySelector('[data-felt-table]')) return remembered.table ?? [0.5, 0.44]
+  remembered.table = null
+  return [0.5, 0.22]
 }
 
 /** Starts drawing the felt on `canvas`; returns a stop function. Does nothing where WebGL is missing. */
@@ -102,6 +111,8 @@ export function startFelt(canvas: HTMLCanvasElement): () => void {
   let frame = 0
   let looked = 0
   let lastOrigin: [number, number] = [0, 0]
+  /** The table's trick centre, kept while a result covers it. */
+  const remembered: { table: [number, number] | null } = { table: null }
 
   const draw = (now: number) => {
     frame = requestAnimationFrame(draw)
@@ -128,7 +139,7 @@ export function startFelt(canvas: HTMLCanvasElement): () => void {
     // the trick's place on screen is looked at only now and then.
     if (reduce.matches && !settling && !resized && now - looked < 500) return
     looked = now
-    const [ox, oy] = origin(canvas)
+    const [ox, oy] = origin(canvas, remembered)
     if (reduce.matches && !settling && !resized && ox === lastOrigin[0] && oy === lastOrigin[1]) return
     lastOrigin = [ox, oy]
     if (resized) {
