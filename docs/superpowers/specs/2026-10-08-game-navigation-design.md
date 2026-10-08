@@ -22,11 +22,11 @@ So anyone invited straight to a room never learns Tricks has a second game.
 
 A game's home is redrawn so that it fits one phone screen, and two of its panels become a bar on top. Tables gain nothing.
 
-**A bar on top of both homes.** The width of the panels. On a game's home, left: the Tricks mark (the favicon, small) and the word "Tricks" in the display face, a real link to `/`, opened in place on a plain click and left to the browser on a modified or middle click, as the boxes on the Tricks home are. Right: two quiet small buttons, "Rules" and "Look". On the Tricks home the bar holds "Look" alone, on the right. Read top to bottom a game's home says "Tricks, Thunee": the small mark and name say where this game lives, the big wordmark says which game this is. No chevron or "back" wording; the position carries the meaning.
+**A bar on top of both homes.** The width of the panels. On a game's home, left: the Tricks mark (the favicon, small) and the word "Tricks" in the display face, a real link to `/`, opened in place on a plain click and left to the browser on a modified or middle click, as the boxes on the Tricks home are. Right: two quiet small buttons, "House rules" and "Look". On the Tricks home the bar holds "Look" alone, on the right. Read top to bottom a game's home says "Tricks, Thunee": the small mark and name say where this game lives, the big wordmark says which game this is. No chevron or "back" wording; the position carries the meaning.
 
 **Look is a sheet, not a panel.** "Look" opens a `Sheet` titled "Look" holding the `ThemePicker` as it is. The "Look" panel leaves both homes. The table's menu keeps its picker.
 
-**Rules is the rule book, read-only.** "Rules" opens the game's `RulesSheet` for the preset chosen in "Play with friends" (the defaults resolved with its overrides), so a newcomer can read how the game is played before practising, and a host can see what a preset changes before creating. Nothing is edited here; the lobby keeps the editor.
+**House rules, read-only.** "House rules" opens the game's `RulesSheet` for the preset chosen in "Play with friends" (the defaults resolved with its overrides), so a host can see what a preset changes before creating a game. It is the house rules, the settings a host can change, not a lesson in how the game is played: that is the coach's job in practice. Nothing is edited here; the lobby keeps the editor. Practice plays the defaults whatever preset is chosen, so the sheet says which preset it shows.
 
 **Online play is one panel.** "New game" and "Join a game" become "Play with friends": the players row (when the game seats more than one count), the presets row, "Create game", then a dashed rule and "Or join with a code" as one row, the code field and a "Join" button side by side. The two helper lines ("You can change individual rules in the lobby", "Six letters from whoever created the game") go: the lobby shows its editor, and the field's placeholder shows the shape of a code. The code field keeps its `aria-describedby` text for screen readers.
 
@@ -46,7 +46,7 @@ Order of a game's home, top to bottom: the bar, wordmark and tagline, shared rul
 - `src/ui/TopBar.tsx`: the bar, taking what goes left and right, and the "Look" button with its sheet, so both homes share it.
 - `src/ui/GameStrip.tsx`: a game's row for the strip, from a `GameEntry`, with the plate colour from its position in `GAMES`. The Tricks home's box can stay in `TricksHome.tsx`; if the two share enough, one `GameBox` with a `compact` flag.
 - `src/ui/TricksHome.tsx`: the bar with "Look"; the "Look" panel removed.
-- `src/ui/Home.tsx`: the bar with the Tricks link, "Rules" (opening `RulesSheet` with `resolve(game.rules.defaults, chosen preset's overrides)`) and "Look"; "New game" and "Join a game" merged into "Play with friends"; the helper lines removed; the strip of other games; the "Look" panel removed.
+- `src/ui/Home.tsx`: the bar with the Tricks link, "House rules" (opening `RulesSheet` with `resolve(game.rules.defaults, chosen preset's overrides)`) and "Look"; "New game" and "Join a game" merged into "Play with friends"; the helper lines removed; the strip of other games; the "Look" panel removed.
 - `src/ui/GameScreen.tsx`: the connecting screen's "Leave" button. `src/App.tsx`: the Tricks link on the loading screen.
 - `src/index.css`: a small variant of `.tricks-mark` for the link (about 1.75rem, a 2px plate shadow), next to the existing one.
 - `src/ui/routes.ts` is unchanged: `/` is already a route, and `gamePath` already builds the others.
@@ -55,9 +55,9 @@ Order of a game's home, top to bottom: the bar, wordmark and tagline, shared rul
 
 ## 4. Checks
 
-- `scripts/e2e.ts`, at the "1-home" step: the link named "Tricks" and the link starting "Hearts" are visible; clicking "Tricks" lands on `/`, and the Thunee box opens `/thunee` again before the script goes on to create a game. The script's later steps find "Create game" and the code field by role and placeholder, which the merged panel keeps.
-- `scripts/e2e-controls.ts` or `e2e.ts`: "Rules" opens a sheet naming the chosen preset's rules and closes; "Look" opens the picker, a theme button changes `data-theme` on the document, and the sheet closes.
-- `scripts/e2e-hearts.ts`: the same from `/hearts`, with Thunee as the other game.
+- `scripts/e2e.ts`, at the "1-home" step: the link named "Tricks" and the link starting "Hearts" are visible; clicking "Tricks" lands on `/`, and the Thunee box opens `/thunee` again before the script goes on to create a game. The script's later steps find "Create game" by role, which the merged panel keeps; it never fills the code field.
+- `scripts/e2e-controls.ts` or `e2e.ts`: "House rules" opens a sheet naming the chosen preset and closes; "Look" opens the picker, a theme button changes `data-theme` on the document, and the sheet closes.
+- `scripts/e2e-hearts.ts`: the same from `/hearts`, with Thunee as the other game. Its join step clicks a button named "Join game" today; the merged panel names it "Join", so the script changes with it.
 - The connecting screen: with `pnpm dev` stopped after the page loaded (or the socket's address blocked in devtools), open a room address and check "Leave" lands on the game's home.
 - Phone check at 390x844: the Tricks link row does not push the wordmark below the fold, and the other-games box's emblem card does not clip at the panel's edge (it hangs above it, as on the Tricks home).
 - No unit test: the shell's screens are not rendered in Vitest; `routes.test.ts` already covers `/`.
