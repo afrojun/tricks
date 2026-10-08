@@ -156,7 +156,7 @@ describe('Hearts’ coach puts every reason into words', () => {
     expect([...seen].sort()).toEqual(
       ['pass', 'openingLead', 'onlyCard', 'firstTrickHigh', 'fishForQueen', 'leadLow', 'leadLeastBad', 'duck', 'winClean', 'playLow', 'stopMoon', 'takeJack', 'dumpQueen', 'dumpHighSpade', 'dumpHeart', 'dumpHigh'].sort(),
     )
-  }, 60_000)
+  })
 
   test('every phrase is in sentence case and plain words', () => {
     honestGames({ jackOfDiamonds: true }, 2, (view) => {

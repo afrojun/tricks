@@ -89,7 +89,7 @@ describe('the coach judges a broken rule by the engine’s excuses', () => {
     }
     expect(named.follow).toBeGreaterThan(20)
     expect(named.undercut).toBeGreaterThan(0)
-  }, 60_000)
+  })
 })
 
 /** The engine's record of the player's play of `c` this round, if the round is still in play. */

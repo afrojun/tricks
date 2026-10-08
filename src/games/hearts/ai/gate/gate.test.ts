@@ -22,13 +22,13 @@ describe('the gate, in small', () => {
       expect(part.searched).toBeGreaterThan(searches === 'pass' ? 0 : 16 * 5)
       if (searches === 'pass') expect(part.searched).toBeLessThanOrEqual(12)
     }
-  }, 120_000)
+  })
 
   test('four search players take 6.5 points a round each, plus the moons', () => {
     const deal = selfDeal(2, WORLDS)
     const total = deal.points.flat().reduce((a, b) => a + b, 0)
     expect(total).toBe(26 * 4 + 52 * deal.moons)
-  }, 120_000)
+  })
 
   test('against Sly and Wild, nobody accusing: no sampler failure, and every world checked', () => {
     let cheats = 0
@@ -39,7 +39,7 @@ describe('the gate, in small', () => {
       cheats += round.cheats + round.cheatsWritten
     }
     expect(cheats).toBeGreaterThan(0)
-  }, 120_000)
+  })
 
   test('raw timings keep each decision’s kind apart, so a reader needs no knowledge of the bench to tell pass from play', () => {
     const timings: Timing[] = [
@@ -55,5 +55,5 @@ describe('the gate, in small', () => {
     const result = replay(1, WORLDS)
     expect(result.decisions).toBeGreaterThan(50)
     expect(result.differed).toBe(0)
-  }, 120_000)
+  })
 })

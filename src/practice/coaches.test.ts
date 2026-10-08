@@ -90,7 +90,7 @@ describe('every game’s coach', () => {
           advised += seen.advised
         }
         expect(advised).toBeGreaterThan(50)
-      }, 60_000)
+      })
     }
   }
 })

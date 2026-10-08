@@ -202,5 +202,5 @@ describe('simulation', () => {
       expect(t.game.phase.kind).toBe('gameOver')
       expect(teamOf(0)).toBe(0)
     }
-  }, 60_000)
+  })
 })

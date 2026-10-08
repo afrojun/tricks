@@ -97,5 +97,5 @@ describe.each(PRESETS)('personas under %s rules', (name, preset) => {
   test('two-player games finish with any pair of personas', () => {
     const pairs: Persona[][] = [['sly', 'wild'], ['sharp', 'straight'], ['wild', 'sharp']]
     for (const pair of pairs) for (let seed = 1; seed <= 5; seed++) playGame(pair, seed, preset)
-  }, 120_000)
+  })
 })

@@ -383,5 +383,5 @@ describe('whole games with the search player (rule 5): it never has an action re
     }
     expect(searched).toBeGreaterThan(GAMES * 100)
     expect(tally.worlds).toBeGreaterThan(0)
-  }, 120_000)
+  })
 })

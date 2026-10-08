@@ -112,7 +112,7 @@ describe('step is the in-place half of apply', () => {
           // A Thunee game with cheating on can end inside a hundred actions once a cheat is caught, so the bar is modest.
           expect(tally.applied).toBeGreaterThan(SEEDS * 50)
           expect(tally.rejected).toBeGreaterThan(SEEDS * 50)
-        }, 120_000)
+        })
       }
     }
 
@@ -121,7 +121,7 @@ describe('step is the in-place half of apply', () => {
       checkMalformed(checked(module, tally))
       expect(tally.rejected).toBeGreaterThan(10_000)
       expect(tally.applied).toBeGreaterThan(100)
-    }, 120_000)
+    })
   }
 
   test('the check catches a step that differs from apply, or changes a draft it refuses', () => {

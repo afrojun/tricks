@@ -65,7 +65,7 @@ describe('Hearts practice', () => {
       }
       expect(rounds.some((r) => r.direction === 'none')).toBe(true)
     }
-  }, 60_000)
+  })
 
   test('there is a hint exactly when the table waits on the player to pass or play', () => {
     const p = PracticeGame.start(heartsPractice, 4, 2, 'You')
@@ -76,7 +76,7 @@ describe('Hearts practice', () => {
       if (hint) hinted++
     })
     expect(hinted).toBeGreaterThan(50)
-  }, 60_000)
+  })
 
   test('nothing the coach says during a round names a card it could not know the place of', () => {
     const p = PracticeGame.start(heartsPractice, 4, 4, 'You')
@@ -95,7 +95,7 @@ describe('Hearts practice', () => {
       checked += notes.length
     })
     expect(checked).toBeGreaterThan(100)
-  }, 60_000)
+  })
 
   test('a save loads under Hearts’ own key and version, and plays on identically', () => {
     expect(practiceKey(heartsPractice.module.id)).toBe('tricks-hearts-practice')
@@ -152,7 +152,7 @@ describe('Hearts practice', () => {
       vi.runOnlyPendingTimers()
       expect(again.store.getState().view).toEqual(last)
       again.close()
-    }, 60_000)
+    })
 
     test('a hint is there for each of the player’s plays, and the situation with it', () => {
       const s = openPracticeSession(heartsPractice, dwell, { playerCount: 4, storage: new MemoryStorage(), seed: 5 })
@@ -175,6 +175,6 @@ describe('Hearts practice', () => {
       }
       expect(plays).toBe(13)
       s.close()
-    }, 60_000)
+    })
   })
 })

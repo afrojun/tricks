@@ -98,7 +98,7 @@ describe('every game in the list', () => {
       }
       expect([...covered.actions].sort()).toEqual([...COVERAGE[id].actions].sort())
       expect([...covered.paths].sort()).toEqual([...COVERAGE[id].paths].sort())
-    }, 60_000)
+    })
   }
 
   test('the check catches a game that reads a field, a field of a field, or a whole action carelessly', () => {
@@ -118,7 +118,7 @@ describe('every game in the list', () => {
     for (const [name, fault] of Object.entries(faults)) {
       expect(() => checkMalformed(careless(fault)), name).toThrow(/threw TypeError: a careless read/)
     }
-  }, 60_000)
+  })
 })
 
 describe('every game in the list keeps the module contract', () => {
@@ -210,7 +210,7 @@ describe('every game in the list keeps the module contract', () => {
             expect(gate.tally).toMatchObject({ cheats: 0, accusations: 0 })
             expect(refused).toBeGreaterThan(0)
           }
-        }, 120_000)
+        })
       }
     }
   }

@@ -69,7 +69,7 @@ describe('the in-place step', () => {
         expect(tally.applied).toBeGreaterThan(200)
         // With cheating off, mischief is refused; with it on, accusations end rounds before much is refused.
         if (!allowCheating) expect(tally.rejected).toBeGreaterThan(5)
-      }, 60_000)
+      })
     }
   }
 
@@ -78,7 +78,7 @@ describe('the in-place step', () => {
     checkMalformed(twin(tally))
     expect(tally.rejected).toBeGreaterThan(10_000)
     expect(tally.applied).toBeGreaterThan(100)
-  }, 120_000)
+  })
 
   test('apply is a clone, then the step', () => {
     const game = thunee.createGame()

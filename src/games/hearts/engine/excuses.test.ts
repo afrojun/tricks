@@ -91,7 +91,7 @@ describe('one description of each rule', () => {
     for (let seed = 1; seed <= 12; seed++) broken += agreeingRound(seed)
     // The random cards must actually break rules, or this proves little.
     expect(broken).toBeGreaterThan(20)
-  }, 30_000)
+  })
 
   test('an observer proves a renege from public cards alone', () => {
     // Seat 2 throws a diamond on the opening club trick, then follows clubs on the next.

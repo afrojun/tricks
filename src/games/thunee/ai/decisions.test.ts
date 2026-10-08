@@ -125,5 +125,5 @@ describe('what computers decide', () => {
         '2P classic, wild': 'a16f3ab2',
       },
     })
-  }, 60_000)
+  })
 })
