@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { replaceableSeats } from '../../../kit/table'
+import { type SeatInfo, replaceableSeats } from '../../../kit/table'
+import { seatsToAct, untimedSeats } from './apply'
 import { availableActions } from './available'
 import { CLASSIC_APP_OVERRIDES, type RuleOverrides } from './rules'
 import { Table, card } from './testing'
@@ -131,6 +132,42 @@ describe('jodhi', () => {
     expect(playOf(t.game).jodhiClaims.map((j) => j.points)).toEqual([50, 20, 30])
     // Seat 0 holds K+Q of spades but not the Jack; has no K+Q of hearts. Seat 2 holds K+J of clubs, no Queen.
     expect(playOf(t.game).jodhiClaims.map((j) => j.valid)).toEqual([false, false, false])
+  })
+
+  /** D1's first trick, won by seat 2 for team 0, with timers off and seat 2 (and any others given) changed. */
+  const wonBySeatTwo = (changes: Record<number, Partial<SeatInfo>> = { 2: { standIn: true } }, timers = false) => {
+    const t = start()
+    t.game = { ...t.game, rules: { ...t.game.rules, timers }, seats: t.game.seats.map((s, i) => ({ ...s, ...changes[i] })) }
+    return t.play('Jc Qh 10c Qc')
+  }
+
+  test('without timers, a computer’s lead waits with no deadline for its partner to call Jodhi or say no', () => {
+    const t = wonBySeatTwo()
+    expect(t.game.phase).toMatchObject({ kind: 'trickPause', deadline: null })
+    expect(seatsToAct(t.game)).toEqual([0])
+    expect(untimedSeats(t.game)).toEqual([0])
+    expect(can(t, 0).pass).toBe(true)
+    expect(can(t, 1).pass).toBe(false)
+    expect(t.try(2, { type: 'pass' })).toBe('notAllowed')
+    t.advance(60_000) // the clock alone does not end it
+    expect(t.game.phase.kind).toBe('trickPause')
+    t.do(0, { type: 'pass' })
+    expect(t.game.phase).toMatchObject({ kind: 'playing', turn: 2 })
+  })
+
+  test('calling a Jodhi answers the wait', () => {
+    const t = wonBySeatTwo()
+    t.do(0, { type: 'claimJodhi', suit: 'spades', withJack: false })
+    expect(t.game.phase).toMatchObject({ kind: 'playing', turn: 2 })
+    expect(playOf(t.game).jodhiClaims).toMatchObject([{ seat: 0, suit: 'spades' }])
+  })
+
+  test('no wait with timers on, for a person leading, or for a computer partner', () => {
+    const timed = (t: Table) => t.game.phase.kind === 'trickPause' && typeof t.game.phase.deadline === 'number'
+    expect(timed(wonBySeatTwo({ 2: { standIn: true } }, true))).toBe(true)
+    expect(timed(wonBySeatTwo({}))).toBe(true)
+    expect(timed(wonBySeatTwo({ 0: { kind: 'ai' }, 2: { kind: 'ai' } }))).toBe(true)
+    expect(seatsToAct(wonBySeatTwo({}).game)).toEqual([])
   })
 
   test('traditional timing: only the team’s first and third tricks open a claim', () => {

@@ -41,11 +41,11 @@ export function advise(view: View): Advice | null {
 
   const decides =
     can.calls.length > 0 || can.chooseTrump.length > 0 || can.callThunee || (phase.kind === 'thuneeWindow' && can.pass) ||
-    (phase.kind === 'playing' && phase.turn === me)
+    (phase.kind === 'trickPause' && can.pass) || (phase.kind === 'playing' && phase.turn === me)
   if (!decides) return null
 
   const { action, reason } = decide(view, HONEST)
-  const title = phase.kind === 'thuneeWindow' && action.type === 'pass' ? 'No Thunee' : titleOf(action)
+  const title = action.type !== 'pass' ? titleOf(action) : phase.kind === 'thuneeWindow' ? 'No Thunee' : phase.kind === 'trickPause' ? 'No Jodhi' : titleOf(action)
   return { action, note: { tone: 'suggest', title, body: explain(view, action, reason), cards: cardsOf(action, reason), topic: topicOf(reason) } }
 }
 
@@ -92,6 +92,8 @@ function topicOf(reason: Reason): Note['topic'] {
       return 'double'
     case 'sureKhanaak':
       return 'khanaak'
+    case 'noJodhi':
+      return 'jodhi'
     default:
       return 'following'
   }
@@ -153,6 +155,8 @@ function explain(view: View, action: Action, reason: Reason): string {
       return 'Your side has won the first five tricks and your card wins the last. Double is worth 2 balls.'
     case 'sureKhanaak':
       return "Your side's Jodhi plus 10 is more than the other side's card points plus their Jodhi, and your card wins the last trick. Khanaak is worth 3 balls, or 6 from the counting side."
+    case 'noJodhi':
+      return 'You hold no king and queen of a suit you have not already called, so there is no Jodhi to call. Play on.'
     case 'fallback':
       return action.type === 'playCard' ? `${card(action.card)} is a safe card to play.` : 'This is the safe choice.'
   }

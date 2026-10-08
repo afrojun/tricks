@@ -107,7 +107,8 @@ export function Table({ view, room }: { view: View; room: string }) {
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {coached && <CoachStrip lessons={NO_LESSONS} />}
         {!watching && phase.kind !== 'roundResult' && phase.kind !== 'gameOver' && <Mine view={view} turn={myTurn} />}
-        <div className="flex items-center justify-center gap-2 px-3 min-h-7" aria-live="polite">
+        {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. */}
+        <div className={`flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
           {!coached && (
             <span className={`text-center ${line?.mine ? 'font-semibold' : ''}`}>{watching ? 'You are watching this game.' : line?.mine ? <Cued text={line.text} /> : line?.text}</span>
           )}

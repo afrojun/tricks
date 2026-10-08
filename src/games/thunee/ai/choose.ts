@@ -131,6 +131,12 @@ export function decide(view: View, mind: Mind): Decision {
       if (can.callThunee && suit) return { action: { type: 'callThunee' }, reason: { code: 'thuneeSure', suit } }
       return { action: { type: 'pass' }, reason: { code: 'thuneeUnsafe' } }
     }
+    case 'trickPause': {
+      // Only asked while the pause waits on this seat's Jodhi; a computer playing for a person answers it.
+      const claim = chooseJodhi(view, mind)
+      if (claim) return { action: claim, reason: { code: 'fallback' } }
+      return { action: { type: 'pass' }, reason: { code: 'noJodhi' } }
+    }
     case 'playing': {
       const careful = TRAITS[mind.persona].cheats === 'careful'
       const honest = chooseCard(view, phase, careful ? holdBack(view, phase, can.legal) : can.legal)

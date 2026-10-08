@@ -1,7 +1,7 @@
 /** Rule checks shared by the engine (on full state) and availableActions (on a view). */
 import { type Card, type Suit, SUITS } from './cards'
 import { CALL_AMOUNTS, type RuleSet } from './rules'
-import { type Seat, type Team, teamOf } from './seats'
+import { type Seat, type Team, partnerOf, teamOf } from './seats'
 import type { TrumpChoice } from './types'
 
 export interface CallState {
@@ -46,6 +46,24 @@ export function thuneeEligible(seat: Seat, hand: readonly Card[], trumper: Seat,
 /** Whether winning a trick now opens a Jodhi claim, given the team's tricks won this half (including it). */
 export function jodhiTimingOk(teamTricksWon: number, rules: RuleSet): boolean {
   return rules.jodhiTiming === 'anyTrick' || teamTricksWon === 1 || teamTricksWon === 3
+}
+
+/**
+ * Whether a computer's lead waits, without timers, for its partner to call Jodhi or say no, once its
+ * side has opened a claim: only when that partner is a person. A person leading needs no wait, since
+ * the claim stays open until they lead; nor does a game with timers, or one without partners.
+ */
+export function jodhiWaits(seats: readonly { kind: string; standIn: boolean }[], playerCount: number, rules: Pick<RuleSet, 'timers'>, openFor: Team | null, leader: Seat): boolean {
+  const partner = partnerOf(leader, playerCount)
+  if (rules.timers || openFor === null || partner === null) return false
+  return (seats[leader].kind === 'ai' || seats[leader].standIn) && seats[partner].kind === 'human'
+}
+
+/** Who a trick pause with no deadline waits on: the partner of the trick's winner, who leads next. */
+export function jodhiWaitingOn(deadline: number | null, tricks: readonly { winner: Seat }[], playerCount: number): Seat[] {
+  const last = tricks[tricks.length - 1]
+  const partner = deadline === null && last ? partnerOf(last.winner, playerCount) : null
+  return partner === null ? [] : [partner]
 }
 
 export function jodhiPoints(suit: Suit, withJack: boolean, trump: Suit | null): number {

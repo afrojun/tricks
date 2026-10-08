@@ -45,7 +45,7 @@ await page.getByRole('button', { name: 'Start game' }).click()
 /** Plays along until it is this player's turn (and, if asked, one where an illegal card exists). */
 async function toMyTurn(needIllegal = false) {
   for (let i = 0; i < 1500; i++) {
-    for (const name of ['Pass', 'No Thunee', 'Deal next round']) {
+    for (const name of ['Pass', 'No Thunee', 'No Jodhi', 'Deal next round']) {
       const button = page.getByRole('button', { name, exact: true })
       if (await button.isVisible()) await tap(button)
     }

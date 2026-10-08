@@ -74,7 +74,8 @@ export interface Playing {
 export interface TrickPause {
   kind: 'trickPause'
   play: RoundPlay
-  deadline: number
+  /** Null without timers when a computer leads next and its partner, a person, may call Jodhi: the pause then waits for them. */
+  deadline: number | null
 }
 
 export interface RoundResult {

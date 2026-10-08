@@ -4,6 +4,7 @@ import {
   holdsJodhi,
   jodhiPoints,
   jodhiTimingOk,
+  jodhiWaits,
   mayCall,
   prospectiveTrumper,
   thuneeEligible,
@@ -232,7 +233,9 @@ export function playCard(game: Game, play: RoundPlay, seat: Seat, card: Card, ct
   // A claim must come before the next card is led, so the last trick of a hand opens none.
   const moreToPlay = thisHalf.length < 6
   play.jodhiOpenFor = play.thunee === null && moreToPlay && jodhiTimingOk(teamWins, game.rules) ? team : null
-  game.phase = { kind: 'trickPause', play, deadline: ctx.now + TRICK_PAUSE_MS }
+  // A computer leads as soon as the pause ends, so without timers its partner gets as long as they need.
+  const waits = jodhiWaits(game.seats, game.playerCount, game.rules, play.jodhiOpenFor, winner)
+  game.phase = { kind: 'trickPause', play, deadline: waits ? null : ctx.now + TRICK_PAUSE_MS }
 }
 
 /** Runs when the trick pause ends: next trick, second half, or scoring. */

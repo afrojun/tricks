@@ -2,7 +2,7 @@ import { type Actor, type Ctx, checkLobbyHost, emptySeats, isAction, isActor, is
 import { hasCard } from './cards'
 import { availableActions } from './available'
 import { actionShape } from './schema'
-import { mayCall } from './predicates'
+import { jodhiWaitingOn, mayCall } from './predicates'
 import { SEAT_COUNTS, TRADITIONAL, resolveRules } from './rules'
 import * as round from './round'
 import { type Seat, allSeats } from './seats'
@@ -71,6 +71,8 @@ export function seatsToAct(game: Game): Seat[] {
       return round.undecidedThunee(game, phase)
     case 'playing':
       return [phase.turn]
+    case 'trickPause':
+      return jodhiWaitingOn(phase.deadline, phase.play.tricks, game.playerCount)
     default:
       return []
   }
@@ -88,6 +90,8 @@ export function untimedSeats(game: Game): Seat[] {
       return phase.deadline === null ? round.waitingOnThunee(game, phase) : []
     case 'playing':
       return [phase.turn]
+    case 'trickPause':
+      return jodhiWaitingOn(phase.deadline, phase.play.tricks, game.playerCount)
     default:
       return []
   }
@@ -148,6 +152,8 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       if (!can.pass) return 'notAllowed'
       if (phase.kind === 'calling') round.passCall(game, phase, seat, ctx, events)
       else if (phase.kind === 'thuneeWindow') round.passThunee(game, phase, seat)
+      // No Jodhi: the pause was waiting only for this answer.
+      else if (phase.kind === 'trickPause') round.afterTrick(game, phase.play, events)
       return null
 
     case 'preselectTrump':
@@ -182,6 +188,8 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       // The claimant's own cards decide it; with cheating off only a true claim is accepted.
       if (!game.rules.allowCheating && !round.holdsClaim(game, phase.play, seat, action)) return 'falseClaim'
       round.claimJodhi(game, phase.play, seat, action, events)
+      // A claim answers a pause that was waiting for it.
+      if (phase.kind === 'trickPause' && jodhiWaitingOn(phase.deadline, phase.play.tricks, game.playerCount).includes(seat)) round.afterTrick(game, phase.play, events)
       return null
 
     case 'callDouble':

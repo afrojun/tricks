@@ -548,6 +548,11 @@ button:disabled {
 .ticket[data-team='1'] .ticket-who {
   justify-items: end;
 }
+/* As wide as the ticket allows, so a long name ends in an ellipsis rather than losing its start. */
+.ticket[data-team='1'] .ticket-name {
+  justify-self: stretch;
+  text-align: right;
+}
 .ticket .pip-track {
   display: grid;
   grid-template-columns: repeat(6, 0.45rem);
@@ -786,6 +791,10 @@ button:disabled {
   min-width: 0;
   max-width: 100%;
 }
+/* The top seat's name leaves room on its right for a bubble of up to 7rem before the screen's edge. */
+.seat:not([data-side]) > .seat-head {
+  max-width: min(100%, 100vw - 16rem);
+}
 .seat-body {
   display: flex;
   flex-direction: column;
@@ -827,26 +836,76 @@ button:disabled {
   margin-left: 0;
   margin-top: calc(min(0.35rem, 0.45dvh) - 2.1rem);
 }
-/* What a seat says hangs from its name, over whatever is under it. */
+/*
+ * What a seat says sits beside its name, never over the seat's own lines: to the right of the top
+ * seat's name, and above a side seat's, in the room kept there. Its tail points at the name.
+ */
 .seat-said {
   position: absolute;
-  top: 100%;
-  left: 50%;
-  translate: -50% 0;
+  top: 50%;
+  left: calc(100% + 0.55rem);
+  translate: 0 -50%;
   z-index: 20;
   display: grid;
-  justify-items: center;
+  justify-items: start;
+  gap: 0.2rem;
+}
+.seat-said .bubble {
+  margin-top: 0;
+  transform-origin: 0 50%;
+}
+/* Beside the top seat's name it grows toward the screen's edge, so it pops less far than the others. */
+.seat:not([data-side]) .seat-said .bubble {
+  animation-name: bubble-beside;
+}
+@keyframes bubble-beside {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  8%,
+  70% {
+    transform: scale(1.15);
+    opacity: 1;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.seat-said .bubble::before {
+  left: -0.4rem;
+  top: 50%;
+  translate: 0 -50%;
+  border-top: 0;
+  border-bottom: inherit;
+}
+.seat[data-side] .seat-said {
+  top: auto;
+  bottom: calc(100% + 0.55rem);
+  translate: none;
 }
 [data-side='left'] .seat-said {
   left: 0;
-  translate: none;
-  justify-items: start;
 }
 [data-side='right'] .seat-said {
   left: auto;
   right: 0;
-  translate: none;
   justify-items: end;
+}
+.seat[data-side] .seat-said .bubble::before {
+  top: auto;
+  bottom: -0.4rem;
+  left: 1.75rem;
+  translate: -50% 0;
+  border-left: 0;
+  border-right: inherit;
+}
+[data-side='right'] .seat-said .bubble::before {
+  left: auto;
+  right: 1.75rem;
+  translate: 50% 0;
 }
 
 /* A player's name, on an ink pill; yellow while the table waits on them. */
@@ -1134,12 +1193,12 @@ button:disabled {
   border-left: inherit;
   border-top: inherit;
 }
-/* Side seats sit at the screen edge: their bubbles grow inward so nothing is cut off. */
+/* A side seat's bubbles sit over its name and grow inward from the screen edge, so nothing is cut off. */
 [data-side='left'] .bubble {
-  transform-origin: 0 0;
+  transform-origin: 0 100%;
 }
 [data-side='right'] .bubble {
-  transform-origin: 100% 0;
+  transform-origin: 100% 100%;
 }
 .bubble[data-mine] {
   margin-top: 0;

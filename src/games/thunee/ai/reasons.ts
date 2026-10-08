@@ -19,6 +19,7 @@ export type Reason =
   | { code: 'cannotWin'; card: Card }
   | { code: 'sureDouble' }
   | { code: 'sureKhanaak' }
+  | { code: 'noJodhi' }
   | { code: 'fallback' }
 
 export interface Decision {

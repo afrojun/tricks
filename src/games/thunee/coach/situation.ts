@@ -28,6 +28,11 @@ export function situation(view: View): Note | null {
       return note('Everyone has six cards. Call Thunee only if you can win all six tricks yourself; otherwise pass.', 'thunee')
     case 'playing':
       return phase.turn === me ? playing(view, phase) : null
+    case 'trickPause': {
+      if (!can.pass) return null
+      const leader = phase.tricks[phase.tricks.length - 1].winner
+      return note(`Your side won the trick, and ${who(view, leader)} leads next once you are done. Call Jodhi if you hold the king and queen of one suit; otherwise play on.`, 'jodhi')
+    }
     default:
       return null
   }

@@ -73,6 +73,8 @@ while (Date.now() - started < 6 * 60_000) {
   if (await visible('Pass')) await tap(page.getByRole('button', { name: 'Pass' }))
   else if (await page.getByText('Choose trump').isVisible()) await tap(page.locator('.panel .btn').first())
   else if (await visible('No Thunee')) await tap(page.getByRole('button', { name: 'No Thunee' }))
+  // Without timers the computer partner's lead waits for this answer.
+  else if (await visible('No Jodhi')) await tap(page.getByRole('button', { name: 'No Jodhi' }))
   else if (await visible('Deal next round')) await tap(page.getByRole('button', { name: 'Deal next round' }))
   else if (await page.getByText(/Your turn/).isVisible()) {
     await once('7-my-turn', (await page.locator('.trick-area .playing-card').count()) >= 2)

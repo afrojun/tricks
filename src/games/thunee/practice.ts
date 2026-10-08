@@ -29,10 +29,13 @@ export const thuneePractice: GamePractice<Game, Action, GameEvent, View, Note, D
     { type: 'setRules', overrides: {} },
   ],
 
-  /** Identifies one trick pause, so continuing it is remembered across a reload. */
+  /**
+   * Identifies one trick pause, so continuing it is remembered across a reload. A pause with no
+   * deadline is not one to continue past: it waits for the player to call Jodhi or say no.
+   */
   pauseId(game) {
     const phase = game.phase
-    return phase.kind === 'trickPause' ? `${game.roundNumber}:${phase.play.tricks.length}` : null
+    return phase.kind === 'trickPause' && phase.deadline !== null ? `${game.roundNumber}:${phase.play.tricks.length}` : null
   },
 
   isDecision: (action) => action.type !== 'nextRound' && action.type !== 'rematch' && action.type !== 'tick',

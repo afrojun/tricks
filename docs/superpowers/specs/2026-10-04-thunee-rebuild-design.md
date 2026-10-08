@@ -150,7 +150,7 @@ Play rules: follow suit if able. With the undercutting setting on, a player void
 
 ### 4.6 Special calls
 
-**Jodhi.** After a trick won by their team and before the next card is led, a player may claim a Jodhi by naming a suit and whether it includes the Jack. Values: 40 (K+Q of trump), 50 (with J), 20 (K+Q of another suit), 30 (with J). Timing is limited by the `jodhiTiming` setting. Claims are not verified when made. A claim is true if the claimant held the named cards per the `jodhiCards` setting. No Jodhi under Thunee.
+**Jodhi.** After a trick won by their team and before the next card is led, a player may claim a Jodhi by naming a suit and whether it includes the Jack. With `timers` off, when a computer won the trick (and so leads next) and its partner is a person, the trick pause has no deadline: it waits for that partner to claim or `pass` ("No Jodhi"), and either ends it. A person who leads needs no wait, since the claim stays open until they lead. Values: 40 (K+Q of trump), 50 (with J), 20 (K+Q of another suit), 30 (with J). Timing is limited by the `jodhiTiming` setting. Claims are not verified when made. A claim is true if the claimant held the named cards per the `jodhiCards` setting. No Jodhi under Thunee.
 
 **Thunee.** The caller undertakes to win all six tricks. Who may call, what is trump, who leads, and who must win the tricks are settings. Success: 4 balls. Failure: 4 balls to the opponents, or `thuneePartnerCatchBalls` if it failed because the caller's partner won a trick (caller-only mode). Play continues until a trick is lost or all six are won.
 
@@ -217,7 +217,7 @@ Each player gets 4 cards, calling and trump selection run as above with the non-
 Definitions:
 - `jodhiCards: inHand` means the cards are in hand when the claim is made; `dealt` means they were among the six cards dealt.
 - `defaultTrumper: teamAhead` means the team ahead in balls, or on a tie the last round's winner, or failing that the dealer's right; the trumper is that team's member nearest the dealer's right.
-- `timers: false` means calling and the Thunee window have no deadline: each waits until every seat it waits on has called or passed, and those seats count as waited on, so a stalled one can be handed to the computer. `callTimerSeconds` and `thuneeWindowSeconds` apply only with `timers` on.
+- `timers: false` means calling and the Thunee window have no deadline: each waits until every seat it waits on has called or passed, and those seats count as waited on, so a stalled one can be handed to the computer. The same goes for a person whose computer partner is about to lead with a Jodhi open (4.6). `callTimerSeconds` and `thuneeWindowSeconds` apply only with `timers` on; with them on, a Jodhi must come within the trick pause.
 - `dealerRotation: stayWhileBehind` means the deal passes to the right only when the dealer's team has at least as many balls as the other team after scoring.
 
 Fixed for every rule set: the 24-card deck, card ranks and values, the 105 four-player target, call amounts, call-and-lost paying 2 balls, challenge paying 4 balls, the 2-second trick pause.

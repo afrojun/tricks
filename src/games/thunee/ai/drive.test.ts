@@ -24,10 +24,24 @@ function runReactions(t: Table, events: readonly GameEvent[], applied: { actor: 
 }
 
 describe('dueStep', () => {
+  test('a computer playing for a person answers the wait for their Jodhi', () => {
+    // D1-style hands: seat 2 wins the first trick for team 0; seat 0 holds the king and queen of spades.
+    const t = new Table(4, { redealIfNoTrumps: false, timers: true })
+      .deal(['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh'])
+      .toPlay('spades')
+    t.game = { ...t.game, rules: { ...t.game.rules, timers: false }, seats: t.game.seats.map((s, i) => (i === 0 || i === 2 ? { ...s, standIn: true } : s)) }
+    t.play('Jc Qh 10c Qc')
+    expect(t.game.phase).toMatchObject({ kind: 'trickPause', deadline: null })
+    const step = dueStep(t.game, t.now + 60_000)
+    expect(step).toMatchObject({ actor: 0, action: { type: 'claimJodhi', suit: 'spades' } })
+    t.do(step!.actor, step!.action)
+    expect(t.game.phase).toMatchObject({ kind: 'playing', turn: 2 })
+  })
+
   test('ticks once a phase deadline has passed', () => {
     const t = withComputers()
-    const phase = t.game.phase as Extract<Game['phase'], { deadline: number }>
-    expect(dueStep(t.game, phase.deadline)).toEqual({ actor: 'system', action: { type: 'tick' } })
+    const phase = t.game.phase as Extract<Game['phase'], { deadline: number | null }>
+    expect(dueStep(t.game, phase.deadline!)).toEqual({ actor: 'system', action: { type: 'tick' } })
   })
 
   test('is null while nothing is due', () => {

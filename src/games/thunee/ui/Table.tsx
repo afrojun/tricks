@@ -10,6 +10,7 @@ import {
   type ViewPlaying,
   availableActions,
   jodhiPoints,
+  jodhiWaitingOn,
   teamOf,
 } from '../engine'
 import { AccuseSheet } from '../../../ui/Accuse'
@@ -131,7 +132,8 @@ export function Table({ view, room }: { view: View; room: string }) {
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {coached && <CoachStrip lessons={TOPICS} />}
-        <div className="flex items-center justify-center gap-2 px-3 min-h-7" aria-live="polite">
+        {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. */}
+        <div className={`flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
           {!watching && <RoleBadges view={view} seat={me} />}
           {!watching &&
             said(view, me).map((text) => (
@@ -485,7 +487,10 @@ function Hint({ view, can }: { view: View; can: Available }) {
       )
     return <>{seatName(view, phase.turn!)} to play.</>
   }
+  if (phase.kind === 'trickPause' && can.pass) return <>Your side won the trick. Call Jodhi, or say No Jodhi to play on.</>
   if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <>Your side won the trick. You can call Jodhi now.</>
+  const jodhiFrom = phase.kind === 'trickPause' ? jodhiWaitingOn(phase.deadline, phase.tricks, view.playerCount) : []
+  if (jodhiFrom.length > 0) return <>Waiting for {seatName(view, jodhiFrom[0])} to call Jodhi or play on.</>
   if (phase.kind === 'roundResult') return <>Round {view.roundNumber} is over.</>
   return null
 }
@@ -502,6 +507,11 @@ function ActionBar({ can, playing, accuse, onSheet }: { can: Available; playing:
       {can.claimJodhi.length > 0 && (
         <button className="btn btn-primary attention" onClick={() => onSheet('jodhi')}>
           Call Jodhi
+        </button>
+      )}
+      {playing.kind === 'trickPause' && can.pass && (
+        <button className="btn" onClick={() => send({ type: 'pass' })}>
+          No Jodhi
         </button>
       )}
       {can.callDouble && (

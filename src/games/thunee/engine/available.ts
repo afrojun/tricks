@@ -1,5 +1,5 @@
 import { type Card, type Suit, SUITS } from './cards'
-import { callAmounts, mayCall, prospectiveTrumper, thuneeEligible, trumpChoices } from './predicates'
+import { callAmounts, jodhiWaitingOn, mayCall, prospectiveTrumper, thuneeEligible, trumpChoices } from './predicates'
 import { type Seat, teamOf } from './seats'
 import { legalPlays } from './tricks'
 import type { TrumpChoice, View } from './types'
@@ -99,6 +99,8 @@ export function availableActions(view: View): Available {
         const mine = phase.jodhiClaims.filter((j) => j.seat === me).map((j) => j.suit)
         out.claimJodhi = SUITS.filter((s) => !mine.includes(s))
       }
+      // A pause waiting on this seat's Jodhi ends when they call one or pass: "No Jodhi".
+      if (phase.kind === 'trickPause' && jodhiWaitingOn(phase.deadline, phase.tricks, view.playerCount).includes(me)) out.pass = true
 
       if (view.rules.allowCheating) {
         // Once a trick has been completed, every seat has played a card this round.

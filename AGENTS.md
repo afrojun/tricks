@@ -106,7 +106,7 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 - Play is counterclockwise. Four cards are dealt, players may call for the right to choose trump, trump is chosen, two more cards are dealt, then anyone may call Thunee.
 - The counting team (the trumper's opponents) needs 105 points. First to 12 balls wins.
 - Must follow suit. Breaking the rules is allowed by the app and recorded; an opponent may challenge for 4 balls. The house rule `allowCheating` turns this off: the app then refuses a rule-breaking card or a false Jodhi, and nobody may challenge.
-- Calling and the Thunee window wait for every player by default; the house rule `timers` closes them after `callTimerSeconds` and `thuneeWindowSeconds`.
+- Calling and the Thunee window wait for every player by default; the house rule `timers` closes them after `callTimerSeconds` and `thuneeWindowSeconds`. Without timers, a computer that wins a trick opening a Jodhi also waits, before it leads, for its partner, if a person, to call Jodhi or say no.
 - Special calls: Jodhi, Thunee, Double, Khanaak. Section 4 of the spec has the details and every configurable rule.
 
 ## Game Rules (Hearts)
