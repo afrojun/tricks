@@ -150,7 +150,7 @@ function explain(view: View, action: Action, reason: Reason): string {
     case 'thuneeSureLead':
       return `Nobody can beat ${card(reason.card)}: every higher card is played or in your hand, and the other side cannot trump it.${others(view, reason.card)}`
     case 'keepOffThunee':
-      return `${phase && phase.thunee ? who(view, phase.thunee.caller) : 'Your partner'} called Thunee and must win every trick alone. If you take one, the Thunee fails, so stay under them.`
+      return `${phase && phase.thunee ? who(view, phase.thunee.caller) : 'Your partner'} called Thunee and must win every trick alone. If you take one, the Thunee fails, so stay under them and get rid of high cards you could later be forced to win with.`
     case 'feedPartner':
       return `${partnerText(view, phase)} already has this trick and you play last, so give them your most valuable card: ${card(reason.card)} is worth ${points([reason.card])}.`
     case 'holdUnderPartner':

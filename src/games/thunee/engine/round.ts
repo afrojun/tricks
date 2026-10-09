@@ -101,11 +101,6 @@ export function chooseTrump(game: Game, choice: TrumpChoice, ctx: Ctx, events: G
   const trump = choice === 'lastCard' ? hands[trumper][5].suit : choice
   events.push({ type: 'trumpChosen', seat: trumper, lastCard: choice === 'lastCard' })
 
-  if (game.rules.redealIfNoTrumps && game.playerCount === 4) {
-    const counting = allSeats(4).filter((s) => teamOf(s) !== teamOf(trumper))
-    if (!counting.some((s) => hands[s].some((c) => c.suit === trump))) return dealAgain(game, ctx, events)
-  }
-
   const window: ThuneeWindow = {
     kind: 'thuneeWindow',
     hands,
@@ -119,7 +114,7 @@ export function chooseTrump(game: Game, choice: TrumpChoice, ctx: Ctx, events: G
   }
   game.phase = window
   if ((game.rules.timers && game.rules.thuneeWindowSeconds <= 0) || undecidedThunee(game, window).length === 0) {
-    startPlay(game, window, null)
+    startPlay(game, window, null, ctx, events)
   }
 }
 
@@ -135,19 +130,19 @@ export function undecidedThunee(game: Game, phase: ThuneeWindow): Seat[] {
   )
 }
 
-export function callThunee(game: Game, phase: ThuneeWindow, seat: Seat, events: GameEvent[]) {
+export function callThunee(game: Game, phase: ThuneeWindow, seat: Seat, ctx: Ctx, events: GameEvent[]) {
   events.push({ type: 'thuneeCalled', seat })
   if (teamOf(seat) === teamOf(phase.trumper)) {
-    startPlay(game, phase, seat)
+    startPlay(game, phase, seat, ctx, events)
     return
   }
   phase.pending = seat
-  closeThuneeIfDone(game, phase)
+  closeThuneeIfDone(game, phase, ctx, events)
 }
 
-export function passThunee(game: Game, phase: ThuneeWindow, seat: Seat) {
+export function passThunee(game: Game, phase: ThuneeWindow, seat: Seat, ctx: Ctx, events: GameEvent[]) {
   phase.passed.push(seat)
-  closeThuneeIfDone(game, phase)
+  closeThuneeIfDone(game, phase, ctx, events)
 }
 
 /** Seats the window still waits for. A held call only waits for the trumper's team, who alone can override it. */
@@ -155,15 +150,21 @@ export function waitingOnThunee(game: Game, phase: ThuneeWindow): Seat[] {
   return undecidedThunee(game, phase).filter((s) => phase.pending === null || teamOf(s) === teamOf(phase.trumper))
 }
 
-function closeThuneeIfDone(game: Game, phase: ThuneeWindow) {
-  if (waitingOnThunee(game, phase).length === 0) closeThunee(game, phase)
+function closeThuneeIfDone(game: Game, phase: ThuneeWindow, ctx: Ctx, events: GameEvent[]) {
+  if (waitingOnThunee(game, phase).length === 0) closeThunee(game, phase, ctx, events)
 }
 
-export function closeThunee(game: Game, phase: ThuneeWindow) {
-  startPlay(game, phase, phase.pending)
+export function closeThunee(game: Game, phase: ThuneeWindow, ctx: Ctx, events: GameEvent[]) {
+  startPlay(game, phase, phase.pending, ctx, events)
 }
 
-function startPlay(game: Game, phase: ThuneeWindow, thuneeCaller: Seat | null) {
+function startPlay(game: Game, phase: ThuneeWindow, thuneeCaller: Seat | null, ctx: Ctx, events: GameEvent[]) {
+  // Every card is dealt, and everyone has seen their six: if the counting side holds no trump, deal again.
+  // A Thunee has its own trump, and its own redeal (see `opponentsShowNoTrump`).
+  if (thuneeCaller === null && game.rules.redealIfNoTrumps && game.playerCount === 4) {
+    const counting = allSeats(4).filter((s) => teamOf(s) !== teamOf(phase.trumper))
+    if (!counting.some((s) => phase.hands[s].some((c) => c.suit === phase.trump))) return dealAgain(game, ctx, events)
+  }
   const play: RoundPlay = {
     hands: phase.hands,
     dealt: phase.hands.map((h) => [...h]),

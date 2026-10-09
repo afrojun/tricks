@@ -161,7 +161,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
     case 'pass':
       if (!can.pass) return 'notAllowed'
       if (phase.kind === 'calling') round.passCall(game, phase, seat, ctx, events)
-      else if (phase.kind === 'thuneeWindow') round.passThunee(game, phase, seat)
+      else if (phase.kind === 'thuneeWindow') round.passThunee(game, phase, seat, ctx, events)
       // No Jodhi, or deal again: the pause was waiting only for this answer.
       else if (phase.kind === 'trickPause') round.afterTrick(game, phase.play, ctx, events)
       return null
@@ -181,7 +181,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
     case 'callThunee':
       if (phase.kind !== 'thuneeWindow') return 'wrongPhase'
       if (!can.callThunee) return 'notAllowed'
-      round.callThunee(game, phase, seat, events)
+      round.callThunee(game, phase, seat, ctx, events)
       return null
 
     case 'playCard':
@@ -270,6 +270,6 @@ function tick(game: Game, ctx: Ctx, events: GameEvent[]): void {
   const phase = game.phase
   if (!('deadline' in phase) || phase.deadline === null || phase.deadline > ctx.now) return
   if (phase.kind === 'calling') round.closeCalling(game, phase, ctx, events)
-  else if (phase.kind === 'thuneeWindow') round.closeThunee(game, phase)
+  else if (phase.kind === 'thuneeWindow') round.closeThunee(game, phase, ctx, events)
   else if (phase.kind === 'trickPause') round.afterTrick(game, phase.play, ctx, events)
 }

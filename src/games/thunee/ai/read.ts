@@ -35,16 +35,38 @@ export function shownVoid(phase: ViewPlaying): Map<Seat, Set<Suit>> {
 }
 
 /**
- * Whether a card led by `me` must win the trick, as far as the seat can tell: no opponent can hold an
+ * The seats whose cards can cost `me` a trick: the opponents, and the partner too when `me` called a
+ * Thunee that only the caller may win, since a partner made to follow suit with a higher card ends it.
+ */
+export function rivals(view: View, phase: ViewPlaying, me: Seat): Seat[] {
+  const alone = phase.thunee?.caller === me && view.rules.thuneeWinner === 'callerOnly'
+  return allSeats(view.playerCount).filter((s) => s !== me && (alone || teamOf(s) !== teamOf(me)))
+}
+
+/**
+ * Whether a card led by `me` must win the trick, as far as the seat can tell: no rival can hold an
  * unseen card that beats it, counting only suits they have not shown they lack. It trusts that
  * nobody has hidden a card by not following suit.
  */
 export function sureLead(view: View, phase: ViewPlaying, me: Seat, card: Card): boolean {
   const voids = shownVoid(phase)
-  const opponents = allSeats(view.playerCount).filter((s) => teamOf(s) !== teamOf(me))
+  const threats = rivals(view, phase, me)
   const beats = (x: Card) =>
     x.suit === card.suit ? rankStrength(x.rank) > rankStrength(card.rank) : phase.trump !== null && x.suit === phase.trump && card.suit !== phase.trump
-  return !unseen(phase).some((x) => beats(x) && opponents.some((o) => !voids.get(o)?.has(x.suit)))
+  return !unseen(phase).some((x) => beats(x) && threats.some((o) => !voids.get(o)?.has(x.suit)))
+}
+
+/**
+ * The cards of `hand` exactly as strong as `card` for winning tricks: those of its suit with no unseen
+ * card ranked between them. Where only winning tricks counts, as in a Thunee, any of them will do.
+ */
+export function touching(phase: ViewPlaying, hand: readonly Card[], card: Card): Card[] {
+  const hidden = unseen(phase).filter((x) => x.suit === card.suit).map((x) => rankStrength(x.rank))
+  const between = (c: Card) => {
+    const [a, b] = [rankStrength(c.rank), rankStrength(card.rank)].sort((x, y) => x - y)
+    return hidden.some((r) => r > a && r < b)
+  }
+  return hand.filter((c) => c.suit === card.suit && !between(c))
 }
 
 export function wouldWin(phase: ViewPlaying, me: Seat, card: Card): boolean {

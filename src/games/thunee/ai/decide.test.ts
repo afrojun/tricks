@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { type Game, viewFor } from '../engine'
 import { Table, card, cards } from '../engine/testing'
 import { decide } from './choose'
+import { rivals } from './read'
 import { HONEST } from '../../../kit/mind'
 
 // Dealer 0: seat 1 is trumper (team 1), seat 2 leads; trump is spades. Order of play 2, 3, 0, 1.
@@ -76,17 +77,34 @@ describe('playing', () => {
     const t = table(['10d Kd Qd 10c Kc Qc', '9s As 10s Ks Jh 9h', 'Ah 10h Jc 9c Ac Jd', 'Js Qs 9d Ad Kh Qh']).advance(10_000)
     t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000).play('10s Ah')
     expect(decideFor(t.game, 3)).toMatchObject({ reason: { code: 'keepOffThunee', card: card('Qs') } })
+    // Not even a computer that cheats takes the trick from its partner's Thunee.
+    for (let salt = 1; salt <= 300; salt++) {
+      expect(decide(viewFor(t.game, 3, 'full'), { persona: 'wild', salt }).action).toEqual({ type: 'playCard', card: card('Qs') })
+    }
   })
 
-  test('once the other side has no trumps, the Thunee caller counts every card nobody can beat as just as good', () => {
+  test("the caller of a Thunee only they may win counts their partner's cards as a threat", () => {
+    const thunee = (overrides = {}) => {
+      const t = new Table(4, { redealIfNoTrumps: false, ...overrides }).deal(['10d Kd Qd 10c Kc Qc', '9s As 10s Ks Jh 9h', 'Ah 10h Jc 9c Ac Jd', 'Js Qs 9d Ad Kh Qh']).advance(10_000)
+      t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000)
+      const phase = viewFor(t.game, 1, 'full').phase
+      if (phase.kind !== 'playing') throw new Error(phase.kind)
+      return phase
+    }
+    const view = (overrides = {}) => viewFor(new Table(4, { redealIfNoTrumps: false, ...overrides }).game, 1)
+    expect(rivals({ ...view(), seat: 1 }, thunee(), 1)).toEqual([0, 2, 3])
+    expect(rivals({ ...view({ thuneeWinner: 'team' }), seat: 1 }, thunee({ thuneeWinner: 'team' }), 1)).toEqual([0, 2])
+  })
+
+  test('the Thunee caller draws trumps while anyone else may hold one, and counts touching trumps as just as good', () => {
     const t = table(['10d Kd Qd 10c Kc Qc', 'Js 9s As 10s Jh Ah', '9h 10h Jc 9c Ac Jd', 'Ks Qs 9d Ad Kh Qh']).advance(10_000)
     t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000)
     expect(decideFor(t.game, 1)).toMatchObject({ reason: { code: 'thuneeSetTrump', card: card('Js') } })
     t.play('Js Jc Qs 10c').endPause()
+    // Ks is still out, with the partner, who would have to follow with it: 9s, As and 10s have nothing unseen between them.
     const d = decideFor(t.game, 1)
-    expect(d.reason).toEqual({ code: 'thuneeSureLead', card: card('Jh') })
-    expect(d.alternatives).toEqual(expect.arrayContaining(cards('9s As 10s Jh')))
-    expect(d.alternatives).toHaveLength(4)
+    expect(d.reason).toEqual({ code: 'thuneeDrawTrumps', card: card('9s') })
+    expect(d.alternatives).toEqual(cards('9s As 10s'))
   })
 
   test('a cheapest card that still beats the partner says so', () => {

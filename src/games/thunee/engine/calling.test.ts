@@ -211,8 +211,11 @@ describe('trump and the final deal', () => {
     expectNoLeak(t.game)
   })
 
-  test('the deal is cancelled when the counting team holds no trump, if the setting is on', () => {
+  test('the deal is cancelled when the counting team holds no trump, once everyone has seen all six cards, if the setting is on', () => {
     const t = new Table().deal(NO_SPADES).advance(10_000).do(1, { type: 'chooseTrump', choice: 'spades' })
+    expect(t.game.phase).toMatchObject({ kind: 'thuneeWindow', hands: [{ length: 6 }, { length: 6 }, { length: 6 }, { length: 6 }] })
+    expect(t.events).not.toContainEqual({ type: 'dealCancelled' })
+    t.advance(10_000) // the Thunee window closes with no call
     expect(t.events).toContainEqual({ type: 'dealCancelled' })
     expect(t.game.phase.kind).toBe('calling')
     expect(t.game.roundNumber).toBe(1)

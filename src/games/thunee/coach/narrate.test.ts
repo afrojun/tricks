@@ -104,7 +104,7 @@ describe('review', () => {
     const t = new Table(4, { redealIfNoTrumps: false }).deal(['10d Kd Qd 10c Kc Qc', 'Js 9s As 10s Jh Ah', '9h 10h Jc 9c Ac Jd', 'Ks Qs 9d Ad Kh Qh']).advance(10_000)
     t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000).play('Js Jc Qs 10c').endPause()
     const v = you(t.game, 1)
-    const asGood: DecisionRecord = { view: v, advised: { type: 'playCard', card: card('Jh') }, taken: { type: 'playCard', card: card('9s') } }
+    const asGood: DecisionRecord = { view: v, advised: { type: 'playCard', card: card('9s') }, taken: { type: 'playCard', card: card('10s') } }
     expect(review({ decisions: [asGood], summary: summary(), dealt: [], you: 1, view: v }).filter((n) => n.tone === 'suggest')).toEqual([])
 
     const early = you(played('Jc Qh').game)

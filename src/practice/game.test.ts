@@ -6,8 +6,6 @@ import { thuneePractice } from '../games/thunee/practice'
 import { type ThuneePracticeGame, playPractice } from '../games/thunee/testing'
 import { PRACTICE_FORMAT, PracticeGame, practiceKey } from './game'
 import { rng } from './rng'
-import { decide } from '../games/thunee/ai/choose'
-import { HONEST } from '../kit/mind'
 
 describe('rng', () => {
   test('draws what the test generator draws, and its state carries on', () => {
@@ -122,21 +120,15 @@ describe('saving', () => {
 
 describe('the round log', () => {
   test('a redealt hand leaves no decision behind', () => {
-    // Four players, seed 30: following the advice, seat 0's trump choice leaves the counting side without trumps.
-    const p = PracticeGame.start(thuneePractice, 4, 30, 'Ann')
-    let redealt = false
-    playPractice(p, 3000, undefined, (g) => {
-      const phase = g.game.phase
-      if (phase.kind !== 'trumpSelection' || phase.trumper !== 0) return false
-      const before = g.game.roundNumber
-      const { action } = decide(g.coachView(), HONEST)
-      g.act(action, action)
-      redealt = g.game.phase.kind === 'calling' && g.game.roundNumber === before
-      return true
-    })
-    expect(redealt).toBe(true)
+    // Four players, seed 75: in round 1 the counting side holds no trump, found once the Thunee window closes.
+    const p = PracticeGame.start(thuneePractice, 4, 75, 'Ann')
+    playPractice(p, 300, undefined, (g) => g.game.phase.kind === 'thuneeWindow')
+    expect(p.game.roundNumber).toBe(1)
+    playPractice(p, 300, undefined, (g) => g.game.phase.kind === 'calling')
+    expect(p.game.roundNumber).toBe(1)
     expect(p.round.decisions).toEqual([])
   })
+
 })
 
 describe('whole games', () => {
