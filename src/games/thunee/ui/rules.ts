@@ -38,7 +38,7 @@ export const ruleBook: RuleBook<RuleSet> = {
   schema: ruleOverridesSchema,
   presets: [
     { id: 'traditional', name: 'Traditional', overrides: {} },
-    { id: 'classic-app', name: 'Classic app', overrides: CLASSIC_APP_OVERRIDES },
+    { id: 'classic-app', name: 'Tuscans', overrides: CLASSIC_APP_OVERRIDES },
   ],
   info: RULE_INFO,
 }

@@ -84,14 +84,14 @@ function LearnToPlay() {
   const [saved] = useState(() => practice?.saved() ?? false)
   if (!practice) {
     return (
-      <section className="panel p-4 w-full max-w-sm grid gap-3">
+      <section className="panel p-4 grid gap-3">
         <h2 className="display text-xl">Learn to play</h2>
         <p>Practice games against the computer, with a coach, are coming to {game.name}.</p>
       </section>
     )
   }
   return (
-    <section className="panel p-4 w-full max-w-sm grid gap-3">
+    <section className="panel p-4 grid gap-3">
       <h2 className="display text-xl">Learn to play</h2>
       {/* A returning learner knows what practice is; the line it saves keeps the page on one screen. */}
       {!saved && <p>Against the computer, with a coach who explains every move.</p>}
@@ -155,12 +155,14 @@ export function Home() {
       />
       {rules && <RulesSheet game={game} rules={resolve(game.rules.defaults, overrides)} title="House rules" summary={preset?.name} onClose={() => setRules(false)} />}
       <header className="text-center">
-        <h1 className="wordmark text-[4.2rem]">{game.name}</h1>
+        <h1 className="wordmark text-[4.2rem] md:text-[6rem]">{game.name}</h1>
         <p className="font-semibold mt-1">{game.tagline}</p>
       </header>
 
+      {/* One column on a phone; from md, Learn and Play side by side, the rest across both. */}
+      <div className="home-width grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
       {shared !== null && (
-        <div className="w-full max-w-sm">
+        <div className="md:col-span-2">
           <SharedRules
             code={shared}
             onSaved={() => {
@@ -174,7 +176,7 @@ export function Home() {
 
       <LearnToPlay />
 
-      <section className="panel p-4 w-full max-w-sm grid gap-3">
+      <section className="panel p-4 grid gap-3">
         <h2 className="display text-xl">Play with friends</h2>
         {game.seatCounts.length > 1 && (
           <div className="grid gap-1">
@@ -232,6 +234,7 @@ export function Home() {
       </section>
 
       <GameStrip current={game.id} />
+      </div>
     </main>
   )
 }

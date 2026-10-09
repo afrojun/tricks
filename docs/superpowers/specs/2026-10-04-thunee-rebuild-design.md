@@ -190,7 +190,7 @@ Each player gets 4 cards, calling and trump selection run as above with the non-
 
 ### 4.10 RuleSet
 
-| Setting | Values | Traditional | Classic app |
+| Setting | Values | Traditional | Tuscans (the old app's rules) |
 |---|---|---|---|
 | `thuneeCaller` | `anyone` \| `trumperOnly` | anyone | trumperOnly |
 | `thuneeTrump` | `firstCardLed` \| `noTrump` | firstCardLed | noTrump |
@@ -222,7 +222,7 @@ Definitions:
 
 Fixed for every rule set: the 24-card deck, card ranks and values, the 105 four-player target, call amounts, call-and-lost paying 2 balls, challenge paying 4 balls, the 2-second trick pause.
 
-Known differences between the Classic app preset and the old app, all deliberate: trump is chosen from four cards before the final deal; Khanaak is called before playing to the last trick instead of after it; the bugs listed in section 2 are not reproduced.
+Known differences between the Tuscans preset (the old app's rules, once named Classic app) and the old app, all deliberate: trump is chosen from four cards before the final deal; Khanaak is called before playing to the last trick instead of after it; the bugs listed in section 2 are not reproduced.
 
 ## 5. Server (`party/`)
 
@@ -311,7 +311,7 @@ Three themes ship: **Retro** (the existing arcade identity and card-back styles)
 
 ### 6.5 Presets (`src/presets/`)
 
-A preset is `{ name, overrides }`, where `overrides` is the set of settings that differ from Traditional. Presets are stored in localStorage and validated with Zod on load. Traditional and Classic app are built in and read-only; they can be duplicated.
+A preset is `{ name, overrides }`, where `overrides` is the set of settings that differ from Traditional. Presets are stored in localStorage and validated with Zod on load. Traditional and Tuscans are built in and read-only; they can be duplicated.
 
 A share link encodes `{ v, name, overrides }` as a URL-safe string in a query parameter. Opening one shows the rules and offers to save them. Unknown settings in a link are ignored; missing ones take the Traditional value.
 

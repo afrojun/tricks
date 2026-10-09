@@ -40,7 +40,7 @@ const TOY: RulesOf<Toy> = {
 describe('preset storage', () => {
   test('built-ins come first and resolve to the two shipped rule sets', () => {
     const presets = listPresets(THUNEE, memoryStore())
-    expect(presets.map((p) => p.name)).toEqual(['Traditional', 'Classic app'])
+    expect(presets.map((p) => p.name)).toEqual(['Traditional', 'Tuscans'])
     expect(resolveRules(presets[0].overrides)).toEqual(TRADITIONAL)
     expect(resolveRules(presets[1].overrides)).toEqual(CLASSIC_APP)
   })
@@ -49,7 +49,7 @@ describe('preset storage', () => {
     const store = memoryStore()
     const saved = savePreset(THUNEE, '  Charous   rules ', { double: false, ballsToWin: 13 }, store)!
     expect(saved).toMatchObject({ name: 'Charous rules', builtIn: false })
-    expect(listPresets(THUNEE, store).map((p) => p.name)).toEqual(['Traditional', 'Classic app', 'Charous rules'])
+    expect(listPresets(THUNEE, store).map((p) => p.name)).toEqual(['Traditional', 'Tuscans', 'Charous rules'])
     expect(renamePreset(THUNEE, saved.id, 'Friday night', store)).toBe(true)
     expect(listPresets(THUNEE, store)[2]).toMatchObject({ name: 'Friday night', overrides: { double: false, ballsToWin: 13 } })
     expect(deletePreset(THUNEE, saved.id, store)).toBe(true)
@@ -74,7 +74,7 @@ describe('preset storage', () => {
       { id: 'bad', name: 'Bad', overrides: { ballsToWin: -5 } },
       null,
     ])
-    expect(listPresets(THUNEE, memoryStore(mixed)).map((p) => p.name)).toEqual(['Traditional', 'Classic app', 'Fine'])
+    expect(listPresets(THUNEE, memoryStore(mixed)).map((p) => p.name)).toEqual(['Traditional', 'Tuscans', 'Fine'])
   })
 })
 
@@ -151,7 +151,7 @@ describe('presets and links belong to their game', () => {
     savePreset(THUNEE, 'Short', { ballsToWin: 6 }, store)
     expect([...store.data.keys()].sort()).toEqual(['tricks-thunee-presets', 'tricks-toy-presets'])
     expect(listPresets(TOY, store).map((p) => p.name)).toEqual(['Plain', 'Quick', 'Slow'])
-    expect(listPresets(THUNEE, store).map((p) => p.name)).toEqual(['Traditional', 'Classic app', 'Short'])
+    expect(listPresets(THUNEE, store).map((p) => p.name)).toEqual(['Traditional', 'Tuscans', 'Short'])
   })
 
   test('a saved preset is read with its own game’s schema', () => {

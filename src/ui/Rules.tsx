@@ -14,7 +14,7 @@ export function rulesSummary<R extends object>(game: RulesOf<R>, rules: R): stri
   return `${defaultsName(game.rules)} with ${n} house rule${n === 1 ? '' : 's'}`
 }
 
-/** Read-only list of every rule, with house rules marked. */
+/** Read-only list of every rule. A house rule's value is in the accent, with the default under it. */
 export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>; rules: R }) {
   const book = game.rules
   return (
@@ -24,10 +24,10 @@ export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>;
         return (
           <div key={String(info.key)} className="grid grid-cols-[1fr_auto] gap-x-3 items-baseline border-b border-line/40 pb-2">
             <dt>{info.label}</dt>
-            <dd className="text-right font-semibold">{valueLabel(info, rules[info.key])}</dd>
+            <dd className={`text-right font-semibold ${house ? 'text-accent' : ''}`}>{valueLabel(info, rules[info.key])}</dd>
             {house && (
               <p className="col-span-2 text-sm text-on-surface-muted">
-                House rule. {defaultsName(book)}: {valueLabel(info, book.defaults[info.key])}
+                {defaultsName(book)}: {valueLabel(info, book.defaults[info.key])}
               </p>
             )}
           </div>
@@ -35,6 +35,14 @@ export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>;
       })}
     </dl>
   )
+}
+
+/** The sheet's first line: which rules these are, and how many are house rules. */
+export function sheetSummary<R extends object>(game: RulesOf<R>, rules: R, name?: string): string {
+  const n = differenceCount(game.rules, rules)
+  const who = name ?? (n === 0 ? defaultsName(game.rules) : rulesSummary(game, rules))
+  if (n === 0) return `${who}: no house rules.`
+  return `${who}: ${n} house rule${n === 1 ? '' : 's'}, marked below.`
 }
 
 /**
@@ -56,7 +64,7 @@ export function RulesSheet<R extends object>({
 }) {
   return (
     <Sheet title={title} onClose={onClose}>
-      <p className="mb-3">{summary ?? rulesSummary(game, rules)}</p>
+      <p className="mb-3">{sheetSummary(game, rules, summary)}</p>
       <RulesList game={game} rules={rules} />
     </Sheet>
   )

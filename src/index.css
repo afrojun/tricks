@@ -114,6 +114,16 @@ button:disabled {
 }
 
 /* The Tricks mark (the favicon) as a plate on the table, sharing the wordmark's red offset. */
+/* A home's column: a phone's width, and two panels wide from the md breakpoint. */
+.home-width {
+  width: 100%;
+  max-width: 24rem;
+}
+@media (min-width: 48rem) {
+  .home-width {
+    max-width: 50rem;
+  }
+}
 .tricks-mark {
   width: 4.5rem;
   height: 4.5rem;

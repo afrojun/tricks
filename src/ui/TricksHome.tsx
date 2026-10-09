@@ -12,11 +12,11 @@ export function TricksHome() {
       <TopBar />
       <header className="text-center mb-2 flex flex-col items-center">
         <img src="/favicon.svg?v=2" alt="" width={72} height={72} className="tricks-mark" />
-        <h1 className="wordmark text-[5.5rem]">Tricks</h1>
+        <h1 className="wordmark text-[5.5rem] md:text-[7rem]">Tricks</h1>
         <p className="font-semibold mt-3 max-w-[19em] mx-auto">Trick-taking card games to play with friends or the computer.</p>
       </header>
 
-      <section className="w-full max-w-sm grid gap-5" aria-label="Games">
+      <section className="home-width grid gap-5 md:grid-cols-2 md:gap-6" aria-label="Games">
         {GAMES.map((game, i) => (
           <Link key={game.id} href={gamePath(game.id)} className={`panel relative grid gap-1 py-4 pl-4 pr-24 ${i % 2 ? 'panel-danger' : ''}`}>
             <h2 className="display text-3xl">{game.name}</h2>

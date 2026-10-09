@@ -6,7 +6,7 @@ import { gamePath } from './routes'
 /** The games other than `current`, a row each, coloured by their place in `GAMES` as their boxes on the Tricks home are. */
 export function GameStrip({ current }: { current: string }) {
   return (
-    <nav className="w-full max-w-sm grid gap-4" aria-label="Other games">
+    <nav className="md:col-span-2 grid gap-3" aria-label="Other games">
       {GAMES.map((game, i) =>
         game.id === current ? null : (
           <Link key={game.id} href={gamePath(game.id)} className={`panel flex items-center gap-3 py-2 px-3 ${i % 2 ? 'panel-danger' : ''}`}>

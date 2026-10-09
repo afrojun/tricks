@@ -17,7 +17,7 @@ export function TricksLink() {
 export function TopBar({ left, right }: { left?: ReactNode; right?: ReactNode }) {
   const [look, setLook] = useState(false)
   return (
-    <header className="w-full max-w-sm flex items-center justify-between gap-2">
+    <header className="home-width flex items-center justify-between gap-2">
       <div>{left}</div>
       <div className="flex gap-2">
         {right}
