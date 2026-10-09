@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { CARD_POINTS, RANKS, cardId, createDeck, pointsOf, rankStrength, shuffle } from './cards'
 import { ballsTarget, winningTeam } from './predicates'
-import { CLASSIC_APP, TRADITIONAL, diffRules, resolveRules } from './rules'
+import { TRADITIONAL, TUSCANS_OVERRIDES, diffRules, resolveRules } from './rules'
 import { next, partnerOf, seatsFrom, teamOf } from './seats'
 import { card, cards, seededRng } from './testing'
 import { isLegalPlay, trickWinner } from './tricks'
@@ -36,14 +36,14 @@ describe('rules', () => {
   })
 
   test('a rule set round-trips through its diff from Traditional', () => {
-    expect(resolveRules(diffRules(CLASSIC_APP))).toEqual(CLASSIC_APP)
+    expect(diffRules(resolveRules(TUSCANS_OVERRIDES))).toEqual(TUSCANS_OVERRIDES)
     expect(diffRules(TRADITIONAL)).toEqual({})
   })
 
   test('the target rises to 13 only when the setting is on and a Khanaak was called', () => {
     expect(ballsTarget(TRADITIONAL, true)).toBe(12)
-    expect(ballsTarget(CLASSIC_APP, false)).toBe(12)
-    expect(ballsTarget(CLASSIC_APP, true)).toBe(13)
+    expect(ballsTarget(resolveRules({ khanaakRaisesTarget: true }), false)).toBe(12)
+    expect(ballsTarget(resolveRules({ khanaakRaisesTarget: true }), true)).toBe(13)
   })
 
   test('two to clear requires a two-ball lead at the target', () => {
@@ -92,7 +92,7 @@ describe('tricks', () => {
     expect(isLegalPlay(card('Qs'), cards('Qs 9c'), trick, 'spades', TRADITIONAL)).toBe(false)
     expect(isLegalPlay(card('Qs'), cards('Qs Ks'), trick, 'spades', TRADITIONAL)).toBe(true)
     expect(isLegalPlay(card('9c'), cards('Qs 9c'), trick, 'spades', TRADITIONAL)).toBe(true)
-    expect(isLegalPlay(card('Qs'), cards('Qs 9c'), trick, 'spades', CLASSIC_APP)).toBe(true)
+    expect(isLegalPlay(card('Qs'), cards('Qs 9c'), trick, 'spades', resolveRules({ undercutRestriction: false }))).toBe(true)
     // Overtrumping is always fine.
     expect(isLegalPlay(card('Js'), cards('Js 9c'), cards('Ah Qs'), 'spades', TRADITIONAL)).toBe(true)
   })

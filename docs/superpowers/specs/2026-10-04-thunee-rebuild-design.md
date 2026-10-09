@@ -190,29 +190,29 @@ Each player gets 4 cards, calling and trump selection run as above with the non-
 
 ### 4.10 RuleSet
 
-| Setting | Values | Traditional | Tuscans (the old app's rules) |
+| Setting | Values | Traditional | Tuscans |
 |---|---|---|---|
-| `thuneeCaller` | `anyone` \| `trumperOnly` | anyone | trumperOnly |
-| `thuneeTrump` | `firstCardLed` \| `noTrump` | firstCardLed | noTrump |
-| `thuneeLeader` | `caller` \| `afterCaller` | caller | afterCaller |
-| `thuneeWinner` | `callerOnly` \| `team` | callerOnly | team |
+| `thuneeCaller` | `anyone` \| `trumperOnly` | anyone | anyone |
+| `thuneeTrump` | `firstCardLed` \| `noTrump` | firstCardLed | firstCardLed |
+| `thuneeLeader` | `caller` \| `afterCaller` | caller | caller |
+| `thuneeWinner` | `callerOnly` \| `team` | callerOnly | callerOnly |
 | `thuneePartnerCatchBalls` | number | 8 | 4 |
 | `jodhiTiming` | `firstAndThird` \| `anyTrick` | firstAndThird | anyTrick |
-| `jodhiCards` | `inHand` \| `dealt` | inHand | dealt |
-| `lastTrick` | `transfer` \| `bonus` | transfer | bonus |
-| `defaultTrumper` | `dealerRight` \| `teamAhead` | dealerRight | teamAhead |
-| `dealerRotation` | `stayWhileBehind` \| `always` | stayWhileBehind | always |
-| `khanaak` | `strict` \| `simple` | strict | simple |
-| `khanaakRaisesTarget` | boolean | false | true |
-| `double` | boolean | true | false |
+| `jodhiCards` | `inHand` \| `dealt` | inHand | inHand |
+| `lastTrick` | `transfer` \| `bonus` | transfer | transfer |
+| `defaultTrumper` | `dealerRight` \| `teamAhead` | dealerRight | dealerRight |
+| `dealerRotation` | `stayWhileBehind` \| `always` | stayWhileBehind | stayWhileBehind |
+| `khanaak` | `strict` \| `simple` | strict | strict |
+| `khanaakRaisesTarget` | boolean | false | false |
+| `double` | boolean | true | true |
 | `undercutRestriction` | boolean | true | false |
-| `redealIfNoTrumps` | boolean | true | false |
+| `redealIfNoTrumps` | boolean | true | true |
 | `ballsToWin` | number | 12 | 12 |
 | `twoToClear` | boolean | false | false |
 | `twoPlayerTarget` | number | 125 | 105 |
 | `timers` | boolean | false | false |
 | `callTimerSeconds` | number | 10 | 10 |
-| `thuneeWindowSeconds` | number | 5 | 5 |
+| `thuneeWindowSeconds` | number | 5 | 10 |
 
 Definitions:
 - `jodhiCards: inHand` means the cards are in hand when the claim is made; `dealt` means they were among the six cards dealt.
@@ -222,7 +222,7 @@ Definitions:
 
 Fixed for every rule set: the 24-card deck, card ranks and values, the 105 four-player target, call amounts, call-and-lost paying 2 balls, challenge paying 4 balls, the 2-second trick pause.
 
-Known differences between the Tuscans preset (the old app's rules, once named Classic app) and the old app, all deliberate: trump is chosen from four cards before the final deal; Khanaak is called before playing to the last trick instead of after it; the bugs listed in section 2 are not reproduced.
+Tuscans is the house rules played at Tuscans: Traditional with the five differences in the table.
 
 ## 5. Server (`party/`)
 

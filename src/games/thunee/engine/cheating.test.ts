@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { mindFor } from '../../../kit/mind'
 import { availableActions } from './available'
 import { checkInvariants } from './invariants'
-import { CLASSIC_APP, type RuleOverrides, TRADITIONAL } from './rules'
+import { type RuleOverrides, TRADITIONAL } from './rules'
 import { Table, card, cards } from './testing'
 import type { Game } from './types'
 import { viewFor } from './view'
@@ -17,9 +17,8 @@ const playOf = (game: Game) => {
 }
 
 describe('allowCheating', () => {
-  test('is on in Traditional and in the classic app', () => {
+  test('is on in Traditional', () => {
     expect(TRADITIONAL.allowCheating).toBe(true)
-    expect(CLASSIC_APP.allowCheating).toBe(true)
   })
 
   describe('on', () => {

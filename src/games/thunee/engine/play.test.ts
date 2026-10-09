@@ -2,8 +2,8 @@ import { describe, expect, test } from 'vitest'
 import { type SeatInfo, replaceableSeats } from '../../../kit/table'
 import { seatsToAct, untimedSeats } from './apply'
 import { availableActions } from './available'
-import { CLASSIC_APP_OVERRIDES, type RuleOverrides } from './rules'
-import { Table, card } from './testing'
+import type { RuleOverrides } from './rules'
+import { ALTERNATIVES, Table, card } from './testing'
 import type { Game } from './types'
 import { viewFor } from './view'
 
@@ -409,7 +409,7 @@ describe('between rounds', () => {
   })
 
   test('old bug: the announced winner is the team that reached the target', () => {
-    for (const overrides of [{}, CLASSIC_APP_OVERRIDES]) {
+    for (const overrides of [{}, ALTERNATIVES]) {
       const t = start(overrides)
       t.game = { ...t.game, balls: [3, 11] }
       t.play(D1_FULL).endPause()

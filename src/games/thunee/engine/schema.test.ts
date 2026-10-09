@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { CLASSIC_APP_OVERRIDES } from './rules'
+import { TUSCANS_OVERRIDES } from './rules'
 import { actionSchema, ruleOverridesSchema } from './schema'
 
 describe('wire schemas', () => {
@@ -21,7 +21,7 @@ describe('wire schemas', () => {
   })
 
   test('rule overrides drop unknown settings and refuse out-of-range values', () => {
-    expect(ruleOverridesSchema.parse({ ...CLASSIC_APP_OVERRIDES, futureSetting: true })).toEqual(CLASSIC_APP_OVERRIDES)
+    expect(ruleOverridesSchema.parse({ ...TUSCANS_OVERRIDES, futureSetting: true })).toEqual(TUSCANS_OVERRIDES)
     expect(ruleOverridesSchema.safeParse({ ballsToWin: 0 }).success).toBe(false)
     expect(ruleOverridesSchema.safeParse({ khanaak: 'loose' }).success).toBe(false)
   })

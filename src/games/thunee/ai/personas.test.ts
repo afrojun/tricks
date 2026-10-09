@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { type Action, type Game, type Persona, type RuleOverrides, CLASSIC_APP_OVERRIDES, availableActions, checkInvariants, hasCard, nextDeadline, seatsToAct, viewFor } from '../engine'
-import { Table } from '../engine/testing'
+import { type Action, type Game, type Persona, type RuleOverrides, availableActions, checkInvariants, hasCard, nextDeadline, seatsToAct, viewFor } from '../engine'
+import { ALTERNATIVES, Table } from '../engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
 import { type Mind, TRAITS } from '../../../kit/mind'
 import { chooseChallenge } from './suspicion'
@@ -62,7 +62,7 @@ function playGame(personas: Persona[], seed: number, preset: RuleOverrides = {})
 
 const PRESETS: [string, RuleOverrides][] = [
   ['Traditional', {}],
-  ['Classic App', CLASSIC_APP_OVERRIDES],
+  ['the alternative', ALTERNATIVES],
 ]
 
 describe.each(PRESETS)('personas under %s rules', (name, preset) => {

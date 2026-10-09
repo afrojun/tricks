@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { availableActions } from './available'
 import { sameCard } from './cards'
 import { nextDeadline } from './apply'
-import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL } from './rules'
+import { TRADITIONAL } from './rules'
 import { Table, collectCards } from './testing'
 import type { Game, RoundSummary } from './types'
 import { viewFor } from './view'
@@ -117,7 +117,6 @@ describe('calling', () => {
 
   test('the default rules have no timers', () => {
     expect(TRADITIONAL.timers).toBe(false)
-    expect(CLASSIC_APP.timers).toBe(false)
   })
 
   test('a preselected trump is honoured when the window closes', () => {
@@ -262,8 +261,8 @@ describe('thunee window', () => {
     expect(t.game.phase).toMatchObject({ kind: 'playing', turn: 2, play: { thunee: null, trump: 'spades' } })
   })
 
-  test('classic thunee: no trump, and the player after the caller leads', () => {
-    const t = toWindow(CLASSIC_APP_OVERRIDES).do(1, { type: 'callThunee' })
+  test('a Thunee with no trump, led by the player after the caller', () => {
+    const t = toWindow({ thuneeTrump: 'noTrump', thuneeLeader: 'afterCaller' }).do(1, { type: 'callThunee' })
     expect(t.game.phase).toMatchObject({ kind: 'playing', turn: 2, play: { thunee: { caller: 1 }, trump: null } })
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { canStart } from '../../../kit/table'
 import { apply, createGame } from './apply'
-import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL } from './rules'
+import { TRADITIONAL, TUSCANS_OVERRIDES, resolveRules } from './rules'
 import { actionSchema } from './schema'
 import { Table, deepFreeze, seededRng } from './testing'
 import { type Action, type Actor, type Game, PERSONAS, type RoundSummary } from './types'
@@ -70,9 +70,9 @@ describe('lobby', () => {
   test('the host sets rules, which are frozen into the game', () => {
     let game = run(createGame(), null, { type: 'sit', seat: 0, name: 'Host' })
     expect(game.rules).toEqual(TRADITIONAL)
-    game = run(game, 0, { type: 'setRules', overrides: CLASSIC_APP_OVERRIDES })
-    expect(game.rules).toEqual(CLASSIC_APP)
-    const started = new Table(4, CLASSIC_APP_OVERRIDES).do(0, { type: 'start' }).game
+    game = run(game, 0, { type: 'setRules', overrides: TUSCANS_OVERRIDES })
+    expect(game.rules).toEqual(resolveRules(TUSCANS_OVERRIDES))
+    const started = new Table(4, TUSCANS_OVERRIDES).do(0, { type: 'start' }).game
     expect(reject(started, 0, { type: 'setRules', overrides: {} })).toBe('wrongPhase')
   })
 

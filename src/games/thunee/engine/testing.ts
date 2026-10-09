@@ -11,6 +11,26 @@ import { viewFor } from './view'
 
 export { collectCards, deepFreeze, seededRng } from '../../../kit/testing'
 
+/** Every setting the simulations cover at its other value, so the branches Traditional never takes still run. */
+export const ALTERNATIVES: RuleOverrides = {
+  thuneeCaller: 'trumperOnly',
+  thuneeTrump: 'noTrump',
+  thuneeLeader: 'afterCaller',
+  thuneeWinner: 'team',
+  thuneePartnerCatchBalls: 4,
+  jodhiTiming: 'anyTrick',
+  jodhiCards: 'dealt',
+  lastTrick: 'bonus',
+  defaultTrumper: 'teamAhead',
+  dealerRotation: 'always',
+  khanaak: 'simple',
+  khanaakRaisesTarget: true,
+  double: false,
+  undercutRestriction: false,
+  redealIfNoTrumps: false,
+  twoPlayerTarget: 105,
+}
+
 const SUIT_LETTERS: Record<string, Suit> = { h: 'hearts', d: 'diamonds', c: 'clubs', s: 'spades' }
 
 /** `card('Jh')`, `card('10s')`. */

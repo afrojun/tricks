@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { brokenRules } from '../../../kit/integrity'
 import { availableActions } from './available'
 import { hasCard } from './cards'
-import { CLASSIC_APP, TRADITIONAL } from './rules'
+import { TRADITIONAL, resolveRules } from './rules'
 import { Table, card, cards, seededRng } from './testing'
 import { excusesFor, isLegalPlay, seenPlays } from './tricks'
 import type { Game } from './types'
@@ -38,7 +38,7 @@ describe('excuses', () => {
   test('a trump under one already in a trick led in another suit needs the undercut excuse, only under that rule', () => {
     const trick = cards('Ah Js')
     expect(rules(excusesFor(card('Qs'), trick, 'spades', TRADITIONAL))).toEqual(['renege', 'undercut'])
-    expect(rules(excusesFor(card('Qs'), trick, 'spades', CLASSIC_APP))).toEqual(['renege'])
+    expect(rules(excusesFor(card('Qs'), trick, 'spades', resolveRules({ undercutRestriction: false })))).toEqual(['renege'])
     const undercut = excusesFor(card('Qs'), trick, 'spades', TRADITIONAL)[1]
     expect(undercut.without(card('9c'))).toBe(true)
     expect(undercut.without(card('Ks'))).toBe(false)

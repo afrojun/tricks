@@ -1,5 +1,5 @@
 /** Thunee's house rules for the screens: Traditional, the built-in presets, and how each rule is described. */
-import { CLASSIC_APP_OVERRIDES, type RuleSet, TRADITIONAL, ruleOverridesSchema } from '../engine'
+import { type RuleSet, TRADITIONAL, TUSCANS_OVERRIDES, ruleOverridesSchema } from '../engine'
 import type { RuleBook, RuleInfo } from '../../../presets/book'
 
 const onOff = (on: string, off: string) => [
@@ -38,7 +38,7 @@ export const ruleBook: RuleBook<RuleSet> = {
   schema: ruleOverridesSchema,
   presets: [
     { id: 'traditional', name: 'Traditional', overrides: {} },
-    { id: 'classic-app', name: 'Tuscans', overrides: CLASSIC_APP_OVERRIDES },
+    { id: 'tuscans', name: 'Tuscans', overrides: TUSCANS_OVERRIDES },
   ],
   info: RULE_INFO,
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { type Action, type Actor, type Persona, type RuleOverrides, CLASSIC_APP_OVERRIDES, SUITS, availableActions, createGame, nextDeadline, sameCard, seatsToAct, viewFor } from '../engine'
-import { Table, seededRng } from '../engine/testing'
+import { type Action, type Actor, type Persona, type RuleOverrides, SUITS, availableActions, createGame, nextDeadline, sameCard, seatsToAct, viewFor } from '../engine'
+import { ALTERNATIVES, Table, seededRng } from '../engine/testing'
 import { chooseAction } from './choose'
 import { dueStep, reactions } from './drive'
 import { HONEST } from '../../../kit/mind'
@@ -90,10 +90,10 @@ describe('what computers decide', () => {
   const configs: [string, 2 | 4, (Persona | 'surprise')[], RuleOverrides, number][] = [
     ['4P traditional, every persona', 4, ['sly', 'sharp', 'wild'], {}, 8],
     ['4P traditional, sly computers', 4, ['sly', 'sly', 'sly'], {}, 24],
-    ['4P classic, cheats and a surprise', 4, ['wild', 'surprise', 'sly'], CLASSIC_APP_OVERRIDES, 6],
+    ['4P alternatives, cheats and a surprise', 4, ['wild', 'surprise', 'sly'], ALTERNATIVES, 6],
     ['4P traditional, straight computers', 4, ['straight', 'straight', 'straight'], {}, 3],
     ['2P traditional, sly', 2, ['sly'], {}, 6],
-    ['2P classic, wild', 2, ['wild'], CLASSIC_APP_OVERRIDES, 6],
+    ['2P alternatives, wild', 2, ['wild'], ALTERNATIVES, 6],
   ]
 
   test('are the same as before Thunee moved onto the shared kit', () => {
@@ -119,10 +119,10 @@ describe('what computers decide', () => {
       hashes: {
         '4P traditional, every persona': '4ae8f656',
         '4P traditional, sly computers': '566cea7b',
-        '4P classic, cheats and a surprise': '3806ec78',
+        '4P alternatives, cheats and a surprise': '3806ec78',
         '4P traditional, straight computers': '8888c708',
         '2P traditional, sly': 'f7a7bd20',
-        '2P classic, wild': '76f74d0f',
+        '2P alternatives, wild': '76f74d0f',
       },
     })
   })

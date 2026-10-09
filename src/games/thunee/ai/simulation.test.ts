@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import {
   type Game,
   type RuleOverrides,
-  CLASSIC_APP_OVERRIDES,
+  TUSCANS_OVERRIDES,
   SUITS,
   actionSchema,
   availableActions,
@@ -14,7 +14,7 @@ import {
   teamOf,
   viewFor,
 } from '../engine'
-import { Table, collectCards, seededRng } from '../engine/testing'
+import { ALTERNATIVES, Table, collectCards, seededRng } from '../engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
 import { HONEST } from '../../../kit/mind'
 import { chooseChallenge } from './suspicion'
@@ -143,12 +143,13 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
 describe('simulation', () => {
   const configs: [string, 2 | 4, RuleOverrides][] = [
     ['4P traditional', 4, {}],
-    ['4P classic', 4, CLASSIC_APP_OVERRIDES],
+    ['4P alternatives', 4, ALTERNATIVES],
+    ['4P Tuscans', 4, TUSCANS_OVERRIDES],
     ['2P traditional', 2, {}],
-    ['2P classic', 2, CLASSIC_APP_OVERRIDES],
+    ['2P alternatives', 2, ALTERNATIVES],
     ['4P two to clear, short game', 4, { twoToClear: true, ballsToWin: 5, thuneeWindowSeconds: 0 }],
     ['4P traditional, cheating off', 4, { allowCheating: false }],
-    ['2P classic, cheating off', 2, { ...CLASSIC_APP_OVERRIDES, allowCheating: false }],
+    ['2P alternatives, cheating off', 2, { ...ALTERNATIVES, allowCheating: false }],
   ]
   for (const [name, playerCount, overrides] of configs) {
     test(`${GAMES} seeded games finish with every invariant intact: ${name}`, () => {

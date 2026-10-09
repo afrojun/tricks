@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { CLASSIC_APP, CLASSIC_APP_OVERRIDES, TRADITIONAL, resolveRules, ruleOverridesSchema } from '../games/thunee/engine'
+import { TRADITIONAL, TUSCANS_OVERRIDES, resolveRules, ruleOverridesSchema } from '../games/thunee/engine'
 import { ruleBook } from '../games/thunee/ui/rules'
 import { z } from 'zod'
 import { type RuleBook, type RulesOf, differenceCount, valueLabel } from './book'
@@ -42,7 +42,7 @@ describe('preset storage', () => {
     const presets = listPresets(THUNEE, memoryStore())
     expect(presets.map((p) => p.name)).toEqual(['Traditional', 'Tuscans'])
     expect(resolveRules(presets[0].overrides)).toEqual(TRADITIONAL)
-    expect(resolveRules(presets[1].overrides)).toEqual(CLASSIC_APP)
+    expect(presets[1].overrides).toEqual(TUSCANS_OVERRIDES)
   })
 
   test('save, list, rename and delete', () => {
@@ -95,12 +95,12 @@ describe('preset storage', () => {
       { id: 'traditional', name: 'Fake Traditional', overrides: { double: false } },
       { id: 'mine', name: 'Mine', overrides: { ballsToWin: 6 } },
       { id: 'mine', name: 'Mine again', overrides: { ballsToWin: 13 } },
-      { id: 'classic-app', name: 'Fake Tuscans', overrides: {} },
+      { id: 'tuscans', name: 'Fake Tuscans', overrides: {} },
     ])
     const store = memoryStore(tampered)
     expect(listPresets(THUNEE, store).map((p) => [p.id, p.name])).toEqual([
       ['traditional', 'Traditional'],
-      ['classic-app', 'Tuscans'],
+      ['tuscans', 'Tuscans'],
       ['mine', 'Mine'],
     ])
     // A built-in's id never reaches a saved one, whatever storage holds.
@@ -116,9 +116,9 @@ describe('preset storage', () => {
     const store = memoryStore()
     expect(presetChoiceKey('thunee')).toBe('tricks-thunee-preset')
     expect(readChoice(THUNEE, store)).toBe('traditional')
-    expect(writeChoice('thunee', 'classic-app', store)).toBe(true)
-    expect(store.data.get('tricks-thunee-preset')).toBe('classic-app')
-    expect(readChoice(THUNEE, store)).toBe('classic-app')
+    expect(writeChoice('thunee', 'tuscans', store)).toBe(true)
+    expect(store.data.get('tricks-thunee-preset')).toBe('tuscans')
+    expect(readChoice(THUNEE, store)).toBe('tuscans')
     const saved = savePreset(THUNEE, 'Mine', { double: false }, store)!
     writeChoice('thunee', saved.id, store)
     expect(readChoice(THUNEE, store)).toBe(saved.id)
@@ -165,8 +165,8 @@ describe('descriptions', () => {
 
 describe('share links', () => {
   test('a preset round-trips, including names with non-Latin characters', () => {
-    const decoded = decodeShare(THUNEE, encodeShare('Thunee தமிழ் 🃏', CLASSIC_APP_OVERRIDES))
-    expect(decoded).toEqual({ ok: true, name: 'Thunee தமிழ் 🃏', overrides: CLASSIC_APP_OVERRIDES })
+    const decoded = decodeShare(THUNEE, encodeShare('Thunee தமிழ் 🃏', TUSCANS_OVERRIDES))
+    expect(decoded).toEqual({ ok: true, name: 'Thunee தமிழ் 🃏', overrides: TUSCANS_OVERRIDES })
     const url = new URL(shareUrl(THUNEE, 'X', { double: false }, 'https://tricks.example'))
     expect(url.pathname).toBe('/thunee')
     expect(decodeShare(THUNEE, url.searchParams.get('rules')!)).toMatchObject({ ok: true, overrides: { double: false } })
@@ -180,7 +180,7 @@ describe('share links', () => {
   })
 
   test('truncated, non-base64, wrong-shape and out-of-range links return an error instead of throwing', () => {
-    const good = encodeShare('Mine', CLASSIC_APP_OVERRIDES)
+    const good = encodeShare('Mine', TUSCANS_OVERRIDES)
     const bad = [
       good.slice(0, good.length - 9),
       '!!! not base64 !!!',

@@ -55,31 +55,18 @@ export const TRADITIONAL: RuleSet = {
   thuneeWindowSeconds: 5,
 }
 
-/** How the December 2025 app played. */
-export const CLASSIC_APP_OVERRIDES: RuleOverrides = {
-  thuneeCaller: 'trumperOnly',
-  thuneeTrump: 'noTrump',
-  thuneeLeader: 'afterCaller',
-  thuneeWinner: 'team',
+/** The house rules at Tuscans. */
+export const TUSCANS_OVERRIDES: RuleOverrides = {
   thuneePartnerCatchBalls: 4,
   jodhiTiming: 'anyTrick',
-  jodhiCards: 'dealt',
-  lastTrick: 'bonus',
-  defaultTrumper: 'teamAhead',
-  dealerRotation: 'always',
-  khanaak: 'simple',
-  khanaakRaisesTarget: true,
-  double: false,
   undercutRestriction: false,
-  redealIfNoTrumps: false,
   twoPlayerTarget: 105,
+  thuneeWindowSeconds: 10,
 }
 
 export function resolveRules(overrides: RuleOverrides): RuleSet {
   return resolve(TRADITIONAL, overrides)
 }
-
-export const CLASSIC_APP: RuleSet = resolveRules(CLASSIC_APP_OVERRIDES)
 
 /** The settings in `rules` that differ from Traditional. */
 export function diffRules(rules: RuleSet): RuleOverrides {
