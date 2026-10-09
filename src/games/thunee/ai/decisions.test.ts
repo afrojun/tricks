@@ -96,7 +96,7 @@ describe('what computers decide', () => {
     ['2P alternatives, wild', 2, ['wild'], ALTERNATIVES, 6],
   ]
 
-  test('are the same as before Thunee moved onto the shared kit', () => {
+  test('are pinned, so any change to them is deliberate', () => {
     const lines: string[] = []
     const hashes: Record<string, string> = {}
     let refused = 0

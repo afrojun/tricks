@@ -2,6 +2,8 @@
 import { type Action, type Card, type RoundSummary, type ScoreLine, type Seat, type View, CARD_POINTS, availableActions, hasCard, pointsOf, sameCard, teamOf } from '../engine'
 import { inPlay } from '../ai/suspicion'
 import { advise } from './advise'
+import { decide } from '../ai/choose'
+import { HONEST } from '../../../kit/mind'
 import type { DecisionRecord, Note } from './note'
 import { illegalKind } from './check'
 import { card, suitPlural, trickLabel, who } from './words'
@@ -109,22 +111,31 @@ function describe(action: Action): string {
   }
 }
 
+/** Whether the computer counted the card played as just as good as the one it advised. */
+function asGood(d: DecisionRecord): boolean {
+  const taken = d.taken
+  return taken.type === 'playCard' && (decide(d.view, HONEST).alternatives ?? []).some((c) => sameCard(c, taken.card))
+}
+
+/** The moments with most at stake where the player went against the advice, in the order they were played. */
 function moments({ decisions }: ReviewInput): Note[] {
-  const differ = decisions.filter((d) => d.advised !== null && !same(d.advised, d.taken))
-  return [...differ]
-    .sort((a, b) => stake(b) - stake(a))
+  const differ = decisions.filter((d) => d.advised !== null && !same(d.advised, d.taken) && !asGood(d))
+  const worst = differ
+    .map((d, i) => ({ d, i }))
+    .sort((a, b) => stake(b.d) - stake(a.d))
     .slice(0, MAX_MOMENTS)
-    .map((d) => {
-      const why = advise(d.view)
-      const reason = why && same(why.action, d.advised!) ? ` ${why.note.body}` : ''
-      const where = d.taken.type === 'playCard' ? capital(trickName(d.view)) : 'Calling'
-      return {
-        tone: 'suggest' as const,
-        title: `${where}: you chose ${describe(d.taken)}`,
-        body: `The hint was ${describe(d.advised!)}.${reason}`,
-        cards: d.advised!.type === 'playCard' ? [d.advised!.card] : undefined,
-      }
-    })
+    .sort((a, b) => a.i - b.i)
+  return worst.map(({ d }) => {
+    const why = advise(d.view)
+    const reason = why && same(why.action, d.advised!) ? ` ${why.note.body}` : ''
+    const where = d.taken.type === 'playCard' ? capital(trickName(d.view)) : 'Calling'
+    return {
+      tone: 'suggest' as const,
+      title: `${where}: you chose ${describe(d.taken)}`,
+      body: `The hint was ${describe(d.advised!)}.${reason}`,
+      cards: d.advised!.type === 'playCard' ? [d.advised!.card] : undefined,
+    }
+  })
 }
 
 function uncaught({ decisions, summary, you }: ReviewInput): Note[] {

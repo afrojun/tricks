@@ -8,6 +8,7 @@ import {
   type ViewPlaying,
   CARD_POINTS,
   SUITS,
+  allSeats,
   availableActions,
   holdsJodhi,
   rankStrength,
@@ -16,7 +17,7 @@ import {
 } from '../engine'
 import { chooseBluff, chooseCheat, holdBack } from './cheat'
 import { type Mind, TRAITS } from '../../../kit/mind'
-import { wouldWin } from './read'
+import { shownVoid, sureLead, unseen, wouldWin } from './read'
 import type { Decision, Reason } from './reasons'
 
 const HIGH = new Set<Card['rank']>(['J', '9', 'A'])
@@ -55,30 +56,68 @@ const lowest = (cards: readonly Card[]) =>
   [...cards].sort((a, b) => CARD_POINTS[a.rank] - CARD_POINTS[b.rank] || rankStrength(a.rank) - rankStrength(b.rank))[0]
 const highest = (cards: readonly Card[]) => [...cards].sort((a, b) => rankStrength(b.rank) - rankStrength(a.rank))[0]
 
-type CardChoice = { card: Card; reason: Reason }
+type CardChoice = { card: Card; reason: Reason; alternatives?: Card[] }
 
 function chooseCard(view: View, phase: ViewPlaying, legal: readonly Card[]): CardChoice {
   const me = view.seat!
-  const as = (code: Extract<Reason, { card: Card }>['code'], card: Card): CardChoice => ({ card, reason: { code, card } })
+  const as = (code: Extract<Reason, { card: Card }>['code'], card: Card, alternatives?: Card[]): CardChoice => ({ card, reason: { code, card }, alternatives })
+  const thunee = phase.thunee
+  const callerOnly = thunee !== null && view.rules.thuneeWinner === 'callerOnly'
+  // A trick the caller's partner wins ends the Thunee, so the partner never tries to.
+  if (callerOnly && thunee.caller !== me && teamOf(thunee.caller) === teamOf(me)) {
+    const under = phase.current.length === 0 ? [] : legal.filter((c) => !wouldWin(phase, me, c))
+    return as('keepOffThunee', lowest(under.length > 0 ? under : legal), under.length > 1 ? under : undefined)
+  }
   if (phase.current.length === 0) {
-    if (phase.thunee?.caller === me) return as('thuneeLeadHigh', highest(legal))
+    if (thunee?.caller === me) return thuneeLead(view, phase, legal)
     const plain = legal.filter((c) => c.suit !== phase.trump)
     const boss = plain.find((c) => c.rank === 'J')
     if (boss) return as('leadBoss', boss)
     return plain.length > 0 ? as('leadLow', lowest(plain)) : as('leadTrump', highest(legal))
   }
   const winningSeat = trickWinner(phase.current, phase.trump)
-  const partnerWinning = teamOf(winningSeat) === teamOf(me) && phase.thunee?.caller !== winningSeat
+  // The caller of a Thunee that only they may win treats their partner as one more card to beat.
+  const partnerWinning = teamOf(winningSeat) === teamOf(me) && !(callerOnly && thunee.caller === me)
   const last = phase.current.length === view.playerCount - 1
   if (partnerWinning) {
+    // Stay under a partner who has the trick: never cut it with a trump while another card stays under.
+    const under = legal.filter((c) => !wouldWin(phase, me, c))
+    if (under.length === 0) return as('cheapOvertake', lowest(legal))
     // Feed points to a partner who has the trick, but only when it is safe.
-    if (last) return as('feedPartner', [...legal].sort((a, b) => CARD_POINTS[b.rank] - CARD_POINTS[a.rank])[0])
-    const cheapest = lowest(legal)
-    return as(wouldWin(phase, me, cheapest) ? 'cheapOvertake' : 'holdUnderPartner', cheapest)
+    if (last) return as('feedPartner', [...under].sort((a, b) => CARD_POINTS[b.rank] - CARD_POINTS[a.rank])[0])
+    return as('holdUnderPartner', lowest(under))
   }
   const winners = legal.filter((c) => wouldWin(phase, me, c))
-  if (winners.length > 0) return as('cheapestWinner', [...winners].sort((a, b) => rankStrength(a.rank) - rankStrength(b.rank))[0])
-  return as('cannotWin', lowest(legal))
+  // In a Thunee the points do not count, only who wins the trick: every winner is as good as another, and every loser.
+  const same = (cards: Card[]) => (thunee !== null && cards.length > 1 ? cards : undefined)
+  if (winners.length > 0) return as('cheapestWinner', [...winners].sort((a, b) => rankStrength(a.rank) - rankStrength(b.rank))[0], same(winners))
+  return as('cannotWin', lowest(legal), same([...legal]))
+}
+
+/** The caller of a Thunee leads: set trump with the longest suit, draw the other side's trumps, then lead cards nobody can beat. */
+function thuneeLead(view: View, phase: ViewPlaying, legal: readonly Card[]): CardChoice {
+  const me = view.seat!
+  const as = (code: Extract<Reason, { card: Card }>['code'], card: Card, alternatives?: Card[]): CardChoice => ({ card, reason: { code, card }, alternatives })
+  if (phase.trump === null && !phase.trumpRevealed && view.rules.thuneeTrump === 'firstCardLed') {
+    // This card makes its suit trump.
+    const suits = SUITS.map((suit) => legal.filter((c) => c.suit === suit)).filter((cards) => cards.length > 0)
+    const longest = suits.sort((a, b) => b.length - a.length || rankStrength(highest(b).rank) - rankStrength(highest(a).rank))[0]
+    return as('thuneeSetTrump', highest(longest))
+  }
+  const sure = legal.filter((c) => sureLead(view, phase, me, c))
+  const trump = phase.trump
+  const trumps = legal.filter((c) => c.suit === trump)
+  const voids = shownVoid(phase)
+  const theyMayHoldTrump =
+    trump !== null &&
+    unseen(phase).some((c) => c.suit === trump) &&
+    allSeats(view.playerCount).some((s) => teamOf(s) !== teamOf(me) && !voids.get(s)?.has(trump))
+  if (theyMayHoldTrump && trumps.length > 0) {
+    const sureTrumps = trumps.filter((c) => sure.includes(c))
+    return as('thuneeDrawTrumps', highest(trumps), sureTrumps.length > 1 ? sureTrumps : undefined)
+  }
+  if (sure.length > 0) return as('thuneeSureLead', highest(sure), sure.length > 1 ? sure : undefined)
+  return as('thuneeLeadHigh', highest(legal))
 }
 
 /** A special call the view proves will succeed: only when playing last to the final trick. */
@@ -142,7 +181,7 @@ export function decide(view: View, mind: Mind): Decision {
       const honest = chooseCard(view, phase, cheats ? holdBack(view, phase, can.legal) : can.legal)
       const cheat = chooseCheat(view, phase, honest.card, mind)
       const choice: CardChoice = cheat ? { card: cheat, reason: { code: 'fallback' } } : honest
-      return sureSpecialCall(view, phase, choice.card) ?? { action: { type: 'playCard', card: choice.card }, reason: choice.reason }
+      return sureSpecialCall(view, phase, choice.card) ?? { action: { type: 'playCard', card: choice.card }, reason: choice.reason, alternatives: choice.alternatives }
     }
     default:
       return { action: fallbackAction(view), reason: { code: 'fallback' } }

@@ -100,6 +100,21 @@ describe('review', () => {
     expect(text(moments[0])).toContain('10♣')
   })
 
+  test('a card the computer counts as just as good is not a key moment, and moments keep the order they were played in', () => {
+    const t = new Table(4, { redealIfNoTrumps: false }).deal(['10d Kd Qd 10c Kc Qc', 'Js 9s As 10s Jh Ah', '9h 10h Jc 9c Ac Jd', 'Ks Qs 9d Ad Kh Qh']).advance(10_000)
+    t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000).play('Js Jc Qs 10c').endPause()
+    const v = you(t.game, 1)
+    const asGood: DecisionRecord = { view: v, advised: { type: 'playCard', card: card('Jh') }, taken: { type: 'playCard', card: card('9s') } }
+    expect(review({ decisions: [asGood], summary: summary(), dealt: [], you: 1, view: v }).filter((n) => n.tone === 'suggest')).toEqual([])
+
+    const early = you(played('Jc Qh').game)
+    const late = you(played('Jc Qh 10c Qc  9c Kh').game)
+    const small: DecisionRecord = { view: early, advised: { type: 'playCard', card: card('10c') }, taken: { type: 'playCard', card: card('Qs') } }
+    const big: DecisionRecord = { view: late, advised: { type: 'playCard', card: card('Qd') }, taken: { type: 'playCard', card: card('Jh') } }
+    const moments = review({ decisions: [small, big], summary: summary(), dealt: [], you: 0, view: early }).filter((n) => n.tone === 'suggest')
+    expect(moments.map((n) => n.title)).toEqual(['Trick 1: you chose Q♠', 'Trick 2: you chose J♥'])
+  })
+
   test('a rule broken and not caught is pointed out', () => {
     const v = you(played('Jc Qh').game)
     const broke: DecisionRecord = { view: v, advised: null, taken: { type: 'playCard', card: card('Jh') } }

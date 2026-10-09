@@ -12,6 +12,10 @@ export type Reason =
   | { code: 'leadLow'; card: Card }
   | { code: 'leadTrump'; card: Card }
   | { code: 'thuneeLeadHigh'; card: Card }
+  | { code: 'thuneeSetTrump'; card: Card }
+  | { code: 'thuneeDrawTrumps'; card: Card }
+  | { code: 'thuneeSureLead'; card: Card }
+  | { code: 'keepOffThunee'; card: Card }
   | { code: 'feedPartner'; card: Card }
   | { code: 'holdUnderPartner'; card: Card }
   | { code: 'cheapOvertake'; card: Card }
@@ -25,4 +29,6 @@ export type Reason =
 export interface Decision {
   action: Action
   reason: Reason
+  /** Other cards exactly as good as the one chosen, when there are some; it is among them. */
+  alternatives?: Card[]
 }

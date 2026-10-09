@@ -61,10 +61,32 @@ describe('playing', () => {
     expect(decideFor(played(FEED, 'Ah Js Qh').game)).toMatchObject({ reason: { code: 'feedPartner', card: card('Jd') } })
   })
 
-  test('the Thunee caller leads high', () => {
+  test('the Thunee caller sets trump with the top of their longest suit', () => {
     const t = table(THUNEE).advance(10_000)
     t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000)
-    expect(decideFor(t.game, 1)).toMatchObject({ reason: { code: 'thuneeLeadHigh', card: card('Js') } })
+    expect(decideFor(t.game, 1)).toMatchObject({ reason: { code: 'thuneeSetTrump', card: card('Js') } })
+  })
+
+  test('does not trump a trick its partner is winning while another card stays under', () => {
+    const t = played(['Qs Jc 10c Kd Kc Qc', 'Js 9s As 10s Jd 9d', 'Ah Jh 9h Ac Ad 10d', 'Qh Kh 10h 9c Ks Qd'], 'Ah Qh')
+    expect(decideFor(t.game)).toMatchObject({ reason: { code: 'holdUnderPartner', card: card('Qc') } })
+  })
+
+  test("the Thunee caller's partner stays under the caller, even when it could win", () => {
+    const t = table(['10d Kd Qd 10c Kc Qc', '9s As 10s Ks Jh 9h', 'Ah 10h Jc 9c Ac Jd', 'Js Qs 9d Ad Kh Qh']).advance(10_000)
+    t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000).play('10s Ah')
+    expect(decideFor(t.game, 3)).toMatchObject({ reason: { code: 'keepOffThunee', card: card('Qs') } })
+  })
+
+  test('once the other side has no trumps, the Thunee caller counts every card nobody can beat as just as good', () => {
+    const t = table(['10d Kd Qd 10c Kc Qc', 'Js 9s As 10s Jh Ah', '9h 10h Jc 9c Ac Jd', 'Ks Qs 9d Ad Kh Qh']).advance(10_000)
+    t.do(1, { type: 'chooseTrump', choice: 'spades' }).do(1, { type: 'callThunee' }).advance(10_000)
+    expect(decideFor(t.game, 1)).toMatchObject({ reason: { code: 'thuneeSetTrump', card: card('Js') } })
+    t.play('Js Jc Qs 10c').endPause()
+    const d = decideFor(t.game, 1)
+    expect(d.reason).toEqual({ code: 'thuneeSureLead', card: card('Jh') })
+    expect(d.alternatives).toEqual(expect.arrayContaining(cards('9s As 10s Jh')))
+    expect(d.alternatives).toHaveLength(4)
   })
 
   test('a cheapest card that still beats the partner says so', () => {

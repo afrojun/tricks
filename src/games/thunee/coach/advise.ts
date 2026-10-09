@@ -87,6 +87,10 @@ function topicOf(reason: Reason): Note['topic'] {
     case 'thuneeSure':
     case 'thuneeUnsafe':
     case 'thuneeLeadHigh':
+    case 'thuneeSetTrump':
+    case 'thuneeDrawTrumps':
+    case 'thuneeSureLead':
+    case 'keepOffThunee':
       return 'thunee'
     case 'sureDouble':
       return 'double'
@@ -136,7 +140,15 @@ function explain(view: View, action: Action, reason: Reason): string {
     case 'leadTrump':
       return 'You hold only trumps, so lead your strongest.'
     case 'thuneeLeadHigh':
-      return 'In a Thunee you must win every trick, so lead your strongest card.'
+      return 'In a Thunee you must win every trick, and no card of yours is sure to, so lead your strongest.'
+    case 'thuneeSetTrump':
+      return `The first card you lead in a Thunee makes its suit trump. ${suitPlural(reason.card.suit)} are your longest suit, so lead your best of them.`
+    case 'thuneeDrawTrumps':
+      return `The other side may still hold trumps, and a trump can cut any other card you lead. Lead trumps until they have none.${others(view, reason.card)}`
+    case 'thuneeSureLead':
+      return `Nobody can beat ${card(reason.card)}: every higher card is played or in your hand, and the other side cannot trump it.${others(view, reason.card)}`
+    case 'keepOffThunee':
+      return `${phase && phase.thunee ? who(view, phase.thunee.caller) : 'Your partner'} called Thunee and must win every trick alone. If you take one, the Thunee fails, so stay under them.`
     case 'feedPartner':
       return `${partnerText(view, phase)} already has this trick and you play last, so give them your most valuable card: ${card(reason.card)} is worth ${points([reason.card])}.`
     case 'holdUnderPartner':
@@ -160,6 +172,12 @@ function explain(view: View, action: Action, reason: Reason): string {
     case 'fallback':
       return action.type === 'playCard' ? `${card(action.card)} is a safe card to play.` : 'This is the safe choice.'
   }
+}
+
+/** The other cards the computer counts as just as good. */
+function others(view: View, chosen: Card): string {
+  const same = decide(view, HONEST).alternatives?.filter((c) => !sameCard(c, chosen)) ?? []
+  return same.length === 0 ? '' : ` ${list(same.map(card))} ${same.length === 1 ? 'is' : 'are'} just as good.`
 }
 
 function partnerText(view: View, phase: ViewPlaying | null): string {
