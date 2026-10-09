@@ -10,16 +10,16 @@ pnpm dev            # the whole app, pages and rooms, in one Vite server (localh
 pnpm check          # type check the app (tsconfig.json) and the Worker (worker/tsconfig.json)
 pnpm test           # unit, contract, room and simulation tests for both games (Vitest)
 pnpm test:soak      # 400 simulated games per configuration, Thunee's and Hearts'
-pnpm e2e            # the browser scripts: Thunee for four and for two, hand controls, a practice round, Hearts rooms and practice (needs dev running, and Chromium)
+pnpm e2e            # the browser scripts: Thunee for four and for two, hand controls, a practice round, Hearts rooms and practice, every drill (needs dev running, and Chromium)
 pnpm e2e:sockets    # a whole Thunee game over real sockets, and a Hearts lobby (needs dev running)
 pnpm build          # type check, then the production build: dist/client (the pages) and dist/tricks (the Worker)
 ```
 
-The browser scripts are `scripts/e2e.ts`, `e2e-two.ts`, `e2e-controls.ts`, `e2e-practice.ts` and `e2e-hearts.ts`; `scripts/play.ts` is `e2e:sockets`. They look for the app at `http://localhost:5173` and Chromium at `/usr/bin/chromium`; set `APP_URL` or `CHROMIUM` to point them elsewhere. Run them against the production build with `pnpm build && pnpm preview`, which serves the built Worker on port 4173.
+The browser scripts are `scripts/e2e.ts`, `e2e-two.ts`, `e2e-controls.ts`, `e2e-practice.ts`, `e2e-hearts.ts` and `e2e-drills.ts`; `scripts/play.ts` is `e2e:sockets`. They look for the app at `http://localhost:5173` and Chromium at `/usr/bin/chromium`; set `APP_URL` or `CHROMIUM` to point them elsewhere. Run them against the production build with `pnpm build && pnpm preview`, which serves the built Worker on port 4173.
 
 The search player's gate for Hearts is not part of `pnpm test`: `pnpm exec tsx src/games/hearts/ai/gate/run.ts` runs a short version that only prints, and `GATE=full` runs the recorded sizes (about an hour) and writes `src/games/hearts/ai/gate/results/`. Its header lists the parts and sizes.
 
-To try a game alone: open it from the Tricks home, create a game, sit down, and use "Add computer" on the other seats. To learn a game, use "Learn to play" on its home: a practice game against computers with a coach, run entirely in the browser (no room needed).
+To try a game alone: open it from the Tricks home, create a game, sit down, and use "Add computer" on the other seats. To learn a game, use "Learn to play" on its home: a practice game against computers with a coach, run entirely in the browser (no room needed). Its "Drills" list one moment each, such as calling a Jodhi or giving away the queen of spades, at `/<game>/practice?drill=<id>`.
 
 In development the Cloudflare Vite plugin runs the Worker, rooms included, inside Vite, so the app needs only one URL. To play from another device, point an HTTPS tunnel (for example `tailscale serve`) at `127.0.0.1:5173`; `*.ts.net` hosts are already allowed in `vite.config.ts`. Local room storage lives in `.wrangler/`. After pulling or merging large changes, restart `pnpm dev`: a long-running server can serve pages that never finish loading, and the first browser script after a merge can fail while Vite re-optimises its dependencies, so rerun it once before suspecting the code.
 
@@ -35,7 +35,7 @@ In development the Cloudflare Vite plugin runs the Worker, rooms included, insid
 
 ## Architecture
 
-The designs are in `docs/superpowers/specs/`. Start with `2026-10-05-tricks-overview-design.md` (the platform and its sub-projects). Thunee: `2026-10-04-thunee-rebuild-design.md` (every rule and setting). Practice and the coach: `2026-10-04-practice-and-coach-design.md` and `2026-10-05-coach-tiers-design.md`. Games as modules: `2026-10-05-game-modules-design.md`. Hearts: `2026-10-05-hearts-design.md`. Hosting: `2026-10-05-cloudflare-and-rename-design.md` and `2026-10-05-deploy-design.md`. The search player: `2026-10-06-search-player-design.md`. Table talk (lines, emotes, throws, Again): `2026-10-09-table-talk-design.md`.
+The designs are in `docs/superpowers/specs/`. Start with `2026-10-05-tricks-overview-design.md` (the platform and its sub-projects). Thunee: `2026-10-04-thunee-rebuild-design.md` (every rule and setting). Practice and the coach: `2026-10-04-practice-and-coach-design.md` and `2026-10-05-coach-tiers-design.md`. Games as modules: `2026-10-05-game-modules-design.md`. Hearts: `2026-10-05-hearts-design.md`. Hosting: `2026-10-05-cloudflare-and-rename-design.md` and `2026-10-05-deploy-design.md`. The search player: `2026-10-06-search-player-design.md`. Table talk (lines, emotes, throws, Again): `2026-10-09-table-talk-design.md`. Drills: `2026-10-09-drills-design.md`.
 
 ```
 src/kit/            Pure and shared by every game: cards, the table (seats, lobby, host, stand-ins), tricks, integrity (excuses, proofs), minds, rule helpers, the module contract (GameModule) and the contract runner, the coach contract (GameCoach) with the tier-1 baselineCoach (coach.ts), and table talk (talk.ts: what may be said, and the computers' banter from a game's moments). Imports nothing from the app, and no React.
@@ -48,7 +48,8 @@ src/games/<id>/     One game, which imports no other:
   ui/               Its screens: the table, the round result, present (sound, toast, moment per event), dwell, its rule book (rules.ts), its words (text.ts), and the hooks its screens read (session.ts).
   index.ts          Its GameModule: what the room, practice and tests use.
   client.ts         Its GameClient: what the shell uses, loaded only on the game's addresses.
-  practice.ts       Its GamePractice: the practice table, its trick pause, what a round keeps for the review, and its coach.
+  practice.ts       Its GamePractice: the practice table, its trick pause, what a round keeps for the review, its coach, and its drills.
+  drills.ts         Its drills: each a stacked deal and the play before one moment, played through the engine, with a brief, a guide line and a verdict.
   contract.ts       Its contract fixture, for tests (Thunee's testing.ts too).
 src/practice/       A practice game in the browser for any game with a GamePractice: local Session, virtual clock that waits for the player, saved to the device. practiceClient is what a game's client hands the shell.
 src/protocol.ts     Wire messages shared by client and server, generic over a game's view, action and event types, and room names (`<game>-<CODE>`). A client sends an action or something said; the room sends syncs (with the computers' banter on them), refusals, errors and what a person said.
@@ -74,6 +75,7 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 5. **Client** (`client.ts`): its `GameClient` (`src/ui/contract.ts`): name, tagline, direction, seat counts, `dwell`, `present`, `Table`, a `RuleBook` (`src/presets/book.ts`, its `ui/rules.ts`, and a line in `src/presets/books.test.ts`), lobby teams, words for its own refusals, and practice. Add it to `GAMES` and `LOADERS` in `src/ui/games.ts`; `src/ui/games.test.ts` holds the list to the client. Its screens read the table through `sessionHooks` and the coach through `coachHooks`, typed by the game, and build on the shared parts in `src/ui/`.
 6. **Coach** (`coach/`): to start, `baselineCoach` (`src/kit/coach.ts`) over its player's `decide`, with a phrase for each reason code (`Phrases`, which the type checker holds to the codes), what the player is asked, an action's name and cards, why an action breaks a rule (from the excuses), and what breaking one risks. Hearts' `coach/` is the example. Later, written lessons, narration and a review can replace any member, as Thunee's do.
 7. **Practice** (`practice.ts`): a `GamePractice` with its coach (`src/practice/contract.ts`), handed to the shell as `practiceClient(practice, dwell)`. Add it to `COACHED` in `src/practice/coaches.test.ts`, which checks that the advice is never warned against. Until then `practice: null`, and its practice address says practice is coming.
+8. **Drills** (`drills.ts`): `drills: []` to start. Each `Drill` stacks the deal with `patch`, plays what comes before its moment with `act` (computers do not react), and gives a brief, a `guide` line and a `verdict`, from the player's view only. Add the game and a typical mistake for each drill to `src/practice/drills.test.ts`, which checks that the hint passes every drill and the mistake misses it.
 
 ### Rules that keep it correct
 
@@ -85,6 +87,7 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 - **Shared validation.** `apply` checks round actions against `availableActions(viewFor(game, seat))`, the same function the UI uses to decide what to show. Add a new action there first.
 - **Views hide information.** Clients only receive `viewFor(game, seat)`. Never send `Game`. Other hands, the stock, `handBefore`, `broke`, Jodhi `valid`, tokens, `aiSalt`, a hidden persona before game over, unrevealed trump, and the cards of any trick before the last completed one must not appear in a view; the simulation test checks this. Computer players, which run on the server, get `viewFor(game, seat, 'full')` and remember the whole round.
 - **The coach is honest.** Coach functions take a `View` (the player's own, with `'full'` memory), never a `Game`, and never run a computer's decision for another seat. Only the round review sees the dealt hands, after the round. Advice comes from the computer's own `decide` with the honest mind, so the hint and the computers cannot disagree; `check` must return null for the advised action. `baselineCoach` takes no module and calls `decide` itself, only with `HONEST` and the view it was given, so a tier-1 coach is honest by construction.
+- **A drill is one moment, played through the engine.** Only the deal is set directly; every card and call before the moment is an action the engine accepted, so the position keeps its invariants. A drill is never saved and never touches the saved practice game; the drills passed are kept under `tricks-<game>-drills`. Its brief holds the clock until the player starts, and once it has a verdict (or its round ends) the clock stops and nothing more is sent.
 - **Practice time waits for the player.** The practice clock (`src/practice/clock.ts`) only runs while nothing waits on the player; timers there use the browser, since there is no server.
 - **Identity is a secret token, not a connection.** The browser's token maps to a seat on the server. Clients only see seat numbers.
 - **A room's name is its game.** Rooms are named `<game>-<CODE>` and live at `/parties/room/<name>`; the game is read from the name on every wake and never saved. Any name whose game is not in `src/games/index.ts` is refused.

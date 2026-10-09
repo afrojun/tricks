@@ -10,13 +10,31 @@ import { TalkStore } from '../client/talk'
 import { type Said, type Say, answerThrow } from '../kit/talk'
 import type { TableState, TableView } from '../kit/table'
 import type { NumberedEvent } from '../protocol'
-import type { GamePractice, Note, RoundLog, TopicOf } from './contract'
+import { DRILL_OVER, type Drill, type GamePractice, type Note, type RoundLog, type TopicOf, type Verdict } from './contract'
 import { PracticeGame, practiceKey } from './game'
 
 /** The topics the player has dismissed for a game, on this device. */
 export function seenKey(game: string): string {
   return `tricks-${game}-coach-seen`
 }
+
+/** The drills the player has passed in a game, on this device. */
+export function drillsKey(game: string): string {
+  return `tricks-${game}-drills`
+}
+
+/** The ids of the drills passed, from storage. */
+export function passedDrills(game: string, storage: Pick<Storage, 'getItem'>): Set<string> {
+  try {
+    const ids: unknown = JSON.parse(storage.getItem(drillsKey(game)) ?? '[]')
+    return new Set(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [])
+  } catch {
+    return new Set()
+  }
+}
+
+/** A drill whose round ended before its moment came, which its own verdict did not foresee. */
+const ROUND_OVER = { title: 'The round ended first', body: 'The round was over before the moment this drill is about. Try again.' }
 
 const LOG_LIMIT = 60
 
@@ -43,6 +61,21 @@ export interface CoachState<A, N extends Note, D> {
   dealt: D[] | null
   /** The trick pause is waiting for Continue. */
   trickPaused: boolean
+  /** The drill being played, or null in an ordinary practice game. */
+  drill: DrillState<N> | null
+  /** The drill's line for the moment, shown before the coach's own. */
+  guide: N | null
+}
+
+/** A drill as the screens show it: its brief until the player starts, and its verdict once its moment has passed. */
+export interface DrillState<N extends Note> {
+  id: string
+  title: string
+  brief: N
+  briefing: boolean
+  verdict: Verdict<N> | null
+  /** The drill after this one, if any. */
+  next: { id: string; title: string } | null
 }
 
 export interface Coach<A, N extends Note, D> {
@@ -60,7 +93,12 @@ export interface Coach<A, N extends Note, D> {
   continueTrick(): void
   /** Opens or closes a sheet the player is reading, by name; the table waits while any is open. */
   setReading(source: string, open: boolean): void
+  /** Leaves any drill for a new practice game. */
   restart(playerCount: number): void
+  /** Closes the drill's brief, so its clock can run. */
+  startDrill(): void
+  /** Starts a drill afresh: this one again, or another. */
+  openDrill(id: string): void
 }
 
 interface Snapshot<A, N extends Note, D> {
@@ -76,6 +114,8 @@ export interface PracticeSession<V, A, E, N extends Note, D> extends Session<V, 
 export interface PracticeOptions {
   /** Start a new game with this many players, or null to continue the saved one. */
   playerCount: number | null
+  /** A drill's id, to play it instead; it is never saved. */
+  drill?: string
   storage?: Store
   seed?: number
 }
@@ -89,14 +129,21 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
   practice: GamePractice<G, A, E, V, N, D, S>,
   /** How long one of the game's events holds the screen. */
   dwell: (event: E) => number,
-  { playerCount, storage = localStorage, seed }: PracticeOptions,
+  { playerCount, drill: drillId, storage = localStorage, seed }: PracticeOptions,
 ): PracticeSession<V, A, E, N, D> {
   const { coach: tutor, module } = practice
   const savedKey = practiceKey(module.id)
   const topicsKey = seenKey(module.id)
   const newSeed = () => seed ?? crypto.getRandomValues(new Uint32Array(1))[0]
-  const saved = playerCount === null ? PracticeGame.load(practice, storage.getItem(savedKey)) : null
-  let game = saved ?? PracticeGame.start(practice, playerCount ?? module.createGame().playerCount, newSeed(), 'You')
+  const drillOf = (id: string | undefined): Drill<G, A, V, N> | null => practice.drills.find((d) => d.id === id) ?? null
+  /** The drill in play: its brief holds the clock until the player starts, and its verdict stops the clock for good. */
+  let drill = drillOf(drillId)
+  let briefing = drill !== null
+  let verdict: Verdict<N> | null = null
+  const saved = playerCount === null && drill === null ? PracticeGame.load(practice, storage.getItem(savedKey)) : null
+  let game = drill
+    ? PracticeGame.drill(practice, drill, newSeed(), 'You')
+    : (saved ?? PracticeGame.start(practice, playerCount ?? module.createGame().playerCount, newSeed(), 'You'))
   const isNew = saved === null
 
   const store = new GameStore<V, E>()
@@ -135,6 +182,8 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     review: null,
     dealt: null,
     trickPaused: false,
+    drill: null,
+    guide: null,
   }
   const update = (patch: Partial<CoachState<A, N, D>>) => {
     state = { ...state, ...patch }
@@ -150,6 +199,8 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
   }
   const nextTopic = (events: readonly (E | null)[]): TopicOf<N> | null => {
     if (topic !== null) return topic
+    // A drill's brief stands in for the topics.
+    if (drill !== null) return null
     const already = seen()
     const view = game.coachView()
     for (const e of events) {
@@ -159,7 +210,22 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     return null
   }
 
-  const sheetOpen = () => holds.size > 0 || topic !== null || state.warning !== null
+  const sheetOpen = () => holds.size > 0 || topic !== null || state.warning !== null || briefing || verdict !== null
+
+  const drillState = (): DrillState<N> | null => {
+    if (drill === null) return null
+    const after = practice.drills[practice.drills.indexOf(drill) + 1]
+    return { id: drill.id, title: drill.title, brief: drill.brief, briefing, verdict, next: after ? { id: after.id, title: after.title } : null }
+  }
+
+  /** Asks the drill whether its moment has passed, and keeps a pass. A round that ends first ends the drill. */
+  const judge = () => {
+    if (drill === null || verdict !== null) return
+    const view = game.coachView()
+    verdict = drill.verdict(view, game.round.decisions)
+    if (verdict === null && practice.summary(view) !== null) verdict = { passed: false, note: { ...ROUND_OVER, tone: 'warn' } as N }
+    if (verdict?.passed) storage.setItem(drillsKey(module.id), JSON.stringify([...passedDrills(module.id, storage).add(drill.id)]))
+  }
 
   /** What the coach says about the game as it stands now, to be shown with the matching table sync. */
   const snapshot = (events: readonly E[]): Snapshot<A, N, D> => {
@@ -173,7 +239,10 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
       newRound: practice.roundBegins(events),
       rest: {
         situation: tutor.situation(view),
-        advice: tutor.advise(view),
+        // Once a drill is over there is nothing left to advise.
+        advice: verdict === null ? tutor.advise(view) : null,
+        guide: drill !== null && verdict === null ? drill.guide(view) : null,
+        drill: drillState(),
         showHint: false,
         trickPaused: game.paused(),
         review: over !== null ? reviewed!.notes : null,
@@ -214,13 +283,14 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
 
   const publish = (events: readonly E[], extra: E[] = [], said: Said[] = []) => {
     topic = nextTopic([...extra, ...events, null])
+    judge()
     const snap = snapshot(events)
     if (extra.length > 0) {
       snap.said = [...extra.map((e) => tutor.narrate(e, game.coachView())).filter((n): n is N => n !== null), ...snap.said]
       snap.newRound = true
     }
     sync(events, snap, said)
-    storage.setItem(savedKey, game.save())
+    if (drill === null) storage.setItem(savedKey, game.save())
     update({ waiting: game.waiting(sheetOpen()) })
     arm()
   }
@@ -248,6 +318,11 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
   }
 
   const send = (action: A) => {
+    // A drill is over once it has its verdict: the table stays as it ended, to be read.
+    if (verdict !== null) {
+      playback.push({ type: 'rejected', reason: DRILL_OVER })
+      return
+    }
     playback.release()
     const warning = tutor.check(game.coachView(), action)
     if (shouldHold(warning)) {
@@ -303,6 +378,10 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
       holdsChanged()
     },
     continueTrick() {
+      if (verdict !== null) {
+        playback.push({ type: 'rejected', reason: DRILL_OVER })
+        return
+      }
       // Continuing past a pause is checked as the system's tick, which every game's actions include.
       const tick = game.table({ type: 'tick' })
       const warning = tutor.check(game.coachView(), tick)
@@ -319,19 +398,42 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
       holdsChanged()
     },
     restart(n) {
-      clearTimeout(timer)
-      playback.reset()
-      pending.clear()
-      game = PracticeGame.start(practice, n, newSeed(), 'You')
-      topic = null
-      reviewed = null
-      update({ log: [], latest: null, warning: null, showHint: false })
+      drill = null
+      begin(PracticeGame.start(practice, n, newSeed(), 'You'))
       publish([], opening())
+    },
+    startDrill() {
+      if (!briefing) return
+      briefing = false
+      update({ drill: drillState() })
+      holdsChanged()
+    },
+    openDrill(id) {
+      const chosen = drillOf(id)
+      if (chosen === null) return
+      drill = chosen
+      begin(PracticeGame.drill(practice, chosen, newSeed(), 'You'))
+      publish([])
     },
   }
 
+  /** Puts a new game on the table, with nothing held over from the last. */
+  function begin(fresh: typeof game) {
+    clearTimeout(timer)
+    playback.reset()
+    pending.clear()
+    game = fresh
+    briefing = drill !== null
+    verdict = null
+    topic = null
+    reviewed = null
+    update({ log: [], latest: null, warning: null, showHint: false, drill: drillState(), guide: null })
+  }
+
   store.setConnection('open')
-  if (isNew) publish([], opening())
+  update({ drill: drillState() })
+  if (drill !== null) publish([])
+  else if (isNew) publish([], opening())
   else {
     // A game reopened before anything was played still owes its opening lessons.
     topic = nextTopic(untouched() ? [...opening(), null] : [null])

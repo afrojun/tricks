@@ -28,6 +28,7 @@ const heartsPractice: GamePractice<Game, Action, GameEvent, View, Note, Card[][]
   opening: (game) => (game.roundNumber === 1 ? { type: 'dealt', roundNumber: 1, direction: 'left' } : null),
   summary: (view) => (view.phase.kind === 'roundResult' || view.phase.kind === 'gameOver' ? view.phase.summary : null),
   coach: silent,
+  drills: [],
 }
 
 /** Moving on between rounds, passing the first three cards, and playing the first legal card. */

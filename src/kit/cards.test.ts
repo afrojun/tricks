@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { type Card, SUITS, cardId, cardText, hasCard, removeCard, sameCard, shuffle } from './cards'
+import { type Card, SUITS, cardId, cardText, cardsFrom, completeDeal, hasCard, removeCard, sameCard, shuffle } from './cards'
 import { seededRng } from './testing'
 
 const RANKS = ['J', '9', 'A', '10', 'K', 'Q'] as const
@@ -41,5 +41,35 @@ describe('cards', () => {
     expect(cardId({ suit: 'hearts', rank: 'J' })).toBe('J-hearts')
     expect(cardText({ suit: 'hearts', rank: 'J' })).toBe('J♥')
     expect(cardText({ suit: 'spades', rank: '10' })).toBe('10♠')
+  })
+})
+
+describe('arranged deals', () => {
+  const RANKS = ['A', 'K', 'Q', 'J', '10'] as const
+  const deck = SUITS.flatMap((suit) => RANKS.map((rank) => ({ suit, rank })))
+
+  test('cards are read from short text, in the game’s ranks', () => {
+    expect(cardsFrom('Jh 10s Ac', RANKS)).toEqual([
+      { suit: 'hearts', rank: 'J' },
+      { suit: 'spades', rank: '10' },
+      { suit: 'clubs', rank: 'A' },
+    ])
+    expect(() => cardsFrom('2h', RANKS)).toThrow('bad card 2h')
+    expect(() => cardsFrom('Jx', RANKS)).toThrow('bad card Jx')
+  })
+
+  test('a deal keeps the cards given, and fills each hand from the rest, the same way for the same seed', () => {
+    const given = [cardsFrom('Ah Kh', RANKS), [], cardsFrom('Qs', RANKS), []]
+    const a = completeDeal(given, deck, 5, seededRng(3))
+    expect(a.map((h) => h.length)).toEqual([5, 5, 5, 5])
+    expect(a[0].slice(0, 2)).toEqual(given[0])
+    expect(a[2][0]).toEqual(given[2][0])
+    expect(new Set(a.flat().map(cardId)).size).toBe(20)
+    expect(completeDeal(given, deck, 5, seededRng(3))).toEqual(a)
+  })
+
+  test('a card given twice, or too many for a hand, is refused', () => {
+    expect(() => completeDeal([cardsFrom('Ah', RANKS), cardsFrom('Ah', RANKS)], deck, 5, seededRng(1))).toThrow('given twice')
+    expect(() => completeDeal([cardsFrom('Ah Kh Qh', RANKS)], deck, 2, seededRng(1))).toThrow('more than 2')
   })
 })

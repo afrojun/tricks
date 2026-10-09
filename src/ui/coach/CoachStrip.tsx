@@ -4,16 +4,22 @@ import type { ShellView } from '../contract'
 import { sessionHooks } from '../session'
 import { AdviceSheet, type Lessons, LogSheet, TopicSheet, WarningSheet } from './CoachSheets'
 import { useCoach } from './context'
+import { DrillBrief, DrillVerdict } from './DrillSheets'
 
 /** The coach's advice is one of the game's own actions, sent as it came. */
 const { useSession } = sessionHooks<ShellView, unknown, { type: string }>()
 
-/** The coach's line above the hand: the situation and Hint on your decision, otherwise the latest news. */
+/**
+ * The coach's line above the hand: the situation and Hint on your decision, otherwise the latest news.
+ * In a drill, its guide comes first, and once it is over its verdict, with Try again.
+ */
 export function CoachStrip({ lessons }: { lessons: Lessons }) {
   const coached = useCoach()
   const { send } = useSession()
   const [hintOpen, setHintOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
+  /** The verdict the player closed, to read the table behind it. */
+  const [closed, setClosed] = useState<object | null>(null)
   const coach = coached?.coach
   const reading = hintOpen || logOpen
   useEffect(() => {
@@ -21,8 +27,10 @@ export function CoachStrip({ lessons }: { lessons: Lessons }) {
   }, [coach, reading])
   if (!coached) return null
   const { state } = coached
+  const drill = state.drill
+  const verdict = drill?.verdict ?? null
 
-  const line: Note | null = state.trickPaused ? state.latest : (state.situation ?? state.latest)
+  const line: Note | null = verdict?.note ?? state.guide ?? (state.trickPaused ? state.latest : (state.situation ?? state.latest))
   return (
     <>
       <div className="coach-strip" aria-live="polite">
@@ -35,20 +43,26 @@ export function CoachStrip({ lessons }: { lessons: Lessons }) {
             'The coach explains each move here.'
           )}
         </button>
-        {state.trickPaused ? (
-          <button className="btn btn-primary btn-small" onClick={() => coached.coach.continueTrick()}>
-            Continue
+        {/* A pause can hold a decision too, a Jodhi to call: then Hint stands beside Continue. */}
+        {state.advice && !verdict && (
+          <button
+            className="btn btn-small"
+            onClick={() => {
+              coached.coach.hint()
+              setHintOpen(true)
+            }}
+          >
+            Hint
+          </button>
+        )}
+        {drill && verdict ? (
+          <button className="btn btn-primary btn-small" onClick={() => coached.coach.openDrill(drill.id)}>
+            Try again
           </button>
         ) : (
-          state.advice && (
-            <button
-              className="btn btn-small"
-              onClick={() => {
-                coached.coach.hint()
-                setHintOpen(true)
-              }}
-            >
-              Hint
+          state.trickPaused && (
+            <button className="btn btn-primary btn-small" onClick={() => coached.coach.continueTrick()}>
+              Continue
             </button>
           )
         )}
@@ -68,6 +82,10 @@ export function CoachStrip({ lessons }: { lessons: Lessons }) {
       )}
       {logOpen && <LogSheet log={state.log} onClose={() => setLogOpen(false)} />}
       {state.warning && <WarningSheet lessons={lessons} note={state.warning.note} onAnyway={() => coached.coach.confirm()} onBack={() => coached.coach.cancel()} />}
+      {drill?.briefing && <DrillBrief lessons={lessons} drill={drill} onStart={() => coached.coach.startDrill()} />}
+      {drill && verdict && verdict !== closed && (
+        <DrillVerdict drill={drill} onAgain={() => coached.coach.openDrill(drill.id)} onNext={(id) => coached.coach.openDrill(id)} onClose={() => setClosed(verdict)} />
+      )}
       {!state.warning && state.topic && <TopicSheet lessons={lessons} id={state.topic} onClose={() => coached.coach.dismissTopic()} closeLabel="Got it" />}
     </>
   )

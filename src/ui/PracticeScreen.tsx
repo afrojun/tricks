@@ -4,10 +4,10 @@ import type { Note } from '../practice/contract'
 import { CoachContext } from './coach/context'
 import type { ShellView } from './contract'
 import { ErrorBoundary, Screen } from './GameScreen'
-import { gamePath, practicePath } from './routes'
+import { drillPath, drillQuery, gamePath, practicePath } from './routes'
 import { SessionContext, navigate, useGameClient } from './session'
 
-/** `/<game>/practice?players=4` starts a new game; plain `/<game>/practice` continues the saved one. */
+/** `/<game>/practice?players=4` starts a new game, `?drill=jodhi` a drill; plain `/<game>/practice` continues the saved one. */
 function requestedPlayers(seatCounts: readonly number[]): number | null {
   const n = Number(new URLSearchParams(location.search).get('players'))
   return seatCounts.includes(n) ? n : null
@@ -19,11 +19,20 @@ export function PracticeScreen() {
   const [session, setSession] = useState<PracticeSession<ShellView, unknown, { type: string }, Note, unknown> | null>(null)
   useEffect(() => {
     if (!practice) return
-    const opened = practice.open({ playerCount: requestedPlayers(game.seatCounts) })
-    // A reload should continue this game, not start another.
-    history.replaceState(null, '', practicePath(game.id))
+    const opened = practice.open({ playerCount: requestedPlayers(game.seatCounts), drill: drillQuery(location.search) })
+    // A reload should continue this game, not start another, and start a drill again, the one now on the table.
+    const address = () => {
+      const drill = opened.coach.getState().drill
+      const path = drill ? drillPath(game.id, drill.id) : practicePath(game.id)
+      if (location.pathname + location.search !== path) history.replaceState(null, '', path)
+    }
+    address()
+    const stop = opened.coach.subscribe(address)
     setSession(opened)
-    return () => opened.close()
+    return () => {
+      stop()
+      opened.close()
+    }
   }, [game, practice])
   if (!practice) return <PracticeComing />
   if (!session) return null

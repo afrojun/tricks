@@ -5,7 +5,8 @@ import { dwell } from '../games/thunee/ui/dwell'
 import { type ThuneePracticeSession, thuneePractice } from '../games/thunee/practice'
 import { playPractice } from '../games/thunee/testing'
 import { PracticeGame, practiceKey } from './game'
-import { openPracticeSession, shouldHold } from './session'
+import { DRILL_OVER } from './contract'
+import { drillsKey, openPracticeSession, passedDrills, shouldHold } from './session'
 
 class MemoryStorage {
   private data = new Map<string, string>()
@@ -221,3 +222,89 @@ describe('checkpoint C', () => {
   })
 })
 
+
+describe('a drill', () => {
+  test('its brief holds the clock, its verdict stops it, and a pass is kept without touching the saved game', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(practiceKey('thunee'), 'the saved game')
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: null, drill: 'jodhi', storage, seed: 1 })
+    open.push(s)
+    vi.runOnlyPendingTimers()
+    expect(s.coach.getState()).toMatchObject({ waiting: true, topic: null, drill: { id: 'jodhi', briefing: true, verdict: null, next: { id: 'khanaak' } } })
+    expect(s.coach.getState().guide?.title).toBe('Win the first trick')
+
+    s.coach.startDrill()
+    expect(s.coach.getState().drill?.briefing).toBe(false)
+    s.send({ type: 'playCard', card: { rank: 'J', suit: 'clubs' } })
+    vi.advanceTimersByTime(60_000)
+    expect(s.store.getState().view!.phase.kind).toBe('trickPause')
+    expect(s.coach.getState().guide?.title).toBe('Call Jodhi now')
+
+    s.send({ type: 'claimJodhi', suit: 'spades', withJack: false })
+    vi.advanceTimersByTime(60_000)
+    const state = s.coach.getState()
+    expect(state.drill?.verdict?.passed).toBe(true)
+    expect(state).toMatchObject({ waiting: true, advice: null, guide: null })
+    // The clock stays stopped: nobody leads the next trick.
+    expect(s.store.getState().view!.phase).toMatchObject({ kind: 'trickPause' })
+    expect([...passedDrills('thunee', storage)]).toEqual(['jodhi'])
+    expect(storage.getItem(practiceKey('thunee'))).toBe('the saved game')
+
+    // Nothing more is played once the drill is over, even with its verdict closed.
+    const ended = s.store.getState().view
+    s.send({ type: 'challengePlay', seat: 1 })
+    vi.advanceTimersByTime(60_000)
+    expect(s.store.getState().rejection?.reason).toBe(DRILL_OVER)
+    s.coach.continueTrick()
+    vi.advanceTimersByTime(60_000)
+    expect(s.store.getState().view).toEqual(ended)
+    expect(s.coach.getState().drill?.verdict?.passed).toBe(true)
+  })
+
+  test('another drill starts afresh, and a new practice game leaves drills behind', () => {
+    const storage = new MemoryStorage()
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: null, drill: 'thunee', storage, seed: 1 })
+    open.push(s)
+    vi.runOnlyPendingTimers()
+    s.coach.startDrill()
+    s.send({ type: 'pass' })
+    vi.advanceTimersByTime(10_000)
+    expect(s.coach.getState().drill?.verdict?.passed).toBe(false)
+    expect(storage.getItem(drillsKey('thunee'))).toBeNull()
+
+    s.coach.openDrill('challenge')
+    vi.runOnlyPendingTimers()
+    expect(s.coach.getState().drill).toMatchObject({ id: 'challenge', briefing: true, verdict: null, next: null })
+    expect(s.coach.getState().log).toEqual([])
+
+    s.coach.restart(4)
+    vi.runOnlyPendingTimers()
+    expect(s.coach.getState().drill).toBeNull()
+    expect(storage.getItem(practiceKey('thunee'))).not.toBeNull()
+  })
+
+  test('an unknown drill opens practice as usual', () => {
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: 4, drill: 'nonsense', storage: new MemoryStorage(), seed: 1 })
+    open.push(s)
+    vi.runOnlyPendingTimers()
+    expect(s.coach.getState().drill).toBeNull()
+    expect(s.store.getState().view!.phase.kind).toBe('calling')
+  })
+})
+
+describe('a drill that ends before its moment', () => {
+  test('a round ended early is a miss, with a way on', () => {
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: null, drill: 'jodhi', storage: new MemoryStorage(), seed: 1 })
+    open.push(s)
+    vi.runOnlyPendingTimers()
+    s.coach.startDrill()
+    s.send({ type: 'playCard', card: { rank: 'J', suit: 'clubs' } })
+    vi.advanceTimersByTime(3_000)
+    // A challenge against an honest player, which the coach warns of, ends the round.
+    s.send({ type: 'challengePlay', seat: 1 })
+    s.coach.confirm()
+    vi.advanceTimersByTime(60_000)
+    expect(s.store.getState().view!.phase.kind).toBe('roundResult')
+    expect(s.coach.getState().drill?.verdict).toMatchObject({ passed: false, note: { title: 'The round ended first' } })
+  })
+})

@@ -63,6 +63,28 @@ export function practicePath(game: string, players?: number): string {
   return `/${game}/practice${players === undefined ? '' : `?players=${players}`}`
 }
 
+const DRILL_PARAM = 'drill'
+
+/** A drill, which practice plays instead of a game. */
+export function drillPath(game: string, drill: string): string {
+  return `/${game}/practice?${new URLSearchParams({ [DRILL_PARAM]: drill })}`
+}
+
+/** A game's home with its list of drills open. */
+export function drillsPath(game: string): string {
+  return `/${game}?${DRILL_PARAM}s`
+}
+
+/** Whether a home address asks for the list of drills. */
+export function drillsQuery(search: string): boolean {
+  return new URLSearchParams(search).has(`${DRILL_PARAM}s`)
+}
+
+/** The drill a practice address asks for, if any. */
+export function drillQuery(search: string): string | undefined {
+  return new URLSearchParams(search).get(DRILL_PARAM) ?? undefined
+}
+
 /** What the rules screen's address may carry: a preset to select, a shared preset's code, and the room it was opened from. */
 export interface RulesQuery {
   preset?: string

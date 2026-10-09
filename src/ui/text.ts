@@ -1,4 +1,5 @@
 import type { Suit } from '../kit/cards'
+import { DRILL_OVER } from '../practice/contract'
 import type { Seat, TableReject, TableView } from '../kit/table'
 
 export { SUIT_NAME, SUIT_SYMBOL, cardText } from '../kit/cards'
@@ -11,8 +12,8 @@ export function seatName(view: TableView, seat: Seat): string {
   return view.seats[seat]?.name || `Seat ${seat + 1}`
 }
 
-/** The table's reasons, which every game shares, and the room's own for a message it could not read. */
-const TABLE_REJECTIONS: Record<TableReject | 'malformed', string> = {
+/** The table's reasons, which every game shares, the room's own for a message it could not read, and practice's for a finished drill. */
+const TABLE_REJECTIONS: Record<TableReject | 'malformed' | typeof DRILL_OVER, string> = {
   notAllowed: "You can't do that right now.",
   wrongPhase: 'The game has moved on.',
   notHost: 'Only the host can do that.',
@@ -24,6 +25,7 @@ const TABLE_REJECTIONS: Record<TableReject | 'malformed', string> = {
   seatsNotFilled: 'Fill every seat before starting.',
   badChoice: "You can't choose that.",
   malformed: "The server didn't understand that. Reload and try again.",
+  [DRILL_OVER]: 'This drill is over. Try again, or choose another.',
 }
 
 /** The room sends the game's own reason, or `malformed`; the game words its own, and anything else reads as a plain refusal. */

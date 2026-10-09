@@ -2,6 +2,7 @@
 import type { Note } from '../../kit/coach'
 import type { GamePractice } from '../../practice/contract'
 import { heartsCoach } from './coach'
+import { HEARTS_DRILLS } from './drills'
 import { type Action, type Card, type Game, type GameEvent, type RoundSummary, type View, passDirection } from './engine'
 import { hearts } from '.'
 
@@ -42,4 +43,6 @@ export const heartsPractice: GamePractice<Game, Action, GameEvent, View, Note, D
   summary: (view) => (view.phase.kind === 'roundResult' || view.phase.kind === 'gameOver' ? view.phase.summary : null),
 
   coach: heartsCoach,
+
+  drills: HEARTS_DRILLS,
 }

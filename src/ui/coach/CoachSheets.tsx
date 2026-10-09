@@ -16,7 +16,7 @@ export interface Lesson {
 /** A game's lessons by topic id. A game without written lessons has none. */
 export type Lessons = Readonly<Record<string, Lesson>>
 
-function CardRow({ cards }: { cards: readonly Card[] }) {
+export function CardRow({ cards }: { cards: readonly Card[] }) {
   return (
     <div className="flex flex-wrap gap-1">
       {cards.map((c) => (
@@ -38,7 +38,7 @@ function TopicBody({ lesson }: { lesson: Lesson }) {
 }
 
 /** A link to the lesson a note is about, when the game has one. */
-function TopicLink({ lessons, id, onOpen }: { lessons: Lessons; id: string | undefined; onOpen: (id: string) => void }) {
+export function TopicLink({ lessons, id, onOpen }: { lessons: Lessons; id: string | undefined; onOpen: (id: string) => void }) {
   if (id === undefined || !lessons[id]) return null
   return (
     <button className="btn btn-quiet btn-small justify-self-start" onClick={() => onOpen(id)}>

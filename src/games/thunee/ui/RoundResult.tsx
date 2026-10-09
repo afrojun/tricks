@@ -1,6 +1,7 @@
 import { type Available, type Card, type RoundSummary, type ScoreLine, type Team, type View, teamOf } from '../engine'
 import { Again, TableNames } from '../../../ui/Again'
 import { CoachReview } from '../../../ui/coach/CoachReview'
+import { useCoach } from '../../../ui/coach/context'
 import type { DealShown } from '../../../ui/coach/CoachSheets'
 import { useSession } from './session'
 import { playSound } from '../../../ui/sound'
@@ -54,6 +55,8 @@ function verbFor(view: View, team: Team, base: string): string {
 
 export function RoundResult({ view, summary, winner, can }: { view: View; summary: RoundSummary; winner: Team | null; can: Available }) {
   const { send } = useSession()
+  // A drill ends with its round: its verdict says what next.
+  const drilled = useCoach()?.state.drill != null
   if (winner !== null) return <GameOver view={view} summary={summary} winner={winner} can={can} />
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">
@@ -87,7 +90,7 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
       <CoachReview view={view} shown={HALVES} />
 
       <TableNames view={view} />
-      {can.nextRound ? (
+      {drilled ? null : can.nextRound ? (
         <button className="btn btn-primary" onClick={() => {
             playSound('tap')
             send({ type: 'nextRound' })

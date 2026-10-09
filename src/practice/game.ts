@@ -4,7 +4,7 @@ import type { Said } from '../kit/talk'
 import type { Actor, TableAction, TableState, TableView } from '../kit/table'
 import type { NumberedEvent } from '../protocol'
 import { waitingOnPlayer } from './clock'
-import type { DecisionRecord, GamePractice, Note, RoundLog } from './contract'
+import type { DecisionRecord, Drill, DrillTable, GamePractice, Note, RoundLog } from './contract'
 import { type Rng, rng } from './rng'
 
 export type { DecisionRecord, RoundLog }
@@ -58,14 +58,30 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
     playerCount: number,
     seed: number,
     name: string,
+    lobby: readonly A[] = [],
   ): PracticeGame<G, A, E, V, N, D, S> {
     const p = new PracticeGame(practice, practice.module.createGame(), seed, 0, 0, { dealt: [], decisions: [] }, null)
     p.must(null, p.table({ type: 'sit', seat: 0, name }))
-    for (const action of practice.setup(playerCount)) p.must(0, action)
+    for (const action of [...practice.setup(playerCount), ...lobby]) p.must(0, action)
     // The lobby has no action to rename another seat; this is the starting state, before anything is played.
     const names = practice.seatNames(playerCount)
     p.game = { ...p.game, seats: p.game.seats.map((s, i) => (i === 0 ? s : { ...s, name: names[i - 1] })) }
     p.must(0, p.table({ type: 'start' }))
+    return p
+  }
+
+  /** A practice game at a drill's first moment: started as any other, then arranged as the drill says. */
+  static drill<G extends TableState, A extends { type: string }, E, V extends TableView, N extends Note, D, S>(
+    practice: GamePractice<G, A, E, V, N, D, S>,
+    drill: Drill<G, A, V, N>,
+    seed: number,
+    name: string,
+  ): PracticeGame<G, A, E, V, N, D, S> {
+    const p = PracticeGame.start(practice, drill.playerCount, seed, name, drill.lobby)
+    drill.arrange(p.arranging(drill.id))
+    // The round log starts at the drill's moment, keeping the deal as stacked.
+    p.round = { dealt: p.round.dealt, decisions: [] }
+    p.keepRound([])
     return p
   }
 
@@ -178,6 +194,37 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
   }
 
   // ── Internals ─────────────────────────────────────────────────────────
+
+  /** The game as a drill arranges it: actions as written, with no computer reacting, and the clock run by hand. */
+  private arranging(id: string): DrillTable<G, A> {
+    const module = this.practice.module
+    const ctx = () => ({ now: this.virtualNow, rng: () => this.random.next() })
+    const run = (actor: Actor, action: A) => {
+      const result = module.apply(this.game, actor, action, ctx())
+      if ('rejected' in result) throw new Error(`drill ${id}: ${action.type} by ${actor} rejected (${result.rejected}) in ${this.game.phase.kind}`)
+      module.checkInvariants(result.game)
+      this.game = result.game
+    }
+    const p = this
+    return {
+      get game() {
+        return p.game
+      },
+      patch: (change) => {
+        this.game = change(structuredClone(this.game), ctx())
+        module.checkInvariants(this.game)
+        // The deal the review shows is the stacked one, not the shuffle it replaced.
+        this.round = { dealt: [], decisions: [] }
+        this.keepRound([])
+      },
+      act: run,
+      tick: () => {
+        const next = module.nextDeadline(this.game)
+        if (next !== null) this.virtualNow = Math.max(this.virtualNow, next)
+        run('system', this.table({ type: 'tick' }))
+      },
+    }
+  }
 
   private runStep(step: Step<A>): E[] {
     const first = this.apply(step.actor, step.action)

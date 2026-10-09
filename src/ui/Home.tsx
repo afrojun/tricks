@@ -3,9 +3,10 @@ import { SHARE_PARAM } from '../presets/share'
 import { listPresets, presetsKey, readChoice, writeChoice } from '../presets/storage'
 import { GameStrip } from './GameStrip'
 import { Link } from './Link'
-import { CODE_LENGTH, cleanCode, practicePath, roomPath, rulesPath } from './routes'
+import { CODE_LENGTH, cleanCode, drillPath, drillsQuery, gamePath, practicePath, roomPath, rulesPath } from './routes'
 import { countWord, playersLabel, teamsAt } from './seats'
 import { navigate, replaceAddress, useGameClient } from './session'
+import { Sheet } from './Sheet'
 import { playSound } from './sound'
 import { TopBar, TricksLink } from './TopBar'
 
@@ -44,6 +45,8 @@ function LearnToPlay() {
   const game = useGameClient()
   const practice = game.practice
   const [saved] = useState(() => practice?.saved() ?? false)
+  // `/<game>?drills`, where a drill's "All drills" leads, opens the list.
+  const [drillsOpen, setDrillsOpen] = useState(() => drillsQuery(location.search))
   if (!practice) {
     return (
       <section className="panel p-4 grid gap-3">
@@ -82,7 +85,53 @@ function LearnToPlay() {
           </button>
         ))}
       </div>
+      {practice.drills.length > 0 && (
+        <button className="btn" onClick={() => setDrillsOpen(true)}>
+          Drills: one rule at a time
+        </button>
+      )}
+      {drillsOpen && (
+        <DrillsSheet
+          onClose={() => {
+            setDrillsOpen(false)
+            if (drillsQuery(location.search)) history.replaceState(null, '', gamePath(game.id))
+          }}
+        />
+      )}
     </section>
+  )
+}
+
+/** Every drill of the game, ticked once passed on this device. */
+function DrillsSheet({ onClose }: { onClose: () => void }) {
+  const game = useGameClient()
+  const practice = game.practice!
+  const [passed] = useState(() => practice.passed())
+  return (
+    <Sheet title="Drills" onClose={onClose}>
+      <div className="grid gap-3">
+        <p>One moment of the game, set up for you to practise one rule, with the coach beside you.</p>
+        <ul className="grid gap-2">
+          {practice.drills.map((d) => (
+            <li key={d.id}>
+              <button
+                className="btn w-full justify-between text-left"
+                onClick={() => {
+                  playSound('tap')
+                  navigate(drillPath(game.id, d.id))
+                }}
+              >
+                <span className="grid">
+                  <span>{d.title}</span>
+                  <span className="text-sm font-normal text-on-surface-muted">{d.summary}</span>
+                </span>
+                {passed.has(d.id) && <span aria-label="Passed">✓</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Sheet>
   )
 }
 

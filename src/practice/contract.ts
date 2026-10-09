@@ -4,7 +4,7 @@
  */
 import type { DecisionRecord, GameCoach, Note, TopicOf } from '../kit/coach'
 import type { GameModule } from '../kit/module'
-import type { TableState, TableView } from '../kit/table'
+import type { Actor, Ctx, TableState, TableView } from '../kit/table'
 
 /** The coach's contract is the kit's, so a coach stays pure and the kit can build one. */
 export type { DecisionRecord, GameCoach, Note, TopicOf }
@@ -35,4 +35,48 @@ export interface GamePractice<G extends TableState, A extends { type: string }, 
   /** The summary of the round whose result the view shows; null while a round is in play. */
   summary(view: V): S | null
   coach: GameCoach<V, A, E, N, D, S>
+  /** One moment each, set up the same way every time, most basic first. */
+  drills: readonly Drill<G, A, V, N>[]
+}
+
+/** Practice's own refusal: an action sent after a drill's verdict. */
+export const DRILL_OVER = 'drillOver'
+
+/** How a drill went, once its moment has passed. */
+export interface Verdict<N extends Note> {
+  passed: boolean
+  note: N
+}
+
+/**
+ * One moment of a game, to practise one rule: an arranged position, the coach's words for it, and
+ * a verdict once it has passed. `guide` and `verdict` see only what the coach sees.
+ */
+export interface Drill<G, A, V, N extends Note> {
+  id: string
+  title: string
+  /** One line for the list of drills. */
+  summary: string
+  playerCount: number
+  /** Lobby actions after the practice's own, before the start: house rules the drill needs. */
+  lobby?: readonly A[]
+  /** Turns the game, just started, into the drill's first moment. */
+  arrange(table: DrillTable<G, A>): void
+  /** What the drill teaches, shown before it starts. */
+  brief: N
+  /** The coach's line for the moment, in place of its usual one; null to leave that. */
+  guide(view: V): N | null
+  /** How the drill went, from the player's view and their decisions since it began; null until its moment has passed. */
+  verdict(view: V, decisions: readonly DecisionRecord<V, A>[]): Verdict<N> | null
+}
+
+/** A drill's game while it is arranged. The deal may be changed directly; everything after it is played through the engine. */
+export interface DrillTable<G, A> {
+  readonly game: G
+  /** Changes the game directly, to stack the deal; the change keeps the table's own bookkeeping, as the engine would. */
+  patch(change: (game: G, ctx: Ctx) => G): void
+  /** Applies an action as written: computers do not react. Throws if the game refuses it. */
+  act(actor: Actor, action: A): void
+  /** Runs the clock to the next deadline, and the system's tick. */
+  tick(): void
 }

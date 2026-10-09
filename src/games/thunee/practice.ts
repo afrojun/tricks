@@ -1,5 +1,6 @@
 /** Thunee's practice: its table, its trick pause, what a round keeps for the review, and its coach. For the practice screen. */
 import { thuneeCoach } from './coach'
+import { THUNEE_DRILLS } from './drills'
 import type { Note } from './coach/note'
 import { type Action, type Card, type Game, type GameEvent, type RoundSummary, type View, allSeats } from './engine'
 import type { GamePractice } from '../../practice/contract'
@@ -54,4 +55,6 @@ export const thuneePractice: GamePractice<Game, Action, GameEvent, View, Note, D
   summary: (view) => (view.phase.kind === 'roundResult' || view.phase.kind === 'gameOver' ? view.phase.summary : null),
 
   coach: thuneeCoach,
+
+  drills: THUNEE_DRILLS,
 }

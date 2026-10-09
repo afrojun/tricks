@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { cleanCode, gamePath, opensInPlace, practicePath, roomPath, route, rulesPath, rulesQuery } from './routes'
+import { cleanCode, drillPath, drillQuery, drillsPath, drillsQuery, gamePath, opensInPlace, practicePath, roomPath, route, rulesPath, rulesQuery } from './routes'
 
 describe('routes', () => {
   test('the root is the Tricks home', () => {
@@ -78,6 +78,12 @@ describe('routes', () => {
     expect(roomPath('thunee', 'ABCDEF')).toBe('/thunee/ABCDEF')
     expect(practicePath('thunee')).toBe('/thunee/practice')
     expect(practicePath('thunee', 4)).toBe('/thunee/practice?players=4')
+    expect(drillPath('thunee', 'jodhi')).toBe('/thunee/practice?drill=jodhi')
+    expect(drillQuery('?drill=jodhi')).toBe('jodhi')
+    expect(drillQuery('?players=4')).toBeUndefined()
+    expect(drillsPath('hearts')).toBe('/hearts?drills')
+    expect(drillsQuery('?drills')).toBe(true)
+    expect(drillsQuery('')).toBe(false)
     expect(route(roomPath('thunee', 'QWERTY'))).toEqual({ screen: 'room', game: 'thunee', code: 'QWERTY' })
     expect(route(practicePath('thunee'))).toEqual({ screen: 'practice', game: 'thunee' })
   })

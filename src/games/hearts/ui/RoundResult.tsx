@@ -2,6 +2,7 @@ import type { Available, RoundSummary, View } from '../engine'
 import type { Seat } from '../../../kit/table'
 import { Again, TableNames } from '../../../ui/Again'
 import { CoachReview } from '../../../ui/coach/CoachReview'
+import { useCoach } from '../../../ui/coach/context'
 import { useSession } from './session'
 import { playSound } from '../../../ui/sound'
 import { plural } from '../../../ui/text'
@@ -10,6 +11,8 @@ import { headline, nameFor, points, pointsWord, sortHand } from './text'
 /** This round's points by seat and the totals after it, the reason when it ended unusually, and what comes next. */
 export function RoundResult({ view, summary, winner, can }: { view: View; summary: RoundSummary; winner: Seat | null; can: Available }) {
   const { send } = useSession()
+  // A drill ends with its round: its verdict says what next.
+  const drilled = useCoach()?.state.drill != null
   const low = Math.min(...summary.scoresAfter)
   const you = (seat: Seat) => seat === view.seat
   if (winner !== null) return <GameOver view={view} summary={summary} winner={winner} can={can} />
@@ -41,7 +44,7 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
       <CoachReview view={view} shown={{ sort: sortHand }} />
 
       <TableNames view={view} />
-      {can.nextRound ? (
+      {drilled ? null : can.nextRound ? (
         <button className="btn btn-primary" onClick={() => {
             playSound('tap')
             send({ type: 'nextRound' })

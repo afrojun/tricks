@@ -41,3 +41,35 @@ export const SUIT_NAME: Record<Suit, string> = { hearts: 'Hearts', diamonds: 'Di
 export function cardText(card: Card): string {
   return `${card.rank}${SUIT_SYMBOL[card.suit]}`
 }
+
+const SUIT_LETTER: Readonly<Record<string, Suit>> = { h: 'hearts', d: 'diamonds', c: 'clubs', s: 'spades' }
+
+/** Cards written short, `'Jh 10s Qc'`, in a game's ranks. For arranged deals; throws on a card the game does not have. */
+export function cardsFrom<R extends string>(text: string, ranks: readonly R[]): Card<R>[] {
+  return text
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      const suit = SUIT_LETTER[word.slice(-1)]
+      const rank = word.slice(0, -1) as R
+      if (!suit || !ranks.includes(rank)) throw new Error(`bad card ${word}`)
+      return { suit, rank }
+    })
+}
+
+/**
+ * Hands of `size` holding the cards given for each, the rest dealt from what is left of `deck`,
+ * shuffled by `rng`. A drill names the cards that matter and leaves the others to a fixed seed.
+ */
+export function completeDeal<C extends Card>(given: readonly (readonly C[])[], deck: readonly C[], size: number, rng: () => number): C[][] {
+  const named = given.flat()
+  if (named.some((c, i) => named.findIndex((d) => sameCard(c, d)) !== i)) throw new Error('a card is given twice')
+  const rest = shuffle(
+    deck.filter((c) => !hasCard(named, c)),
+    rng,
+  )
+  return given.map((hand) => {
+    if (hand.length > size) throw new Error(`more than ${size} cards given`)
+    return [...hand, ...rest.splice(0, size - hand.length)]
+  })
+}
