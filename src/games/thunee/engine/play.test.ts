@@ -231,13 +231,13 @@ describe('normal scoring', () => {
 
   test('the call and Jodhi claims move points to and from the counting team', () => {
     const t = new Table(4, { redealIfNoTrumps: false }).deal(D1)
-    t.do(2, { type: 'call', amount: 10 }).do(1, { type: 'call', amount: 30 }).advance(10_000)
+    t.do(2, { type: 'call', amount: 10 }).do(1, { type: 'call', amount: 20 }).advance(10_000)
     t.do(1, { type: 'chooseTrump', choice: 'spades' }).advance(5000)
     t.play('Jc Qh 10c Qc').do(0, { type: 'claimJodhi', suit: 'spades', withJack: false })
     t.play('9c Kh Qd 10s').do(3, { type: 'claimJodhi', suit: 'hearts', withJack: false })
     t.play('Js 10h 10d Qs  9s Ah Ad Ks  As Ac 9d 9h  Kd Kc Jd Jh').endPause()
-    // 44 cards − 10 last trick + 30 call + 40 own Jodhi − 20 opposing Jodhi = 84
-    expect(result(t.game)).toMatchObject({ winner: 1, balls: 1, callAmount: 30, normal: { total: 84 } })
+    // 44 cards − 10 last trick + 20 call + 40 own Jodhi − 20 opposing Jodhi = 74
+    expect(result(t.game)).toMatchObject({ winner: 1, balls: 1, callAmount: 20, normal: { total: 74 } })
   })
 
   test('the counting team wins one ball without a call and two when a call was made', () => {

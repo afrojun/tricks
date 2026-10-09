@@ -22,7 +22,7 @@ export function sortHand(hand: readonly Card[]): Card[] {
 /** Thunee's own reasons for refusing an action; the shell words the table's. */
 export const REJECTIONS: Record<Exclude<RejectReason, TableReject>, string> = {
   notYourTurn: "It isn't your turn.",
-  badAmount: 'Call higher than the current call.',
+  badAmount: 'Call the next amount up.',
   cardNotInHand: "That card isn't in your hand.",
   illegalCard: 'That card breaks the rules, and cheating is off.',
   falseClaim: 'Cheating is off, so you can only call a Jodhi you have.',

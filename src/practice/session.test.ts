@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { availableActions } from '../games/thunee/engine'
+import { check } from '../games/thunee/coach/check'
 import type { Note } from '../games/thunee/coach/note'
 import { dwell } from '../games/thunee/ui/dwell'
 import { type ThuneePracticeSession, thuneePractice } from '../games/thunee/practice'
@@ -29,51 +30,76 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-/** A new four-player session whose player may call at the start. */
+/** A new four-player session whose player may make the first call. */
 function callingSession(storage = new MemoryStorage()) {
   for (let seed = 1; seed < 50; seed++) {
     const s = openPracticeSession(thuneePractice, dwell, { playerCount: 4, storage, seed })
     open.push(s)
     vi.runOnlyPendingTimers()
     const view = s.store.getState().view!
-    if (availableActions(view).calls.includes(104)) return { s, storage }
+    if (availableActions(view).calls[0] === 10) return { s, storage }
     s.close()
   }
   throw new Error('no seed lets seat 0 call')
 }
 
+/** A four-player session played on with the advice until the player may outcall the other side by more than their hand is worth. */
+function overcallSession(storage = new MemoryStorage()) {
+  for (let seed = 1; seed < 50; seed++) {
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: 4, storage, seed })
+    open.push(s)
+    for (let i = 0; i < 400; i++) {
+      vi.advanceTimersByTime(500)
+      const view = s.store.getState().view!
+      const amount = availableActions(view).calls[0]
+      if (view.phase.kind === 'calling' && amount !== undefined && check(view, { type: 'call', amount })?.rule === 'overcall') {
+        return { s, storage, amount, before: view.phase.call }
+      }
+      const c = s.coach.getState()
+      if (c.topic) s.coach.dismissTopic()
+      else if (c.warning) s.coach.confirm()
+      else if (c.trickPaused) s.coach.continueTrick()
+      else if (c.advice) s.send(c.advice.action)
+      else if (view.phase.kind === 'roundResult') s.send({ type: 'nextRound' })
+    }
+    s.close()
+  }
+  throw new Error('no seed lets seat 0 outcall')
+}
+
 describe('holding an action behind a warning', () => {
   test('a high call waits for the player to confirm', () => {
-    const { s } = callingSession()
-    s.send({ type: 'call', amount: 104 })
+    const { s, amount, before } = overcallSession()
+    const heard: unknown[] = []
+    s.store.onEvent((e) => heard.push(e))
+    s.send({ type: 'call', amount })
     vi.runOnlyPendingTimers()
     expect(s.coach.getState().warning?.note.rule).toBe('overcall')
-    expect(s.store.getState().view!.phase).toMatchObject({ kind: 'calling', call: null })
+    expect(s.store.getState().view!.phase).toMatchObject({ kind: 'calling', call: before })
     s.coach.confirm()
     vi.runOnlyPendingTimers()
     expect(s.coach.getState().warning).toBeNull()
-    // 104 is the top call, so calling ends and you choose trump.
-    expect(s.store.getState().view!.phase).toMatchObject({ kind: 'trumpSelection', trumper: 0, callAmount: 104 })
+    expect(heard).toContainEqual(expect.objectContaining({ type: 'called', seat: 0, amount }))
   })
 
   test('choosing again drops it', () => {
-    const { s } = callingSession()
-    s.send({ type: 'call', amount: 104 })
+    const { s, amount, before } = overcallSession()
+    s.send({ type: 'call', amount })
     s.coach.cancel()
     vi.runOnlyPendingTimers()
     expect(s.coach.getState().warning).toBeNull()
-    expect(s.store.getState().view!.phase).toMatchObject({ kind: 'calling', call: null })
+    expect(s.store.getState().view!.phase).toMatchObject({ kind: 'calling', call: before })
   })
 
   test('a reload while a warning is open has no warning and nothing applied', () => {
-    const { s, storage } = callingSession()
-    s.send({ type: 'call', amount: 104 })
+    const { s, storage, amount, before } = overcallSession()
+    s.send({ type: 'call', amount })
     s.close()
     const again = openPracticeSession(thuneePractice, dwell, { playerCount: null, storage })
     open.push(again)
     vi.runOnlyPendingTimers()
     expect(again.coach.getState().warning).toBeNull()
-    expect(again.store.getState().view!.phase).toMatchObject({ kind: 'calling', call: null })
+    expect(again.store.getState().view!.phase).toMatchObject({ kind: 'calling', call: before })
   })
 
   test('a broken follow-suit rule is already confirmed by the hand, so it is not held again', () => {

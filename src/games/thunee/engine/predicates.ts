@@ -10,17 +10,21 @@ export interface CallState {
   passed: Seat[]
 }
 
-/** Whether `seat` may still make a call in this calling window. */
+/**
+ * Whether `seat` may still make a call in this calling window. The default trumper's side may not open
+ * it: their partner may call only over the other side's call.
+ */
 export function mayCall(seat: Seat, s: CallState): boolean {
   if (s.passed.includes(seat)) return false
   if (callAmounts(s).length === 0) return false
-  if (s.call === null) return seat !== s.defaultTrumper
+  if (s.call === null) return teamOf(seat) !== teamOf(s.defaultTrumper)
   return teamOf(seat) !== teamOf(s.call.seat)
 }
 
+/** A call is always the next amount up: 10, then 20, and so on to 104. */
 export function callAmounts(s: CallState): number[] {
   const current = s.call?.amount ?? 0
-  return CALL_AMOUNTS.filter((a) => a > current)
+  return CALL_AMOUNTS.filter((a) => a > current).slice(0, 1)
 }
 
 /** The seat that will choose trump if the window closed now. */

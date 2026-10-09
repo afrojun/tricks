@@ -47,10 +47,24 @@ describe('dealing', () => {
 })
 
 describe('calling', () => {
-  test('the default trumper may not make the first call', () => {
+  test('the default trumper and their partner may not make the first call', () => {
     const t = new Table().deal(D1)
-    expect(t.try(1, { type: 'call', amount: 10 })).toBe('notAllowed')
-    expect(availableActions(viewFor(t.game, 1)).calls).toEqual([])
+    for (const seat of [1, 3]) {
+      expect(t.try(seat, { type: 'call', amount: 10 })).toBe('notAllowed')
+      expect(availableActions(viewFor(t.game, seat)).calls).toEqual([])
+    }
+    expect(availableActions(viewFor(t.game, 0)).calls).toEqual([10])
+  })
+
+  test("the default trumper's partner may call over the other side's call, and the window waits for them", () => {
+    const t = new Table().deal(D1).do(0, { type: 'pass' }).do(2, { type: 'pass' })
+    expect(t.game.phase.kind).toBe('trumpSelection')
+    const raised = new Table().deal(D1).do(2, { type: 'call', amount: 10 })
+    expect(availableActions(viewFor(raised.game, 3)).calls).toEqual([20])
+    raised.do(1, { type: 'pass' })
+    expect(raised.game.phase.kind).toBe('calling')
+    raised.do(3, { type: 'call', amount: 20 })
+    expect(calling(raised).call).toEqual({ seat: 3, amount: 20 })
   })
 
   test('only an opponent of the highest caller may raise, and only to a higher valid amount', () => {
@@ -58,10 +72,10 @@ describe('calling', () => {
     expect(t.try(0, { type: 'call', amount: 20 })).toBe('notAllowed') // partner
     expect(t.try(2, { type: 'call', amount: 20 })).toBe('notAllowed') // self
     expect(t.try(1, { type: 'call', amount: 10 })).toBe('badAmount')
-    expect(t.try(1, { type: 'call', amount: 15 })).toBe('badAmount')
+    expect(t.try(1, { type: 'call', amount: 30 })).toBe('badAmount') // only the next amount up
     t.do(1, { type: 'call', amount: 20 })
     expect(calling(t).call).toEqual({ seat: 1, amount: 20 })
-    expect(availableActions(viewFor(t.game, 0)).calls).toEqual([30, 40, 50, 60, 70, 80, 90, 100, 104])
+    expect(availableActions(viewFor(t.game, 0)).calls).toEqual([30])
   })
 
   test('each call restarts the window; it closes when the deadline passes', () => {
@@ -77,11 +91,11 @@ describe('calling', () => {
 
   test('with no call the default trumper chooses, and the window closes early once everyone else passes', () => {
     const t = new Table().deal(D1)
-    t.do(0, { type: 'pass' }).do(2, { type: 'pass' })
+    t.do(0, { type: 'pass' })
     expect(t.game.phase.kind).toBe('calling')
     expect(t.try(0, { type: 'pass' })).toBe('notAllowed')
     expect(t.try(0, { type: 'call', amount: 10 })).toBe('notAllowed')
-    t.do(3, { type: 'pass' })
+    t.do(2, { type: 'pass' })
     expect(t.game.phase).toMatchObject({ kind: 'trumpSelection', trumper: 1, callAmount: 0 })
   })
 
@@ -90,7 +104,7 @@ describe('calling', () => {
     expect(calling(t).deadline).toBeNull()
     expect(viewFor(t.game, 0).phase).toMatchObject({ deadline: null })
     expect(nextDeadline(t.game)).toBeNull()
-    expect(t.game.waiting.map((w) => w.seat)).toEqual([0, 2, 3])
+    expect(t.game.waiting.map((w) => w.seat)).toEqual([0, 2])
     t.do(2, { type: 'call', amount: 10 })
     t.now += 600_000
     t.do('system', { type: 'tick' }) // the system's tick changes nothing
@@ -104,11 +118,13 @@ describe('calling', () => {
     const dealt = t.now
     t.now += 50_000
     t.do(0, { type: 'pass' })
-    expect(t.game.waiting).toEqual([{ seat: 2, since: dealt }, { seat: 3, since: dealt }])
+    expect(t.game.waiting).toEqual([{ seat: 2, since: dealt }])
     t.do(2, { type: 'call', amount: 10 })
     expect(t.game.waiting).toEqual([{ seat: 1, since: t.now }, { seat: 3, since: t.now }])
     t.now += 50_000
-    t.do(1, { type: 'call', amount: 104 })
+    t.do(1, { type: 'call', amount: 20 })
+    expect(t.game.waiting).toEqual([{ seat: 2, since: t.now }]) // seat 0 has passed
+    t.do(2, { type: 'pass' })
     expect(t.game.waiting).toEqual([{ seat: 1, since: t.now }]) // now choosing trump
     t.now += 50_000
     t.do(1, { type: 'chooseTrump', choice: 'spades' })
@@ -240,7 +256,7 @@ describe('thunee window', () => {
 
   test('without timers the window waits for everyone eligible; a held call waits only for the trumper’s team', () => {
     const t = new Table(4, { redealIfNoTrumps: false, timers: false, thuneeWindowSeconds: 0 }).deal(D1)
-    t.do(0, { type: 'pass' }).do(2, { type: 'pass' }).do(3, { type: 'pass' }).do(1, { type: 'chooseTrump', choice: 'spades' })
+    t.do(0, { type: 'pass' }).do(2, { type: 'pass' }).do(1, { type: 'chooseTrump', choice: 'spades' })
     expect(t.game.phase).toMatchObject({ kind: 'thuneeWindow', deadline: null })
     expect(t.game.waiting.map((w) => w.seat)).toEqual([0, 1, 2, 3])
     t.do(0, { type: 'callThunee' })

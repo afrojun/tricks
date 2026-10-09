@@ -163,7 +163,7 @@ describe('advice', () => {
 
   test('a strong hand that has been outcalled is not called weak', () => {
     const t = four(['Jh Jd Qs Qc 10c 10d', 'Ks Kc 9s 9c Kd Qd', 'Js Ah 10h As Ac Jc', '9h 9d Ad 10s Kh Qh'])
-    t.do(3, { type: 'call', amount: 40 })
+    t.do(0, { type: 'call', amount: 10 }).do(1, { type: 'call', amount: 20 }).do(0, { type: 'call', amount: 30 }).do(3, { type: 'call', amount: 40 })
     const a = advise(you(t.game))!
     expect(a.action).toEqual({ type: 'pass' })
     expect(a.note.body).toMatch(/up to 30/)

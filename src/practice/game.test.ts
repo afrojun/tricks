@@ -122,8 +122,8 @@ describe('saving', () => {
 
 describe('the round log', () => {
   test('a redealt hand leaves no decision behind', () => {
-    // Four players, seed 14: following the advice, seat 0's trump choice leaves the counting side without trumps.
-    const p = PracticeGame.start(thuneePractice, 4, 14, 'Ann')
+    // Four players, seed 30: following the advice, seat 0's trump choice leaves the counting side without trumps.
+    const p = PracticeGame.start(thuneePractice, 4, 30, 'Ann')
     let redealt = false
     playPractice(p, 3000, undefined, (g) => {
       const phase = g.game.phase

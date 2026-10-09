@@ -443,14 +443,13 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
       {can.calls.length > 0 && (
         <div className="grid gap-2">
           {coached && <p className="panel-note text-center text-sm text-on-surface-muted">{CALL_NOTE}</p>}
-          {/* As many columns as fit, Pass in the last cell, so a phone shows two or three rows rather than four. */}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-1.5">
+          <div className="grid grid-cols-2 gap-2">
             {can.calls.map((amount) => (
-              <button key={amount} className="btn btn-primary btn-small !px-1" onClick={() => commit({ type: 'call', amount })} aria-label={`Call ${amount}`}>
-                {amount}
+              <button key={amount} className="btn btn-primary" onClick={() => commit({ type: 'call', amount })}>
+                Call {amount}
               </button>
             ))}
-            <button className="btn btn-small !px-1" onClick={() => commit({ type: 'pass' })}>
+            <button className="btn" onClick={() => commit({ type: 'pass' })}>
               Pass
             </button>
           </div>

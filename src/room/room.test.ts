@@ -327,6 +327,11 @@ describe('tokens are looked up only among the room’s own', () => {
     expect(due).not.toBeNull()
     expect(w.alarm).toBe(Math.max(due!, w.now + 1))
   }
+  /** The alarm follows the saved game: its next deadline, or none while the game waits only on a person. */
+  function expectAlarmFollows(w: World) {
+    const due = gameOf(w.host.name)!.nextDeadline(saved(w).game)
+    expect(w.alarm).toBe(due === null ? null : Math.max(due, w.now + 1))
+  }
   const troubles = (conns: FakeConn[]) => conns.flatMap((c) => c.inbox).filter((m) => m.type === 'error' || m.type === 'rejected')
 
   for (const name of GAMES) {
@@ -356,7 +361,7 @@ describe('tokens are looked up only among the room’s own', () => {
       await w.fireAlarm() // a computer's turn
       expect(me.sync.version).toBeGreaterThan(version)
       for (const s of strangers) expect(s.sync.version).toBe(me.sync.version)
-      expectArmed(w)
+      expectAlarmFollows(w)
       expect(troubles([me, ...strangers])).toEqual([])
     })
 
