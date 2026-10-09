@@ -3,6 +3,7 @@ import { ErrorBoundary, GameScreen } from './ui/GameScreen'
 import { GAMES, loadGame } from './ui/games'
 import { Home } from './ui/Home'
 import { PracticeScreen } from './ui/PracticeScreen'
+import { RulesScreen } from './ui/RulesScreen'
 import { TricksLink } from './ui/TopBar'
 import { TricksHome } from './ui/TricksHome'
 import { type Route, route } from './ui/routes'
@@ -17,7 +18,7 @@ function GameRoutes({ at }: { at: GameRoute }) {
   const game = use(loadGame(at.game))
   return (
     <GameProvider value={game}>
-      {at.screen === 'practice' ? <PracticeScreen /> : at.screen === 'room' ? <GameScreen room={at.code} /> : <Home />}
+      {at.screen === 'practice' ? <PracticeScreen /> : at.screen === 'room' ? <GameScreen room={at.code} /> : at.screen === 'rules' ? <RulesScreen /> : <Home />}
     </GameProvider>
   )
 }

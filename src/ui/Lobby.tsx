@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react'
+import { diff } from '../kit/rules'
 import { canStart, cleanName } from '../kit/table'
+import { sameOverrides } from '../presets/book'
+import { encodeShare } from '../presets/share'
+import { listPresets } from '../presets/storage'
 import type { ShellView } from './contract'
 import { type GameSetup, setupKey } from './Home'
-import { RulesEditor, RulesList, rulesSummary } from './Rules'
-import { gamePath, roomPath } from './routes'
+import { Link } from './Link'
+import { RulesList, rulesSummary } from './Rules'
+import { gamePath, roomPath, rulesPath } from './routes'
 import { PERSONA_CHOICES, lobbyPersonaLabel } from './personas'
 import { partnersLine, seatLabel, teamsAt } from './seats'
 import { Sheet } from './Sheet'
@@ -28,7 +33,12 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
   const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) ?? '')
   const [copied, setCopied] = useState(false)
   const [picking, setPicking] = useState<number | null>(null)
-  const [sheet, setSheet] = useState<'rules' | 'edit' | null>(null)
+  const [sheet, setSheet] = useState(false)
+  // The host's presets, from this device, as the home offers them.
+  const [presets] = useState(() => listPresets(game))
+  const overrides = diff(game.rules.defaults, view.rules)
+  // None when the room's rules match nothing here: rules the creator brought, or a preset this host does not have.
+  const active = presets.find((p) => sameOverrides(game.rules, p.overrides, overrides))
   const me = view.seat
   const isHost = me !== null && view.host === me
   const empty = view.seats.filter((s) => s.kind === 'empty').length
@@ -143,14 +153,24 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
       <section className="panel p-4 w-full max-w-sm grid gap-3">
         <h2 className="display text-lg">Rules</h2>
         <p>{rulesSummary(game, view.rules)}</p>
-        <div className="flex flex-wrap gap-2">
-          <button className="btn btn-small" onClick={() => setSheet('rules')}>
+        {isHost && (
+          <div className="flex flex-wrap gap-2">
+            {presets.map((preset) => (
+              <button key={preset.id} className="btn btn-small" aria-pressed={preset.id === active?.id} onClick={() => send({ type: 'setRules', overrides: preset.overrides })}>
+                {preset.name}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="btn btn-small" onClick={() => setSheet(true)}>
             See every rule
           </button>
+          {/* The room's rules arrive on the rules screen as a shared preset, to be saved, changed, and picked here. */}
           {isHost && (
-            <button className="btn btn-small" onClick={() => setSheet('edit')}>
-              Change rules
-            </button>
+            <Link href={rulesPath(game.id, { shared: encodeShare(`Game ${room}`, overrides), from: room })} className="btn btn-small btn-quiet">
+              Make your own
+            </Link>
           )}
         </div>
         {isHost && game.seatCounts.length > 1 && (
@@ -183,14 +203,9 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
         )}
       </div>
 
-      {sheet === 'rules' && (
-        <Sheet title="Rules" onClose={() => setSheet(null)}>
+      {sheet && (
+        <Sheet title="Rules" onClose={() => setSheet(false)}>
           <RulesList game={game} rules={view.rules} />
-        </Sheet>
-      )}
-      {sheet === 'edit' && (
-        <Sheet title="Change rules" onClose={() => setSheet(null)}>
-          <RulesEditor game={game} rules={view.rules} onChange={(overrides) => send({ type: 'setRules', overrides })} />
         </Sheet>
       )}
       {picking !== null && personas && view.seats[picking]?.kind === 'ai' && (

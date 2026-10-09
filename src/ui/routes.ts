@@ -1,4 +1,5 @@
 /** Where each address leads, and how addresses are built. Pure, so it is tested without a browser. */
+import { SHARE_PARAM } from '../presets/share'
 import { GAMES, type GameId } from './games'
 
 /** The games with screens. A game the server holds has an address here only once it has them. */
@@ -9,6 +10,7 @@ export type Route =
   | { screen: 'home'; game: GameId }
   | { screen: 'room'; game: GameId; code: string }
   | { screen: 'practice'; game: GameId }
+  | { screen: 'rules'; game: GameId }
 
 export const CODE_LENGTH = 6
 
@@ -26,6 +28,7 @@ export function route(path: string): Route {
   if (rest === undefined) return { screen: 'home', game }
   // Before a code: cleaned, "practice" would read as the code PRACTI.
   if (rest === 'practice') return { screen: 'practice', game }
+  if (rest === 'rules') return { screen: 'rules', game }
   // Read like a typed code, as `/game/<x>` was: upper-cased, letters only, the first six kept.
   // So ABCDEFG and ab-cd-ef both open ABCDEF; fewer than six letters lead to the game's home.
   const code = cleanCode(rest)
@@ -58,4 +61,35 @@ export function opensInPlace(click: LinkClick): boolean {
 /** With a player count, a new practice game; without, the saved one. */
 export function practicePath(game: string, players?: number): string {
   return `/${game}/practice${players === undefined ? '' : `?players=${players}`}`
+}
+
+/** What the rules screen's address may carry: a preset to select, a shared preset's code, and the room it was opened from. */
+export interface RulesQuery {
+  preset?: string
+  shared?: string
+  from?: string
+}
+
+const PRESET_PARAM = 'preset'
+const FROM_PARAM = 'from'
+
+/** `/<game>/rules`, selecting a preset, showing a shared one, or with its back link to a room. */
+export function rulesPath(game: string, query: RulesQuery = {}): string {
+  const params = new URLSearchParams()
+  if (query.preset !== undefined) params.set(PRESET_PARAM, query.preset)
+  if (query.shared !== undefined) params.set(SHARE_PARAM, query.shared)
+  if (query.from !== undefined) params.set(FROM_PARAM, query.from)
+  const search = params.toString()
+  return `/${game}/rules${search ? `?${search}` : ''}`
+}
+
+/** Reads the rules screen's query. A `from` that is not a room code is ignored. */
+export function rulesQuery(search: string): RulesQuery {
+  const params = new URLSearchParams(search)
+  const from = cleanCode(params.get(FROM_PARAM) ?? '')
+  return {
+    preset: params.get(PRESET_PARAM) ?? undefined,
+    shared: params.get(SHARE_PARAM) ?? undefined,
+    from: from.length === CODE_LENGTH ? from : undefined,
+  }
 }

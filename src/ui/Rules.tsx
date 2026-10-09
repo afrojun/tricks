@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { diff } from '../kit/rules'
 import { type RuleInfo, type RulesOf, defaultsName, differenceCount, isDefault, sameOverrides, typedNumber, valueLabel, withRule } from '../presets/book'
-import { shareUrl } from '../presets/share'
-import { type Preset, listPresets, savePreset } from '../presets/storage'
+import { listPresets } from '../presets/storage'
 import { Sheet } from './Sheet'
-import { copyText } from './text'
 
 /** One line saying which rules are in force. */
 export function rulesSummary<R extends object>(game: RulesOf<R>, rules: R): string {
@@ -88,7 +86,7 @@ function RuleControl<R extends object>({ info, rules, onChange }: { info: RuleIn
       </div>
     )
   }
-  // A new value from the room starts the field again from it.
+  // A new value, from the room or the saved preset, starts the field again from it.
   return <NumberRule key={value as number} info={info} value={value as number} onChange={onChange} />
 }
 
@@ -163,66 +161,20 @@ function NumberRule<R extends object>({ info, value, onChange }: { info: RuleInf
   )
 }
 
-/** Preset picker plus per-rule controls. Calls `onChange` with the overrides to apply. */
-export function RulesEditor<R extends object>({ game, rules, onChange }: { game: RulesOf<R>; rules: R; onChange: (overrides: Partial<R>) => void }) {
+/** A control for every rule, as the rules screen edits a saved preset. Calls `onChange` with the overrides to save. */
+export function RuleControls<R extends object>({ game, rules, onChange }: { game: RulesOf<R>; rules: R; onChange: (overrides: Partial<R>) => void }) {
   const book = game.rules
-  const [presets, setPresets] = useState<Preset<R>[]>(() => listPresets(game))
-  const [name, setName] = useState('')
-  const [copied, setCopied] = useState(false)
-  const overrides = diff(book.defaults, rules)
-  const active = presets.find((p) => sameOverrides(book, p.overrides, overrides))
-
-  const save = () => {
-    if (savePreset(game, name, overrides)) {
-      setPresets(listPresets(game))
-      setName('')
-    }
-  }
-  const share = async () => {
-    if (await copyText(shareUrl(game, active?.name ?? (name || 'House rules'), overrides))) {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
   return (
-    <div className="grid gap-4">
-      <div>
-        <p className="mb-2 font-semibold">Start from a preset</p>
-        <div className="flex flex-wrap gap-2">
-          {presets.map((preset) => (
-            <button key={preset.id} className="btn btn-small" aria-pressed={preset.id === active?.id} onClick={() => onChange(preset.overrides)}>
-              {preset.name}
-            </button>
-          ))}
+    <div className="grid gap-3">
+      {book.info.map((info) => (
+        <div key={String(info.key)} className="grid gap-1 border-b border-line/40 pb-3">
+          <p>
+            {info.label}
+            {!isDefault(book, info.key, rules) && <span className="text-on-surface-muted"> (house rule)</span>}
+          </p>
+          <RuleControl info={info} rules={rules} onChange={(patch) => onChange(withRule(book, rules, patch))} />
         </div>
-      </div>
-
-      <div className="grid gap-3">
-        {book.info.map((info) => (
-          <div key={String(info.key)} className="grid gap-1 border-b border-line/40 pb-3">
-            <p>
-              {info.label}
-              {!isDefault(book, info.key, rules) && <span className="text-on-surface-muted"> (house rule)</span>}
-            </p>
-            <RuleControl info={info} rules={rules} onChange={(patch) => onChange(withRule(book, rules, patch))} />
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-2">
-        {!active && (
-          <div className="flex gap-2">
-            <input className="field" placeholder="Name these rules" value={name} maxLength={30} onChange={(e) => setName(e.target.value)} />
-            <button className="btn btn-primary" onClick={save} disabled={name.trim() === ''}>
-              Save preset
-            </button>
-          </div>
-        )}
-        <button className="btn" onClick={share}>
-          {copied ? 'Link copied' : 'Copy link to these rules'}
-        </button>
-      </div>
+      ))}
     </div>
   )
 }

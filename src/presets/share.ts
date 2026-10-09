@@ -43,7 +43,7 @@ export function decodeShare<R extends object>(game: RulesOf<R>, code: string): D
   return { ok: true, name: name ?? 'Shared rules', overrides: overrides.data }
 }
 
-/** Opens the game's home, which offers to save the preset. */
+/** Opens the game's home, which hands it to the game's rules screen to be saved. */
 export function shareUrl<R extends object>(game: RulesOf<R>, name: string, overrides: Partial<R>, origin: string = location.origin): string {
   return `${origin}/${game.id}?${SHARE_PARAM}=${encodeShare(name, overrides)}`
 }

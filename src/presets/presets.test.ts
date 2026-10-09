@@ -4,7 +4,7 @@ import { ruleBook } from '../games/thunee/ui/rules'
 import { z } from 'zod'
 import { type RuleBook, type RulesOf, differenceCount, valueLabel } from './book'
 import { decodeShare, encodeShare, shareUrl } from './share'
-import { deletePreset, listPresets, renamePreset, savePreset } from './storage'
+import { deletePreset, listPresets, presetChoiceKey, readChoice, renamePreset, savePreset, updatePreset, writeChoice } from './storage'
 
 const THUNEE = { id: 'thunee', name: 'Thunee', rules: ruleBook }
 const RULE_INFO = ruleBook.info
@@ -64,6 +64,74 @@ describe('preset storage', () => {
     }
     expect(savePreset(THUNEE, '   ', {}, store)).toBeNull()
     expect(listPresets(THUNEE, store)).toHaveLength(2)
+  })
+
+  test('a saved preset’s rules are changed in place, and only a saved one’s', () => {
+    const store = memoryStore()
+    const saved = savePreset(THUNEE, 'Friday night', { double: false }, store)!
+    expect(updatePreset(THUNEE, saved.id, { ballsToWin: 6 }, store)).toBe(true)
+    expect(listPresets(THUNEE, store)[2]).toMatchObject({ id: saved.id, name: 'Friday night', overrides: { ballsToWin: 6 } })
+    for (const builtIn of BUILT_IN_PRESETS) expect(updatePreset(THUNEE, builtIn.id, { ballsToWin: 6 }, store)).toBe(false)
+    expect(updatePreset(THUNEE, 'nobody', { ballsToWin: 6 }, store)).toBe(false)
+    expect(listPresets(THUNEE, store).map((p) => p.overrides)).toEqual([{}, BUILT_IN_PRESETS[1].overrides, { ballsToWin: 6 }])
+  })
+
+  test('a write storage refuses changes nothing and says so', () => {
+    const store = memoryStore()
+    const saved = savePreset(THUNEE, 'Friday night', { double: false }, store)!
+    const before = store.data.get('tricks-thunee-presets')
+    const full = { getItem: store.getItem, setItem: () => { throw new DOMException('full', 'QuotaExceededError') } }
+    expect(savePreset(THUNEE, 'Another', {}, full)).toBeNull()
+    expect(updatePreset(THUNEE, saved.id, { ballsToWin: 6 }, full)).toBe(false)
+    expect(renamePreset(THUNEE, saved.id, 'Saturday', full)).toBe(false)
+    expect(deletePreset(THUNEE, saved.id, full)).toBe(false)
+    expect(writeChoice('thunee', saved.id, full)).toBe(false)
+    expect(store.data.get('tricks-thunee-presets')).toBe(before)
+    expect(listPresets(THUNEE, store).map((p) => p.name)).toEqual(['Traditional', 'Tuscans', 'Friday night'])
+  })
+
+  test('ids are unique: a saved id that is a built-in’s or an earlier saved one’s is dropped', () => {
+    const tampered = JSON.stringify([
+      { id: 'traditional', name: 'Fake Traditional', overrides: { double: false } },
+      { id: 'mine', name: 'Mine', overrides: { ballsToWin: 6 } },
+      { id: 'mine', name: 'Mine again', overrides: { ballsToWin: 13 } },
+      { id: 'classic-app', name: 'Fake Tuscans', overrides: {} },
+    ])
+    const store = memoryStore(tampered)
+    expect(listPresets(THUNEE, store).map((p) => [p.id, p.name])).toEqual([
+      ['traditional', 'Traditional'],
+      ['classic-app', 'Tuscans'],
+      ['mine', 'Mine'],
+    ])
+    // A built-in's id never reaches a saved one, whatever storage holds.
+    expect(updatePreset(THUNEE, 'traditional', { ballsToWin: 6 }, store)).toBe(false)
+    expect(renamePreset(THUNEE, 'traditional', 'Mine', store)).toBe(false)
+    expect(deletePreset(THUNEE, 'traditional', store)).toBe(false)
+    // A change writes back only what was read.
+    expect(updatePreset(THUNEE, 'mine', { ballsToWin: 7 }, store)).toBe(true)
+    expect(JSON.parse(store.data.get('tricks-thunee-presets')!)).toEqual([{ id: 'mine', name: 'Mine', overrides: { ballsToWin: 7 } }])
+  })
+
+  test('the chosen preset is remembered by id; a missing or unknown id means the first', () => {
+    const store = memoryStore()
+    expect(presetChoiceKey('thunee')).toBe('tricks-thunee-preset')
+    expect(readChoice(THUNEE, store)).toBe('traditional')
+    expect(writeChoice('thunee', 'classic-app', store)).toBe(true)
+    expect(store.data.get('tricks-thunee-preset')).toBe('classic-app')
+    expect(readChoice(THUNEE, store)).toBe('classic-app')
+    const saved = savePreset(THUNEE, 'Mine', { double: false }, store)!
+    writeChoice('thunee', saved.id, store)
+    expect(readChoice(THUNEE, store)).toBe(saved.id)
+    deletePreset(THUNEE, saved.id, store)
+    expect(readChoice(THUNEE, store)).toBe('traditional')
+    writeChoice('thunee', 'nobody', store)
+    expect(readChoice(THUNEE, store)).toBe('traditional')
+    // Each game remembers its own.
+    writeChoice('toy', 'quick', store)
+    expect(readChoice(TOY, store)).toBe('quick')
+    expect(readChoice(THUNEE, store)).toBe('traditional')
+    const off = { getItem: () => { throw new Error('off') }, setItem: () => { throw new Error('off') } }
+    expect(readChoice(TOY, off)).toBe('plain')
   })
 
   test('corrupt or tampered storage is ignored instead of crashing', () => {

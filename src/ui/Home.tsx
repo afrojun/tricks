@@ -1,12 +1,11 @@
-import { useState } from 'react'
-import { resolve } from '../kit/rules'
-import { SHARE_PARAM, decodeShare } from '../presets/share'
-import { listPresets, savePreset } from '../presets/storage'
+import { useEffect, useLayoutEffect, useState } from 'react'
+import { SHARE_PARAM } from '../presets/share'
+import { listPresets, presetsKey, readChoice, writeChoice } from '../presets/storage'
 import { GameStrip } from './GameStrip'
-import { RulesList, RulesSheet } from './Rules'
-import { CODE_LENGTH, cleanCode, practicePath, roomPath } from './routes'
+import { Link } from './Link'
+import { CODE_LENGTH, cleanCode, practicePath, roomPath, rulesPath } from './routes'
 import { countWord, playersLabel, teamsAt } from './seats'
-import { navigate, useGameClient } from './session'
+import { navigate, replaceAddress, useGameClient } from './session'
 import { playSound } from './sound'
 import { TopBar, TricksLink } from './TopBar'
 
@@ -25,43 +24,6 @@ export interface GameSetup {
 
 export function setupKey(game: string, code: string): string {
   return `tricks-${game}-setup-${code}`
-}
-
-function SharedRules({ code, onSaved }: { code: string; onSaved: () => void }) {
-  const game = useGameClient()
-  const decoded = decodeShare(game, code)
-  const [saved, setSaved] = useState(false)
-  if (!decoded.ok) {
-    return (
-      <section className="panel p-4" role="alert">
-        <h2 className="display text-lg mb-1">Rules link</h2>
-        <p>{decoded.error}</p>
-      </section>
-    )
-  }
-  return (
-    <section className="panel p-4 grid gap-3">
-      <h2 className="display text-lg">Shared rules: {decoded.name}</h2>
-      <details>
-        <summary className="cursor-pointer">See every rule</summary>
-        <div className="mt-3">
-          <RulesList game={game} rules={resolve(game.rules.defaults, decoded.overrides)} />
-        </div>
-      </details>
-      <button
-        className="btn btn-primary"
-        disabled={saved}
-        onClick={() => {
-          if (savePreset(game, decoded.name, decoded.overrides)) {
-            setSaved(true)
-            onSaved()
-          }
-        }}
-      >
-        {saved ? 'Saved to your presets' : 'Save as a preset'}
-      </button>
-    </section>
-  )
 }
 
 /**
@@ -124,20 +86,37 @@ function LearnToPlay() {
   )
 }
 
-/** `/<game>`: a game's home. Practice, create, join, presets, and the way to Tricks and its other games. */
+/** `/<game>`: a game's home. Practice, create, join, a preset to create with, and the way to Tricks, the house rules and the other games. */
 export function Home() {
   const game = useGameClient()
   const [playerCount, setPlayerCount] = useState(() => bySize(game.seatCounts)[0])
   const [presets, setPresets] = useState(() => listPresets(game))
-  const [presetId, setPresetId] = useState(presets[0].id)
+  const [presetId, setPresetId] = useState(() => readChoice(game))
   const [joinCode, setJoinCode] = useState('')
-  const [rules, setRules] = useState(false)
-  const shared = new URLSearchParams(location.search).get(SHARE_PARAM)
-  const preset = presets.find((p) => p.id === presetId)
-  const overrides = preset?.overrides ?? {}
+  // A preset that is gone, here or in another tab, falls back to the first.
+  const preset = presets.find((p) => p.id === presetId) ?? presets[0]
 
+  // A share link (`/<game>?rules=<code>`) is the rules screen's to show.
+  useLayoutEffect(() => {
+    const shared = new URLSearchParams(location.search).get(SHARE_PARAM)
+    if (shared !== null) replaceAddress(rulesPath(game.id, { shared }))
+  }, [game])
+  // Another tab may change the presets.
+  useEffect(() => {
+    const reread = (e: StorageEvent) => e.key === presetsKey(game.id) && setPresets(listPresets(game))
+    addEventListener('storage', reread)
+    return () => removeEventListener('storage', reread)
+  }, [game])
+
+  const choose = (id: string) => {
+    setPresetId(id)
+    writeChoice(game.id, id)
+  }
   const create = () => {
     playSound('tap')
+    // The preset as saved now, which the lobby applies once, for its creator.
+    const now = listPresets(game)
+    const overrides = (now.find((p) => p.id === presetId) ?? now[0]).overrides
     const code = newGameCode()
     sessionStorage.setItem(setupKey(game.id, code), JSON.stringify({ playerCount, overrides } satisfies GameSetup))
     navigate(roomPath(game.id, code))
@@ -148,12 +127,11 @@ export function Home() {
       <TopBar
         left={<TricksLink />}
         right={
-          <button className="btn btn-quiet btn-small" onClick={() => setRules(true)}>
+          <Link href={rulesPath(game.id)} className="btn btn-quiet btn-small">
             House rules
-          </button>
+          </Link>
         }
       />
-      {rules && <RulesSheet game={game} rules={resolve(game.rules.defaults, overrides)} title="House rules" summary={preset?.name} onClose={() => setRules(false)} />}
       <header className="text-center">
         <h1 className="wordmark text-[4.2rem] md:text-[6rem]">{game.name}</h1>
         <p className="font-semibold mt-1">{game.tagline}</p>
@@ -161,19 +139,6 @@ export function Home() {
 
       {/* One column on a phone; from md, Learn and Play side by side, the rest across both. */}
       <div className="home-width grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
-      {shared !== null && (
-        <div className="md:col-span-2">
-          <SharedRules
-            code={shared}
-            onSaved={() => {
-              const next = listPresets(game)
-              setPresets(next)
-              setPresetId(next[next.length - 1].id)
-            }}
-          />
-        </div>
-      )}
-
       <LearnToPlay />
 
       <section className="panel p-4 grid gap-3">
@@ -193,11 +158,14 @@ export function Home() {
         <div className="grid gap-1">
           <span>Rules</span>
           <div className="flex flex-wrap gap-2">
-            {presets.map((preset) => (
-              <button key={preset.id} className="btn btn-small" aria-pressed={preset.id === presetId} onClick={() => setPresetId(preset.id)}>
-                {preset.name}
+            {presets.map((p) => (
+              <button key={p.id} className="btn btn-small" aria-pressed={p.id === preset.id} onClick={() => choose(p.id)}>
+                {p.name}
               </button>
             ))}
+            <Link href={rulesPath(game.id, { preset: preset.id })} className="btn btn-small btn-quiet">
+              Edit…
+            </Link>
           </div>
         </div>
         <button className="btn btn-primary" onClick={create}>

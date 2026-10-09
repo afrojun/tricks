@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { cleanCode, gamePath, opensInPlace, practicePath, roomPath, route } from './routes'
+import { cleanCode, gamePath, opensInPlace, practicePath, roomPath, route, rulesPath, rulesQuery } from './routes'
 
 describe('routes', () => {
   test('the root is the Tricks home', () => {
@@ -19,6 +19,34 @@ describe('routes', () => {
   test('practice is matched before a room code', () => {
     expect(route('/thunee/practice')).toEqual({ screen: 'practice', game: 'thunee' })
     expect(route('/thunee/practice/')).toEqual({ screen: 'practice', game: 'thunee' })
+  })
+
+  test('a game’s house rules have their own screen, matched before a room code', () => {
+    expect(route('/thunee/rules')).toEqual({ screen: 'rules', game: 'thunee' })
+    expect(route('/thunee/rules/')).toEqual({ screen: 'rules', game: 'thunee' })
+    expect(route('/hearts/rules')).toEqual({ screen: 'rules', game: 'hearts' })
+    // The query is the screen's, not the route's.
+    expect(route(new URL('https://x.example/thunee/rules?preset=x').pathname)).toEqual({ screen: 'rules', game: 'thunee' })
+    // Typed as a code it has five letters, so it leads to the game's home, as it always did.
+    expect(route('/thunee/RULES')).toEqual({ screen: 'home', game: 'thunee' })
+    expect(route('/thunee/rules/extra')).toEqual({ screen: 'tricks' })
+  })
+
+  test('the rules screen’s address is built the way it is read', () => {
+    expect(rulesPath('thunee')).toBe('/thunee/rules')
+    expect(rulesPath('thunee', { preset: 'x' })).toBe('/thunee/rules?preset=x')
+    expect(rulesPath('hearts', { shared: 'abc-_', from: 'QWERTY' })).toBe('/hearts/rules?rules=abc-_&from=QWERTY')
+    expect(route(new URL(rulesPath('thunee', { preset: 'p-1' }), 'https://x.example').pathname)).toEqual({ screen: 'rules', game: 'thunee' })
+    expect(rulesQuery('?preset=x')).toEqual({ preset: 'x', shared: undefined, from: undefined })
+    expect(rulesQuery(new URL(rulesPath('thunee', { preset: 'p 1&2', shared: 'code', from: 'QWERTY' }), 'https://x.example').search)).toEqual({
+      preset: 'p 1&2',
+      shared: 'code',
+      from: 'QWERTY',
+    })
+    // A room to go back to is a room code, cleaned as one; anything else is ignored.
+    expect(rulesQuery('?from=qwerty').from).toBe('QWERTY')
+    expect(rulesQuery('?from=abc').from).toBeUndefined()
+    expect(rulesQuery('')).toEqual({ preset: undefined, shared: undefined, from: undefined })
   })
 
   test('a segment is read like a typed code: letters only, upper-cased, the first six kept', () => {

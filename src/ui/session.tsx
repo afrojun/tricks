@@ -123,6 +123,12 @@ export function navigate(path: string): void {
   dispatchEvent(new PopStateEvent('popstate'))
 }
 
+/** Like `navigate`, but in place of the current entry, so the browser's back button skips it. */
+export function replaceAddress(path: string): void {
+  history.replaceState(null, '', path)
+  dispatchEvent(new PopStateEvent('popstate'))
+}
+
 export function usePath(): string {
   return useSyncExternalStore(
     (notify) => {
