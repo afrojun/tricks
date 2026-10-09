@@ -61,7 +61,7 @@ interface DrillTable<G, A> {
 
 ## 4. Screens
 
-- **Home**: "Learn to play" gains a **Drills** button; its sheet lists each drill's title and summary, ticked once passed.
+- **Home**: "Learn to play" gains **Drills…** on its heading's line, as "Edit…" is on the rules', so the home keeps to one screen at 390x844; its sheet lists each drill's title and summary, ticked once passed.
 - **Brief**: a sheet over the table, with the drill's title, its note and cards, a topic link, and **Start**.
 - **Verdict**: a sheet, "Well played" or "Not quite", with the note, **Try again**, **Next drill** and **All drills**. Closing it leaves the table in view and the strip offers **Try again**.
 - **Round result**: in a drill, no "Deal next round".

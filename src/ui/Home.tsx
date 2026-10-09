@@ -57,7 +57,15 @@ function LearnToPlay() {
   }
   return (
     <section className="panel p-4 grid gap-3">
-      <h2 className="display text-xl">Learn to play</h2>
+      {/* "Drills…" on the heading's line, as "Edit…" is on the rules', so the page keeps to one screen. */}
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="display text-xl">Learn to play</h2>
+        {practice.drills.length > 0 && (
+          <button className="font-semibold underline underline-offset-2" onClick={() => setDrillsOpen(true)}>
+            Drills…
+          </button>
+        )}
+      </div>
       {/* A returning learner knows what practice is; the line it saves keeps the page on one screen. */}
       {!saved && <p>Against the computer, with a coach who explains every move.</p>}
       {saved && (
@@ -85,11 +93,6 @@ function LearnToPlay() {
           </button>
         ))}
       </div>
-      {practice.drills.length > 0 && (
-        <button className="btn" onClick={() => setDrillsOpen(true)}>
-          Drills: one rule at a time
-        </button>
-      )}
       {drillsOpen && (
         <DrillsSheet
           onClose={() => {
@@ -186,10 +189,8 @@ export function Home() {
         <p className="font-semibold mt-1">{game.tagline}</p>
       </header>
 
-      {/* One column on a phone; from md, Learn and Play side by side, the rest across both. */}
+      {/* One column on a phone, Play above Learn; from md, Play and Learn side by side, the rest across both. */}
       <div className="home-width grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
-      <LearnToPlay />
-
       <section className="panel p-4 grid gap-3">
         <h2 className="display text-xl">Play with friends</h2>
         {game.seatCounts.length > 1 && (
@@ -252,6 +253,8 @@ export function Home() {
           </span>
         </form>
       </section>
+
+      <LearnToPlay />
 
       <GameStrip current={game.id} />
       </div>

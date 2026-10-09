@@ -52,7 +52,7 @@ async function playThrough(game: string, id: string): Promise<boolean> {
 
 for (const game of ['thunee', 'hearts']) {
   await page.goto(`${base}/${game}`)
-  await button('Drills: one rule at a time').click()
+  await button('Drills…').click()
   const list = page.getByRole('dialog', { name: 'Drills' })
   await shot(`${game}-0-list`)
   const titles = await list.locator('li button span.grid > span:first-child').allTextContents()

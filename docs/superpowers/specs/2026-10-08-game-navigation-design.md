@@ -30,7 +30,7 @@ A game's home is redrawn so that it fits one phone screen, and two of its panels
 
 **Online play is one panel.** "New game" and "Join a game" become "Play with friends": the players row (when the game seats more than one count), the presets row, "Create game", then a dashed rule and "Or join with a code" as one row, the code field and a "Join" button side by side. The two helper lines ("You can change individual rules in the lobby", "Six letters from whoever created the game") go: the lobby shows its editor, and the field's placeholder shows the shape of a code. The code field keeps its `aria-describedby` text for screen readers.
 
-**Learn to play stays first**, with its sentence shortened to one line ("Against the computer, with a coach who explains every move."). Its buttons keep their places but take shorter names, so two share a row at phone width without wrapping: "Four players" and "Two players" when the game seats more than one count, "Practice" when it seats one; with a saved game, "Continue practice" above them and they become "New: four", "New: two" or "Start over", and the panel's sentence goes, since a returning learner knows what practice is and the line it saves keeps the page on one screen.
+**Learn to play** has its sentence shortened to one line ("Against the computer, with a coach who explains every move."). Its buttons keep their places but take shorter names, so two share a row at phone width without wrapping: "Four players" and "Two players" when the game seats more than one count, "Practice" when it seats one; with a saved game, "Continue practice" above them and they become "New: four", "New: two" or "Start over", and the panel's sentence goes, since a returning learner knows what practice is and the line it saves keeps the page on one screen.
 
 **The other games are a strip.** Below the panels, one row per game other than this one: a `panel` the width of the others, with the game's emblem card small on the left, an overline "Also on Tricks", the game's name in the display face, its tagline on one line (clipped with an ellipsis), and a chevron on the right. A link to the game's home, opened like the Tricks link. The row's plate colour follows the game's position in `GAMES` (every second one red), as its box on the Tricks home does. With two games it is one row of about 70px, so discovery costs a strip rather than a box, and the page stays on one screen.
 
@@ -38,7 +38,7 @@ A game's home is redrawn so that it fits one phone screen, and two of its panels
 
 **Tables keep one way out.** "Leave" in the lobby and "Leave game" in the menu still land on the game's home. The rule: a table's way out is its game's home, and the game's home is where Tricks and the other games are one tap away. A second exit in the menu ("Back to Tricks") would clutter the one place a player goes to stop playing, to save a single tap they take rarely.
 
-Order of a game's home, top to bottom: the bar, wordmark and tagline, shared rules (when a link carried them), Learn to play, Play with friends, the other games. At 390x844 everything but a shared-rules panel fits without scrolling.
+Order of a game's home, top to bottom: the bar, wordmark and tagline, shared rules (when a link carried them), Play with friends, Learn to play (with its Drills), the other games. Play came first on 2026-10-10, at Arjun's asking. At 390x844 everything but a shared-rules panel fits without scrolling.
 
 ## 3. Code
 
