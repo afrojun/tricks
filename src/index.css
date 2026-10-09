@@ -220,6 +220,14 @@ button:disabled {
   font-size: 0.9rem;
   box-shadow: 0 3px 0 var(--line);
 }
+/* A small button inside a line of text, such as a computer's persona on its lobby row. */
+.btn-inline {
+  min-height: 1.75rem;
+  padding: 0 0.5rem;
+  font-size: 0.85rem;
+  vertical-align: middle;
+  color: var(--on-surface);
+}
 .btn[aria-pressed='true'] {
   background: var(--accent);
   color: var(--on-accent);

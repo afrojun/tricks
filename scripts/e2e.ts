@@ -4,6 +4,7 @@
  * Needs `pnpm dev` running. Usage: pnpm tsx scripts/e2e.ts [theme] [shots-dir]
  */
 import { chromium } from 'playwright-core'
+import { addComputers } from './lobby'
 
 const theme = process.argv[2] ?? 'green'
 const shots = process.argv[3] ?? '/tmp/shots'
@@ -46,10 +47,7 @@ await page.getByRole('button', { name: 'Create game' }).click()
 await page.waitForURL(/\/thunee\/[A-Z]{6}$/)
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()
-for (let i = 0; i < 3; i++) {
-  await page.getByRole('button', { name: 'Add computer' }).first().click()
-  await page.getByRole('button', { name: /^Straight/ }).click()
-}
+await addComputers(page, 3)
 await page.getByRole('button', { name: 'Change rules' }).click()
 await page.getByRole('button', { name: 'More Balls to win' }).waitFor()
 for (let i = 0; i < 9; i++) await page.getByRole('button', { name: 'Less Balls to win' }).click()

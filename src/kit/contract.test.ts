@@ -83,13 +83,15 @@ describe('the malformed-action check', () => {
   test('passes a game that refuses whatever it cannot read, covering every state, action and field it reaches', () => {
     const covered = checkMalformed(toy())
     expect(covered.states).toEqual(['an empty lobby', 'a full lobby of 2', 'naming with 2'])
-    expect(covered.actions).toEqual(['sit', 'leaveSeat', 'rename', 'addAi', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat', 'name', 'pick', 'ready'])
+    expect(covered.actions).toEqual(['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat', 'name', 'pick', 'ready'])
     expect(covered.paths).toEqual([
       'sit.seat',
       'sit.name',
       'rename.name',
       'addAi.seat',
       'addAi.persona',
+      'setPersona.seat',
+      'setPersona.persona',
       'clearSeat.seat',
       'setPlayerCount.playerCount',
       'replaceWithAi.seat',

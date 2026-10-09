@@ -47,8 +47,8 @@ describe('the list of games', () => {
 })
 
 describe('every game in the list', () => {
-  const TABLE_ACTIONS = ['sit', 'leaveSeat', 'rename', 'addAi', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat']
-  const TABLE_PATHS = ['sit.seat', 'sit.name', 'rename.name', 'addAi.seat', 'addAi.persona', 'clearSeat.seat', 'setPlayerCount.playerCount', 'replaceWithAi.seat']
+  const TABLE_ACTIONS = ['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat']
+  const TABLE_PATHS = ['sit.seat', 'sit.name', 'rename.name', 'addAi.seat', 'addAi.persona', 'setPersona.seat', 'setPersona.persona', 'clearSeat.seat', 'setPlayerCount.playerCount', 'replaceWithAi.seat']
   const overrides = (rules: object) => ['setRules.overrides', ...Object.keys(rules).map((key) => `setRules.overrides.${key}`)]
   const card = (at: string) => [at, `${at}.suit`, `${at}.rank`]
 

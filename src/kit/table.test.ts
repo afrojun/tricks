@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { z } from 'zod'
 import { PERSONAS } from './mind'
 import {
+  AI_NAMES,
   type Actor,
   type Ctx,
   type Seat,
@@ -239,6 +240,77 @@ describe('computer personas', () => {
     expect(t.view(0).seats[1].persona).toBe(t.game.seats[1].persona)
   })
 
+  test('the host changes a computer’s persona in the lobby; a surprise is drawn and hidden', () => {
+    const t = hosted().do(0, { type: 'addAi', seat: 1 })
+    t.do(0, { type: 'setPersona', seat: 1, persona: 'sharp' })
+    expect(t.game.seats[1]).toMatchObject({ kind: 'ai', persona: 'sharp', personaHidden: false })
+    expect(t.view(0).seats[1].persona).toBe('sharp')
+    t.do(0, { type: 'setPersona', seat: 1, persona: 'surprise' })
+    expect(PERSONAS).toContain(t.game.seats[1].persona)
+    expect(t.game.seats[1].personaHidden).toBe(true)
+    for (const seat of [0, 1, null]) expect(t.view(seat).seats[1].persona).toBeNull()
+    // Picking one again shows it.
+    t.do(0, { type: 'setPersona', seat: 1, persona: 'wild' })
+    expect(t.game.seats[1]).toMatchObject({ persona: 'wild', personaHidden: false })
+    expect(t.events.filter((e) => e.type === 'seatChanged').length).toBeGreaterThanOrEqual(4)
+  })
+
+  test('a persona is set only on a computer, only by the host, only in the lobby', () => {
+    const t = hosted().do(null, { type: 'sit', seat: 1, name: 'Guest' }).do(0, { type: 'addAi', seat: 2 })
+    const name = t.game.seats[2].name
+    expect(t.try(0, { type: 'setPersona', seat: 0, persona: 'sly' })).toBe('badSeat')
+    expect(t.try(0, { type: 'setPersona', seat: 1, persona: 'sly' })).toBe('badSeat')
+    expect(t.try(0, { type: 'setPersona', seat: 3, persona: 'sly' })).toBe('badSeat')
+    expect(t.try(0, { type: 'setPersona', seat: 9, persona: 'sly' })).toBe('badSeat')
+    expect(t.try(0, { type: 'setPersona', seat: 1.5, persona: 'sly' })).toBe('badSeat')
+    expect(t.try(1, { type: 'setPersona', seat: 2, persona: 'sly' })).toBe('notHost')
+    expect(t.try(null, { type: 'setPersona', seat: 2, persona: 'sly' })).toBe('notSeated')
+    expect(t.try('system', { type: 'setPersona', seat: 2, persona: 'sly' })).toBe('notAllowed')
+    expect(t.game.seats[2]).toMatchObject({ name, persona: 'straight' })
+    t.do(0, { type: 'addAi', seat: 3 }).do(0, { type: 'clearSeat', seat: 1 }).do(0, { type: 'addAi', seat: 1 }).do(0, { type: 'start' })
+    expect(t.try(0, { type: 'setPersona', seat: 2, persona: 'sly' })).toBe('wrongPhase')
+  })
+
+  test('a computer’s name is drawn at random from the list, and is one nobody at the table has', () => {
+    expect(AI_NAMES).toHaveLength(24)
+    expect(new Set(AI_NAMES).size).toBe(24)
+    for (const name of AI_NAMES) expect(name).toMatch(/^Bot [A-Z][a-z]+$/)
+    const names = new Set<string>()
+    for (let seed = 1; seed <= 30; seed++) {
+      const t = hosted()
+      t.rng = seededRng(seed)
+      for (const seat of [1, 2, 3]) t.do(0, { type: 'addAi', seat })
+      const bots = t.game.seats.slice(1).map((s) => s.name)
+      expect(new Set(bots).size).toBe(3)
+      for (const name of bots) expect(AI_NAMES).toContain(name)
+      for (const name of bots) names.add(name)
+    }
+    // Not the first names in order every time.
+    expect(names.size).toBeGreaterThan(4)
+    // Drawn with the context's randomness.
+    const first = hosted()
+    first.rng = () => 0
+    expect(first.do(0, { type: 'addAi', seat: 1 }).game.seats[1].name).toBe(AI_NAMES[0])
+    const last = hosted()
+    last.rng = () => 0.999
+    expect(last.do(0, { type: 'addAi', seat: 1 }).game.seats[1].name).toBe(AI_NAMES[23])
+    // A name a person already sits with is not drawn.
+    const taken = hosted().do(0, { type: 'rename', name: AI_NAMES[0] })
+    taken.rng = () => 0
+    expect(taken.do(0, { type: 'addAi', seat: 1 }).game.seats[1].name).toBe(AI_NAMES[1])
+  })
+
+  test('with every name taken, a computer is named for its seat', () => {
+    const t = hosted()
+    const count = AI_NAMES.length + 2
+    t.game = {
+      ...t.game,
+      playerCount: count,
+      seats: [t.game.seats[0], ...AI_NAMES.map((name) => ({ ...t.game.seats[0], name, kind: 'ai' as const })), { ...t.game.seats[1] }],
+    }
+    expect(t.do(0, { type: 'addAi', seat: count - 1 }).game.seats[count - 1].name).toBe(`Bot ${count}`)
+  })
+
   test('a surprise persona revealed at game over stays revealed after a rematch', () => {
     const t = hosted().do(0, { type: 'addAi', seat: 1, persona: 'surprise' })
     for (const seat of [2, 3]) t.do(0, { type: 'addAi', seat })
@@ -366,7 +438,7 @@ describe('seats', () => {
   })
 
   test('isTableAction knows the table’s actions and no others', () => {
-    for (const type of ['sit', 'leaveSeat', 'rename', 'addAi', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat', 'tick', 'setConnected']) {
+    for (const type of ['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat', 'tick', 'setConnected']) {
       expect(isTableAction({ type })).toBe(true)
     }
     for (const type of ['setRules', 'nextRound', 'rematch', 'playCard']) expect(isTableAction({ type })).toBe(false)
@@ -435,6 +507,9 @@ describe('wire schemas', () => {
       { type: 'rename', name: 5 },
       { type: 'addAi', seat: '1' },
       { type: 'addAi', seat: 1, persona: 'evil' },
+      { type: 'setPersona', seat: 1 },
+      { type: 'setPersona', seat: 1, persona: 'evil' },
+      { type: 'setPersona', seat: '1', persona: 'sly' },
       { type: 'clearSeat', seat: null },
       { type: 'setPlayerCount', playerCount: '2' },
       { type: 'replaceWithAi' },
@@ -449,5 +524,12 @@ describe('wire schemas', () => {
     expect(schema.safeParse({ type: 'addAi', seat: 1, persona: 'wild' }).success).toBe(true)
     expect(schema.safeParse({ type: 'addAi', seat: 1, persona: 'surprise' }).success).toBe(true)
     expect(schema.safeParse({ type: 'addAi', seat: 1, persona: 'evil' }).success).toBe(false)
+  })
+
+  test('a computer’s persona may be changed to one of the four or a surprise, and must be named', () => {
+    expect(schema.safeParse({ type: 'setPersona', seat: 1, persona: 'sharp' }).success).toBe(true)
+    expect(schema.safeParse({ type: 'setPersona', seat: 1, persona: 'surprise' }).success).toBe(true)
+    expect(schema.safeParse({ type: 'setPersona', seat: 1 }).success).toBe(false)
+    expect(schema.safeParse({ type: 'setPersona', seat: 1, persona: 'evil' }).success).toBe(false)
   })
 })

@@ -1,10 +1,12 @@
 /**
  * Hand controls in a real browser: a short drag does nothing, a long drag
  * plays one card, and an illegal card asks before it is played. First, the game home's
- * "House rules" and "Look" sheets open and close.
+ * "House rules" and "Look" sheets open and close, and computers are added in one tap each
+ * and one is changed to Sharp on its row.
  * Needs `pnpm dev`.
  */
 import { type Locator, chromium } from 'playwright-core'
+import { addComputers } from './lobby'
 
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
@@ -51,10 +53,26 @@ check(!(await look.isVisible()), 'the look closes')
 await page.getByRole('button', { name: 'Create game' }).click()
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()
-for (let i = 0; i < 3; i++) {
-  await page.getByRole('button', { name: 'Add computer' }).first().click()
-  await page.getByRole('button', { name: /^Straight/ }).click()
-}
+await addComputers(page, 3)
+// One tap adds a Straight computer; the host changes its persona on its row.
+const rows = page.locator('main li')
+const firstBot = rows.nth(1)
+check(await firstBot.getByRole('button', { name: 'Straight', exact: true }).isVisible(), 'a computer is added Straight in one tap')
+await firstBot.getByRole('button', { name: 'Straight', exact: true }).click()
+const persona = page.getByRole('dialog', { name: 'Change this computer' })
+await persona.getByRole('button', { name: /^Sharp/ }).click()
+await firstBot.getByRole('button', { name: 'Sharp', exact: true }).waitFor({ timeout: 3000 }).catch(() => {})
+check(await firstBot.getByRole('button', { name: 'Sharp', exact: true }).isVisible(), 'the row’s button changes the computer to Sharp')
+check((await rows.count()) === 4 && (await page.getByRole('button', { name: 'Add computer' }).count()) === 0, 'three taps fill three seats')
+await page.getByRole('button', { name: 'Change rules' }).click()
+await page.getByRole('button', { name: 'Not allowed', exact: true }).click()
+await page.getByRole('button', { name: 'Close' }).click()
+await page.getByText(/1 house rule/).waitFor({ timeout: 3000 }).catch(() => {})
+check(!(await firstBot.getByRole('button', { name: 'Sharp', exact: true }).isVisible()) && !(await firstBot.getByText('computer:').isVisible()), 'with cheating off, no persona shows')
+// Back to Traditional: the hand's checks need a card that breaks a rule.
+await page.getByRole('button', { name: 'Change rules' }).click()
+await page.getByRole('button', { name: 'Traditional', exact: true }).click()
+await page.getByRole('button', { name: 'Close' }).click()
 await page.getByRole('button', { name: 'Start game' }).click()
 
 /** Plays along until it is this player's turn (and, if asked, one where an illegal card exists). */

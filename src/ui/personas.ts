@@ -11,6 +11,11 @@ export const PERSONA_CHOICES: { value: Persona | 'surprise'; label: string; text
   { value: 'surprise', label: 'Surprise me', text: 'One of the four, kept secret until the game ends.' },
 ]
 
+/** A computer's persona on its row in the lobby: "Secret" while it is a surprise. */
+export function lobbyPersonaLabel(persona: Persona | null): string {
+  return persona === null ? 'Secret' : PERSONA_NAMES[persona]
+}
+
 /**
  * A computer seat's persona as shown at the table: "?" while it is a secret.
  * None with cheating off, when every computer plays as Straight.

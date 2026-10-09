@@ -37,21 +37,21 @@ describe('starting', () => {
 
 describe('the clock waits for you', () => {
   test('nothing moves while you have not decided whether to call', () => {
-    const p = PracticeGame.start(thuneePractice, 4, 1, 'Ann')
+    const p = PracticeGame.start(thuneePractice, 4, 2, 'Ann')
     expect(p.waiting(false)).toBe(true)
     expect(p.advance(60_000, false).events).toEqual([])
     expect(p.game.phase.kind).toBe('calling')
   })
 
   test('after you pass, the call window runs out and play moves on', () => {
-    const p = PracticeGame.start(thuneePractice, 4, 1, 'Ann')
+    const p = PracticeGame.start(thuneePractice, 4, 2, 'Ann')
     expect(p.act({ type: 'pass' }, null)).not.toHaveProperty('rejected')
     p.advance(60_000, false)
     expect(p.game.phase.kind).not.toBe('calling')
   })
 
   test('an open sheet holds the clock too', () => {
-    const p = PracticeGame.start(thuneePractice, 4, 1, 'Ann')
+    const p = PracticeGame.start(thuneePractice, 4, 2, 'Ann')
     p.act({ type: 'pass' }, null)
     expect(p.waiting(true)).toBe(true)
     p.advance(60_000, true)
@@ -122,8 +122,8 @@ describe('saving', () => {
 
 describe('the round log', () => {
   test('a redealt hand leaves no decision behind', () => {
-    // Four players, seed 44: following the advice, seat 0's trump choice leaves the counting side without trumps.
-    const p = PracticeGame.start(thuneePractice, 4, 44, 'Ann')
+    // Four players, seed 14: following the advice, seat 0's trump choice leaves the counting side without trumps.
+    const p = PracticeGame.start(thuneePractice, 4, 14, 'Ann')
     let redealt = false
     playPractice(p, 3000, undefined, (g) => {
       const phase = g.game.phase

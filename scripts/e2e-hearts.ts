@@ -12,6 +12,7 @@
  * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
 import { type Browser, type Page, chromium } from 'playwright-core'
+import { addComputers } from './lobby'
 
 const shots = process.argv[2] ?? '/tmp/shots'
 const base = process.env.APP_URL ?? 'http://localhost:5173'
@@ -82,10 +83,7 @@ await b.getByRole('button', { name: 'Join', exact: true }).click()
 await b.getByPlaceholder('Name').fill('Bheki')
 await b.getByRole('button', { name: 'Sit here' }).first().click()
 check(b.url().endsWith(`/hearts/${code}`), 'the second browser joined the same room')
-for (let i = 0; i < 2; i++) {
-  await a.getByRole('button', { name: 'Add computer' }).first().click()
-  await a.getByRole('button', { name: /^Straight/ }).click()
-}
+await addComputers(a, 2)
 check(!(await a.getByRole('button', { name: /players$/ }).first().isVisible()), 'Hearts offers no other table size')
 check(!(await seen(a, /^Team /, 500)), 'Hearts has no teams in the lobby')
 await a.getByRole('button', { name: 'See every rule' }).click()
@@ -254,10 +252,7 @@ await a.waitForURL(/\/hearts\/[A-Z]{6}$/)
 check(a.url().split('/').pop() !== code, 'A opens a new room for a whole game')
 await a.getByPlaceholder('Name').fill('Asha')
 await a.getByRole('button', { name: 'Sit here' }).first().click()
-for (let i = 0; i < 3; i++) {
-  await a.getByRole('button', { name: 'Add computer' }).first().click()
-  await a.getByRole('button', { name: /^Straight/ }).click()
-}
+await addComputers(a, 3)
 // Typed and then stepped at once, before the room has answered: one change, from what was typed.
 await a.getByRole('button', { name: 'Change rules' }).click()
 const gameEnds = a.getByRole('spinbutton', { name: 'The game ends at' })

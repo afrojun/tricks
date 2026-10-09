@@ -124,6 +124,7 @@ describe('lobby', () => {
       leaveSeat: [],
       rename: [{ name: null }, { name: 5 }, {}],
       addAi: [{ seat: null }, { seat: '1' }, { seat: 1, persona: 'evil' }, { seat: 1, persona: 5 }],
+      setPersona: [{ seat: 1 }, { seat: null, persona: 'sly' }, { seat: 1, persona: 'evil' }],
       clearSeat: [{ seat: null }, { seat: 'x' }],
       setPlayerCount: [{ playerCount: null }, { playerCount: '2' }],
       start: [],

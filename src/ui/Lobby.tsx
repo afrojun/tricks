@@ -4,7 +4,7 @@ import type { ShellView } from './contract'
 import { type GameSetup, setupKey } from './Home'
 import { RulesEditor, RulesList, rulesSummary } from './Rules'
 import { gamePath, roomPath } from './routes'
-import { PERSONA_CHOICES, PERSONA_NAMES } from './personas'
+import { PERSONA_CHOICES, lobbyPersonaLabel } from './personas'
 import { partnersLine, seatLabel, teamsAt } from './seats'
 import { Sheet } from './Sheet'
 import { navigate, useGameClient, useSession } from './session'
@@ -99,7 +99,16 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
                   </p>
                   <p className="text-sm text-on-surface-muted">
                     {seatLabel(i, teams)}
-                    {seat.kind === 'ai' && (personas ? `, computer: ${seat.persona === null ? 'secret' : PERSONA_NAMES[seat.persona]}` : ', computer')}
+                    {seat.kind === 'ai' && (personas ? ', computer: ' : ', computer')}
+                    {seat.kind === 'ai' &&
+                      personas &&
+                      (isHost ? (
+                        <button className="btn btn-quiet btn-small btn-inline" aria-haspopup="dialog" onClick={() => setPicking(i)}>
+                          {lobbyPersonaLabel(seat.persona)}
+                        </button>
+                      ) : (
+                        lobbyPersonaLabel(seat.persona)
+                      ))}
                     {view.host === i && ', host'}
                     {seat.kind === 'human' && !seat.connected && ', disconnected'}
                   </p>
@@ -110,7 +119,7 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
                   </button>
                 )}
                 {seat.kind === 'empty' && isHost && (
-                  <button className="btn btn-small" onClick={() => (personas ? setPicking(i) : send({ type: 'addAi', seat: i }))}>
+                  <button className="btn btn-small" onClick={() => send({ type: 'addAi', seat: i })}>
                     Add computer
                   </button>
                 )}
@@ -184,15 +193,16 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
           <RulesEditor game={game} rules={view.rules} onChange={(overrides) => send({ type: 'setRules', overrides })} />
         </Sheet>
       )}
-      {picking !== null && personas && (
-        <Sheet title="Choose a computer player" onClose={() => setPicking(null)}>
+      {picking !== null && personas && view.seats[picking]?.kind === 'ai' && (
+        <Sheet title="Change this computer" onClose={() => setPicking(null)}>
           <ul className="grid gap-2">
             {PERSONA_CHOICES.map((choice) => (
               <li key={choice.value}>
                 <button
                   className="btn w-full text-left"
+                  aria-pressed={choice.value === (view.seats[picking].persona ?? 'surprise')}
                   onClick={() => {
-                    send({ type: 'addAi', seat: picking, persona: choice.value })
+                    send({ type: 'setPersona', seat: picking, persona: choice.value })
                     setPicking(null)
                   }}
                 >

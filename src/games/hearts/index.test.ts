@@ -87,6 +87,7 @@ describe('the Hearts module', () => {
       sit: [{ seat: null, name: 'A' }, { seat: '0', name: 'A' }, { seat: 0, name: null }, { seat: 0 }],
       rename: [{ name: null }, { name: 5 }, {}],
       addAi: [{ seat: null }, { seat: 1, persona: 'evil' }, { seat: 1, persona: 5 }],
+      setPersona: [{ seat: 1 }, { seat: null, persona: 'sly' }, { seat: 1, persona: 'evil' }],
       clearSeat: [{ seat: 'x' }, {}],
       setPlayerCount: [{ playerCount: '4' }, {}],
       replaceWithAi: [{ seat: null }],

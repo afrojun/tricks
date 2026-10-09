@@ -73,6 +73,7 @@ export type TableAction =
   | { type: 'leaveSeat' }
   | { type: 'rename'; name: string }
   | { type: 'addAi'; seat: Seat; persona?: Persona | 'surprise' }
+  | { type: 'setPersona'; seat: Seat; persona: Persona | 'surprise' }
   | { type: 'clearSeat'; seat: Seat }
   | { type: 'setPlayerCount'; playerCount: number }
   | { type: 'start' }
@@ -100,6 +101,7 @@ const TABLE_ACTIONS: readonly string[] = [
   'leaveSeat',
   'rename',
   'addAi',
+  'setPersona',
   'clearSeat',
   'setPlayerCount',
   'start',
@@ -133,7 +135,11 @@ export function isActor(game: Pick<TableState, 'playerCount'>, actor: unknown): 
 // ── Seats ────────────────────────────────────────────────────────────────
 
 export const MAX_NAME_LENGTH = 16
-const AI_NAMES = ['Bot Asha', 'Bot Bheki', 'Bot Chan', 'Bot Devi']
+/** A computer's name says what it is. `addAi` draws one nobody at the table has. */
+export const AI_NAMES: readonly string[] = [
+  'Asha', 'Bheki', 'Chan', 'Devi', 'Fatima', 'Gugu', 'Hema', 'Jabu', 'Kiran', 'Lindiwe', 'Mohan', 'Naledi',
+  'Priya', 'Rajesh', 'Sipho', 'Thandi', 'Vikram', 'Yusuf', 'Zanele', 'Anil', 'Busi', 'Dineo', 'Farouk', 'Kesh',
+].map((name) => `Bot ${name}`)
 
 export const EMPTY_SEAT: SeatInfo = { name: '', kind: 'empty', connected: false, standIn: false, persona: 'straight', personaHidden: false }
 
@@ -288,10 +294,14 @@ function lobbyAction(
       if (!validSeat(action.seat)) return 'badSeat'
       if (game.seats[action.seat].kind !== 'empty') return 'seatTaken'
       const used = new Set(game.seats.map((s) => s.name))
-      const name = AI_NAMES.find((n) => !used.has(n)) ?? `Bot ${action.seat + 1}`
-      const surprise = action.persona === 'surprise'
-      const persona = action.persona === 'surprise' ? PERSONAS[Math.floor(ctx.rng() * PERSONAS.length)] : (action.persona ?? 'straight')
-      game.seats[action.seat] = { name, kind: 'ai', connected: true, standIn: false, persona, personaHidden: surprise }
+      const unused = AI_NAMES.filter((n) => !used.has(n))
+      const name = unused.length > 0 ? unused[Math.floor(ctx.rng() * unused.length)] : `Bot ${action.seat + 1}`
+      game.seats[action.seat] = { name, kind: 'ai', connected: true, standIn: false, ...personaOf(action.persona ?? 'straight', ctx) }
+      break
+    }
+    case 'setPersona': {
+      if (!validSeat(action.seat) || game.seats[action.seat].kind !== 'ai') return 'badSeat'
+      Object.assign(game.seats[action.seat], personaOf(action.persona, ctx))
       break
     }
     case 'clearSeat': {
@@ -318,6 +328,12 @@ function lobbyAction(
   }
   events.push({ type: 'seatChanged' })
   return null
+}
+
+/** "Surprise me" draws one of the four and hides it until the game is over. */
+function personaOf(choice: Persona | 'surprise', ctx: Ctx): Pick<SeatInfo, 'persona' | 'personaHidden'> {
+  if (choice !== 'surprise') return { persona: choice, personaHidden: false }
+  return { persona: PERSONAS[Math.floor(ctx.rng() * PERSONAS.length)], personaHidden: true }
 }
 
 function replaceWithAi(game: TableState, actor: Seat, seat: Seat, ctx: Ctx, events: { push(event: TableEvent): unknown }): TableReject | null {
@@ -405,11 +421,13 @@ export function tableActionSchemas(seatCounts: readonly number[], { bounded = tr
   const seat = bounded ? z.number().int().min(0).max(Math.max(...seatCounts) - 1) : z.number()
   const name = bounded ? z.string().max(200) : z.string()
   const playerCount = bounded ? z.number().int().refine((n) => seatCounts.includes(n)) : z.number()
+  const persona = z.enum([...PERSONAS, 'surprise'])
   return [
     z.object({ type: z.literal('sit'), seat, name }),
     z.object({ type: z.literal('leaveSeat') }),
     z.object({ type: z.literal('rename'), name }),
-    z.object({ type: z.literal('addAi'), seat, persona: z.enum([...PERSONAS, 'surprise']).optional() }),
+    z.object({ type: z.literal('addAi'), seat, persona: persona.optional() }),
+    z.object({ type: z.literal('setPersona'), seat, persona }),
     z.object({ type: z.literal('clearSeat'), seat }),
     z.object({ type: z.literal('setPlayerCount'), playerCount }),
     z.object({ type: z.literal('start') }),
