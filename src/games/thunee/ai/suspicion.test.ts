@@ -85,24 +85,24 @@ describe('proofs', () => {
     expect(findProofs(viewFor(t.game, 0, 'full'))).toMatchObject([{ accused: 1, claim: 0, gap: 0 }])
   })
 
-  test('a Thunee called with six of one suit is proved once nobody else can hold that suit', () => {
-    // Seat 2 holds all six clubs, calls Thunee and leads Jc; seats 3 and 0 show they have none.
+  test('a Thunee called with six of one suit is proved only once the caller has played all six', () => {
+    // Seat 2 holds all six clubs, calls Thunee and leads them all; the others show at once they have none.
     const t = new Table(4, { redealIfNoTrumps: false })
       .deal(['Jh 9h Ah 10h Kh Qd', 'Js 9s As 10s Ks Qh', 'Jc 9c Ac 10c Kc Qc', 'Jd 9d Ad 10d Kd Qs'])
       .advance(10_000)
       .do(1, { type: 'chooseTrump', choice: 'lastCard' })
       .do(2, { type: 'callThunee' })
       .advance(10_000)
-      .play('Jc Jd')
+      .play('Jc Jd Jh Js')
+    // Everyone else seems to lack clubs, but a partner can hide one by not following: that proves nothing.
     expect(findProofs(viewFor(t.game, 1, 'full'))).toEqual([])
-    t.play('Jh')
+    t.play('9c 9d 9h 9s  Ac Ad Ah As  10c 10d 10h 10s  Kc Kd Kh Ks')
+    expect(findProofs(viewFor(t.game, 1, 'full'))).toEqual([])
+    t.play('Qc')
     expect(findProofs(viewFor(t.game, 1, 'full'))).toEqual([{ id: 'thunee:2:clubs', accused: 2, rule: null, claim: null, gap: 0, salience: 1.5 }])
-    expect(chooseChallenge(viewFor(t.game, 1, 'full'), { persona: 'sharp', salt: 1 })).toEqual({ type: 'challengeThunee' })
-    // Seat 3, the other opponent, needs seat 1's card too.
-    expect(findProofs(viewFor(t.game, 3, 'full'))).toEqual([])
-    t.play('Js')
     expect(findProofs(viewFor(t.game, 3, 'full'))).toHaveLength(1)
     expect(findProofs(viewFor(t.game, 0, 'full'))).toEqual([]) // the caller's partner
+    expect(chooseChallenge(viewFor(t.game, 1, 'full'), { persona: 'sharp', salt: 1 })).toEqual({ type: 'challengeThunee' })
   })
 
   test('an undercut is proved when the player later shows a plain card, only under the undercut rule', () => {

@@ -329,6 +329,15 @@ describe('Thunee: six of one suit, and no trump on the other side', () => {
     expect(off.game.phase).toMatchObject({ kind: 'trickPause', redeal: false })
   })
 
+  test('an opponent who has played a trump held one, so running out later is no reason to deal again', () => {
+    // Seat 0 follows the first spade with its only one, Qs, then has none for the second.
+    const hands = ['Jh 9h Ah 10h Kh Qs', 'Js 9s As 10s Ks Qh', 'Jc 9c Ac 10c Kc Qc', 'Jd 9d Ad 10d Kd Qd']
+    const t = thuneeBy(1, { redealIfNoTrumps: true }, hands).play('Js Jc Jd Qs')
+    expect(t.game.phase).toMatchObject({ kind: 'trickPause', redeal: false })
+    t.play('9s 9c 9d Jh')
+    expect(t.game.phase).toMatchObject({ kind: 'trickPause', redeal: false })
+  })
+
   test('without timers the pause waits for the caller, who may deal again or challenge', () => {
     const untimed = () => {
       const t = new Table(4, { timers: false }).deal(NO_SPADES).do(0, { type: 'pass' }).do(2, { type: 'pass' })

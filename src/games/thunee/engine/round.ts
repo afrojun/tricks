@@ -248,16 +248,18 @@ export function playCard(game: Game, play: RoundPlay, seat: Seat, card: Card, ct
 }
 
 /**
- * In a four-player Thunee with a trump, whether both of the caller's opponents have shown they hold no trump,
- * by playing another suit to a trump lead. Then the Thunee cannot be stopped, and the round is dealt again.
+ * In a four-player Thunee with a trump, whether both of the caller's opponents have shown they were dealt no
+ * trump: each has played another suit to a trump lead and never played a trump. Then the Thunee cannot be
+ * stopped, and the round is dealt again.
  */
 function opponentsShowNoTrump(game: Game, play: RoundPlay): boolean {
   if (game.playerCount !== 4 || play.thunee === null || play.trump === null) return false
   const caller = play.thunee.caller
   const trumpLeads = play.tricks.filter((t) => t.plays[0].card.suit === play.trump)
+  const playedTrump = (s: Seat) => play.tricks.some((t) => t.plays.some((p) => p.seat === s && p.card.suit === play.trump))
   return allSeats(4)
     .filter((s) => teamOf(s) !== teamOf(caller))
-    .every((s) => trumpLeads.some((t) => t.plays.some((p) => p.seat === s && p.card.suit !== play.trump)))
+    .every((s) => !playedTrump(s) && trumpLeads.some((t) => t.plays.some((p) => p.seat === s && p.card.suit !== play.trump)))
 }
 
 /** Runs when the trick pause ends: next trick, second half, a new deal, or scoring. */
@@ -269,8 +271,9 @@ export function afterTrick(game: Game, play: RoundPlay, ctx: Ctx, events: GameEv
   if (play.thunee !== null) {
     const result = thuneeTrickResult(game, play.thunee.caller, last.winner)
     if (!result.ok) return finishRound(game, play, { kind: 'thunee', success: false, partnerCatch: result.partnerCatch }, events)
-    if (tricksThisHalf === 6) return finishRound(game, play, { kind: 'thunee', success: true, partnerCatch: false }, events)
+    // A redeal the trick made plain comes first, even on the sixth trick, as the pause has told everyone.
     if (redeal) return dealAgain(game, ctx, events)
+    if (tricksThisHalf === 6) return finishRound(game, play, { kind: 'thunee', success: true, partnerCatch: false }, events)
   }
 
   if (tricksThisHalf < 6) {

@@ -1,8 +1,8 @@
 /** What a computer player can prove about its opponents' play, from its own full view. */
 import { type Proof, type SeenPlay, chanceOfVoid, noticed, playProofs } from '../../../kit/integrity'
 import { type Mind, TRAITS, roll } from '../../../kit/mind'
-import { type Action, type Card, type Seat, type Suit, type View, type ViewPlaying, RANKS, SUITS, allSeats, availableActions, cardId, pointsOf, sameCard, seenPlays, teamOf } from '../engine'
-import { type TrickRecord, history, mood, shownVoid } from './read'
+import { type Action, type Card, type Seat, type Suit, type View, type ViewPlaying, RANKS, SUITS, availableActions, cardId, pointsOf, sameCard, seenPlays, teamOf } from '../engine'
+import { type TrickRecord, history, mood } from './read'
 
 export const inPlay = (view: View): ViewPlaying | null =>
   view.phase.kind === 'playing' || view.phase.kind === 'trickPause' ? view.phase : null
@@ -54,23 +54,15 @@ export function findProofs(view: View): Proof[] {
 }
 
 /**
- * A Thunee called with six cards of one suit, as the cards prove it: the caller has played only that suit,
- * and either has played all six, or (with every card dealt, in four-player) nobody else holds or has played one.
+ * A Thunee called with six cards of one suit, as the cards prove it: the caller has played all six. A suit
+ * the others seem to lack proves nothing, since a partner may hide a card by not following.
  */
 function sixOfASuitThunee(view: View, phase: ViewPlaying, tricks: TrickRecord[]): { caller: Seat; suit: Suit } | null {
   const me = view.seat!
   const caller = phase.thunee?.caller
   if (caller === undefined || teamOf(caller) === teamOf(me)) return null
-  const plays = tricks.filter((t) => t.half === phase.half).flatMap((t) => t.plays)
-  const own = plays.filter((p) => p.seat === caller).map((p) => p.card)
-  if (own.length === 0) return null
-  const suit = own[0].suit
-  if (own.some((c) => c.suit !== suit) || plays.some((p) => p.seat !== caller && p.card.suit === suit)) return null
-  if (own.length === 6) return { caller, suit }
-  if (view.playerCount !== 4 || phase.hand.some((c) => c.suit === suit)) return null
-  const voids = shownVoid(phase)
-  const others = allSeats(4).filter((s) => s !== caller && s !== me)
-  return others.every((s) => voids.get(s)?.has(suit)) ? { caller, suit } : null
+  const own = tricks.filter((t) => t.half === phase.half).flatMap((t) => t.plays.filter((p) => p.seat === caller).map((p) => p.card))
+  return own.length === 6 && own.every((c) => c.suit === own[0].suit) ? { caller, suit: own[0].suit } : null
 }
 
 /** A cheat stands out more when it won the trick, won a rich one, was shown up by a high card, or robbed the observer's side. */
