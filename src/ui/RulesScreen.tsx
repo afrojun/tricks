@@ -59,6 +59,16 @@ export function RulesScreen() {
   })
   const [notSaved, setNotSaved] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  /** Where focus goes when the delete question closes: back to Delete after Keep, to the chosen chip after a deletion. */
+  const deleteButton = useRef<HTMLButtonElement>(null)
+  const chips = useRef<HTMLDivElement>(null)
+  const [refocus, setRefocus] = useState<'delete' | 'chip' | null>(null)
+  useEffect(() => {
+    if (confirming || refocus === null) return
+    if (refocus === 'delete') deleteButton.current?.focus()
+    else chips.current?.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus()
+    setRefocus(null)
+  }, [confirming, refocus])
   const [copied, setCopied] = useState(false)
   /** A preset just made, whose name is focused for typing over. */
   const [made, setMade] = useState<string | null>(null)
@@ -144,7 +154,7 @@ export function RulesScreen() {
         <section className="panel p-4 grid gap-3">
           <h1 className="display text-2xl">House rules</h1>
           <p>Presets for {game.name}. Pick one on the home or in a lobby.</p>
-          <div className="flex flex-wrap gap-2">
+          <div ref={chips} className="flex flex-wrap gap-2">
             {presets.map((preset) => (
               <button key={preset.id} className="btn btn-small" aria-pressed={preset.id === current?.id} onClick={() => select(preset.id)}>
                 {preset.name}
@@ -188,13 +198,29 @@ export function RulesScreen() {
               Save
             </button>
           ) : confirming && current ? (
-            <div className="grid gap-2">
-              <p className="font-semibold">Delete {current.name}?</p>
+            <div className="grid gap-2" role="group" aria-labelledby="delete-question">
+              <p id="delete-question" className="font-semibold">
+                Delete {current.name}?
+              </p>
               <div className="flex gap-2">
-                <button className="btn btn-danger flex-1" onClick={remove}>
+                <button
+                  className="btn btn-danger flex-1"
+                  onClick={() => {
+                    setRefocus('chip')
+                    remove()
+                  }}
+                >
                   Delete
                 </button>
-                <button className="btn flex-1" onClick={() => setConfirming(false)}>
+                {/* Keep takes the focus the Delete button had, so a keyboard is not left nowhere. */}
+                <button
+                  className="btn flex-1"
+                  autoFocus
+                  onClick={() => {
+                    setRefocus('delete')
+                    setConfirming(false)
+                  }}
+                >
                   Keep
                 </button>
               </div>
@@ -208,7 +234,7 @@ export function RulesScreen() {
                 Make a copy
               </button>
               {current && !current.builtIn && (
-                <button className="btn flex-1" onClick={() => setConfirming(true)}>
+                <button ref={deleteButton} className="btn flex-1" onClick={() => setConfirming(true)}>
                   Delete
                 </button>
               )}
