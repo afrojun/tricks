@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import type { Persona } from './mind'
 import { type Moment, answerThrow, banterFor, saySchema } from './talk'
 
-const table = (kinds: ('human' | 'ai')[], persona: Persona = 'straight') => ({ seats: kinds.map((kind) => ({ kind, persona })) })
+const table = (kinds: ('human' | 'ai')[], persona: Persona = 'straight', allowCheating = true) => ({ seats: kinds.map((kind) => ({ kind, persona })), rules: { allowCheating } })
 const always = () => 0
 const never = () => 0.999
 
@@ -51,6 +51,10 @@ describe('banter', () => {
     expect(banterFor(table(['ai'], 'wild'), stung, half, () => false)).toEqual([])
     expect(banterFor(table(['ai'], 'wild'), stung, half, () => true)).toHaveLength(1)
     expect(banterFor(table(['ai'], 'straight'), stung, half, () => true)).toEqual([])
+  })
+
+  test('with cheating off every computer is Straight, moods and all', () => {
+    expect(banterFor(table(['ai'], 'wild', false), [{ kind: 'stung', seat: 0 }], () => 0.5, () => true)).toEqual([])
   })
 })
 

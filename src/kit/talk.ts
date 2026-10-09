@@ -55,10 +55,11 @@ export type Moment =
 
 interface Speakers {
   seats: readonly { kind: 'empty' | 'human' | 'ai'; persona: Persona }[]
+  rules: { allowCheating: boolean }
 }
 
 /** Only real computers talk: a stand-in plays for a person and must never speak for them. */
-function speaks(game: Speakers, seat: Seat): boolean {
+function speaks(game: Pick<Speakers, 'seats'>, seat: Seat): boolean {
   return game.seats[seat]?.kind === 'ai'
 }
 
@@ -73,8 +74,9 @@ export function banterFor(game: Speakers, moments: readonly Moment[], rng: () =>
   const out: Said[] = []
   const line = (seat: Seat, id: Line, chance: number) => {
     if (!speaks(game, seat) || out.some((s) => s.seat === seat)) return
-    // A moody persona that is behind says Eish twice as often.
-    const moody = id === 'eish' && TRAITS[game.seats[seat].persona].moody && behind(seat) ? 2 : 1
+    // A moody persona that is behind says Eish twice as often; with cheating off every computer plays Straight.
+    const persona = game.rules.allowCheating ? game.seats[seat].persona : 'straight'
+    const moody = id === 'eish' && TRAITS[persona].moody && behind(seat) ? 2 : 1
     if (rng() < chance * moody) out.push({ seat, say: { kind: 'line', id } })
   }
   for (const m of moments) {
@@ -117,7 +119,7 @@ export function banterFor(game: Speakers, moments: readonly Moment[], rng: () =>
 }
 
 /** A computer's answer to something thrown at it, now and then. */
-export function answerThrow(game: Speakers, target: Seat, thrown: Throw, rng: () => number): Said | null {
+export function answerThrow(game: Pick<Speakers, 'seats'>, target: Seat, thrown: Throw, rng: () => number): Said | null {
   if (!speaks(game, target) || thrown === 'nudge' || rng() >= 0.4) return null
   const id: Line = thrown === 'rose' || thrown === 'chip' ? 'lekker' : 'haibo'
   return { seat: target, say: { kind: 'line', id }, after: ANSWER_AFTER_MS }

@@ -1,5 +1,5 @@
 import { type Available, type Card, type RoundSummary, type ScoreLine, type Team, type View, teamOf } from '../engine'
-import { Again } from '../../../ui/Again'
+import { Again, TableNames } from '../../../ui/Again'
 import { CoachReview } from '../../../ui/coach/CoachReview'
 import type { DealShown } from '../../../ui/coach/CoachSheets'
 import { useSession } from './session'
@@ -86,6 +86,7 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
 
       <CoachReview view={view} shown={HALVES} />
 
+      <TableNames view={view} />
       {can.nextRound ? (
         <button className="btn btn-primary" onClick={() => {
             playSound('tap')

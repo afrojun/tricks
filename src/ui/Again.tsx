@@ -31,19 +31,7 @@ export function Again({ view, again, canAgain, canStart, onAgain, onStart }: Aga
   const waiting = voters.filter((seat) => !again.includes(seat) && seat !== view.seat)
   return (
     <div className="grid gap-3">
-      <ul className="again-names" aria-label="At the table">
-        {view.seats.map(
-          (s, seat) =>
-            s.kind !== 'empty' && (
-              <li key={seat} className="again-name">
-                <NamePill view={view} seat={seat} turn={voters.includes(seat) && !again.includes(seat)} over />
-                {again.includes(seat) && <span className="role-badge in-tag">In</span>}
-                <MutedTag seat={seat} />
-                <Said seat={seat} />
-              </li>
-            ),
-        )}
-      </ul>
+      <TableNames view={view} again={again} />
       {(canAgain || mine || canStart) && (
         <div className="flex items-center gap-2">
           {(canAgain || mine) && (
@@ -78,7 +66,31 @@ export function Again({ view, again, canAgain, canStart, onAgain, onStart }: Aga
   )
 }
 
-/** What a player says at game over, over their name: there are no seats on the table by then. */
+/**
+ * Everyone at the table as a name, for a result panel, where the seats are gone: what each says
+ * shows over their name, and tapping it offers a throw. At game over (`again` given) the names
+ * offer the kind things only, wear In once in, and the yellow of "waiting on you" until then.
+ */
+export function TableNames({ view, again }: { view: ShellView; again?: readonly Seat[] }) {
+  const voters = again ? againVoters(view.seats) : []
+  return (
+    <ul className="again-names" aria-label="At the table">
+      {view.seats.map(
+        (s, seat) =>
+          s.kind !== 'empty' && (
+            <li key={seat} className="again-name">
+              <NamePill view={view} seat={seat} turn={again !== undefined && voters.includes(seat) && !again.includes(seat)} over={again !== undefined} />
+              {again?.includes(seat) && <span className="role-badge in-tag">In</span>}
+              <MutedTag seat={seat} />
+              <Said seat={seat} />
+            </li>
+          ),
+      )}
+    </ul>
+  )
+}
+
+/** What a player says while the result is up, over their name: there are no seats on the table by then. */
 function Said({ seat }: { seat: Seat }) {
   const talk = useSaidAt(seat)
   return (

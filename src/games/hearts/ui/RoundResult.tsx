@@ -1,6 +1,6 @@
 import type { Available, RoundSummary, View } from '../engine'
 import type { Seat } from '../../../kit/table'
-import { Again } from '../../../ui/Again'
+import { Again, TableNames } from '../../../ui/Again'
 import { CoachReview } from '../../../ui/coach/CoachReview'
 import { useSession } from './session'
 import { playSound } from '../../../ui/sound'
@@ -40,6 +40,7 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
 
       <CoachReview view={view} shown={{ sort: sortHand }} />
 
+      <TableNames view={view} />
       {can.nextRound ? (
         <button className="btn btn-primary" onClick={() => {
             playSound('tap')

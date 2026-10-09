@@ -1,11 +1,12 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Throw } from '../../kit/talk'
 import type { Seat } from '../../kit/table'
-import { talksOn } from '../prefs'
+import { useTalksOn } from '../prefs'
 import { useSession } from '../session'
 import { type Sound, playSound } from '../sound'
 import { FLIGHT_MS, type Point, landing, lob, middle, reducedMotion, topMiddle } from './flight'
 import { useHeard, useMutes } from './hooks'
+import { Landings } from './landings'
 import { Sticker } from './Sticker'
 
 /** What each throw sounds like as it lands. A nudge on its target's own phone also buzzes (`nudged`). */
@@ -27,16 +28,31 @@ export function TalkLayer({ seat }: { seat: Seat | null }) {
   const shown = useHeard()
   const me = useRef(seat)
   me.current = seat
+  const talksOn = useTalksOn()
+  const landings = useRef(new Landings())
   useEffect(
     () =>
       talk.onSaid(({ seat: from, say }) => {
-        if (!talksOn() || mutes.getState().has(from)) return
+        if (!talksOn || mutes.getState().has(from)) return
         if (say.kind === 'line') playSound('tap')
         else if (say.kind === 'emote') playSound('talkEmote')
-        else playSound(say.id === 'nudge' && say.at === me.current ? 'nudged' : LANDING[say.id], reducedMotion() ? 0 : FLIGHT_MS)
+        else {
+          const after = reducedMotion() ? 0 : FLIGHT_MS
+          landings.current.add(from, playSound(say.id === 'nudge' && say.at === me.current ? 'nudged' : LANDING[say.id], after), after)
+        }
       }),
-    [talk, mutes],
+    [talk, mutes, talksOn],
   )
+  // Muting a thrower, turning reactions off or leaving stops what has not landed yet, buzz and all.
+  useEffect(() => {
+    const pending = landings.current
+    if (!talksOn) pending.stop()
+    const unsubscribe = mutes.subscribe(() => pending.stop((from) => mutes.getState().has(from)))
+    return () => {
+      unsubscribe()
+      pending.stop()
+    }
+  }, [mutes, talksOn])
   return (
     <div className="talk-layer" aria-hidden>
       {shown.map((s) => s.say.kind === 'throw' && <Flight key={s.key} from={s.seat} at={s.say.at} id={s.say.id} me={seat} />)}

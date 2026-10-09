@@ -1425,7 +1425,7 @@ button.seat-name {
   height: 100%;
   stroke-linejoin: round;
   stroke-linecap: round;
-  filter: drop-shadow(2px 3px 0 rgb(0 0 0 / 0.35));
+  filter: drop-shadow(var(--card-shadow));
 }
 
 /* The hint row keeps the talk button at its right end; the hint keeps the rest, nearly centred, rather than wrap. */
@@ -1449,7 +1449,7 @@ button.seat-name {
   border: var(--line-width) solid currentColor;
   background: transparent;
   color: var(--text);
-  box-shadow: 0 3px 0 rgb(0 0 0 / 0.45);
+  box-shadow: var(--shadow-sm);
   transition: opacity var(--motion), translate var(--motion);
 }
 .talk-button[data-open] {
