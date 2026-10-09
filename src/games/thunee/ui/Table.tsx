@@ -123,12 +123,13 @@ export function Table({ view, room }: { view: View; room: string }) {
             <div className="self-stretch min-h-0">{at('left') !== undefined && <SeatBadge view={view} seat={at('left')!} side="left" />}</div>
             {/*
               The trick keeps one place all round, empty under the calling and Thunee panels, so the rays
-              behind it never move. A panel taller than a short screen's table scrolls, from its top.
+              behind it never move. A panel drops its notes when the middle is short (.centre-box), and
+              one still taller than the table scrolls, from its top.
             */}
             <div className="trick-stage relative h-full min-h-0 flex items-center justify-center py-1">
               <TrickArea view={view} phase={playing ?? NO_TRICK} />
               {!playing && (
-                <div className="absolute inset-0 flex justify-center items-center-safe overflow-y-auto py-1">
+                <div className="centre-box absolute inset-0 flex justify-center items-center-safe overflow-y-auto py-1">
                   <Centre view={view} can={can} />
                 </div>
               )}
@@ -380,7 +381,7 @@ function TrumpButtons({ choices, chosen, onChoose }: { choices: TrumpChoice[]; c
   return (
     <div className="flex flex-wrap justify-center gap-2">
       {choices.map((choice) => (
-        <button key={choice} className="btn" aria-pressed={chosen === choice} onClick={() => onChoose(choice)}>
+        <button key={choice} className="btn !px-3" aria-pressed={chosen === choice} onClick={() => onChoose(choice)}>
           {choice === 'lastCard' ? (
             'Last card'
           ) : (
@@ -407,7 +408,7 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
   const trumper = phase.call?.seat ?? phase.defaultTrumper
   const mine = trumper === view.seat
   return (
-    <section className="panel p-3 w-full max-w-xs grid gap-3">
+    <section className="panel p-3 w-full max-w-sm grid gap-3">
       {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.rules.callTimerSeconds} />}
       <p className="text-center">
         {phase.call
@@ -416,23 +417,24 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
       </p>
       {can.preselect.length > 0 && (
         <div className="grid gap-2">
-          <p className="text-center text-sm text-on-surface-muted">Pick trump now. It is kept if nobody outcalls you.</p>
+          <p className="panel-note text-center text-sm text-on-surface-muted">Pick trump now. It is kept if nobody outcalls you.</p>
           <TrumpButtons choices={can.preselect} chosen={phase.preselect} onChoose={(choice) => send({ type: 'preselectTrump', choice })} />
         </div>
       )}
       {can.calls.length > 0 && (
         <div className="grid gap-2">
-          <p className="text-center text-sm text-on-surface-muted">Call to choose trump. The other side starts that many points up.</p>
-          <div className="grid grid-cols-4 gap-1.5">
+          <p className="panel-note text-center text-sm text-on-surface-muted">Call to choose trump. The other side starts that many points up.</p>
+          {/* As many columns as fit, Pass in the last cell, so a phone shows two or three rows rather than four. */}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-1.5">
             {can.calls.map((amount) => (
               <button key={amount} className="btn btn-primary btn-small !px-1" onClick={() => commit({ type: 'call', amount })} aria-label={`Call ${amount}`}>
                 {amount}
               </button>
             ))}
+            <button className="btn btn-small !px-1" onClick={() => commit({ type: 'pass' })}>
+              Pass
+            </button>
           </div>
-          <button className="btn btn-small" onClick={() => commit({ type: 'pass' })}>
-            Pass
-          </button>
         </div>
       )}
       {view.seat !== null && phase.passed.includes(view.seat) && <p className="text-center text-on-surface-muted">You passed.</p>}
@@ -443,12 +445,12 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
 function TrumpPanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase, { kind: 'trumpSelection' }>; can: Available }) {
   const commit = useCommit()
   return (
-    <section className="panel p-3 w-full max-w-xs grid gap-3">
+    <section className="panel p-3 w-full max-w-sm grid gap-3">
       {can.chooseTrump.length > 0 ? (
         <>
           <p className="text-center">Choose trump{phase.callAmount > 0 ? ` for your call of ${phase.callAmount}` : ''}.</p>
           <TrumpButtons choices={can.chooseTrump} onChoose={(choice) => commit({ type: 'chooseTrump', choice })} />
-          <p className="text-center text-sm text-on-surface-muted">Last card makes trump the suit of the final card you are dealt.</p>
+          <p className="panel-note text-center text-sm text-on-surface-muted">Last card makes trump the suit of the final card you are dealt.</p>
         </>
       ) : (
         <p className="text-center">{seatName(view, phase.trumper)} is choosing trump.</p>
@@ -460,7 +462,7 @@ function TrumpPanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase
 function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase, { kind: 'thuneeWindow' }>; can: Available }) {
   const commit = useCommit()
   return (
-    <section className="panel p-3 w-full max-w-xs grid gap-3">
+    <section className="panel p-3 w-full max-w-sm grid gap-3">
       {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.rules.thuneeWindowSeconds} />}
       <p className="text-center">
         {phase.pending !== null

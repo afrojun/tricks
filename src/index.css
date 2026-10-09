@@ -114,6 +114,23 @@ button:disabled {
 }
 
 /*
+ * The middle of a table, where a panel sits over the trick. It is a size container, so a panel's
+ * notes (.panel-note, the muted lines that explain) give way when the middle is short, and its
+ * padding closes up, so its buttons fit without scrolling.
+ */
+.centre-box {
+  container-type: size;
+}
+@container (max-height: 17rem) {
+  .panel-note {
+    display: none;
+  }
+  .centre-box .panel {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+}
+/*
  * A home grows with the screen. Every size on it is in rem, so the root size scales the whole page:
  * 16px on a 390x844 phone, which the page was laid out to fit, up to 19px, by whichever of the width
  * and the height runs out first. Other screens keep 16px.
@@ -378,7 +395,7 @@ html:has(main.home) {
  * closer than --spread of a card apart, so a few cards spread out and a full hand overlaps.
  */
 .hand {
-  --w: clamp(3.4rem, min(24vw, 15dvh), 7.5rem);
+  --w: clamp(3.4rem, min(24vw, 13dvh), 7.5rem);
   --spread: 0.9;
   position: relative;
   display: flex;
