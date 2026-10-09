@@ -614,7 +614,7 @@ function ChallengeSheet({ view, can, playing, onClose }: { view: View; can: Avai
           const claim = playing.jodhiClaims[index]
           return {
             key: `jodhi-${index}`,
-            label: `${seatName(view, claim.seat)}'s Jodhi in ${SUIT_NAME[claim.suit]} is false`,
+            label: `${seatName(view, claim.seat)}'s Jodhi ${claim.points} is false`,
             send: () => send({ type: 'challengeJodhi', claim: index }),
           }
         }),

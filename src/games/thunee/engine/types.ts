@@ -203,7 +203,8 @@ export type GameEvent =
   | { type: 'trumpRevealed'; suit: Suit }
   | { type: 'cardPlayed'; seat: Seat; card: Card }
   | { type: 'trickWon'; seat: Seat; points: number }
-  | { type: 'jodhiClaimed'; seat: Seat; suit: Suit; withJack: boolean; points: number }
+  /** No suit: a Jodhi is called by its points alone. 40 or more is in trump. */
+  | { type: 'jodhiClaimed'; seat: Seat; withJack: boolean; points: number }
   | { type: 'doubleCalled'; seat: Seat }
   | { type: 'khanaakCalled'; seat: Seat }
   | { type: 'challengeResolved'; challenger: Seat; accused: Seat; guilty: boolean }
@@ -228,7 +229,8 @@ export interface ViewTrick {
 
 export interface ViewJodhi {
   seat: Seat
-  suit: Suit
+  /** Only the caller is told the suit, unless it is trump: a 40 or 50 can only be trump. */
+  suit: Suit | null
   withJack: boolean
   points: number
   /** Tricks completed when the claim was made. */

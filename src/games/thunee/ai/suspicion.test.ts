@@ -15,7 +15,8 @@ const clumsy = () => start().play('Kc Qh 10c Js').endPause().play('Qc')
 /** Seat 1 discards on a cheap club trick it loses, then holds its club until trick 6. */
 const patient = () => start().play('Kc Qh 10c Kd  Qd 10s 10h Jd  As Ah Kh Qs  9s Ac 10d Ks  Js 9c Ad Jh  Qc')
 /** Seat 1 trumps the first trick, then claims a diamond Jodhi; seat 0 holds the Qd. */
-const falseJodhi = () => start().play('Ah Qh 9h 10s').do(1, { type: 'claimJodhi', suit: 'diamonds', withJack: false })
+/** Seat 1 claims a Jodhi in trump, 40, whose king and queen are both in seat 0's hand. */
+const falseJodhi = () => start().play('Ah Qh 9h 10s').do(1, { type: 'claimJodhi', suit: 'spades', withJack: false })
 
 /** Seat 1 trumps trick 0 (a cut, and a void when seat 2 can place two diamonds), then loses a fair trick 1. */
 const SHARP = ['Qh 9h 10h Jc Qc 10s', 'Qs Ks Kc Js 9s As', 'Qd 9c Jh Ah Kh 10c', 'Jd 9d Ad 10d Kd Ac']
@@ -65,7 +66,7 @@ describe('proofs', () => {
   test('a Jodhi disproved by the observer’s own hand stands out; an observer without the card sees nothing', () => {
     const t = falseJodhi()
     const proofs = findProofs(viewFor(t.game, 0, 'full'))
-    expect(proofs).toEqual([{ id: 'jodhi:0:Q-diamonds', accused: 1, rule: null, claim: 0, gap: 0, salience: 1.5 }])
+    expect(proofs).toEqual([{ id: 'jodhi:0:K-spades', accused: 1, rule: null, claim: 0, gap: 0, salience: 1.5 }])
     expect(findProofs(viewFor(t.game, 2, 'full'))).toEqual([])
     for (let salt = 1; salt <= 50; salt++) {
       expect(chooseChallenge(viewFor(t.game, 0, 'full'), { persona: 'sharp', salt })).toEqual({ type: 'challengeJodhi', claim: 0 })
@@ -73,6 +74,15 @@ describe('proofs', () => {
     const straight = rate(t, 0, 'straight')
     expect(straight).toBeGreaterThan(0.85)
     expect(straight).toBeLessThan(0.95)
+  })
+
+  test('a Jodhi of 20 names no suit, so it is proved false only once every suit but trump is ruled out', () => {
+    // Seat 1 claims diamonds. Seat 0 holds Qd and has seen Qh played; clubs stay possible until seat 2 shows Kc.
+    const t = start().play('Ah Qh 9h 10s').do(1, { type: 'claimJodhi', suit: 'diamonds', withJack: false })
+    expect(viewFor(t.game, 0, 'full').phase).toMatchObject({ jodhiClaims: [{ seat: 1, suit: null, points: 20 }] })
+    expect(findProofs(viewFor(t.game, 0, 'full'))).toEqual([])
+    t.endPause().play('Kd Kc Jd Qd')
+    expect(findProofs(viewFor(t.game, 0, 'full'))).toMatchObject([{ accused: 1, claim: 0, gap: 0 }])
   })
 
   test('an undercut is proved when the player later shows a plain card, only under the undercut rule', () => {
@@ -141,7 +151,7 @@ describe('proofs', () => {
       const t = half1('dealt').play('Jc 9d').do(0, { type: 'claimJodhi', suit: 'spades', withJack: false })
       expect(claimsOf(t).map((c) => c.valid)).toEqual([false])
       const proofs = findProofs(viewFor(t.game, 1, 'full'))
-      expect(proofs.map((p) => p.id).sort()).toEqual(['jodhi:0:K-spades', 'jodhi:0:Q-spades'])
+      expect(proofs.map((p) => p.id)).toEqual(['jodhi:0:K-spades'])
       expect(proofs.every((p) => p.accused === 0 && p.claim === 0)).toBe(true)
     })
 

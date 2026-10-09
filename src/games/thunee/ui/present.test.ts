@@ -84,7 +84,7 @@ describe('each event is heard', () => {
     expect(heard({ type: 'thuneeCalled', seat: 0 })).toEqual([['big']])
     expect(heard({ type: 'doubleCalled', seat: 0 })).toEqual([['big']])
     expect(heard({ type: 'khanaakCalled', seat: 0 })).toEqual([['big']])
-    expect(heard({ type: 'jodhiClaimed', seat: 0, suit: 'hearts', withJack: false, points: 20 })).toEqual([['jodhi']])
+    expect(heard({ type: 'jodhiClaimed', seat: 0, withJack: false, points: 20 })).toEqual([['jodhi']])
   })
 
   test('a challenge knocks, and its verdict sounds as the verdict shows, after the challenge', () => {

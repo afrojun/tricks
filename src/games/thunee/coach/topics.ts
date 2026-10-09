@@ -63,7 +63,7 @@ export const TOPICS: Record<TopicId, Topic> = {
     title: 'Jodhi',
     paragraphs: [
       'A Jodhi is the king and queen of one suit in your hand. Right after your side wins its first or third trick, you may call it. There is no Jodhi during a Thunee.',
-      'It adds 20 points to your side, 40 if the suit is trump, and 10 more if you also hold the jack. Only call one you really hold: a false Jodhi can be challenged.',
+      'It adds 20 points to your side, 40 if the suit is trump, and 10 more if you also hold the jack. You say only the points, not the suit, so the other side must watch the kings and queens played to tell whether it can be true. Only call one you really hold: a false Jodhi can be challenged.',
     ],
     example: c('spades', 'K', 'Q'),
   },

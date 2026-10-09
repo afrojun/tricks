@@ -127,7 +127,12 @@ export function thuneeContract(overrides: RuleOverrides, playerCount: 2 | 4): { 
     secrets: ['handBefore', 'broke', 'valid', 'stock', 'dealt', 'aiSalt'],
 
     checkView(game, seat, view) {
-      return trumpHiddenFrom(game, seat) && JSON.stringify(view).includes('"trump":"') ? 'shows trump before it is revealed' : null
+      if (trumpHiddenFrom(game, seat) && JSON.stringify(view).includes('"trump":"')) return 'shows trump before it is revealed'
+      const phase = game.phase
+      if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return null
+      const claims = 'jodhiClaims' in view.phase ? view.phase.jodhiClaims : []
+      const told = claims.find((c, i) => c.suit !== null && c.seat !== seat && phase.play.jodhiClaims[i].suit !== phase.play.trump)
+      return told ? "shows the suit of another player's Jodhi" : null
     },
 
     check(game, events) {

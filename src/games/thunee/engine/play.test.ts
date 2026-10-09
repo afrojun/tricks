@@ -581,6 +581,8 @@ describe('saved state for computer players', () => {
     const t = claimed()
     const phase = viewFor(t.game, 0).phase
     if (phase.kind !== 'trickPause') throw new Error(phase.kind)
-    expect(phase.jodhiClaims[0]).toMatchObject({ seat: 1, suit: 'diamonds', trick: 1 })
+    // Only the caller is told the suit.
+    expect(phase.jodhiClaims[0]).toMatchObject({ seat: 1, suit: null, points: 20, trick: 1 })
+    expect(viewFor(t.game, 1).phase).toMatchObject({ jodhiClaims: [{ seat: 1, suit: 'diamonds' }] })
   })
 })

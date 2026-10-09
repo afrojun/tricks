@@ -100,7 +100,7 @@ export function availableActions(view: View): Available {
       }
 
       if (phase.jodhiOpenFor === myTeam && phase.thunee === null) {
-        const mine = phase.jodhiClaims.filter((j) => j.seat === me).map((j) => j.suit)
+        const mine = phase.jodhiClaims.flatMap((j) => (j.seat === me && j.suit !== null ? [j.suit] : []))
         out.claimJodhi = SUITS.filter((s) => !mine.includes(s))
       }
       // A pause waiting on this seat's Jodhi ends when they call one or pass: "No Jodhi".

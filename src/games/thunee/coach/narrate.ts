@@ -56,7 +56,7 @@ export function narrate(event: GameEvent, view: View): Note | null {
     case 'jodhiClaimed':
       return note(
         `${name(event.seat)} ${verb(view, event.seat, 'call', 'calls')} Jodhi`,
-        `The king and queen of ${suitPlural(event.suit)}${event.withJack ? ' with the jack' : ''}: ${event.points} points to ${side(event.seat)}. Nobody checks a Jodhi unless someone challenges it.`,
+        `The king and queen of ${event.points >= 40 ? 'trumps' : 'a suit nobody is told'}${event.withJack ? ' with the jack' : ''}: ${event.points} points to ${side(event.seat)}. Nobody checks a Jodhi unless someone challenges it${event.points >= 40 ? '' : ', so watch the kings and queens played to work out whether it can be true'}.`,
         { topic: 'jodhi', seats: [event.seat] },
       )
     case 'doubleCalled':

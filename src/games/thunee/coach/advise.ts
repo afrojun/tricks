@@ -224,7 +224,7 @@ function proofText(view: View, id: string, accused: number): string {
     if (led) return `On ${label(cheatAt)} ${name} did not follow ${suitPlural(led)}, but has since played one. ${end}`
   }
   if (kind === 'undercut') return `${name} played under a trump while holding another suit, which the rules forbid. ${end}`
-  if (kind === 'jodhi') return `${name} called a Jodhi, but one of its cards is in your hand or has been played elsewhere. ${end}`
+  if (kind === 'jodhi') return `${name} called a Jodhi, but no suit it could be in fits: for each, a card it needs is in your hand or has been played elsewhere. ${end}`
   void revealAt
   return `${name} has broken the rules. ${end}`
 }

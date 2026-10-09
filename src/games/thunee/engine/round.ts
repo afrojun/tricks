@@ -287,7 +287,7 @@ export function claimJodhi(game: Game, play: RoundPlay, seat: Seat, action: Roun
     points,
     valid: holdsClaim(game, play, seat, action),
   })
-  events.push({ type: 'jodhiClaimed', seat, suit: action.suit, withJack: action.withJack, points })
+  events.push({ type: 'jodhiClaimed', seat, withJack: action.withJack, points })
 }
 
 export function callDouble(play: RoundPlay, seat: Seat, events: GameEvent[]) {

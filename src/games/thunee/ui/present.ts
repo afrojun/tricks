@@ -61,7 +61,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
         'jodhi',
         event.seat,
         `Jodhi ${event.points}`,
-        `${name(event.seat)} ${verb(event.seat, 'hold', 'holds')} King and Queen${event.withJack ? ' with the Jack' : ''} of ${SUIT_NAME[event.suit]}`,
+        `${name(event.seat)} ${verb(event.seat, 'hold', 'holds')} King and Queen${event.withJack ? ' with the Jack' : ''} of ${event.points >= 40 ? 'trumps' : 'a suit'}`,
         2600,
       )
     case 'challengeResolved':

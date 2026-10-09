@@ -1,7 +1,7 @@
 /** What a computer player can prove about its opponents' play, from its own full view. */
 import { type Proof, type SeenPlay, chanceOfVoid, noticed, playProofs } from '../../../kit/integrity'
 import { type Mind, TRAITS, roll } from '../../../kit/mind'
-import { type Action, type Card, type Seat, type View, type ViewPlaying, RANKS, availableActions, cardId, pointsOf, sameCard, seenPlays, teamOf } from '../engine'
+import { type Action, type Card, type Seat, type View, type ViewPlaying, RANKS, SUITS, availableActions, cardId, pointsOf, sameCard, seenPlays, teamOf } from '../engine'
 import { type TrickRecord, history, mood } from './read'
 
 export const inPlay = (view: View): ViewPlaying | null =>
@@ -26,18 +26,26 @@ export function findProofs(view: View): Proof[] {
     // The half the claim was made in: a claim always follows a won trick.
     const claimHalf = phase.tricks[claim.trick - 1]?.half ?? 1
     const ranks: Card['rank'][] = claim.withJack ? ['K', 'Q', 'J'] : ['K', 'Q']
-    for (const rank of ranks) {
-      const card: Card = { suit: claim.suit, rank }
-      const id = `jodhi:${index}:${cardId(card)}`
-      if (phase.hand.some((c) => sameCard(c, card))) {
-        out.push({ id, accused: claim.seat, rule: null, claim: index, gap: 0, salience: 1.5 })
-        continue
+    // The suit is not said: 40 or more is trump, less is any other suit. The claim is false only if no suit it could be fits.
+    const suits = claim.suit !== null ? [claim.suit] : SUITS.filter((s) => (claim.points >= 40) === (s === phase.trump))
+    const disproofs = suits.map((suit) => {
+      let best: { id: string; gap: number; salience: number } | null = null
+      for (const rank of ranks) {
+        const card: Card = { suit, rank }
+        const id = `jodhi:${index}:${cardId(card)}`
+        if (phase.hand.some((c) => sameCard(c, card))) return { id, gap: 0, salience: 1.5 }
+        const elsewhere = (t: TrickRecord) =>
+          t.plays.some((p) => sameCard(p.card, card) && (p.seat !== claim.seat || (t.index < claim.trick && (view.rules.jodhiCards === 'inHand' || t.half < claimHalf))))
+        const shown = tricks.find(elsewhere)
+        const gap = shown ? Math.max(0, shown.index - claim.trick) : null
+        if (gap !== null && (best === null || gap < best.gap)) best = { id, gap, salience: 1 }
       }
-      const elsewhere = (t: TrickRecord) =>
-        t.plays.some((p) => sameCard(p.card, card) && (p.seat !== claim.seat || (t.index < claim.trick && (view.rules.jodhiCards === 'inHand' || t.half < claimHalf))))
-      const shown = tricks.find(elsewhere)
-      if (shown) out.push({ id, accused: claim.seat, rule: null, claim: index, gap: Math.max(0, shown.index - claim.trick), salience: 1 })
-    }
+      return best
+    })
+    if (suits.length === 0 || disproofs.some((d) => d === null)) return
+    // Proven once the last possible suit is ruled out.
+    const last = disproofs.reduce((a, b) => (b!.gap > a!.gap ? b : a))!
+    out.push({ id: last.id, accused: claim.seat, rule: null, claim: index, gap: last.gap, salience: last.salience })
   })
   return out
 }
