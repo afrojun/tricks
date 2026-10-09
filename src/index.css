@@ -113,17 +113,25 @@ button:disabled {
   rotate: -4deg;
 }
 
-/* The Tricks mark (the favicon) as a plate on the table, sharing the wordmark's red offset. */
-/* A home's column: a phone's width, and two panels wide from the md breakpoint. */
+/*
+ * A home grows with the screen. Every size on it is in rem, so the root size scales the whole page:
+ * 16px on a 390x844 phone, which the page was laid out to fit, up to 19px, by whichever of the width
+ * and the height runs out first. Other screens keep 16px.
+ */
+html:has(main.home) {
+  --root-size: clamp(16px, min(4.1vw, 1.9dvh), 19px);
+}
+/* A home's column: the phone's width, and two panels wide from the md breakpoint. */
 .home-width {
   width: 100%;
-  max-width: 24rem;
+  max-width: 34rem;
 }
 @media (min-width: 48rem) {
   .home-width {
     max-width: 50rem;
   }
 }
+/* The Tricks mark (the favicon) as a plate on the table, sharing the wordmark's red offset. */
 .tricks-mark {
   width: 4.5rem;
   height: 4.5rem;

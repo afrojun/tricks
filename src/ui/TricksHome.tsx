@@ -8,7 +8,7 @@ import { TopBar } from './TopBar'
 /** `/`: the games, and the look that every game shares. Loads no game. */
 export function TricksHome() {
   return (
-    <main className="min-h-full flex flex-col items-center gap-5 p-4 pb-10">
+    <main className="home min-h-full flex flex-col items-center gap-5 p-4 pb-10">
       <TopBar />
       <header className="text-center mb-2 flex flex-col items-center">
         <img src="/favicon.svg?v=2" alt="" width={72} height={72} className="tricks-mark" />

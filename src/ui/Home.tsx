@@ -123,7 +123,7 @@ export function Home() {
   }
 
   return (
-    <main className="min-h-full flex flex-col items-center gap-3 p-4">
+    <main className="home min-h-full flex flex-col items-center gap-3 p-4">
       <TopBar
         left={<TricksLink />}
         right={
@@ -156,16 +156,19 @@ export function Home() {
           </div>
         )}
         <div className="grid gap-1">
-          <span>Rules</span>
+          {/* "Edit…" on the label's line, so the presets keep a row of their own and the page one screen. */}
+          <div className="flex items-baseline justify-between gap-2">
+            <span>Rules</span>
+            <Link href={rulesPath(game.id, { preset: preset.id })} className="font-semibold underline underline-offset-2">
+              Edit…
+            </Link>
+          </div>
           <div className="flex flex-wrap gap-2">
             {presets.map((p) => (
               <button key={p.id} className="btn btn-small" aria-pressed={p.id === preset.id} onClick={() => choose(p.id)}>
                 {p.name}
               </button>
             ))}
-            <Link href={rulesPath(game.id, { preset: preset.id })} className="btn btn-small btn-quiet">
-              Edit…
-            </Link>
           </div>
         </div>
         <button className="btn btn-primary" onClick={create}>
