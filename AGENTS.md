@@ -44,7 +44,7 @@ src/games/index.ts  The server's list of games by id. The room, the Worker's nam
 src/games/<id>/     One game, which imports no other:
   engine/           Its pure rules, on the kit. One Game value, changed only by apply(game, actor, action, ctx), which is structuredClone then the in-place step.
   ai/               Its computer players: seat view -> action (with a reason code). drive.ts is the automatic loop every host shares; banter.ts names the moments its computers talk about. Hearts' also holds its search adapter (search.ts, imagine.ts) and the gate that measured it (gate/).
-  coach/            Its coach. Pure: the player's view and events -> notes. Thunee's is written by hand; Hearts' is built by the kit's baselineCoach from its own player and a phrase for each reason code.
+  coach/            Its coach. Pure: the player's view and events -> notes. Thunee's is written by hand; Hearts' is built by the kit's baselineCoach from its own player and a phrase for each reason code, with written lessons (topics.ts) and narration (narrate.ts) of its own.
   ui/               Its screens: the table, the round result, present (sound, toast, moment per event), dwell, its rule book (rules.ts), its words (text.ts), and the hooks its screens read (session.ts).
   index.ts          Its GameModule: what the room, practice and tests use.
   client.ts         Its GameClient: what the shell uses, loaded only on the game's addresses.

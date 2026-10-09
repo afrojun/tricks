@@ -3,6 +3,7 @@ import { type Available, type Card, HAND_SIZE, PASS_SIZE, type View, type ViewPh
 import type { Seat } from '../../../kit/table'
 import { AccuseSheet } from '../../../ui/Accuse'
 import { SuitChip } from '../../../ui/Card'
+import { HowToPlaySheet } from '../../../ui/coach/CoachSheets'
 import { CoachStrip } from '../../../ui/coach/CoachStrip'
 import { GameMenu } from '../../../ui/GameMenu'
 import { Hand } from '../../../ui/Hand'
@@ -16,15 +17,13 @@ import { LastTrick, NO_TRICK, TrickArea } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
 import { seatName } from '../../../ui/text'
+import { TOPICS } from '../coach/topics'
 import { RoundResult } from './RoundResult'
 import { useCoach, useSession } from './session'
 import { hint, newCards, passButton, passedWay, points, sortHand, trickTaken } from './text'
 
-type SheetName = 'menu' | 'history' | 'rules' | 'challenge' | null
+type SheetName = 'menu' | 'history' | 'rules' | 'challenge' | 'howto' | null
 type PassWay = Exclude<View['direction'], 'none'>
-
-/** Hearts has no written lessons yet, so the coach's notes link to none. */
-const NO_LESSONS = {}
 
 /** Whom everyone gives their three cards to, by the round's direction. */
 const PASS_RULE: Record<PassWay, string> = {
@@ -115,7 +114,7 @@ export function Table({ view, room }: { view: View; room: string }) {
       )}
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        {coached && <CoachStrip lessons={NO_LESSONS} />}
+        {coached && <CoachStrip lessons={TOPICS} />}
         {!watching && phase.kind !== 'roundResult' && phase.kind !== 'gameOver' && <Mine view={view} turn={myTurn} />}
         {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. The talk button keeps the row's right end. */}
         <div className={`hint-row flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
@@ -161,6 +160,7 @@ export function Table({ view, room }: { view: View; room: string }) {
           <MenuSheet view={view} room={room} onSheet={setSheet} onRestart={() => setPicks(NO_PICKS)} />
         </Sheet>
       )}
+      {sheet === 'howto' && <HowToPlaySheet lessons={TOPICS} onClose={() => setSheet(null)} />}
       {sheet === 'rules' && <RulesSheet game={game} rules={view.rules} onClose={() => setSheet(null)} />}
       {sheet === 'history' && (
         <Sheet title="Last trick" onClose={() => setSheet(null)}>
@@ -322,6 +322,9 @@ function MenuSheet({ view, room, onSheet, onRestart }: { view: View; room: strin
           </p>
           {coached && (
             <div className="flex flex-wrap gap-2">
+              <button className="btn btn-small" onClick={() => onSheet('howto')}>
+                How to play
+              </button>
               <button
                 className="btn btn-small"
                 onClick={() => {

@@ -1,17 +1,19 @@
 /**
- * Hearts' coach, tier 1: built by the kit from Hearts' own computer player, with Hearts' words for
- * its reasons, what the player is asked, and the rules a card can break. Lessons and narration are
- * still to be written.
+ * Hearts' coach: the kit's tier 1, built from Hearts' own computer player, with Hearts' words for
+ * its reasons, what the player is asked, and the rules a card can break; and, written by hand, its
+ * lessons and its narration.
  */
 import { hasCard } from '../../../kit/cards'
-import { type CoachBasis, baselineCoach } from '../../../kit/coach'
+import { type CoachBasis, type GameCoach, baselineCoach } from '../../../kit/coach'
 import { brokenRules } from '../../../kit/integrity'
 import { ledSuit } from '../../../kit/tricks'
 import { decide } from '../ai/choose'
 import { winningPlay } from '../ai/read'
 import type { Reason } from '../ai/reasons'
-import { type Action, type Card, type View, type ViewPlaying, availableActions, excusesFor, isOpeningLead, isPointCard, situation, trickPoints } from '../engine'
+import { type Action, type Card, type GameEvent, type View, type ViewPlaying, availableActions, excusesFor, isOpeningLead, isPointCard, situation, trickPoints } from '../engine'
+import { narrate } from './narrate'
 import { PHRASES } from './phrases'
+import { topicsFor } from './topics'
 import { card, list, points, sentence, who } from './words'
 
 const PASS_TO = { left: 'to the left', right: 'to the right', across: 'across' } as const
@@ -85,4 +87,4 @@ export const heartsBasis: CoachBasis<View, Action, Reason> = {
   risk: 'If anyone notices, they can accuse you: the round ends at once, and you take 26 points.',
 }
 
-export const heartsCoach = baselineCoach(heartsBasis)
+export const heartsCoach: GameCoach<View, Action, GameEvent> = { ...baselineCoach(heartsBasis), narrate, topicsFor }

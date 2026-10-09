@@ -12,6 +12,7 @@
  * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
 import { type Browser, type Page, chromium } from 'playwright-core'
+import { TOPICS } from '../src/games/hearts/coach/topics'
 import { addComputers } from './lobby'
 
 const shots = process.argv[2] ?? '/tmp/shots'
@@ -352,6 +353,21 @@ await a.goto(`${base}/hearts/practice?players=4`)
 if (practised) {
   check(await seen(a, 'Passing left', 10_000), '/hearts/practice opens a practice game at the pass')
   check(await a.locator('.coach-strip').isVisible(), 'the practice table draws the coach')
+  // A new practice game opens with its lessons, the aim first; each is read with "Got it".
+  const gotIt = a.getByRole('button', { name: 'Got it' })
+  const readLessons = async () => {
+    for (let i = 0; i < 5 && (await gotIt.isVisible()); i++) await gotIt.click().catch(() => {})
+  }
+  check(await seen(a, 'The aim', 5000), 'practice opens with the lesson on the aim')
+  await shot(a, '10-practice-lesson')
+  await readLessons()
+  check(!(await gotIt.isVisible()), 'and its lessons can be read and closed')
+  await a.getByRole('button', { name: 'Open menu' }).click()
+  await a.getByRole('button', { name: 'How to play' }).click()
+  check(await seen(a, 'Shooting the moon'), 'the menu has every lesson under How to play')
+  await a.keyboard.press('Escape')
+  // Every lesson counts as read from here, so none opens over the table while the script taps it.
+  await a.evaluate((ids) => localStorage.setItem('tricks-hearts-coach-seen', JSON.stringify(ids)), Object.keys(TOPICS))
   await shot(a, '10-practice')
 
   // Cards picked in one practice game are not carried into the next.

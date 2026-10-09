@@ -123,6 +123,12 @@ describe('Hearts practice', () => {
       const coach = () => s.coach.getState()
 
       expect(view().phase.kind).toBe('passing')
+      // A new game opens with the aim, then passing; each holds the clock until it is read.
+      expect(coach().topic).toBe('aim')
+      s.coach.dismissTopic()
+      expect(coach().topic).toBe('passing')
+      s.coach.dismissTopic()
+      expect(coach().topic).toBeNull()
       expect(coach().waiting).toBe(true)
       expect(coach().situation?.body).toMatch(/^Choose three cards to pass to the left\./)
       expect(coach().advice?.action.type).toBe('choosePass')
@@ -132,7 +138,8 @@ describe('Hearts practice', () => {
       let play: { situation: string; hint: string } | null = null
       for (let guard = 0; guard < 20_000 && view().phase.kind !== 'gameOver'; guard++) {
         const state = coach()
-        if (state.trickPaused) s.coach.continueTrick()
+        if (state.topic !== null) s.coach.dismissTopic()
+        else if (state.trickPaused) s.coach.continueTrick()
         else if (view().phase.kind === 'roundResult') s.send({ type: 'nextRound' })
         else if (state.advice && state.version === s.store.getState().version) {
           if (state.advice.action.type === 'playCard' && play === null) play = { situation: state.situation!.body, hint: state.advice.note.title }
@@ -154,6 +161,33 @@ describe('Hearts practice', () => {
       again.close()
     })
 
+    test('a whole round teaches every lesson it reaches, none skipped behind another', () => {
+      for (const seed of [3, 50]) {
+        const s = openPracticeSession(heartsPractice, dwell, { playerCount: 4, storage: new MemoryStorage(), seed })
+        vi.runOnlyPendingTimers()
+        const shown: string[] = []
+        let followedFirst = false
+        for (let guard = 0; guard < 5000 && s.store.getState().view!.phase.kind !== 'roundResult'; guard++) {
+          const state = s.coach.getState()
+          const phase = s.store.getState().view!.phase
+          if (phase.kind === 'playing' && phase.turn === 0 && phase.tricks.length === 0 && phase.current.length > 0) followedFirst = true
+          if (state.topic !== null) {
+            shown.push(state.topic)
+            s.coach.dismissTopic()
+          } else if (state.trickPaused) s.coach.continueTrick()
+          else if (state.advice && state.version === s.store.getState().version) s.send(state.advice.action)
+          vi.advanceTimersByTime(500)
+        }
+        expect(s.store.getState().view!.phase.kind).toBe('roundResult')
+        // Every heart and the queen are played by the round's end, so each of these is reached; the
+        // first trick only by a player who follows the two of clubs.
+        const reached = ['aim', 'passing', 'tricks', 'heartsBroken', 'queen', 'challenge', ...(followedFirst ? ['firstTrick'] : [])]
+        expect(shown, `seed ${seed}`).toEqual(expect.arrayContaining(reached))
+        expect(new Set(shown).size, `seed ${seed}`).toBe(shown.length)
+        s.close()
+      }
+    })
+
     test('a hint is there for each of the player’s plays, and the situation with it', () => {
       const s = openPracticeSession(heartsPractice, dwell, { playerCount: 4, storage: new MemoryStorage(), seed: 5 })
       vi.runOnlyPendingTimers()
@@ -163,7 +197,8 @@ describe('Hearts practice', () => {
         const state = s.coach.getState()
         const v = s.store.getState().view!
         const mine = v.phase.kind === 'playing' && v.phase.turn === 0 && state.version === s.store.getState().version
-        if (state.trickPaused) s.coach.continueTrick()
+        if (state.topic !== null) s.coach.dismissTopic()
+        else if (state.trickPaused) s.coach.continueTrick()
         else if (mine) {
           expect(state.situation?.title).toBe('Your move')
           expect(state.advice?.action.type).toBe('playCard')
