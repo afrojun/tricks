@@ -40,7 +40,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
     case 'trumpChosen':
       return { toast: `${name(event.seat)} ${verb(event.seat, 'have', 'has')} chosen trump${event.lastCard ? ' by last card' : ''}.` }
     case 'dealCancelled':
-      return { toast: 'The counting side holds no trump. Dealing again.' }
+      return { toast: 'The other side holds no trump. Dealing again.' }
     case 'trumpRevealed':
       return { toast: `Trump is ${SUIT_NAME[event.suit]}.` }
     case 'cardPlayed':
@@ -75,11 +75,12 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       // The verdict comes in the same message as the challenge, and its moment shows after the challenge's.
       playSound(c.guilty ? 'caught' : 'fair', CHALLENGE_BEAT_MS)
       const accused = seatName(view, c.accused)
-      const what = c.kind === 'play' ? 'followed suit' : `held the Jodhi in ${SUIT_NAME[c.suit!]}`
+      const what = c.kind === 'play' ? 'followed suit' : c.kind === 'thunee' ? 'could call Thunee' : `held the Jodhi in ${SUIT_NAME[c.suit!]}`
+      const offence = c.kind === 'play' ? BROKE[c.rule ?? 'renege'] : c.kind === 'thunee' ? 'called Thunee with six of one suit' : 'called a false Jodhi'
       return {
         moments: [
           c.guilty
-            ? { title: 'Caught', detail: `${accused} ${c.kind === 'play' ? BROKE[c.rule ?? 'renege'] : 'called a false Jodhi'}`, tone: 'danger', ms: VERDICT_BEAT_MS, card: c.card }
+            ? { title: 'Caught', detail: `${accused} ${offence}`, tone: 'danger', ms: VERDICT_BEAT_MS, card: c.card }
             : { title: 'Fair play', detail: `${accused} ${what}`, tone: 'good', ms: VERDICT_BEAT_MS, card: c.card },
         ],
       }

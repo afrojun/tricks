@@ -63,6 +63,7 @@ function actions(bounded: boolean) {
     z.object({ type: z.literal('callKhanaak') }),
     z.object({ type: z.literal('challengePlay'), seat }),
     z.object({ type: z.literal('challengeJodhi'), claim: bounded ? z.number().int().min(0).max(100) : z.number() }),
+    z.object({ type: z.literal('challengeThunee') }),
     z.object({ type: z.literal('nextRound') }),
     z.object({ type: z.literal('rematch'), now: z.literal(true).optional() }),
   ])

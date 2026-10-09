@@ -142,6 +142,7 @@ describe('lobby', () => {
       callKhanaak: [],
       challengePlay: [{ seat: null }, { seat: '1' }, {}],
       challengeJodhi: [{ claim: null }, { claim: '0' }, {}],
+      challengeThunee: [],
       nextRound: [],
       rematch: [],
     }

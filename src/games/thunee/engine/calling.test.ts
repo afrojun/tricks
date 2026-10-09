@@ -228,10 +228,12 @@ describe('thunee window', () => {
   const toWindow = (overrides = {}, hands = D1) =>
     new Table(4, { redealIfNoTrumps: false, ...overrides }).deal(hands).advance(10_000).do(1, { type: 'chooseTrump', choice: 'spades' })
 
-  test('anyone may call under traditional rules, except a hand of six in one suit', () => {
+  test('anyone may call under traditional rules; a hand of six in one suit only when cheating is allowed', () => {
     const t = toWindow({}, NO_SPADES)
-    expect([0, 1, 2, 3].map((s) => availableActions(viewFor(t.game, s)).callThunee)).toEqual([true, true, false, true])
-    expect(t.try(2, { type: 'callThunee' })).toBe('notAllowed')
+    expect([0, 1, 2, 3].map((s) => availableActions(viewFor(t.game, s)).callThunee)).toEqual([true, true, true, true])
+    const off = toWindow({ allowCheating: false }, NO_SPADES)
+    expect([0, 1, 2, 3].map((s) => availableActions(viewFor(off.game, s)).callThunee)).toEqual([true, true, false, true])
+    expect(off.try(2, { type: 'callThunee' })).toBe('notAllowed')
   })
 
   test('only the trumper may call under the trumper-only setting', () => {
@@ -280,5 +282,79 @@ describe('thunee window', () => {
   test('a Thunee with no trump, led by the player after the caller', () => {
     const t = toWindow({ thuneeTrump: 'noTrump', thuneeLeader: 'afterCaller' }).do(1, { type: 'callThunee' })
     expect(t.game.phase).toMatchObject({ kind: 'playing', turn: 2, play: { thunee: { caller: 1 }, trump: null } })
+  })
+})
+
+describe('Thunee: six of one suit, and no trump on the other side', () => {
+  const thuneeBy = (seat: number, overrides = {}, hands = NO_SPADES) => {
+    const t = new Table(4, { redealIfNoTrumps: false, ...overrides }).deal(hands).advance(10_000).do(1, { type: 'chooseTrump', choice: 'lastCard' }) // Qh: hearts
+    t.do(seat, { type: 'callThunee' })
+    return t.game.phase.kind === 'thuneeWindow' ? t.advance(10_000) : t
+  }
+  const summary = (t: Table) => {
+    if (t.game.phase.kind !== 'roundResult') throw new Error(t.game.phase.kind)
+    return t.game.phase.summary
+  }
+
+  test('a Thunee called with six of one suit is kept secret, and a challenge catches it for 4 balls', () => {
+    const t = thuneeBy(2)
+    expect(t.game.phase).toMatchObject({ kind: 'playing', play: { thunee: { caller: 2, sixOfASuit: true } } })
+    expect(JSON.stringify(viewFor(t.game, 1))).not.toContain('sixOfASuit')
+    expect(availableActions(viewFor(t.game, 1)).challengeThunee).toBe(true)
+    expect(availableActions(viewFor(t.game, 0)).challengeThunee).toBe(false)
+    expect(t.try(0, { type: 'challengeThunee' })).toBe('notAllowed')
+    t.do(1, { type: 'challengeThunee' })
+    expect(summary(t)).toMatchObject({ reason: 'challenge', winner: 1, balls: 4, challenge: { kind: 'thunee', challenger: 1, accused: 2, guilty: true } })
+  })
+
+  test('a wrong challenge of a Thunee gives the caller’s side 4 balls', () => {
+    const t = thuneeBy(3)
+    t.do(0, { type: 'challengeThunee' })
+    expect(summary(t)).toMatchObject({ winner: 1, balls: 4, challenge: { kind: 'thunee', accused: 3, guilty: false } })
+  })
+
+  test('once both opponents play another suit to a trump lead, the round is dealt again when the pause ends', () => {
+    // Seat 1 calls and leads Js, making spades trump; seats 0 and 2 hold none.
+    const t = thuneeBy(1, { redealIfNoTrumps: true }).play('Js Jc Qs Jh')
+    expect(t.game.phase).toMatchObject({ kind: 'trickPause', redeal: true })
+    expect(viewFor(t.game, 0).phase).toMatchObject({ redeal: true })
+    t.endPause()
+    expect(t.events).toContainEqual({ type: 'dealCancelled' })
+    expect(t.game).toMatchObject({ roundNumber: 1, balls: [0, 0], phase: { kind: 'calling' } })
+
+    const off = thuneeBy(1).play('Js Jc Qs Jh')
+    expect(off.game.phase).toMatchObject({ kind: 'trickPause', redeal: false })
+  })
+
+  test('without timers the pause waits for the caller, who may deal again or challenge', () => {
+    const untimed = () => {
+      const t = new Table(4, { timers: false }).deal(NO_SPADES).do(0, { type: 'pass' }).do(2, { type: 'pass' })
+      t.do(1, { type: 'chooseTrump', choice: 'lastCard' }).do(1, { type: 'callThunee' })
+      return t.play('Js Jc Qs Jh')
+    }
+    const t = untimed()
+    expect(t.game.phase).toMatchObject({ kind: 'trickPause', deadline: null, redeal: true })
+    expect(t.game.waiting.map((w) => w.seat)).toEqual([1])
+    expect(availableActions(viewFor(t.game, 1)).pass).toBe(true)
+    expect(availableActions(viewFor(t.game, 3)).pass).toBe(false)
+    t.do(1, { type: 'pass' })
+    expect(t.events).toContainEqual({ type: 'dealCancelled' })
+    expect(t.game.phase.kind).toBe('calling')
+
+    // Seat 0 really had no spades, so the challenge is wrong.
+    const challenged = untimed().do(1, { type: 'challengePlay', seat: 0 })
+    expect(summary(challenged)).toMatchObject({ winner: 0, balls: 4, challenge: { accused: 0, guilty: false } })
+  })
+
+  test('two players: no trump for the counting player in either deal means a new deal after the first half', () => {
+    // Seat 1 trumps with hearts and holds all six; seat 0 never sees one.
+    const t = new Table(2).deal(['Js 9s As 10s Ks Qs', 'Jh 9h Ah 10h Kh Qh']).toPlay('hearts')
+    t.play('Js Qh  Jh 9s  9h As  Ah 10s  10h Ks  Kh Qs').endPause()
+    expect(t.events).toContainEqual({ type: 'dealCancelled' })
+    expect(t.game).toMatchObject({ roundNumber: 1, balls: [0, 0], phase: { kind: 'calling' } })
+
+    const off = new Table(2, { redealIfNoTrumps: false }).deal(['Js 9s As 10s Ks Qs', 'Jh 9h Ah 10h Kh Qh']).toPlay('hearts')
+    off.play('Js Qh  Jh 9s  9h As  Ah 10s  10h Ks  Kh Qs').endPause()
+    expect(off.game.phase).toMatchObject({ kind: 'playing', play: { half: 2 } })
   })
 })

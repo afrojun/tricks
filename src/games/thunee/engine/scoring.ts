@@ -13,7 +13,7 @@ export type Outcome =
       kind: 'challenge'
       challenger: Seat
       accused: Seat
-      about: 'play' | 'jodhi'
+      about: 'play' | 'jodhi' | 'thunee'
       guilty: boolean
       card?: Card
       suit?: Suit

@@ -24,6 +24,7 @@ export type Reason =
   | { code: 'sureDouble' }
   | { code: 'sureKhanaak' }
   | { code: 'noJodhi' }
+  | { code: 'dealAgain' }
   | { code: 'fallback' }
 
 export interface Decision {

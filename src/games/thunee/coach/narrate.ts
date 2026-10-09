@@ -36,7 +36,7 @@ export function narrate(event: GameEvent, view: View): Note | null {
         { topic: 'trump', seats: [event.seat] },
       )
     case 'dealCancelled':
-      return note('Dealt again', 'The counting side held no trump at all, so the round is dealt again.')
+      return note('Dealt again', 'The other side held no trump at all, so the round is dealt again.')
     case 'thuneeCalled': {
       const caller = name(event.seat)
       const body =

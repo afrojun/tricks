@@ -74,8 +74,13 @@ export interface Playing {
 export interface TrickPause {
   kind: 'trickPause'
   play: RoundPlay
-  /** Null without timers when a computer leads next and its partner, a person, may call Jodhi: the pause then waits for them. */
+  /**
+   * Null without timers when the pause waits on a person: the partner of a computer about to lead,
+   * who may call Jodhi, or the caller of a Thunee about to be dealt again.
+   */
   deadline: number | null
+  /** Neither opponent of the Thunee caller has trump: the round is dealt again when the pause ends, unless someone challenges. */
+  redeal: boolean
 }
 
 export interface RoundResult {
@@ -119,7 +124,8 @@ export interface RoundPlay {
   callAmount: number
   trump: Suit | null
   trumpRevealed: boolean
-  thunee: { caller: Seat } | null
+  /** `sixOfASuit` is hidden: the caller held six cards of one suit, which forbids the call. */
+  thunee: { caller: Seat; sixOfASuit: boolean } | null
   half: 1 | 2
   /** Undealt cards; only non-empty during the first half of a two-player round. */
   stock: Card[]
@@ -156,7 +162,7 @@ export interface RoundSummary {
   challenge?: {
     challenger: Seat
     accused: Seat
-    kind: 'play' | 'jodhi'
+    kind: 'play' | 'jodhi' | 'thunee'
     guilty: boolean
     card?: Card
     suit?: Suit
@@ -183,6 +189,7 @@ export type Action =
   | { type: 'callKhanaak' }
   | { type: 'challengePlay'; seat: Seat }
   | { type: 'challengeJodhi'; claim: number }
+  | { type: 'challengeThunee' }
   | { type: 'nextRound' }
   /** Again: a vote, or with `now` the host starting the next game at once. */
   | { type: 'rematch'; now?: true }
@@ -286,6 +293,8 @@ export interface ViewPlaying {
   double: { caller: Seat } | null
   khanaak: { caller: Seat } | null
   deadline: number | null
+  /** In a trick pause: the round is about to be dealt again (see `TrickPause`). */
+  redeal: boolean
 }
 
 /** The table's part (seats, host, owner, `waiting`) comes from the kit. */

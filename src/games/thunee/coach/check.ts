@@ -2,7 +2,7 @@
  * Warnings before a mistake. Only a fixed list of mistakes, and never the coach's own advice:
  * each judgement rule fires only when the player's move has the problem and the advised move does not.
  */
-import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, SUIT_NAME, availableActions, excusesFor, hasCard, rankStrength, teamOf, trickWinner } from '../engine'
+import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, SUIT_NAME, availableActions, excusesFor, hasCard, holdsSixOfOneSuit, rankStrength, teamOf, trickWinner } from '../engine'
 import { callLimit, chooseJodhi, decide } from '../ai/choose'
 import { brokenRules } from '../../../kit/integrity'
 import { HONEST } from '../../../kit/mind'
@@ -31,7 +31,11 @@ export function check(view: View, action: Action): Note | null {
       return warn('overcall', 'That call is high for this hand', `Your four cards are worth calling up to ${limit || 'nothing'}. A call is added to the other side's points, so calling ${action.amount} makes their ${target(view)} much easier.`, { topic: 'calling' })
     }
     case 'callThunee': {
-      if (view.phase.kind !== 'thuneeWindow' || decide(view, HONEST).reason.code !== 'thuneeUnsafe') return null
+      if (view.phase.kind !== 'thuneeWindow') return null
+      if (holdsSixOfOneSuit(view.phase.hand)) {
+        return warn('illegal', 'That breaks the rules', 'A player holding six cards of one suit may not call Thunee. If the other side challenges, they win 4 balls.', { topic: 'thunee' })
+      }
+      if (decide(view, HONEST).reason.code !== 'thuneeUnsafe') return null
       return warn('thunee', 'Are you sure about Thunee?', `Thunee means winning all six tricks yourself, and your hand cannot promise that. ${thuneeRisk(view)}`, { topic: 'thunee' })
     }
     case 'tick': {
@@ -40,11 +44,19 @@ export function check(view: View, action: Action): Note | null {
       return warn('jodhiUnclaimed', 'You can call Jodhi', `You hold the king and queen of ${suitPlural(jodhi.suit)}. Call it now: once the next card is led, the chance is gone.`, { topic: 'jodhi' })
     }
     case 'challengePlay':
-    case 'challengeJodhi': {
+    case 'challengeJodhi':
+    case 'challengeThunee': {
       const proofs = findProofs(view)
-      const proven = action.type === 'challengePlay' ? proofs.some((p) => p.claim === null && p.accused === action.seat) : proofs.some((p) => p.claim === action.claim)
+      const isThunee = (id: string) => id.startsWith('thunee:')
+      const proven =
+        action.type === 'challengePlay'
+          ? proofs.some((p) => p.claim === null && !isThunee(p.id) && p.accused === action.seat)
+          : action.type === 'challengeJodhi'
+            ? proofs.some((p) => p.claim === action.claim)
+            : proofs.some((p) => isThunee(p.id))
       if (proven) return null
-      const accused = action.type === 'challengePlay' ? action.seat : inPlay(view)?.jodhiClaims[action.claim]?.seat
+      const accused =
+        action.type === 'challengePlay' ? action.seat : action.type === 'challengeJodhi' ? inPlay(view)?.jodhiClaims[action.claim]?.seat : inPlay(view)?.thunee?.caller
       const name = accused === undefined ? 'them' : who(view, accused)
       return warn('challenge', 'Nothing proves that yet', `You have not seen ${name} break a rule. A wrong challenge gives the other side 4 balls.`, { topic: 'challenge' })
     }

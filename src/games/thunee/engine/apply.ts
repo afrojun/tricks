@@ -2,11 +2,11 @@ import { type Actor, type Ctx, againComplete, checkLobbyHost, emptySeats, isActi
 import { hasCard } from './cards'
 import { availableActions } from './available'
 import { actionShape } from './schema'
-import { jodhiWaitingOn, mayCall } from './predicates'
+import { mayCall, pauseWaitingOn } from './predicates'
 import { SEAT_COUNTS, TRADITIONAL, resolveRules } from './rules'
 import * as round from './round'
 import { type Seat, allSeats } from './seats'
-import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type RejectReason } from './types'
+import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type RejectReason, type TrickPause } from './types'
 import { viewFor } from './view'
 
 export function createGame(): Game {
@@ -59,6 +59,10 @@ export function step(draft: Game, actor: Actor, action: Action, ctx: Ctx): { eve
   return { events }
 }
 
+function pauseWaiting(game: Game, pause: TrickPause): Seat[] {
+  return pauseWaitingOn({ deadline: pause.deadline, redeal: pause.redeal, thunee: pause.play.thunee, tricks: pause.play.tricks }, game.playerCount)
+}
+
 /** Seats that have something to decide right now. */
 export function seatsToAct(game: Game): Seat[] {
   const phase = game.phase
@@ -72,7 +76,7 @@ export function seatsToAct(game: Game): Seat[] {
     case 'playing':
       return [phase.turn]
     case 'trickPause':
-      return jodhiWaitingOn(phase.deadline, phase.play.tricks, game.playerCount)
+      return pauseWaiting(game, phase)
     default:
       return []
   }
@@ -91,7 +95,7 @@ export function untimedSeats(game: Game): Seat[] {
     case 'playing':
       return [phase.turn]
     case 'trickPause':
-      return jodhiWaitingOn(phase.deadline, phase.play.tricks, game.playerCount)
+      return pauseWaiting(game, phase)
     default:
       return []
   }
@@ -158,8 +162,8 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       if (!can.pass) return 'notAllowed'
       if (phase.kind === 'calling') round.passCall(game, phase, seat, ctx, events)
       else if (phase.kind === 'thuneeWindow') round.passThunee(game, phase, seat)
-      // No Jodhi: the pause was waiting only for this answer.
-      else if (phase.kind === 'trickPause') round.afterTrick(game, phase.play, events)
+      // No Jodhi, or deal again: the pause was waiting only for this answer.
+      else if (phase.kind === 'trickPause') round.afterTrick(game, phase.play, ctx, events)
       return null
 
     case 'preselectTrump':
@@ -195,7 +199,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       if (!game.rules.allowCheating && !round.holdsClaim(game, phase.play, seat, action)) return 'falseClaim'
       round.claimJodhi(game, phase.play, seat, action, events)
       // A claim answers a pause that was waiting for it.
-      if (phase.kind === 'trickPause' && jodhiWaitingOn(phase.deadline, phase.play.tricks, game.playerCount).includes(seat)) round.afterTrick(game, phase.play, events)
+      if (phase.kind === 'trickPause' && pauseWaiting(game, phase).includes(seat)) round.afterTrick(game, phase.play, ctx, events)
       return null
 
     case 'callDouble':
@@ -220,6 +224,12 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
       if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return 'wrongPhase'
       if (!can.challengeJodhi.includes(action.claim)) return 'notAllowed'
       round.challengeJodhi(game, phase.play, seat, action.claim, events)
+      return null
+
+    case 'challengeThunee':
+      if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return 'wrongPhase'
+      if (!can.challengeThunee) return 'notAllowed'
+      round.challengeThunee(game, phase.play, seat, events)
       return null
 
     case 'nextRound':
@@ -261,5 +271,5 @@ function tick(game: Game, ctx: Ctx, events: GameEvent[]): void {
   if (!('deadline' in phase) || phase.deadline === null || phase.deadline > ctx.now) return
   if (phase.kind === 'calling') round.closeCalling(game, phase, ctx, events)
   else if (phase.kind === 'thuneeWindow') round.closeThunee(game, phase)
-  else if (phase.kind === 'trickPause') round.afterTrick(game, phase.play, events)
+  else if (phase.kind === 'trickPause') round.afterTrick(game, phase.play, ctx, events)
 }

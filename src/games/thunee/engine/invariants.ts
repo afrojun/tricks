@@ -36,6 +36,7 @@ export function checkInvariants(game: Game): void {
       const records = [...play.tricks.flatMap((t) => t.plays), ...play.current]
       if (records.some((r) => r.broke.length > 0)) fail('a rule-breaking card was accepted with cheating off')
       if (play.jodhiClaims.some((j) => !j.valid)) fail('a false Jodhi was accepted with cheating off')
+      if (play.thunee?.sixOfASuit) fail('a Thunee with six of one suit was accepted with cheating off')
     }
   }
 

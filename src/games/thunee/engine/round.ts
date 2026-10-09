@@ -2,6 +2,7 @@ import { firstCheat, recordPlay } from '../../../kit/integrity'
 import { type Card, createDeck, pointsOf, removeCard, shuffle } from './cards'
 import {
   holdsJodhi,
+  holdsSixOfOneSuit,
   jodhiPoints,
   jodhiTimingOk,
   jodhiWaits,
@@ -53,6 +54,12 @@ export function beginRound(game: Game, ctx: Ctx, events: GameEvent[]): void {
   events.push({ type: 'dealt', roundNumber: game.roundNumber, dealer: game.dealer, half: 1 })
 }
 
+/** The counting side holds no trump: the same dealer deals the round again. */
+function dealAgain(game: Game, ctx: Ctx, events: GameEvent[]): void {
+  events.push({ type: 'dealCancelled' })
+  beginRound(game, ctx, events)
+}
+
 /** When a timed window closes, or null without timers. */
 function deadlineIn(game: Game, ctx: Ctx, seconds: number): number | null {
   return game.rules.timers ? ctx.now + seconds * 1000 : null
@@ -96,11 +103,7 @@ export function chooseTrump(game: Game, choice: TrumpChoice, ctx: Ctx, events: G
 
   if (game.rules.redealIfNoTrumps && game.playerCount === 4) {
     const counting = allSeats(4).filter((s) => teamOf(s) !== teamOf(trumper))
-    if (!counting.some((s) => hands[s].some((c) => c.suit === trump))) {
-      events.push({ type: 'dealCancelled' })
-      beginRound(game, ctx, events)
-      return
-    }
+    if (!counting.some((s) => hands[s].some((c) => c.suit === trump))) return dealAgain(game, ctx, events)
   }
 
   const window: ThuneeWindow = {
@@ -169,7 +172,7 @@ function startPlay(game: Game, phase: ThuneeWindow, thuneeCaller: Seat | null) {
     // Under Thunee the chosen trump is void: either no trump, or the caller's first card sets it.
     trump: thuneeCaller === null ? phase.trump : null,
     trumpRevealed: false,
-    thunee: thuneeCaller === null ? null : { caller: thuneeCaller },
+    thunee: thuneeCaller === null ? null : { caller: thuneeCaller, sixOfASuit: holdsSixOfOneSuit(phase.hands[thuneeCaller]) },
     half: 1,
     stock: phase.stock,
     tricks: [],
@@ -233,13 +236,32 @@ export function playCard(game: Game, play: RoundPlay, seat: Seat, card: Card, ct
   // A claim must come before the next card is led, so the last trick of a hand opens none.
   const moreToPlay = thisHalf.length < 6
   play.jodhiOpenFor = play.thunee === null && moreToPlay && jodhiTimingOk(teamWins, game.rules) ? team : null
-  // A computer leads as soon as the pause ends, so without timers its partner gets as long as they need.
-  const waits = jodhiWaits(game.seats, game.playerCount, game.rules, play.jodhiOpenFor, winner)
-  game.phase = { kind: 'trickPause', play, deadline: waits ? null : ctx.now + TRICK_PAUSE_MS }
+  const redeal = game.rules.redealIfNoTrumps && opponentsShowNoTrump(game, play)
+  // A computer leads as soon as the pause ends, so without timers its partner gets as long as they need;
+  // and a person who called Thunee gets as long as they need to challenge before the cards are dealt again.
+  const caller = play.thunee?.caller
+  const waits = redeal
+    ? !game.rules.timers && caller !== undefined && game.seats[caller].kind === 'human' && !game.seats[caller].standIn
+    : jodhiWaits(game.seats, game.playerCount, game.rules, play.jodhiOpenFor, winner)
+  game.phase = { kind: 'trickPause', play, deadline: waits ? null : ctx.now + TRICK_PAUSE_MS, redeal }
 }
 
-/** Runs when the trick pause ends: next trick, second half, or scoring. */
-export function afterTrick(game: Game, play: RoundPlay, events: GameEvent[]) {
+/**
+ * In a four-player Thunee with a trump, whether both of the caller's opponents have shown they hold no trump,
+ * by playing another suit to a trump lead. Then the Thunee cannot be stopped, and the round is dealt again.
+ */
+function opponentsShowNoTrump(game: Game, play: RoundPlay): boolean {
+  if (game.playerCount !== 4 || play.thunee === null || play.trump === null) return false
+  const caller = play.thunee.caller
+  const trumpLeads = play.tricks.filter((t) => t.plays[0].card.suit === play.trump)
+  return allSeats(4)
+    .filter((s) => teamOf(s) !== teamOf(caller))
+    .every((s) => trumpLeads.some((t) => t.plays.some((p) => p.seat === s && p.card.suit !== play.trump)))
+}
+
+/** Runs when the trick pause ends: next trick, second half, a new deal, or scoring. */
+export function afterTrick(game: Game, play: RoundPlay, ctx: Ctx, events: GameEvent[]) {
+  const redeal = game.phase.kind === 'trickPause' && game.phase.redeal
   const last = play.tricks[play.tricks.length - 1]
   const tricksThisHalf = play.tricks.filter((t) => t.half === play.half).length
 
@@ -247,6 +269,7 @@ export function afterTrick(game: Game, play: RoundPlay, events: GameEvent[]) {
     const result = thuneeTrickResult(game, play.thunee.caller, last.winner)
     if (!result.ok) return finishRound(game, play, { kind: 'thunee', success: false, partnerCatch: result.partnerCatch }, events)
     if (tricksThisHalf === 6) return finishRound(game, play, { kind: 'thunee', success: true, partnerCatch: false }, events)
+    if (redeal) return dealAgain(game, ctx, events)
   }
 
   if (tricksThisHalf < 6) {
@@ -260,6 +283,10 @@ export function afterTrick(game: Game, play: RoundPlay, events: GameEvent[]) {
     // Second half: the remaining twelve cards; trump and the call carry over.
     play.hands = [[], []]
     dealTo(play.hands, play.stock, 6, game)
+    // The counting player held no trump in the first six cards: if none came in the second six either, deal again.
+    const counting = (1 - play.trumper) as Seat
+    const holdsTrump = (cards: Card[]) => cards.some((c) => c.suit === play.trump)
+    if (game.rules.redealIfNoTrumps && !holdsTrump(play.dealt[counting]) && !holdsTrump(play.hands[counting])) return dealAgain(game, ctx, events)
     play.dealt = play.hands.map((h) => [...h])
     play.half = 2
     game.phase = { kind: 'playing', play, turn: last.winner }
@@ -317,6 +344,13 @@ export function challengePlay(game: Game, play: RoundPlay, challenger: Seat, acc
     rule: cheat?.broke[0],
   }
   events.push({ type: 'challengeResolved', challenger, accused, guilty: outcome.guilty })
+  finishRound(game, play, outcome, events)
+}
+
+export function challengeThunee(game: Game, play: RoundPlay, challenger: Seat, events: GameEvent[]) {
+  const caller = play.thunee!.caller
+  const outcome: Outcome = { kind: 'challenge', challenger, accused: caller, about: 'thunee', guilty: play.thunee!.sixOfASuit }
+  events.push({ type: 'challengeResolved', challenger, accused: caller, guilty: outcome.guilty })
   finishRound(game, play, outcome, events)
 }
 

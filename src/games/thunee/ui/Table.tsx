@@ -10,7 +10,7 @@ import {
   type ViewPlaying,
   availableActions,
   jodhiPoints,
-  jodhiWaitingOn,
+  pauseWaitingOn,
   teamOf,
 } from '../engine'
 import { AccuseSheet } from '../../../ui/Accuse'
@@ -518,9 +518,13 @@ function Hint({ view, can }: { view: View; can: Available }) {
       )
     return <>{seatName(view, phase.turn!)} to play.</>
   }
+  if (phase.kind === 'trickPause' && phase.redeal) {
+    if (can.pass) return <>Neither opponent has trump, so the cards are dealt again. Challenge first if you think one hid a trump.</>
+    return <>Neither side can stop this Thunee without trump: the cards will be dealt again.</>
+  }
   if (phase.kind === 'trickPause' && can.pass) return <>Your side won the trick. Call Jodhi, or say No Jodhi to play on.</>
   if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <>Your side won the trick. You can call Jodhi now.</>
-  const jodhiFrom = phase.kind === 'trickPause' ? jodhiWaitingOn(phase.deadline, phase.tricks, view.playerCount) : []
+  const jodhiFrom = phase.kind === 'trickPause' ? pauseWaitingOn(phase, view.playerCount) : []
   if (jodhiFrom.length > 0) return <>Waiting for {seatName(view, jodhiFrom[0])} to call Jodhi or play on.</>
   if (phase.kind === 'calling' && can.calls.length > 0) return <>{CALL_NOTE}</>
   if (phase.kind === 'trumpSelection' && can.chooseTrump.length > 0) return <>{LAST_CARD_NOTE}</>
@@ -533,7 +537,7 @@ function ActionBar({ can, playing, accuse, onSheet }: { can: Available; playing:
   const { send } = useSession()
   // Before play the space is kept, so the table does not jump when the first trick starts.
   if (!playing) return <div className="h-13" />
-  const canChallenge = can.challengePlay.length > 0 || can.challengeJodhi.length > 0
+  const canChallenge = can.challengePlay.length > 0 || can.challengeJodhi.length > 0 || can.challengeThunee
   const noJodhi = playing.kind === 'trickPause' && can.pass
   const calls = [can.claimJodhi.length > 0, noJodhi, can.callDouble, can.callKhanaak].filter(Boolean).length
   // Three buttons or more are small and close up, and four drop "Call", so they keep to one row and the hand does not rise.
@@ -550,7 +554,7 @@ function ActionBar({ can, playing, accuse, onSheet }: { can: Available; playing:
       )}
       {noJodhi && (
         <button className={`btn ${size}`} onClick={() => send({ type: 'pass' })}>
-          No Jodhi
+          {playing.redeal ? 'Deal again' : 'No Jodhi'}
         </button>
       )}
       {can.callDouble && (
@@ -610,6 +614,15 @@ function ChallengeSheet({ view, can, playing, onClose }: { view: View; can: Avai
           label: `${seatName(view, seat)} did not follow suit`,
           send: () => send({ type: 'challengePlay', seat }),
         })),
+        ...(can.challengeThunee && playing.thunee
+          ? [
+              {
+                key: 'thunee',
+                label: `${seatName(view, playing.thunee.caller)} called Thunee holding six cards of one suit`,
+                send: () => send({ type: 'challengeThunee' }),
+              },
+            ]
+          : []),
         ...can.challengeJodhi.map((index) => {
           const claim = playing.jodhiClaims[index]
           return {

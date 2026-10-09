@@ -124,7 +124,7 @@ export function thuneeContract(overrides: RuleOverrides, playerCount: 2 | 4): { 
       return [...hands.filter((_, s) => s !== seat).flat(), ...stock, ...forgotten]
     },
 
-    secrets: ['handBefore', 'broke', 'valid', 'stock', 'dealt', 'aiSalt'],
+    secrets: ['handBefore', 'broke', 'valid', 'sixOfASuit', 'stock', 'dealt', 'aiSalt'],
 
     checkView(game, seat, view) {
       if (trumpHiddenFrom(game, seat) && JSON.stringify(view).includes('"trump":"')) return 'shows trump before it is revealed'

@@ -42,9 +42,10 @@ export function holdsSixOfOneSuit(hand: readonly Card[]): boolean {
   return hand.length === 6 && hand.every((c) => c.suit === hand[0].suit)
 }
 
+/** Six cards of one suit forbid a Thunee; with cheating allowed the call may be made anyway, and challenged. */
 export function thuneeEligible(seat: Seat, hand: readonly Card[], trumper: Seat, rules: RuleSet): boolean {
   if (rules.thuneeCaller === 'trumperOnly' && seat !== trumper) return false
-  return !holdsSixOfOneSuit(hand)
+  return rules.allowCheating || !holdsSixOfOneSuit(hand)
 }
 
 /** Whether winning a trick now opens a Jodhi claim, given the team's tricks won this half (including it). */
@@ -63,8 +64,19 @@ export function jodhiWaits(seats: readonly { kind: string; standIn: boolean }[],
   return (seats[leader].kind === 'ai' || seats[leader].standIn) && seats[partner].kind === 'human'
 }
 
-/** Who a trick pause with no deadline waits on: the partner of the trick's winner, who leads next. */
-export function jodhiWaitingOn(deadline: number | null, tricks: readonly { winner: Seat }[], playerCount: number): Seat[] {
+/**
+ * Who a trick pause with no deadline waits on: the caller of a Thunee about to be dealt again, who may
+ * challenge instead; otherwise the partner of the trick's winner, who may call Jodhi before they lead.
+ */
+export function pauseWaitingOn(
+  pause: { deadline: number | null; redeal: boolean; thunee: { caller: Seat } | null; tricks: readonly { winner: Seat }[] },
+  playerCount: number,
+): Seat[] {
+  if (pause.deadline === null && pause.redeal && pause.thunee) return [pause.thunee.caller]
+  return jodhiWaitingOn(pause.deadline, pause.tricks, playerCount)
+}
+
+function jodhiWaitingOn(deadline: number | null, tricks: readonly { winner: Seat }[], playerCount: number): Seat[] {
   const last = tricks[tricks.length - 1]
   const partner = deadline === null && last ? partnerOf(last.winner, playerCount) : null
   return partner === null ? [] : [partner]

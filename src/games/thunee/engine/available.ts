@@ -1,5 +1,5 @@
 import { type Card, type Suit, SUITS } from './cards'
-import { callAmounts, jodhiWaitingOn, mayCall, prospectiveTrumper, thuneeEligible, trumpChoices } from './predicates'
+import { callAmounts, mayCall, pauseWaitingOn, prospectiveTrumper, thuneeEligible, trumpChoices } from './predicates'
 import { type Seat, teamOf } from './seats'
 import { legalPlays } from './tricks'
 import type { TrumpChoice, View } from './types'
@@ -20,6 +20,8 @@ export interface Available {
   callKhanaak: boolean
   challengePlay: Seat[]
   challengeJodhi: number[]
+  /** That the Thunee caller held six cards of one suit. */
+  challengeThunee: boolean
   nextRound: boolean
   /** May say Again: a person at the table who has not yet. */
   again: boolean
@@ -41,6 +43,7 @@ const NOTHING: Available = {
   callKhanaak: false,
   challengePlay: [],
   challengeJodhi: [],
+  challengeThunee: false,
   nextRound: false,
   again: false,
   rematch: false,
@@ -103,14 +106,15 @@ export function availableActions(view: View): Available {
         const mine = phase.jodhiClaims.flatMap((j) => (j.seat === me && j.suit !== null ? [j.suit] : []))
         out.claimJodhi = SUITS.filter((s) => !mine.includes(s))
       }
-      // A pause waiting on this seat's Jodhi ends when they call one or pass: "No Jodhi".
-      if (phase.kind === 'trickPause' && jodhiWaitingOn(phase.deadline, phase.tricks, view.playerCount).includes(me)) out.pass = true
+      // A pause waiting on this seat ends when they answer: "No Jodhi", or deal again.
+      if (phase.kind === 'trickPause' && pauseWaitingOn(phase, view.playerCount).includes(me)) out.pass = true
 
       if (view.rules.allowCheating) {
         // Once a trick has been completed, every seat has played a card this round.
         const played = phase.tricks.length > 0 ? view.seats.map((_, seat) => seat) : phase.current.map((p) => p.seat)
         out.challengePlay = played.filter((s) => teamOf(s) !== myTeam).sort()
         out.challengeJodhi = phase.jodhiClaims.flatMap((j, i) => (teamOf(j.seat) !== myTeam ? [i] : []))
+        out.challengeThunee = phase.thunee !== null && teamOf(phase.thunee.caller) !== myTeam
       }
       break
     }

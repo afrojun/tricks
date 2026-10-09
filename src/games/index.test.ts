@@ -63,7 +63,7 @@ describe('every game in the list', () => {
       actions: [
         ...TABLE_ACTIONS,
         ...['setRules', 'call', 'pass', 'preselectTrump', 'chooseTrump', 'callThunee', 'playCard', 'claimJodhi', 'callDouble', 'callKhanaak'],
-        ...['challengePlay', 'challengeJodhi', 'nextRound', 'rematch'],
+        ...['challengePlay', 'challengeJodhi', 'challengeThunee', 'nextRound', 'rematch'],
       ],
       paths: [
         ...TABLE_PATHS,
@@ -178,7 +178,7 @@ describe('every game in the list keeps the module contract', () => {
       // played reaches this; the check is given one by hand: the first trick played out with trump still hidden.
       const game = new Table(4, { redealIfNoTrumps: false }).deal(['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']).toPlay('spades').game
       if (game.phase.kind !== 'playing') throw new Error('expected play')
-      const paused: Game = { ...game, phase: { kind: 'trickPause', play: { ...game.phase.play, trumpRevealed: false }, deadline: 0 } }
+      const paused: Game = { ...game, phase: { kind: 'trickPause', play: { ...game.phase.play, trumpRevealed: false }, deadline: 0, redeal: false } }
       const shown = (seat: Seat | null) => ({ ...thunee.viewFor(paused, seat), phase: { ...thunee.viewFor(paused, seat).phase, trump: 'spades' } }) as View
       expect(contract.checkView!(paused, null, shown(null))).toBe('shows trump before it is revealed')
       expect(contract.checkView!(paused, 0, shown(0))).toBe('shows trump before it is revealed')

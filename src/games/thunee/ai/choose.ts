@@ -171,6 +171,8 @@ export function decide(view: View, mind: Mind): Decision {
       return { action: { type: 'pass' }, reason: { code: 'thuneeUnsafe' } }
     }
     case 'trickPause': {
+      // Nothing proves an opponent hid a trump, so let the cards be dealt again.
+      if (phase.redeal) return { action: { type: 'pass' }, reason: { code: 'dealAgain' } }
       // Only asked while the pause waits on this seat's Jodhi; a computer playing for a person answers it.
       const claim = chooseJodhi(view, mind)
       if (claim) return { action: claim, reason: { code: 'fallback' } }

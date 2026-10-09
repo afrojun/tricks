@@ -1,5 +1,5 @@
 /** The suggested move for the player's decision, and why: the honest computer's choice, put into words. */
-import { type Action, type Card, type View, type ViewPlaying, SUIT_NAME, availableActions, jodhiPoints, sameCard } from '../engine'
+import { type Action, type Card, type Suit, type View, type ViewPlaying, SUIT_NAME, availableActions, jodhiPoints, sameCard } from '../engine'
 import { decide, chooseJodhi } from '../ai/choose'
 import { HONEST } from '../../../kit/mind'
 import { wouldWin } from '../ai/read'
@@ -45,7 +45,7 @@ export function advise(view: View): Advice | null {
   if (!decides) return null
 
   const { action, reason } = decide(view, HONEST)
-  const title = action.type !== 'pass' ? titleOf(action) : phase.kind === 'thuneeWindow' ? 'No Thunee' : phase.kind === 'trickPause' ? 'No Jodhi' : titleOf(action)
+  const title = action.type !== 'pass' ? titleOf(action) : phase.kind === 'thuneeWindow' ? 'No Thunee' : phase.kind === 'trickPause' ? (phase.redeal ? 'Deal again' : 'No Jodhi') : titleOf(action)
   return { action, note: { tone: 'suggest', title, body: explain(view, action, reason), cards: cardsOf(action, reason), topic: topicOf(reason) } }
 }
 
@@ -98,6 +98,8 @@ function topicOf(reason: Reason): Note['topic'] {
       return 'khanaak'
     case 'noJodhi':
       return 'jodhi'
+    case 'dealAgain':
+      return 'thunee'
     default:
       return 'following'
   }
@@ -167,6 +169,8 @@ function explain(view: View, action: Action, reason: Reason): string {
       return 'Your side has won the first five tricks and your card wins the last. Double is worth 2 balls.'
     case 'sureKhanaak':
       return "Your side's Jodhi plus 10 is more than the other side's card points plus their Jodhi, and your card wins the last trick. Khanaak is worth 3 balls, or 6 from the counting side."
+    case 'dealAgain':
+      return 'Both opponents have played another suit to a trump lead, so neither holds trump and nobody can stop your Thunee. The cards are dealt again. Challenge instead only if you can prove one of them hid a trump.'
     case 'noJodhi':
       return 'You hold no king and queen of a suit you have not already called, so there is no Jodhi to call. Play on.'
     case 'fallback':
@@ -197,8 +201,9 @@ function whyNot(view: View, phase: ViewPlaying | null, chosen: Card): string {
 function provableChallenge(view: View): Advice | null {
   const can = availableActions(view)
   for (const proof of findProofs(view)) {
-    const action: Action | null =
-      proof.claim !== null
+    const action: Action | null = proof.id.startsWith('thunee:')
+      ? can.challengeThunee ? { type: 'challengeThunee' } : null
+      : proof.claim !== null
         ? can.challengeJodhi.includes(proof.claim) ? { type: 'challengeJodhi', claim: proof.claim } : null
         : can.challengePlay.includes(proof.accused) ? { type: 'challengePlay', seat: proof.accused } : null
     if (!action) continue
@@ -224,6 +229,10 @@ function proofText(view: View, id: string, accused: number): string {
     if (led) return `On ${label(cheatAt)} ${name} did not follow ${suitPlural(led)}, but has since played one. ${end}`
   }
   if (kind === 'undercut') return `${name} played under a trump while holding another suit, which the rules forbid. ${end}`
+  if (kind === 'thunee') {
+    const suit = id.split(':')[2] as Suit
+    return `${name} called Thunee holding six ${suitPlural(suit)}: they have played nothing else, and nobody else holds one. The rules forbid that call. ${end}`
+  }
   if (kind === 'jodhi') return `${name} called a Jodhi, but no suit it could be in fits: for each, a card it needs is in your hand or has been played elsewhere. ${end}`
   void revealAt
   return `${name} has broken the rules. ${end}`

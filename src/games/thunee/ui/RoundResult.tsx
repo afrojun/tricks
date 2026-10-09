@@ -26,10 +26,12 @@ const CAUGHT: Record<string, string> = { renege: 'not following suit', undercut:
 export function headline(view: View, s: RoundSummary): string {
   const name = (seat: number) => seatName(view, seat)
   if (s.challenge) {
-    const what = s.challenge.kind === 'play' ? (s.challenge.card ? `playing ${cardText(s.challenge.card)}` : 'a play') : `a Jodhi in ${SUIT_NAME[s.challenge.suit!]}`
-    return s.challenge.guilty
-      ? `${name(s.challenge.challenger)} caught ${name(s.challenge.accused)} ${s.challenge.kind === 'play' ? CAUGHT[s.challenge.rule ?? 'renege'] : 'calling a false Jodhi'}.`
-      : `${name(s.challenge.challenger)} challenged ${name(s.challenge.accused)} over ${what}, and was wrong.`
+    const c = s.challenge
+    const what = c.kind === 'play' ? (c.card ? `playing ${cardText(c.card)}` : 'a play') : c.kind === 'thunee' ? 'their Thunee' : `a Jodhi in ${SUIT_NAME[c.suit!]}`
+    const offence = c.kind === 'play' ? CAUGHT[c.rule ?? 'renege'] : c.kind === 'thunee' ? 'calling Thunee with six cards of one suit' : 'calling a false Jodhi'
+    return c.guilty
+      ? `${name(c.challenger)} caught ${name(c.accused)} ${offence}.`
+      : `${name(c.challenger)} challenged ${name(c.accused)} over ${what}, and was wrong.`
   }
   if (s.thunee) {
     if (s.thunee.success) return `${name(s.thunee.caller)} made the Thunee.`

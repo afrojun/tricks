@@ -24,7 +24,7 @@ const RULE_INFO: RuleInfo<RuleSet>[] = [
   { key: 'double', label: 'Double', choices: onOff('Allowed', 'Not played') },
   { key: 'undercutRestriction', label: 'Undercutting a trump', choices: onOff('Only with a hand of trumps', 'Always allowed') },
   { key: 'allowCheating', label: 'Cheating', choices: onOff('Allowed, and can be challenged', 'Not allowed') },
-  { key: 'redealIfNoTrumps', label: 'Counting team holds no trump', choices: onOff('Redeal', 'Play on') },
+  { key: 'redealIfNoTrumps', label: 'The other side holds no trump', choices: onOff('Redeal', 'Play on') },
   { key: 'ballsToWin', label: 'Balls to win', range: { min: 1, max: 30, unit: 'balls' } },
   { key: 'twoToClear', label: 'Must win by two balls', choices: onOff('Yes', 'No') },
   { key: 'twoPlayerTarget', label: 'Two-player counting target', range: { min: 50, max: 250, unit: 'points' } },

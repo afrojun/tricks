@@ -60,7 +60,7 @@ function viewPhase(phase: Phase, seat: Seat | null, memory: Memory): ViewPhase {
     case 'playing':
       return viewPlay('playing', phase.play, seat, phase.turn, null, memory)
     case 'trickPause':
-      return viewPlay('trickPause', phase.play, seat, null, phase.deadline, memory)
+      return viewPlay('trickPause', phase.play, seat, null, phase.deadline, memory, phase.redeal)
     case 'roundResult':
       return { kind: 'roundResult', summary: phase.summary }
     case 'gameOver':
@@ -75,6 +75,7 @@ function viewPlay(
   turn: Seat | null,
   deadline: number | null,
   memory: Memory,
+  redeal = false,
 ): ViewPlaying {
   const trumpVisible = play.trumpRevealed || (seat === play.trumper && play.thunee === null)
   return {
@@ -84,7 +85,7 @@ function viewPlay(
     callAmount: play.callAmount,
     trump: trumpVisible ? play.trump : null,
     trumpRevealed: play.trumpRevealed,
-    thunee: play.thunee,
+    thunee: play.thunee && { caller: play.thunee.caller },
     half: play.half,
     tricks: play.tricks.map((t, i) => ({
       // Earlier tricks have been turned face down: only their winners remain known.
@@ -105,5 +106,6 @@ function viewPlay(
     double: play.double,
     khanaak: play.khanaak,
     deadline,
+    redeal,
   }
 }

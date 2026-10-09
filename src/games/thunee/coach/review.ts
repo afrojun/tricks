@@ -47,7 +47,8 @@ function score({ summary: s, view, you, decisions }: ReviewInput): Note {
   let body: string
   if (s.challenge) {
     const c = s.challenge
-    const what = c.kind === 'jodhi' ? 'calling a false Jodhi' : playOffence(decisions, c.accused === you ? c.card : undefined)
+    const what =
+      c.kind === 'jodhi' ? 'calling a false Jodhi' : c.kind === 'thunee' ? 'calling Thunee with six cards of one suit' : playOffence(decisions, c.accused === you ? c.card : undefined)
     body = c.guilty
       ? `The round ended with a challenge: ${who(view, c.challenger)} caught ${c.accused === you ? 'you' : who(view, c.accused)} ${what}. That is 4 balls to ${sideName(s.winner).toLowerCase()}.`
       : `The round ended with a challenge that was wrong: ${who(view, c.accused)} had played fairly, so 4 balls go to ${sideName(s.winner).toLowerCase()}.`
