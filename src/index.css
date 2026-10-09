@@ -115,15 +115,22 @@ button:disabled {
 
 /*
  * The middle of a table, where a panel sits over the trick. It is a size container, so a panel's
- * notes (.panel-note, the muted lines that explain) give way when the middle is short, and its
- * padding closes up, so its buttons fit without scrolling.
+ * notes (.panel-note: muted lines a player can do without, since what they must know is said
+ * elsewhere) give way when the middle is short, and its padding closes up, so its buttons fit
+ * without scrolling.
  */
 .centre-box {
   container-type: size;
 }
 @container (max-height: 17rem) {
+  /* Out of sight, still read by a screen reader. */
   .panel-note {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .centre-box .panel {
     padding: 0.5rem;

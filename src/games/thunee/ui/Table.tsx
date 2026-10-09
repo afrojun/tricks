@@ -402,7 +402,16 @@ function useCommit() {
   }
 }
 
+/**
+ * What a call costs and what Last card means. Online they are the hint under the table, which keeps
+ * two lines' room and is otherwise empty while calling and choosing trump, so a short screen never
+ * loses them. In practice that line is the coach's, and they stay in the panel.
+ */
+const CALL_NOTE = 'Call to choose trump. The other side starts that many points up.'
+const LAST_CARD_NOTE = 'Last card makes trump the suit of the final card you are dealt.'
+
 function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase, { kind: 'calling' }>; can: Available }) {
+  const coached = useCoach()
   const { send } = useSession()
   const commit = useCommit()
   const trumper = phase.call?.seat ?? phase.defaultTrumper
@@ -423,7 +432,7 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
       )}
       {can.calls.length > 0 && (
         <div className="grid gap-2">
-          <p className="panel-note text-center text-sm text-on-surface-muted">Call to choose trump. The other side starts that many points up.</p>
+          {coached && <p className="panel-note text-center text-sm text-on-surface-muted">{CALL_NOTE}</p>}
           {/* As many columns as fit, Pass in the last cell, so a phone shows two or three rows rather than four. */}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-1.5">
             {can.calls.map((amount) => (
@@ -443,6 +452,7 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
 }
 
 function TrumpPanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase, { kind: 'trumpSelection' }>; can: Available }) {
+  const coached = useCoach()
   const commit = useCommit()
   return (
     <section className="panel p-3 w-full max-w-sm grid gap-3">
@@ -450,7 +460,7 @@ function TrumpPanel({ view, phase, can }: { view: View; phase: Extract<ViewPhase
         <>
           <p className="text-center">Choose trump{phase.callAmount > 0 ? ` for your call of ${phase.callAmount}` : ''}.</p>
           <TrumpButtons choices={can.chooseTrump} onChoose={(choice) => commit({ type: 'chooseTrump', choice })} />
-          <p className="panel-note text-center text-sm text-on-surface-muted">Last card makes trump the suit of the final card you are dealt.</p>
+          {coached && <p className="panel-note text-center text-sm text-on-surface-muted">{LAST_CARD_NOTE}</p>}
         </>
       ) : (
         <p className="text-center">{seatName(view, phase.trumper)} is choosing trump.</p>
@@ -503,6 +513,8 @@ function Hint({ view, can }: { view: View; can: Available }) {
   if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <>Your side won the trick. You can call Jodhi now.</>
   const jodhiFrom = phase.kind === 'trickPause' ? jodhiWaitingOn(phase.deadline, phase.tricks, view.playerCount) : []
   if (jodhiFrom.length > 0) return <>Waiting for {seatName(view, jodhiFrom[0])} to call Jodhi or play on.</>
+  if (phase.kind === 'calling' && can.calls.length > 0) return <>{CALL_NOTE}</>
+  if (phase.kind === 'trumpSelection' && can.chooseTrump.length > 0) return <>{LAST_CARD_NOTE}</>
   if (phase.kind === 'roundResult') return <>Round {view.roundNumber} is over.</>
   return null
 }
