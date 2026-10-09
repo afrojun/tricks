@@ -37,7 +37,7 @@ await page.goto(`${base}/thunee`)
 // The home's bar: the house rules of the chosen preset, and the look.
 await page.getByRole('button', { name: 'House rules', exact: true }).click()
 const rules = page.getByRole('dialog', { name: 'House rules' })
-check((await rules.isVisible()) && (await rules.getByText('Traditional', { exact: true }).isVisible()), 'House rules opens a sheet naming the chosen preset')
+check((await rules.isVisible()) && (await rules.getByText('Traditional: no house rules.', { exact: true }).isVisible()), 'House rules opens a sheet naming the chosen preset')
 await rules.getByRole('button', { name: 'Close' }).click()
 check(!(await rules.isVisible()), 'the house rules close')
 await page.getByRole('button', { name: 'Look', exact: true }).click()
