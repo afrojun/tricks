@@ -148,7 +148,7 @@ export function finishRound(game: Game, play: RoundPlay, outcome: Outcome, event
 
   const champion = winningTeam(game.balls, ballsTarget(rules, game.khanaakCalled), rules)
   if (champion !== null) {
-    game.phase = { kind: 'gameOver', winner: champion, summary }
+    game.phase = { kind: 'gameOver', again: [], winner: champion, summary }
     events.push({ type: 'gameOver', winner: champion })
     return
   }

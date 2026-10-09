@@ -62,7 +62,7 @@ export function finishRound(game: Game, play: RoundPlay, outcome: Outcome, event
 
   const winner = gameWinner(game.scores, game.rules)
   if (winner !== null) {
-    game.phase = { kind: 'gameOver', winner, summary }
+    game.phase = { kind: 'gameOver', again: [], winner, summary }
     events.push({ type: 'gameOver', winner })
     return
   }

@@ -21,6 +21,9 @@ export interface Available {
   challengePlay: Seat[]
   challengeJodhi: number[]
   nextRound: boolean
+  /** May say Again: a person at the table who has not yet. */
+  again: boolean
+  /** May start the next game now: the host. */
   rematch: boolean
   reclaimSeat: boolean
 }
@@ -39,6 +42,7 @@ const NOTHING: Available = {
   challengePlay: [],
   challengeJodhi: [],
   nextRound: false,
+  again: false,
   rematch: false,
   reclaimSeat: false,
 }
@@ -114,6 +118,7 @@ export function availableActions(view: View): Available {
       out.nextRound = view.seats[me].kind === 'human'
       break
     case 'gameOver':
+      out.again = view.seats[me].kind === 'human' && !phase.again.includes(me)
       out.rematch = view.host === me
       break
     case 'lobby':

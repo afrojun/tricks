@@ -67,6 +67,7 @@ export class GameStore<V, E> {
       this.update({ error: message.message })
       return
     }
+    if (message.type === 'said') return // talk, which the session hands to its own store
     if (!this.awaitingFirstSync && message.version < this.state.version) return // stale
     this.clockOffset = message.now - localNow
 

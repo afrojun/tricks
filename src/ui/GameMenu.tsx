@@ -4,14 +4,14 @@ import { useCoach } from './coach/context'
 import type { ShellView } from './contract'
 import { gamePath } from './routes'
 import { navigate, useGameClient, useSession } from './session'
-import { setShowsPlayable, useShowsPlayable } from './prefs'
+import { setShowsPlayable, setTalksOn, useShowsPlayable, useTalksOn } from './prefs'
 import { isMuted, setMuted } from './sound'
 import { seatName } from './text'
 import { ThemePicker } from './ThemePicker'
 
 /**
  * The menu every table has. The game's own lines come first and its buttons share a row with
- * the sound; then the look, the computer standing in for anyone who is away (never in practice),
+ * the sound and the reactions (table talk); then the look, the computer standing in for anyone who is away (never in practice),
  * and the way out.
  */
 export function GameMenu({ view, intro, actions }: { view: ShellView; intro: ReactNode; actions: ReactNode }) {
@@ -19,6 +19,7 @@ export function GameMenu({ view, intro, actions }: { view: ShellView; intro: Rea
   const game = useGameClient()
   const [muted, setMutedState] = useState(isMuted)
   const marksPlayable = useShowsPlayable()
+  const reactions = useTalksOn()
   const coached = useCoach()
   const replaceable = coached ? [] : replaceableSeats(view, store.serverNow(Date.now()))
   return (
@@ -35,6 +36,9 @@ export function GameMenu({ view, intro, actions }: { view: ShellView; intro: Rea
           }}
         >
           Sound {muted ? 'off' : 'on'}
+        </button>
+        <button className="btn btn-small" aria-pressed={reactions} onClick={() => setTalksOn(!reactions)}>
+          Reactions {reactions ? 'on' : 'off'}
         </button>
         <button className="btn btn-small" aria-pressed={marksPlayable} onClick={() => setShowsPlayable(!marksPlayable)}>
           Highlight playable cards: {marksPlayable ? 'on' : 'off'}

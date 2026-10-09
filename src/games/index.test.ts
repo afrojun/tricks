@@ -69,7 +69,7 @@ describe('every game in the list', () => {
         ...TABLE_PATHS,
         ...overrides(TRADITIONAL),
         ...['call.amount', 'preselectTrump.choice', 'chooseTrump.choice', ...card('playCard.card'), 'claimJodhi.suit', 'claimJodhi.withJack'],
-        ...['challengePlay.seat', 'challengeJodhi.claim'],
+        ...['challengePlay.seat', 'challengeJodhi.claim', 'rematch.now'],
       ],
     },
     hearts: {
@@ -79,7 +79,7 @@ describe('every game in the list', () => {
         ...TABLE_PATHS,
         ...overrides(STANDARD),
         ...['choosePass.cards', ...card('choosePass.cards.0'), ...card('choosePass.cards.1'), ...card('choosePass.cards.2')],
-        ...[...card('playCard.card'), 'challengePlay.seat'],
+        ...[...card('playCard.card'), 'challengePlay.seat', 'rematch.now'],
       ],
     },
   }

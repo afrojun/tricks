@@ -20,6 +20,13 @@ export type Sound =
   | 'gameWon'
   | 'gameLost'
   | 'tap'
+  | 'talkEmote'
+  | 'throwSlap'
+  | 'throwSoft'
+  | 'throwSplat'
+  | 'throwChip'
+  | 'knock'
+  | 'nudged'
 
 /** One recording in a sound: a file in `public/sounds/` (one of several, at random), how loud, ms after the sound starts, and where it is faded out. */
 interface Part {
@@ -56,6 +63,16 @@ const SOUNDS: Record<Sound, Recipe> = {
   // For the side that lost, and a spectator: the pot pushed over, to someone else.
   gameLost: { parts: [{ file: 'fs-chips-push', volume: 0.8 }] },
   tap: { parts: [{ file: 'bookFlip1', volume: 0.5, cut: 350 }] },
+  // Table talk, from the table's own recordings until its landing sounds are recorded. A line plays `tap` until the voices exist.
+  talkEmote: { parts: [{ file: 'bookFlip1', volume: 0.3, cut: 250 }] },
+  // A chappal's slap, a rose laid down, a tomato's splat, a chip tossed in.
+  throwSlap: { parts: [{ file: 'impactWood_light_001', volume: 0.9 }, { file: 'card-place-3', volume: 0.7 }] },
+  throwSoft: { parts: [{ file: 'card-place-2', volume: 0.5 }] },
+  throwSplat: { parts: [{ file: 'card-place-3', volume: 1 }, { file: 'card-shove-2', volume: 0.4, at: 40, cut: 300 }] },
+  throwChip: { parts: [{ file: ['fs-chip-0', 'fs-chip-1', 'fs-chip-2'], volume: 0.9 }] },
+  // A nudge knocks twice; on its target's own phone it buzzes with the knocks.
+  knock: { parts: [0, 180].map((at) => ({ file: KNOCK, volume: 0.9, at })) },
+  nudged: { parts: [0, 180].map((at) => ({ file: KNOCK, volume: 1, at })), haptic: [40, 60, 40] },
 }
 
 const FILES = [...new Set(Object.values(SOUNDS).flatMap((recipe) => recipe.parts.flatMap((part) => part.file)))]

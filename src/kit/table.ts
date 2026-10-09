@@ -166,6 +166,17 @@ export function isAiControlled(game: Pick<TableState, 'seats'>, seat: Seat): boo
   return info.kind === 'ai' || info.standIn
 }
 
+/** At game over, who must say Again before the next game starts: every person at the table and not away. */
+export function againElectorate(game: Pick<TableState, 'seats'>): Seat[] {
+  return game.seats.flatMap((s, seat) => (s.kind === 'human' && s.connected && !s.standIn ? [seat] : []))
+}
+
+/** Whether everyone who must say Again has: never for an empty table, which nobody is watching. */
+export function againComplete(game: Pick<TableState, 'seats'>, again: readonly Seat[]): boolean {
+  const electorate = againElectorate(game)
+  return electorate.length > 0 && electorate.every((seat) => again.includes(seat))
+}
+
 /** Trims, collapses whitespace and caps the length; null if nothing is left. */
 export function cleanName(raw: string): string | null {
   if (typeof raw !== 'string') return null

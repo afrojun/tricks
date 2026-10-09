@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
 import { chooseAction, chooseJodhi } from '../games/thunee/ai/choose'
 import { HONEST } from '../kit/mind'
+import { NUDGE_GAP_MS, TALK_GAP_MS } from '../kit/talk'
 import type { TableState } from '../kit/table'
 import type { Action, GameEvent, View } from '../games/thunee/engine'
 import { type Game, availableActions, createGame } from '../games/thunee/engine'
@@ -106,6 +107,10 @@ class World {
 
   send(conn: FakeConn, action: Action | object) {
     return this.server.onMessage(JSON.stringify({ action }), conn)
+  }
+
+  say(conn: FakeConn, say: object) {
+    return this.server.onMessage(JSON.stringify({ say }), conn)
   }
 
   async fireAlarm() {
@@ -777,5 +782,112 @@ describe('computer personas', () => {
     await w.send(me, { type: 'playCard', card: card('Qc') })
     expect(me.view.phase).toMatchObject({ kind: 'roundResult', summary: { reason: 'challenge', challenge: { accused: 1, guilty: true } } })
     expect(me.inbox.some((m) => m.type === 'error')).toBe(false)
+  })
+})
+
+describe('talk', () => {
+  const said = (conn: FakeConn) => conn.take().filter((m) => m.type === 'said')
+  const yoh = { kind: 'line', id: 'yoh' } as const
+
+  test('a seated person’s line goes to everyone, theirs too, and nothing is saved', async () => {
+    const { w, conns } = await startedGame()
+    const spectator = await w.connect('s'.repeat(20))
+    conns.forEach((c) => c.take())
+    spectator.take()
+    const writes = w.writes.filter((x) => x === 'put').length
+    await w.say(conns[1], yoh)
+    for (const conn of [...conns, spectator]) expect(said(conn)).toEqual([{ type: 'said', seat: 1, say: yoh }])
+    expect(w.writes.filter((x) => x === 'put').length).toBe(writes)
+  })
+
+  test('a spectator, or anything that is not a known id, says nothing', async () => {
+    const { w, conns } = await startedGame()
+    const spectator = await w.connect('s'.repeat(20))
+    conns.forEach((c) => c.take())
+    await w.say(spectator, yoh)
+    await w.say(conns[0], { kind: 'line', id: 'hello' })
+    await w.say(conns[0], { kind: 'throw', id: 'rose' })
+    expect(said(conns[1])).toEqual([])
+  })
+
+  test('one thing said per seat in the gap, however many sockets it has', async () => {
+    const { w, conns } = await startedGame()
+    const second = await w.connect(TOKENS[0])
+    conns.forEach((c) => c.take())
+    await w.say(conns[0], yoh)
+    await w.say(second, { kind: 'line', id: 'eish' })
+    await w.say(conns[1], yoh)
+    expect(said(conns[2]).map((m) => m.type === 'said' && m.seat)).toEqual([0, 1])
+    w.now += TALK_GAP_MS
+    await w.say(second, { kind: 'line', id: 'eish' })
+    expect(said(conns[2])).toHaveLength(1)
+  })
+
+  test('a throw needs another seat; a nudge, one the table waits on, and not again for a while', async () => {
+    const { w, conns } = await startedGame()
+    conns.forEach((c) => c.take())
+    await w.say(conns[0], { kind: 'throw', id: 'rose', at: 0 })
+    expect(said(conns[1])).toEqual([])
+    const toAct = gameOf(w.host.name)!.seatsToAct((w.data.get('state') as { game: TableState }).game)
+    const due = [1, 2, 3].find((seat) => toAct.includes(seat))
+    const idle = [1, 2, 3].find((seat) => !toAct.includes(seat))
+    if (due === undefined || idle === undefined) throw new Error(`waiting on ${toAct}`)
+    await w.say(conns[0], { kind: 'throw', id: 'nudge', at: idle })
+    expect(said(conns[1])).toEqual([])
+    await w.say(conns[0], { kind: 'throw', id: 'nudge', at: due })
+    expect(said(conns[1])).toHaveLength(1)
+    w.now += TALK_GAP_MS
+    await w.say(conns[0], { kind: 'throw', id: 'nudge', at: due })
+    expect(said(conns[1])).toEqual([])
+    w.now += NUDGE_GAP_MS
+    await w.say(conns[0], { kind: 'throw', id: 'nudge', at: due })
+    expect(said(conns[1])).toHaveLength(1)
+  })
+})
+
+describe('again', () => {
+  /** Two people and two computers, the game over. */
+  async function over() {
+    const w = await new World().boot()
+    const conns = [await w.connect(TOKENS[0]), await w.connect(TOKENS[1])]
+    await w.send(conns[0], { type: 'sit', seat: 0, name: 'P0' })
+    await w.send(conns[1], { type: 'sit', seat: 1, name: 'P1' })
+    for (const seat of [2, 3]) await w.send(conns[0], { type: 'addAi', seat })
+    await w.send(conns[0], { type: 'start' })
+    const saved = w.data.get('state') as { game: Game }
+    saved.game = { ...saved.game, phase: { kind: 'gameOver', again: [], winner: 0, summary: {} as never }, aiActAt: null, waiting: [] }
+    await w.wake()
+    return { w, conns }
+  }
+
+  test('the next game starts when both people have said Again', async () => {
+    const { w, conns } = await over()
+    await w.send(conns[0], { type: 'rematch' })
+    expect(conns[1].view.phase).toMatchObject({ kind: 'gameOver', again: [0] })
+    await w.send(conns[1], { type: 'rematch' })
+    expect(conns[1].view.phase.kind).toBe('calling')
+  })
+
+  test('the one who has not said it leaving completes the vote', async () => {
+    const { w, conns } = await over()
+    await w.send(conns[0], { type: 'rematch' })
+    await w.close(conns[1])
+    expect(conns[0].view.phase.kind).toBe('calling')
+  })
+
+  test('so does their socket going while the room slept', async () => {
+    const { w, conns } = await over()
+    await w.send(conns[0], { type: 'rematch' })
+    w.lose(conns[1])
+    await w.wake()
+    expect(conns[0].view.phase.kind).toBe('calling')
+  })
+
+  test('never for a room with nobody in it', async () => {
+    const { w, conns } = await over()
+    w.lose(conns[0])
+    w.lose(conns[1])
+    await w.wake()
+    expect((w.data.get('state') as { game: Game }).game.phase.kind).toBe('gameOver')
   })
 })

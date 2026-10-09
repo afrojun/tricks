@@ -1,5 +1,6 @@
 /** Messages exchanged between the client and a room. The envelope is every game's; the game supplies the view, action and event types. */
 import { z } from 'zod'
+import { type Said, type Say, saySchema } from './kit/talk'
 import type { Seat } from './kit/table'
 
 /** A room is named `<game>-<CODE>`, so which game it holds is never stored separately. */
@@ -18,11 +19,12 @@ export function splitRoomName(name: string): { game: string; code: string } | nu
 /** The close code for a socket opened to a name that is not a game and a code. */
 export const UNKNOWN_ROOM_CLOSE_CODE = 4404
 
-export type ClientMessage<A> = { action: A }
+/** An action for the game, or something said at the table, which the room relays and never saves. */
+export type ClientMessage<A> = { action: A } | { say: Say }
 
 /** What a client may send to a room whose game admits `action`. */
-export function clientMessageSchema<A>(action: z.ZodType<A>) {
-  return z.object({ action })
+export function clientMessageSchema<A>(action: z.ZodType<A>): z.ZodType<ClientMessage<A>> {
+  return z.union([z.object({ action }), z.object({ say: saySchema })]) as z.ZodType<ClientMessage<A>>
 }
 
 export type NumberedEvent<E> = E & { n: number }
@@ -37,7 +39,11 @@ export type ServerMessage<V, E> =
       seat: Seat | null
       view: V
       events: NumberedEvent<E>[]
+      /** What the computers said about these events, shown with them. */
+      said?: Said[]
     }
+  /** Something a person said, or a computer's answer to a throw: shown at once, never held for a dwell. */
+  | ({ type: 'said' } & Said)
   /** The game's own reason for refusing an action, or `malformed` for a message it could not read. */
   | { type: 'rejected'; reason: string }
   | { type: 'error'; message: string }

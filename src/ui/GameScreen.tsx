@@ -4,9 +4,10 @@ import { Lobby } from './Lobby'
 import { CELEBRATION_MS, Celebration, MomentOverlay, useMoments } from './Moments'
 import { gamePath } from './routes'
 import { SessionProvider, navigate, useClient, useGameClient, useSession } from './session'
+import { TalkLayer } from './talk/TalkLayer'
 import { rejectionText } from './text'
 
-/** The frame around any game's table: the connection, the lobby or the game's own table, and what its events show. */
+/** The frame around any game's table: the connection, the lobby or the game's own table, what its events show, and the table's talk. */
 export function Screen({ room }: { room: string }) {
   const game = useGameClient()
   const { store } = useSession()
@@ -78,6 +79,7 @@ export function Screen({ room }: { room: string }) {
         </p>
       )}
       {client.view.phase.kind === 'lobby' ? <Lobby view={client.view} room={room} /> : <game.Table view={client.view} room={room} />}
+      <TalkLayer seat={client.view.seat} />
       <MomentOverlay moment={moments.current} />
       {celebrate && <Celebration key={celebrate.id} colour={celebrate.colour} />}
       {toast && (

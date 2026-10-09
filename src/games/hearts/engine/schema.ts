@@ -39,7 +39,7 @@ function actions(bounded: boolean) {
     z.object({ type: z.literal('playCard'), card: cardSchema }),
     z.object({ type: z.literal('challengePlay'), seat }),
     z.object({ type: z.literal('nextRound') }),
-    z.object({ type: z.literal('rematch') }),
+    z.object({ type: z.literal('rematch'), now: z.literal(true).optional() }),
   ])
 }
 

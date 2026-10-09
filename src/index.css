@@ -1404,3 +1404,488 @@ html:has(main.home) {
   right: 0;
   translate: 0 0;
 }
+
+/* ── Table talk ─────────────────────────────────────────────────────────── */
+/* Design: docs/superpowers/specs/2026-10-09-table-talk-design.md, section 3. */
+
+:root {
+  /* The app's ease with a little overshoot, which every curve of talk uses. */
+  --over: cubic-bezier(0.3, 1.45, 0.5, 1);
+}
+
+/* A name is a button that opens its menu; it keeps the pill's look. */
+button.seat-name {
+  display: block;
+  border: 0;
+}
+
+.sticker {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  filter: drop-shadow(2px 3px 0 rgb(0 0 0 / 0.35));
+}
+
+/* The hint row keeps the talk button at its right end; the hint keeps the rest, nearly centred, rather than wrap. */
+.hint-row {
+  position: relative;
+}
+.hint-row:has(> .talk-button) {
+  padding-right: 3.25rem;
+  min-height: 2.75rem;
+}
+.talk-button {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: var(--line-width) solid currentColor;
+  background: transparent;
+  color: var(--text);
+  box-shadow: 0 3px 0 rgb(0 0 0 / 0.45);
+  transition: opacity var(--motion), translate var(--motion);
+}
+.talk-button[data-open] {
+  background: var(--surface);
+  color: var(--on-surface);
+  box-shadow: none;
+  translate: 0 calc(-50% + 3px);
+}
+.talk-button[data-cooling] {
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+/* Under an open tray or name menu: catches the tap outside, which only closes it. */
+.talk-catch {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+}
+
+/* The tray: a paper strip over the hand, with a yellow plate over its top edge. */
+.talk-tray {
+  position: fixed;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 41;
+  width: min(100%, 34rem);
+  margin-inline: auto;
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem calc(0.9rem + env(safe-area-inset-bottom));
+  background: var(--surface);
+  color: var(--on-surface);
+  border: var(--line-width) solid var(--line);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+  box-shadow:
+    0 -6px 0 var(--plate),
+    0 -8px 0 var(--line);
+  animation: tray-up 220ms var(--over) both;
+}
+.talk-tray[data-closing] {
+  animation: tray-down 160ms linear both;
+}
+@keyframes tray-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes tray-down {
+  to {
+    transform: translateY(110%);
+  }
+}
+.talk-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.talk-label {
+  width: 100%;
+  margin-bottom: -0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--on-surface-muted);
+}
+.talk-close {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.65rem;
+  padding: 0.1rem 0.25rem;
+  background: none;
+  border: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--on-surface-muted);
+}
+/* Eight across on any phone: each sticker takes its share, up to 44px. */
+.talk-emotes {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 2.75rem));
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+/* A line to say: a pill in the bubble's style. */
+.talk-line {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--on-surface);
+  border: var(--line-width) solid var(--line);
+  box-shadow: 0 3px 0 var(--line);
+  font-weight: 800;
+  font-size: 0.95rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  transition: transform var(--motion), box-shadow var(--motion), opacity var(--motion);
+}
+.talk-line:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--line);
+}
+.talk-sticker-button {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 0.1rem;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  transition: transform var(--motion), opacity var(--motion);
+}
+.talk-sticker-button:active:not(:disabled) {
+  transform: scale(0.9);
+}
+/* The budget running: the one just said stays pressed and yellow, everything else waits, dimmed. */
+.talk-line[data-held] {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--line);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.talk-sticker-button[data-held] {
+  transform: scale(0.9);
+  background: var(--accent);
+}
+.talk-tray button:disabled:not([data-held]),
+.talk-menu-row button:disabled:not([data-held]) {
+  opacity: 0.4;
+}
+/* Along the tray's top edge, on its plate: draws back over what is left of the budget. */
+.talk-cool {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  top: -6px;
+  height: 2px;
+  background: var(--line);
+  transform-origin: left;
+  animation: timer-run linear forwards;
+}
+
+/* A name's menu: paper on a yellow plate, popping from the name, inward from a seat at the screen's edge. */
+.talk-menu {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  z-index: 40;
+  display: grid;
+  justify-items: stretch;
+  width: max-content;
+  max-width: calc(100vw - 1rem);
+  padding: 0.5rem;
+  background: var(--surface);
+  color: var(--on-surface);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transform-origin: 50% 0;
+  animation: menu-pop 220ms var(--over) both;
+}
+.talk-menu[data-place='middle'] {
+  left: 50%;
+  translate: -50% 0;
+}
+.talk-menu[data-place='start'] {
+  left: 0;
+  transform-origin: 1.25rem 0;
+}
+.talk-menu[data-place='end'] {
+  right: 0;
+  transform-origin: calc(100% - 1.25rem) 0;
+}
+@keyframes menu-pop {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+/* The tail, pointing up at the name. */
+.talk-menu::before {
+  content: '';
+  position: absolute;
+  top: -0.45rem;
+  left: 50%;
+  width: 0.75rem;
+  height: 0.75rem;
+  translate: -50% 0;
+  rotate: 45deg;
+  background: inherit;
+  border-left: inherit;
+  border-top: inherit;
+}
+.talk-menu[data-place='start']::before {
+  left: 1.25rem;
+}
+.talk-menu[data-place='end']::before {
+  left: auto;
+  right: 1.25rem;
+  translate: 50% 0;
+}
+.talk-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.talk-menu-row .talk-sticker-button {
+  width: 2.75rem;
+}
+.talk-menu-row .talk-line {
+  min-height: 2rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.85rem;
+}
+.talk-mute {
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--on-surface-muted);
+  text-align: center;
+}
+.talk-menu-row + .talk-mute {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1.5px solid color-mix(in srgb, var(--line) 25%, transparent);
+}
+/* Muted here: quiet, in the seat's tag row; the only place it shows. */
+.talk-muted {
+  opacity: 0.7;
+}
+
+/* A line said: the call's bubble, landing yellow, then gone; beside the top seat's name too, where calls stay. */
+.bubble.talk-said,
+.seat:not([data-side]) .seat-said .bubble.talk-said {
+  animation: talk-bubble 2800ms ease-out both;
+}
+@keyframes talk-bubble {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  7%,
+  45% {
+    transform: scale(1.15);
+    opacity: 1;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  60%,
+  89% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+/* An emote: a sticker popping in at the seat, tilted, then shrinking away. */
+.talk-sticker {
+  display: block;
+  width: 2.875rem;
+  height: 2.875rem;
+  rotate: -8deg;
+  transform-origin: 0 100%;
+  animation: talk-sticker 2500ms var(--over) both;
+}
+.talk-sticker[data-mine] {
+  width: 2.25rem;
+  height: 2.25rem;
+  transform-origin: 50% 50%;
+}
+@keyframes talk-sticker {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  9%,
+  88% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+
+/* Throws: over the whole table, never in the way of a tap. */
+.talk-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+/*
+ * One throw, placed where it lands; the three layers inside carry it there from where it left:
+ * straight across, up then down over the trick, one full spin. It lands with a squash, rests
+ * tilted on the name, and fades at the end of its time (SHOW_MS in src/client/talk.ts).
+ */
+.throw {
+  position: absolute;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: -1.25rem 0 0 -1.25rem;
+  animation: throw-out 300ms ease-in 2840ms forwards;
+}
+.throw-x {
+  animation: throw-x 640ms linear both;
+}
+.throw-y {
+  animation: throw-y 640ms both;
+}
+.throw-land {
+  animation: throw-squash 200ms ease-out 640ms;
+}
+.throw .throw-spin {
+  animation: throw-spin 640ms linear both;
+}
+@keyframes throw-x {
+  from {
+    transform: translateX(var(--dx));
+  }
+}
+@keyframes throw-y {
+  0% {
+    transform: translateY(var(--dy));
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  }
+  50% {
+    transform: translateY(var(--peak));
+    animation-timing-function: cubic-bezier(0.55, 0, 0.75, 0.4);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes throw-spin {
+  from {
+    rotate: -20deg;
+  }
+  /* One turn, coming to rest at 14 degrees. */
+  to {
+    rotate: 374deg;
+  }
+}
+@keyframes throw-squash {
+  0% {
+    scale: 1.25 0.8;
+  }
+}
+@keyframes throw-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── Again ──────────────────────────────────────────────────────────────── */
+
+.again-names {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.45rem;
+  /* Room over the first row for what is said there. */
+  padding-top: 0.25rem;
+}
+.again-name {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+}
+.again-name .seat-name {
+  font-size: 0.8rem;
+}
+/* On paper, the In tag is yellow with ink, as the table's "in" is everywhere. */
+.in-tag {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--line);
+  font-size: 0.68rem;
+}
+.again-name .talk-muted {
+  color: var(--on-surface-muted);
+  border-color: currentColor;
+}
+/* What a player says at game over hangs over their name. */
+.again-said {
+  position: absolute;
+  bottom: calc(100% + 0.2rem);
+  left: 0;
+  z-index: 20;
+}
+.again-said .bubble {
+  margin-top: 0;
+  transform-origin: 0 100%;
+}
+.again-said .bubble::before {
+  display: none;
+}
+/* "You're in": the button stays down. */
+.btn[data-held] {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Talk fades in place: no flight, no spin, no pop; a throw appears landed. */
+  .bubble.talk-said,
+  .seat:not([data-side]) .seat-said .bubble.talk-said {
+    animation: talk-fade 2800ms linear both !important;
+  }
+  .talk-sticker {
+    animation: talk-fade 2500ms linear both !important;
+  }
+  .throw {
+    animation: talk-fade 3140ms linear both !important;
+  }
+}
+@keyframes talk-fade {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  89% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

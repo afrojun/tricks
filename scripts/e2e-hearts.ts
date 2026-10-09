@@ -7,7 +7,7 @@
  * them, and they take the seat back on return. Next a whole game in a new room, one human and
  * three computers with the end score typed and stepped down to 25: every round played through
  * its thirteen tricks to the result, each result's points added up, on to game over and the
- * host's rematch. Also checks that the home loads no game's code, and Hearts' practice: the coach,
+ * player's Again, which alone at the table starts the next game. Also checks that the home loads no game's code, and Hearts' practice: the coach,
  * a new practice game dropping the old game's picks, and the coach's warning on a second tap.
  * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
@@ -83,6 +83,8 @@ await b.getByRole('button', { name: 'Join', exact: true }).click()
 await b.getByPlaceholder('Name').fill('Bheki')
 await b.getByRole('button', { name: 'Sit here' }).first().click()
 check(b.url().endsWith(`/hearts/${code}`), 'the second browser joined the same room')
+// The host counts empty seats as it adds computers, so it must see the second player sit first.
+await a.getByText('Bheki').first().waitFor()
 await addComputers(a, 2)
 check(!(await a.getByRole('button', { name: /players$/ }).first().isVisible()), 'Hearts offers no other table size')
 check(!(await seen(a, /^Team /, 500)), 'Hearts has no teams in the lobby')
@@ -338,8 +340,8 @@ check(winner !== null, `the whole game ends, after ${rounds} rounds`)
 check(Math.max(...finals) >= 25, `someone reached 25 (${listed(scores)})`)
 check(winner !== null && scores.get(winner) === Math.min(...finals), `the winner, ${winner}, has the fewest points (${listed(scores)})`)
 await shot(a, 'whole-2-game-over')
-await a.getByRole('button', { name: 'Play again' }).click()
-check(await seen(a, 'Passing left', 10_000), 'the host’s rematch starts a new game at the pass to the left')
+await a.getByRole('button', { name: 'Again' }).click()
+check(await seen(a, 'Passing left', 10_000), 'the only person at the table saying Again starts a new game at the pass to the left')
 check(await seen(a, 'Round 1'), 'the rematch starts at round 1')
 check((await a.getByText('0 total', { exact: true }).count()) === 4, 'every score is back to 0')
 await shot(a, 'whole-3-rematch')

@@ -1,5 +1,6 @@
 /** A practice game played entirely on this device: one person, honest computers, and a clock that waits. */
 import type { Step } from '../kit/module'
+import type { Said } from '../kit/talk'
 import type { Actor, TableAction, TableState, TableView } from '../kit/table'
 import type { NumberedEvent } from '../protocol'
 import { waitingOnPlayer } from './clock'
@@ -28,11 +29,15 @@ interface Saved<G, V, A, D> {
 
 export interface Applied<E> {
   events: NumberedEvent<E>[]
+  /** What the computers said about them. */
+  said: Said[]
 }
 
 export class PracticeGame<G extends TableState, A extends { type: string }, E, V extends TableView, N extends Note, D, S> {
   readonly you = 0
   private readonly random: Rng
+  /** The computers' banter since it was last taken. Never saved, and drawn apart from the game's own randomness. */
+  private said: Said[] = []
 
   private constructor(
     readonly practice: GamePractice<G, A, E, V, N, D, S>,
@@ -127,7 +132,7 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
     if (!Array.isArray(result)) return result
     // A redeal starts a new log; a decision about the cards thrown in does not belong in it.
     if (this.practice.isDecision(action) && this.round === round) this.round.decisions.push({ view: before, advised, taken: action } satisfies DecisionRecord<V, A>)
-    return { events: this.number(result) }
+    return { events: this.number(result), said: this.takeSaid() }
   }
 
   /** Ends the pause the player was reading; the clock can then reach its deadline. */
@@ -156,11 +161,13 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
       }
       this.virtualNow = Math.max(this.virtualNow, next)
     }
-    return { events: this.number(events) }
+    return { events: this.number(events), said: this.takeSaid() }
   }
 
   /** Practice ms until something is next due, or null if nothing is. */
   nextIn(): number | null {
+    // A step due now without a deadline, such as the next game once the player has said Again.
+    if (this.practice.module.dueStep(this.game, this.virtualNow) !== null) return 0
     const next = this.practice.module.nextDeadline(this.game)
     return next === null ? null : Math.max(0, next - this.virtualNow)
   }
@@ -191,6 +198,7 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
     module.checkInvariants(result.game)
     this.game = result.game
     this.keepRound(result.events)
+    this.said.push(...(module.banter?.(this.game, result.events, Math.random) ?? []))
     const events = [...result.events]
     for (const ask of module.reactions(this.game, result.events)) {
       const step = ask(this.game)
@@ -205,6 +213,12 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
     if (this.practice.roundBegins(events)) this.round = { dealt: [], decisions: [] }
     const deal = this.practice.dealInPlay(this.game)
     if (deal !== null) this.round.dealt[deal.index] = deal.hands
+  }
+
+  private takeSaid(): Said[] {
+    const said = this.said
+    this.said = []
+    return said
   }
 
   private number(events: readonly E[]): NumberedEvent<E>[] {

@@ -6,6 +6,8 @@
 import type { Session } from '../client/connection'
 import { Playback } from '../client/playback'
 import { GameStore } from '../client/store'
+import { TalkStore } from '../client/talk'
+import { type Said, type Say, answerThrow } from '../kit/talk'
 import type { TableState, TableView } from '../kit/table'
 import type { NumberedEvent } from '../protocol'
 import type { GamePractice, Note, RoundLog, TopicOf } from './contract'
@@ -98,11 +100,14 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
   const isNew = saved === null
 
   const store = new GameStore<V, E>()
+  const talk = new TalkStore()
   /** Coach snapshots waiting for the table sync they describe, by version. */
   const pending = new Map<number, Snapshot<A, N, D>>()
   const playback = new Playback<V, E>((message, receivedAt) => {
     store.receive(message, receivedAt)
-    if (message.type === 'sync') show(message.version)
+    if (message.type !== 'sync') return
+    show(message.version)
+    message.said?.forEach((said) => talk.receive(said))
   }, dwell)
   let version = 0
   /** Event numbers keep rising across restarts, so the store never mistakes new events for old. */
@@ -190,11 +195,11 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
   }
 
   /** Sends the table a view, with the coach's words for it. */
-  const sync = (events: readonly E[], snap: Snapshot<A, N, D> | null) => {
+  const sync = (events: readonly E[], snap: Snapshot<A, N, D> | null, said: Said[] = []) => {
     version++
     pending.set(version, snap ?? { said: [], newRound: false, rest: {} })
     const numbered: NumberedEvent<E>[] = events.map((e) => ({ ...e, n: ++eventN }))
-    playback.push({ type: 'sync', version, now: game.virtualNow, seat: game.you, view: game.view(), events: numbered })
+    playback.push({ type: 'sync', version, now: game.virtualNow, seat: game.you, view: game.view(), events: numbered, ...(said.length > 0 ? { said } : {}) })
   }
 
   /** After anything that changes what holds the clock: restart its display if it resumed, and re-arm it. */
@@ -207,14 +212,14 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     arm()
   }
 
-  const publish = (events: readonly E[], extra: E[] = []) => {
+  const publish = (events: readonly E[], extra: E[] = [], said: Said[] = []) => {
     topic = nextTopic([...extra, ...events, null])
     const snap = snapshot(events)
     if (extra.length > 0) {
       snap.said = [...extra.map((e) => tutor.narrate(e, game.coachView())).filter((n): n is N => n !== null), ...snap.said]
       snap.newRound = true
     }
-    sync(events, snap)
+    sync(events, snap, said)
     storage.setItem(savedKey, game.save())
     update({ waiting: game.waiting(sheetOpen()) })
     arm()
@@ -226,7 +231,9 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     const ms = game.nextIn()
     if (ms === null) return
     timer = setTimeout(() => {
-      if (!closed) publish(game.advance(ms, sheetOpen()).events)
+      if (closed) return
+      const advanced = game.advance(ms, sheetOpen())
+      publish(advanced.events, [], advanced.said)
     }, ms)
   }
 
@@ -237,7 +244,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
       playback.push({ type: 'rejected', reason: result.rejected })
       return
     }
-    publish(result.events)
+    publish(result.events, [], result.said)
   }
 
   const send = (action: A) => {
@@ -255,7 +262,8 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     playback.release()
     game.continueTrick()
     update({ trickPaused: false })
-    publish(game.advance(0, sheetOpen()).events)
+    const advanced = game.advance(0, sheetOpen())
+    publish(advanced.events, [], advanced.said)
   }
 
   /** The deal that starts a game happens before anyone is listening; it is narrated when the game opens. */
@@ -330,13 +338,23 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     publish([])
   }
 
+  /** The player's talk shows at once, and a computer it is thrown at may answer, as online. */
+  const say = (said: Say) => {
+    talk.receive({ seat: game.you, say: said })
+    const answer = said.kind === 'throw' ? answerThrow(game.game, said.at, said.id, Math.random) : null
+    if (answer) talk.receive(answer)
+  }
+
   return {
     store,
+    talk,
     send,
+    say,
     close() {
       closed = true
       clearTimeout(timer)
       playback.reset()
+      talk.close()
     },
     coach,
   }

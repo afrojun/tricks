@@ -2,8 +2,10 @@ import PartySocket from 'partysocket'
 import type { TableAction, TableView } from '../kit/table'
 import { PING, PONG, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
 import { deviceToken } from './identity'
+import type { Say } from '../kit/talk'
 import { Playback } from './playback'
 import { GameStore } from './store'
+import { TalkStore } from './talk'
 
 const PING_EVERY_MS = 5000
 const MAX_UNANSWERED_PINGS = 2
@@ -11,7 +13,11 @@ const MAX_UNANSWERED_PINGS = 2
 /** A table as the screens see it, online or in practice: the game supplies the view, action and event types. */
 export interface Session<V, A, E> {
   store: GameStore<V, E>
+  /** What is being said at the table. */
+  talk: TalkStore
   send: (action: A) => void
+  /** Says something at the table; a seat the room does not know is ignored there. */
+  say: (say: Say) => void
   close: () => void
 }
 
@@ -24,9 +30,12 @@ export interface SessionGame<E> {
 /** Opens a socket to a game's room and feeds everything it receives into a store. */
 export function openSession<V extends TableView, A, E>(game: SessionGame<E>, code: string): Session<V, A, E> {
   const store = new GameStore<V, E>()
+  const talk = new TalkStore()
   const playback = new Playback<V, E>(
     (message, receivedAt) => {
+      if (message.type === 'said') return talk.receive(message)
       store.receive(message, receivedAt)
+      if (message.type === 'sync') message.said?.forEach((said) => talk.receive(said))
       // Coming back to a seat the AI was minding: take it back straight away.
       if (justOpened && message.type === 'sync') {
         justOpened = false
@@ -49,6 +58,7 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     socket.send(JSON.stringify({ action }))
   }
   const send = (action: A) => post(action)
+  const say = (said: Say) => socket.send(JSON.stringify({ say: said }))
   let everOpened = false
   let justOpened = false
 
@@ -104,7 +114,8 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     playback.reset()
     removeEventListener('offline', onOffline)
     removeEventListener('online', onOnline)
+    talk.close()
     socket.close()
   }
-  return { store, send, close }
+  return { store, talk, send, say, close }
 }

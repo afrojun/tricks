@@ -3,7 +3,8 @@
  * humans and two AI seats, with one human dropping and reconnecting mid-game.
  * First checks that a socket to a name that is not a room is closed with the
  * room's close code, that a plain request to a room's address gets a 404, and
- * that a Hearts room opens as a lobby of four. The
+ * that a Hearts room opens as a lobby of four. At game over, checks that talk is
+ * relayed within its limit and that the next game starts once both people say Again. The
  * rooms share the app's origin. Usage: pnpm dev (in another terminal), then
  * pnpm e2e:sockets, with APP_URL set if the app is not on http://localhost:5173.
  */
@@ -11,6 +12,7 @@ import PartySocket from 'partysocket'
 import { chooseAction, chooseJodhi } from '../src/games/thunee/ai/choose'
 import { HONEST } from '../src/kit/mind'
 import { type Action, type GameEvent, type View, availableActions } from '../src/games/thunee/engine'
+import type { Said, Say } from '../src/kit/talk'
 import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../src/protocol'
 
 const app = new URL(process.env.APP_URL ?? 'http://localhost:5173')
@@ -25,6 +27,7 @@ class Player {
   seat: number | null = null
   rejections: string[] = []
   errors: string[] = []
+  said: Said[] = []
   events = 0
   constructor(
     readonly name: string,
@@ -41,11 +44,15 @@ class Player {
         this.seat = msg.seat
         this.events += msg.events.length
       } else if (msg.type === 'rejected') this.rejections.push(msg.reason)
+      else if (msg.type === 'said') this.said.push(msg)
       else this.errors.push(msg.message)
     })
   }
   send(action: Action) {
     this.socket.send(JSON.stringify({ action }))
+  }
+  say(say: Say) {
+    this.socket.send(JSON.stringify({ say }))
   }
 }
 
@@ -180,6 +187,24 @@ console.log(`events seen: ${a.events}; rejections: A ${a.rejections.length} B ${
 if (!dropped) throw new Error('the reconnect step never ran')
 if (a.errors.length + b.errors.length > 0) throw new Error(`server errors: ${[...a.errors, ...b.errors].join('; ')}`)
 if (a.rejections.length + b.rejections.length > 0) console.log('rejections:', a.rejections, b.rejections)
+
+// Talk: two lines at once reach the table as one; a throw at a computer lands on it.
+a.say({ kind: 'line', id: 'yoh' })
+a.say({ kind: 'line', id: 'eish' })
+await until('a line relayed', () => b.said.length > 0)
+await sleep(500)
+if (b.said.filter((s) => s.seat === 0).length !== 1) throw new Error(`expected one line from seat 0, got ${JSON.stringify(b.said)}`)
+await sleep(2600)
+b.say({ kind: 'throw', id: 'rose', at: 2 })
+await until('a throw relayed', () => a.said.some((s) => s.say.kind === 'throw' && s.say.at === 2))
+console.log('talk relayed within its limit')
+
+// Again: the next game starts once both people have said it.
+a.send({ type: 'rematch' })
+await until('the first Again shown', () => b.view!.phase.kind === 'gameOver' && b.view!.phase.again.includes(0))
+b.send({ type: 'rematch' })
+await until('the next game', () => a.view!.phase.kind !== 'gameOver')
+console.log('both said Again; the next game began')
 a.socket.close()
 b.socket.close()
 process.exit(0)

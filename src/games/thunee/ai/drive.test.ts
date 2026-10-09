@@ -24,6 +24,17 @@ function runReactions(t: Table, events: readonly GameEvent[], applied: { actor: 
 }
 
 describe('dueStep', () => {
+  test('starts the next game once everyone at the table has said Again, and not before', () => {
+    const t = withComputers()
+    const over = (again: number[]): Game => ({ ...t.game, phase: { kind: 'gameOver', again, winner: 0, summary: null as never }, aiActAt: null })
+    expect(dueStep(over([]), t.now)).toBeNull()
+    const step = dueStep(over([0]), t.now)
+    expect(step).toEqual({ actor: 'system', action: { type: 'rematch', now: true } })
+    t.game = over([0])
+    t.do('system', step!.action)
+    expect(t.game.phase.kind).toBe('calling')
+  })
+
   test('a computer playing for a person answers the wait for their Jodhi', () => {
     // D1-style hands: seat 2 wins the first trick for team 0; seat 0 holds the king and queen of spades.
     const t = new Table(4, { redealIfNoTrumps: false, timers: true })

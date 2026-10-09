@@ -1,5 +1,5 @@
 import { hasCard, sameCard } from '../../../kit/cards'
-import { type Actor, type Ctx, type Seat, allSeats, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
+import { type Actor, type Ctx, type Seat, againComplete, allSeats, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
 import { availableActions } from './available'
 import { PASS_SIZE, PLAYERS, SEAT_COUNTS, STANDARD, resolveRules } from './rules'
 import * as round from './round'
@@ -90,6 +90,12 @@ function dispatch(game: Game, actor: Actor, action: Action, ctx: Ctx, events: Ga
     } else if (action.type === 'tick') tick(game, ctx, events)
     return null
   }
+  // Everyone has said Again: the host's due step starts the next game.
+  if (actor === 'system' && action.type === 'rematch') {
+    if (game.phase.kind !== 'gameOver' || !againComplete(game, game.phase.again)) return 'notAllowed'
+    rematch(game, ctx, events)
+    return null
+  }
   if (actor === 'system') return 'notAllowed'
 
   if (action.type === 'setRules') {
@@ -143,16 +149,26 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
 
     case 'rematch':
       if (phase.kind !== 'gameOver') return 'wrongPhase'
-      if (!can.rematch) return 'notHost'
-      game.scores = [0, 0, 0, 0]
-      game.roundNumber = 1
-      revealPersonas(game)
-      round.beginRound(game, ctx, events)
+      if (action.now) {
+        if (!can.rematch) return 'notHost'
+        rematch(game, ctx, events)
+      } else {
+        if (!can.again) return 'notAllowed'
+        phase.again = [...phase.again, seat].sort((a, b) => a - b)
+      }
       return null
 
     default:
       return 'notAllowed'
   }
+}
+
+/** The next game, with the same seats and rules. */
+function rematch(game: Game, ctx: Ctx, events: GameEvent[]): void {
+  game.scores = [0, 0, 0, 0]
+  game.roundNumber = 1
+  revealPersonas(game)
+  round.beginRound(game, ctx, events)
 }
 
 /** Resolves a phase deadline that has passed. Computer turns are driven by the host. */

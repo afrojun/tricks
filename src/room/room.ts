@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 import { gameOf } from '../games'
 import type { AnyGameModule } from '../kit/module'
+import { NUDGE_GAP_MS, type Said, type Say, TALK_GAP_MS, answerThrow } from '../kit/talk'
 import { type Actor, type Seat, type TableAction, type TableState, type TableView, isTableAction } from '../kit/table'
 import {
   type ClientMessage,
@@ -118,6 +119,13 @@ class Table {
   /** Serialises all work so two messages can never interleave. */
   private queue: Promise<void> = Promise.resolve()
   private readonly messages: z.ZodType<ClientMessage<unknown>>
+  /**
+   * When each seat last talked, and last nudged each other seat. The only thing the room keeps in
+   * memory, and not a fact of the game: the limits are best effort, and a restart that forgets them
+   * forgets only a few seconds of them.
+   */
+  private readonly talked = new Map<Seat, number>()
+  private readonly nudged = new Map<string, number>()
 
   constructor(
     private readonly module: AnyGameModule,
@@ -134,7 +142,8 @@ class Table {
       this.saved = stored
       await this.matchConnections()
     }
-    await this.armAlarm()
+    // Who is here may have changed while the room slept, which may be all an Again vote waited for.
+    await this.enqueue(() => this.drive())
   }
 
   /**
@@ -166,6 +175,7 @@ class Table {
       this.send(conn, []) // the current view, with no events to replay
       const seat = this.seatOf(conn)
       if (seat !== null && !this.saved.game.seats[seat].connected) await this.setConnected(seat, true)
+      await this.drive()
     })
   }
 
@@ -177,16 +187,43 @@ class Table {
       const token = conn.state?.token
       const others = [...this.host.connections()].some((c) => c.id !== conn.id && c.state?.token === token)
       if (!others) await this.setConnected(seat, false)
+      // A seat leaving may complete an Again vote: the rest have all said it.
+      await this.drive()
     })
   }
 
   onMessage(message: string | ArrayBuffer | ArrayBufferView, sender: RoomConnection): Promise<void> {
+    const parsed = this.parse(message)
+    // Talk changes nothing and is saved nowhere, so it is never queued behind the game.
+    if (parsed !== null && 'say' in parsed) return Promise.resolve(this.talk(sender, parsed.say))
     return this.enqueue(async () => {
-      const parsed = this.parse(message)
       if (parsed === null) return this.sendTo(sender, { type: 'rejected', reason: 'malformed' })
       await this.act(this.seatOf(sender), parsed.action, sender)
       await this.drive()
     })
+  }
+
+  /** Relays what a seated person says to everyone, within the limits; anything else is dropped without a word. */
+  private talk(sender: RoomConnection, say: Say): void {
+    const seat = this.seatOf(sender)
+    if (seat === null) return
+    const game = this.saved.game
+    const now = this.deps.now()
+    if (now - (this.talked.get(seat) ?? -Infinity) < TALK_GAP_MS) return
+    if (say.kind === 'throw') {
+      if (say.at === seat || (game.seats[say.at]?.kind ?? 'empty') === 'empty') return
+      if (say.id === 'nudge') {
+        // Only someone the table is waiting on may be hurried, and not over and over.
+        const key = `${seat}>${say.at}`
+        if (!this.module.seatsToAct(game).includes(say.at) || now - (this.nudged.get(key) ?? -Infinity) < NUDGE_GAP_MS) return
+        this.nudged.set(key, now)
+      }
+    }
+    this.talked.set(seat, now)
+    const said: Said[] = [{ seat, say }]
+    const answer = say.kind === 'throw' ? answerThrow(game, say.at, say.id, this.deps.rng) : null
+    if (answer) said.push(answer)
+    for (const s of said) this.broadcast({ type: 'said', ...s })
   }
 
   onAlarm(): Promise<void> {
@@ -235,7 +272,8 @@ class Table {
     }
     await this.host.storage.put(STORAGE_KEY, this.saved)
     await this.armAlarm()
-    for (const conn of this.host.connections()) this.send(conn, events)
+    const said = this.module.banter?.(this.saved.game, result.events, this.deps.rng) ?? []
+    for (const conn of this.host.connections()) this.send(conn, events, said)
 
     for (const ask of this.module.reactions(this.saved.game, result.events)) {
       const step = ask(this.saved.game)
@@ -300,7 +338,7 @@ class Table {
     return Number.isInteger(seat) && this.saved.game.seats[seat]?.kind === 'human' ? seat : null
   }
 
-  private send(conn: RoomConnection, events: NumberedEvent<Event>[]) {
+  private send(conn: RoomConnection, events: NumberedEvent<Event>[], said: Said[] = []) {
     this.deliver(conn, () => {
       const seat = this.seatOf(conn)
       return {
@@ -310,6 +348,7 @@ class Table {
         seat,
         view: this.module.viewFor(this.saved.game, seat),
         events,
+        ...(said.length > 0 ? { said } : {}),
       }
     })
   }

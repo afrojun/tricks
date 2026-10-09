@@ -431,15 +431,18 @@ describe('between rounds', () => {
     expect(start({ dealerRotation: 'always' }).play(D1_FULL).endPause().game.dealer).toBe(1)
   })
 
-  test('only seated humans advance the round; only the host starts a rematch', () => {
+  test('only seated humans advance the round; anyone says Again; only the host starts the next game now', () => {
     const t = start().play(D1_FULL).endPause()
     expect(t.try(null, { type: 'nextRound' })).toBe('notSeated')
     expect(t.try(2, { type: 'rematch' })).toBe('wrongPhase')
     const over = start()
     over.game = { ...over.game, balls: [0, 11], khanaakCalled: true }
     over.play(D1_FULL).endPause()
-    expect(over.try(1, { type: 'rematch' })).toBe('notHost')
-    over.do(0, { type: 'rematch' })
+    expect(over.try(1, { type: 'rematch', now: true })).toBe('notHost')
+    over.do(1, { type: 'rematch' })
+    expect(over.game.phase).toMatchObject({ kind: 'gameOver', again: [1] })
+    expect(over.try(1, { type: 'rematch' })).toBe('notAllowed')
+    over.do(0, { type: 'rematch', now: true })
     expect(over.game).toMatchObject({ balls: [0, 0], roundNumber: 1, khanaakCalled: false, lastRoundWinner: null })
     expect(over.game.phase.kind).toBe('calling')
   })

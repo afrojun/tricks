@@ -1,8 +1,9 @@
 /**
  * Two browsers in one two-player game: join by code, play, then one loses
- * its connection mid-hand and comes back. Needs `pnpm dev`.
+ * its connection mid-hand and comes back. On the way, a line, a throw and a mute
+ * between them. Needs `pnpm dev`.
  */
-import { type Page, chromium } from 'playwright-core'
+import { type Locator, type Page, chromium } from 'playwright-core'
 
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
@@ -43,6 +44,28 @@ check(b.page.url().endsWith(`/thunee/${code}`), 'lower-case code joined the same
 check(!(await b.page.getByRole('button', { name: 'Start game' }).isVisible()), 'guest cannot start the game')
 await a.page.getByRole('button', { name: 'Start game' }).click()
 await b.page.getByText(/unless someone calls/).waitFor()
+
+// Table talk: a line from A shows at A's seat on B's screen; a throw from B lands on A's; muted, A says nothing to B.
+const shows = (locator: Locator) =>
+  locator
+    .first()
+    .waitFor({ timeout: 3000 })
+    .then(() => true)
+    .catch(() => false)
+const say = async (page: Page, line: string) => {
+  await page.getByRole('button', { name: 'Table talk' }).click()
+  await page.getByRole('dialog', { name: 'Table talk' }).getByRole('button', { name: line }).click()
+}
+await say(a.page, 'Yoh!')
+check(await shows(b.page.locator('.seat .talk-said', { hasText: 'Yoh!' })), 'a line shows at the speaker’s seat for the other player')
+await b.page.locator('[data-seat-name="0"]').click()
+await b.page.getByRole('dialog').getByRole('button', { name: 'Rose', exact: true }).click()
+check(await shows(a.page.locator('.talk-layer > *')), 'a throw flies across the other player’s table')
+await b.page.locator('[data-seat-name="0"]').click()
+await b.page.getByRole('dialog').getByRole('button', { name: /^Mute / }).click()
+await a.page.waitForTimeout(3100)
+await say(a.page, 'Eish!')
+check(!(await shows(b.page.locator('.seat .talk-said', { hasText: 'Eish!' }))), 'a muted player’s line does not show')
 
 /** Does whatever the page is being asked to do; returns true if it acted. */
 async function act(page: Page): Promise<boolean> {

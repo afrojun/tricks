@@ -42,7 +42,7 @@ function viewPhase(game: Game, seat: Seat | null, memory: Memory): ViewPhase {
     case 'roundResult':
       return { kind: 'roundResult', summary: phase.summary }
     case 'gameOver':
-      return { kind: 'gameOver', winner: phase.winner, summary: phase.summary }
+      return { kind: 'gameOver', winner: phase.winner, summary: phase.summary, again: phase.again }
   }
 }
 

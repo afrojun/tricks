@@ -110,12 +110,17 @@ describe('the end of the game', () => {
     expect(t.try(2, { type: 'nextRound' })).toBe('wrongPhase')
   })
 
-  test('only the host starts a rematch, which resets the scores and deals a first round', () => {
+  test('anyone says Again, once; only the host starts the next game now, which resets the scores and deals a first round', () => {
     const t = round(MOON, { passing: 'rotating' }, [90, 99, 50, 60])
-    expect(availableActions(viewFor(t.game, 0)).rematch).toBe(true)
-    expect(availableActions(viewFor(t.game, 1)).rematch).toBe(false)
-    expect(t.try(1, { type: 'rematch' })).toBe('notHost')
-    t.do(0, { type: 'rematch' })
+    expect(availableActions(viewFor(t.game, 0))).toMatchObject({ again: true, rematch: true })
+    expect(availableActions(viewFor(t.game, 1))).toMatchObject({ again: true, rematch: false })
+    expect(t.try(1, { type: 'rematch', now: true })).toBe('notHost')
+    t.do(1, { type: 'rematch' })
+    expect(viewFor(t.game, 2).phase).toMatchObject({ kind: 'gameOver', again: [1] })
+    expect(availableActions(viewFor(t.game, 1)).again).toBe(false)
+    expect(t.try(1, { type: 'rematch' })).toBe('notAllowed')
+    expect(t.try('system', { type: 'rematch', now: true })).toBe('notAllowed')
+    t.do(0, { type: 'rematch', now: true })
     expect(t.game).toMatchObject({ scores: [0, 0, 0, 0], roundNumber: 1 })
     expect(t.game.phase).toMatchObject({ kind: 'passing', direction: 'left' })
     expect(t.events).toContainEqual({ type: 'dealt', roundNumber: 1, direction: 'left' })

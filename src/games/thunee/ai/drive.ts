@@ -1,6 +1,7 @@
 /** What happens without a person acting: deadlines, computer turns, and computers' reactions. Shared by every host. */
 import type { Ask as KitAsk, Step as KitStep } from '../../../kit/module'
 import { type Action, type Game, type GameEvent, isAiControlled, seatsToAct, teamOf, viewFor } from '../engine'
+import { againComplete } from '../../../kit/table'
 import { chooseAction, chooseJodhi, fallbackAction } from './choose'
 import { mindFor } from '../../../kit/mind'
 import { chooseChallenge } from './suspicion'
@@ -13,6 +14,7 @@ export type Ask = KitAsk<Game, Action>
 /** A passed phase deadline, or a computer turn whose time has come. Null when nothing is due. */
 export function dueStep(game: Game, now: number): Step | null {
   const phase = game.phase
+  if (phase.kind === 'gameOver' && againComplete(game, phase.again)) return { actor: 'system', action: { type: 'rematch', now: true } }
   if ('deadline' in phase && phase.deadline !== null && phase.deadline <= now) return { actor: 'system', action: { type: 'tick' } }
   if (game.aiActAt === null || game.aiActAt > now) return null
   const seat = seatsToAct(game).find((s) => isAiControlled(game, s))

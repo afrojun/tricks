@@ -7,7 +7,7 @@ import type { Seat, Team } from './seats'
 export { type Persona, PERSONAS } from '../../../kit/mind'
 export type { Actor, Ctx, SeatInfo, ViewSeat, Waiting } from '../../../kit/table'
 
-export const FORMAT_VERSION = 4
+export const FORMAT_VERSION = 5
 
 export type TrumpChoice = Suit | 'lastCard'
 
@@ -85,6 +85,8 @@ export interface RoundResult {
 
 export interface GameOver {
   kind: 'gameOver'
+  /** Who has said Again; the next game starts when everyone at the table has. */
+  again: Seat[]
   winner: Team
   summary: RoundSummary
 }
@@ -182,7 +184,8 @@ export type Action =
   | { type: 'challengePlay'; seat: Seat }
   | { type: 'challengeJodhi'; claim: number }
   | { type: 'nextRound' }
-  | { type: 'rematch' }
+  /** Again: a vote, or with `now` the host starting the next game at once. */
+  | { type: 'rematch'; now?: true }
 
 /** `illegalCard` and `falseClaim` are refused only with cheating off. */
 export type RejectReason = TableReject | 'notYourTurn' | 'badAmount' | 'cardNotInHand' | 'illegalCard' | 'falseClaim'
@@ -260,7 +263,7 @@ export type ViewPhase =
     }
   | ViewPlaying
   | { kind: 'roundResult'; summary: RoundSummary }
-  | { kind: 'gameOver'; winner: Team; summary: RoundSummary }
+  | { kind: 'gameOver'; winner: Team; summary: RoundSummary; again: Seat[] }
 
 export interface ViewPlaying {
   kind: 'playing' | 'trickPause'

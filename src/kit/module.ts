@@ -1,5 +1,6 @@
 /** The contract between a game and everything that hosts it: the room, practice and tests. Pure. */
 import type { z } from 'zod'
+import type { Said } from './talk'
 import type { Actor, Ctx, Seat, TableState, TableView } from './table'
 
 /**
@@ -48,6 +49,8 @@ export interface GameModule<G extends TableState, A, E, V extends TableView> {
   dueStep(game: G, now: number): Step<A> | null
   /** Questions to put to computer seats after an applied action. The host applies each answer before asking the next. */
   reactions(game: G, events: readonly E[]): Ask<G, A>[]
+  /** What the computers say about an applied action's events, shown with them. Never saved; `rng` is the host's. */
+  banter?(game: G, events: readonly E[], rng: () => number): Said[]
 }
 
 /**

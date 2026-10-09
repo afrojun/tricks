@@ -11,6 +11,8 @@ import {
   type TableEvent,
   type TableState,
   actingHost,
+  againComplete,
+  againElectorate,
   allSeats,
   canStart,
   checkLobbyHost,
@@ -457,6 +459,27 @@ describe('seats', () => {
     for (const actor of ['system', null, 0, 1] as const) expect(isActor(two, actor)).toBe(true)
     for (const actor of [2, 3, -1, 1.5, Number.NaN, Infinity, '0', undefined, 'host', {}]) expect(isActor(two, actor)).toBe(false)
     expect(isActor({ playerCount: 4 }, 3)).toBe(true)
+  })
+})
+
+describe('again', () => {
+  const seat = (kind: 'empty' | 'human' | 'ai', connected = true, standIn = false) => ({ kind, connected, standIn })
+
+  test('everyone at the table must say it: people connected and not stood in for', () => {
+    const game = { seats: [seat('human'), seat('ai'), seat('human', false), seat('human', true, true)] } as Pick<TableState, 'seats'>
+    expect(againElectorate(game)).toEqual([0])
+    expect(againComplete(game, [])).toBe(false)
+    expect(againComplete(game, [0])).toBe(true)
+  })
+
+  test('a disconnect can complete the set', () => {
+    const both = { seats: [seat('human'), seat('human')] } as Pick<TableState, 'seats'>
+    expect(againComplete(both, [1])).toBe(false)
+    expect(againComplete({ seats: [seat('human', false), seat('human')] } as Pick<TableState, 'seats'>, [1])).toBe(true)
+  })
+
+  test('never for a table with nobody at it', () => {
+    expect(againComplete({ seats: [seat('ai'), seat('human', false)] } as Pick<TableState, 'seats'>, [])).toBe(false)
   })
 })
 

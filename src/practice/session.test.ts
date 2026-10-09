@@ -109,6 +109,27 @@ describe('the coach state', () => {
     expect(storage.getItem(practiceKey('thunee'))).not.toBeNull()
   })
 
+  test('at game over, the player’s Again starts the next game: they are the whole table', () => {
+    const storage = new MemoryStorage()
+    const p = PracticeGame.start(thuneePractice, 4, 5, 'You')
+    playPractice(p, 20_000)
+    expect(p.game.phase.kind).toBe('gameOver')
+    storage.setItem(practiceKey('thunee'), p.save())
+    const s = openPracticeSession(thuneePractice, dwell, { playerCount: null, storage })
+    open.push(s)
+    vi.runOnlyPendingTimers()
+    expect(availableActions(s.store.getState().view!).again).toBe(true)
+    s.send({ type: 'rematch' })
+    vi.runAllTimers()
+    expect(s.store.getState().view!.phase.kind).not.toBe('gameOver')
+  })
+
+  test('what the player says shows at once', () => {
+    const { s } = callingSession()
+    s.say({ kind: 'line', id: 'aweh' })
+    expect(s.talk.getState()).toMatchObject([{ seat: 0, say: { kind: 'line', id: 'aweh' } }])
+  })
+
   test('reopening on a round result still shows the review and the hands', () => {
     const storage = new MemoryStorage()
     const p = PracticeGame.start(thuneePractice, 4, 5, 'You')

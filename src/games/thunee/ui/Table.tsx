@@ -26,6 +26,8 @@ import { RoundResult } from './RoundResult'
 import { RulesSheet, rulesSummary } from '../../../ui/Rules'
 import { SeatBadge as Badge, TakeOver, usePosition } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
+import { TalkMine } from '../../../ui/talk/Said'
+import { TalkButton } from '../../../ui/talk/Tray'
 import { Timer } from '../../../ui/Timer'
 import { LastTrick, NO_TRICK, TrickArea } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
@@ -141,8 +143,8 @@ export function Table({ view, room }: { view: View; room: string }) {
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {coached && <CoachStrip lessons={TOPICS} />}
-        {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. */}
-        <div className={`flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
+        {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. The talk button keeps the row's right end. */}
+        <div className={`hint-row flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
           {!watching && <RoleBadges view={view} seat={me} />}
           {!watching &&
             said(view, me).map((text) => (
@@ -150,7 +152,9 @@ export function Table({ view, room }: { view: View; room: string }) {
                 {text}
               </span>
             ))}
+          <TalkMine />
           {!coached && <span className="text-center">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>}
+          <TalkButton />
         </div>
         {can.reclaimSeat && <TakeOver />}
         {watching && (

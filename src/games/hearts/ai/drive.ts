@@ -1,7 +1,7 @@
 /** What happens without a person acting: deadlines, computer turns, and computers' reactions. */
 import { mindFor } from '../../../kit/mind'
 import type { Ask, Step } from '../../../kit/module'
-import { allSeats, isAiControlled } from '../../../kit/table'
+import { againComplete, allSeats, isAiControlled } from '../../../kit/table'
 import { seatsToAct } from '../engine/apply'
 import type { Action, Game, GameEvent } from '../engine/types'
 import { viewFor } from '../engine/view'
@@ -11,6 +11,7 @@ import { chooseAction, fallbackAction } from './choose'
 /** A passed phase deadline, or a computer turn whose time has come. Null when nothing is due. */
 export function dueStep(game: Game, now: number): Step<Action> | null {
   const phase = game.phase
+  if (phase.kind === 'gameOver' && againComplete(game, phase.again)) return { actor: 'system', action: { type: 'rematch', now: true } }
   if ('deadline' in phase && phase.deadline <= now) return { actor: 'system', action: { type: 'tick' } }
   if (game.aiActAt === null || game.aiActAt > now) return null
   const seat = seatsToAct(game).find((s) => isAiControlled(game, s))

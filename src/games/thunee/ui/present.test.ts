@@ -105,7 +105,7 @@ describe('the win', () => {
   /** The view as the message carrying game over shows it: the last round scored, 4 balls to team 1. */
   function over(challenge?: RoundSummary['challenge']): View {
     const summary = { ...challenged(challenge), ballsAfter: [7, 12] as [number, number] }
-    return { ...view, balls: [7, 12], phase: { kind: 'gameOver', winner: 1, summary } }
+    return { ...view, balls: [7, 12], phase: { kind: 'gameOver', again: [], winner: 1, summary } }
   }
 
   test('is stamped for the winners in their colour under confetti, named quietly for the losers, and coloured but not showered for a spectator', () => {

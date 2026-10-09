@@ -10,6 +10,8 @@ import { NO_PICKS, type Picks, pickFrom, pickedFrom } from '../../../ui/hands'
 import { RulesSheet, rulesSummary } from '../../../ui/Rules'
 import { SeatBadge, TakeOver, usePosition } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
+import { TalkMine } from '../../../ui/talk/Said'
+import { TalkButton } from '../../../ui/talk/Tray'
 import { LastTrick, NO_TRICK, TrickArea } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
@@ -115,11 +117,13 @@ export function Table({ view, room }: { view: View; room: string }) {
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {coached && <CoachStrip lessons={NO_LESSONS} />}
         {!watching && phase.kind !== 'roundResult' && phase.kind !== 'gameOver' && <Mine view={view} turn={myTurn} />}
-        {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. */}
-        <div className={`flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
+        {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. The talk button keeps the row's right end. */}
+        <div className={`hint-row flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
+          <TalkMine />
           {!coached && (
             <span className={`text-center ${line?.mine ? 'font-semibold' : ''}`}>{watching ? 'You are watching this game.' : line?.mine ? <Cued text={line.text} /> : line?.text}</span>
           )}
+          <TalkButton />
         </div>
         {can.reclaimSeat && <TakeOver />}
         {watching ? (
@@ -228,7 +232,8 @@ function HeartsSeat({ view, seat, side }: { view: View; seat: Seat; side?: 'left
 function Mine({ view, turn }: { view: View; turn: boolean }) {
   return (
     <div className="flex items-center justify-center gap-3 px-3 text-sm">
-      <span className="seat-name" data-turn={turn}>
+      {/* Where a throw at the player lands. */}
+      <span className="seat-name" data-turn={turn} data-seat-name={view.seat!}>
         You
       </span>
       <Points view={view} seat={view.seat!} row />

@@ -3,7 +3,7 @@ import type { Seat, TableAction, TableEvent, TableReject, TableState, TableView 
 import type { Card } from './cards'
 import type { HeartsRules, PassDirection, RuleOverrides } from './rules'
 
-export const FORMAT_VERSION = 1
+export const FORMAT_VERSION = 2
 
 // ── Game state ───────────────────────────────────────────────────────────
 
@@ -48,6 +48,8 @@ export interface RoundResult {
 
 export interface GameOver {
   kind: 'gameOver'
+  /** Who has said Again; the next game starts when everyone at the table has. */
+  again: Seat[]
   winner: Seat
   summary: RoundSummary
 }
@@ -93,7 +95,8 @@ export type Action =
   | { type: 'playCard'; card: Card }
   | { type: 'challengePlay'; seat: Seat }
   | { type: 'nextRound' }
-  | { type: 'rematch' }
+  /** Again: a vote, or with `now` the host starting the next game at once. */
+  | { type: 'rematch'; now?: true }
 
 export type RejectReason = TableReject | 'notYourTurn' | 'cardNotInHand' | 'illegalCard'
 
@@ -158,7 +161,7 @@ export type ViewPhase =
   | ViewPassing
   | ViewPlaying
   | { kind: 'roundResult'; summary: RoundSummary }
-  | { kind: 'gameOver'; winner: Seat; summary: RoundSummary }
+  | { kind: 'gameOver'; winner: Seat; summary: RoundSummary; again: Seat[] }
 
 export interface View extends TableView {
   rules: HeartsRules

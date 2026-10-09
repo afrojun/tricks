@@ -1,5 +1,6 @@
 import type { Available, RoundSummary, View } from '../engine'
 import type { Seat } from '../../../kit/table'
+import { Again } from '../../../ui/Again'
 import { CoachReview } from '../../../ui/coach/CoachReview'
 import { useSession } from './session'
 import { playSound } from '../../../ui/sound'
@@ -83,16 +84,14 @@ function GameOver({ view, summary, winner, can }: { view: View; summary: RoundSu
 
       <CoachReview view={view} shown={{ sort: sortHand }} />
 
-      {can.rematch ? (
-        <button className="btn btn-primary" onClick={() => {
-            playSound('tap')
-            send({ type: 'rematch' })
-          }}>
-          Play again
-        </button>
-      ) : (
-        <p className="text-on-surface-muted">{mine ? 'Well played.' : 'Better luck next game.'} The host can start another.</p>
-      )}
+      <Again
+        view={view}
+        again={view.phase.kind === 'gameOver' ? view.phase.again : []}
+        canAgain={can.again}
+        canStart={can.rematch}
+        onAgain={() => send({ type: 'rematch' })}
+        onStart={() => send({ type: 'rematch', now: true })}
+      />
     </section>
   )
 }

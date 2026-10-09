@@ -2,6 +2,7 @@ import { MotionConfig } from 'motion/react'
 import { type ReactNode, createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import { type Session, openSession } from '../client/connection'
 import type { ClientState } from '../client/store'
+import type { Showing } from '../client/talk'
 import type { TableAction } from '../kit/table'
 import { type Theme, applyTheme, currentCardBack, currentTheme } from '../themes'
 import type { AnyGameClient, ShellView } from './contract'
@@ -64,6 +65,12 @@ export function sessionHooks<V extends ShellView, A, E>() {
 
 /** The shell's own: any game's table, as far as the shell reads it. */
 export const { useSession, useClient } = sessionHooks<ShellView, ShellAction, { type: string }>()
+
+/** Everything being said at the table now, as the room relayed it, before reactions and mutes (see `useHeard`). */
+export function useTalk(): readonly Showing[] {
+  const { talk } = useSession()
+  return useSyncExternalStore(talk.subscribe, talk.getState)
+}
 
 /** Whole seconds left until a server deadline, by the server's clock. */
 export function useCountdown(deadline: number | null): number {

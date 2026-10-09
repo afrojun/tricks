@@ -119,7 +119,7 @@ describe('views', () => {
     run(0, { type: 'addAi', seat: 3 })
     run(0, { type: 'start' })
     for (const seat of [0, 1, null]) expect(viewFor(game, seat).seats[1].persona).toBeNull()
-    const over: Game = { ...game, phase: { kind: 'gameOver', winner: 0, summary: null as never } }
+    const over: Game = { ...game, phase: { kind: 'gameOver', again: [], winner: 0, summary: null as never } }
     expect(viewFor(over, 0).seats[1].persona).toBe(game.seats[1].persona)
   })
 })

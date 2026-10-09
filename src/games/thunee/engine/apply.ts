@@ -1,4 +1,4 @@
-import { type Actor, type Ctx, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
+import { type Actor, type Ctx, againComplete, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
 import { hasCard } from './cards'
 import { availableActions } from './available'
 import { actionShape } from './schema'
@@ -123,6 +123,12 @@ function dispatch(game: Game, actor: Actor, action: Action, ctx: Ctx, events: Ga
     } else if (action.type === 'tick') tick(game, ctx, events)
     return null
   }
+  // Everyone has said Again: the host's due step starts the next game.
+  if (actor === 'system' && action.type === 'rematch') {
+    if (game.phase.kind !== 'gameOver' || !againComplete(game, game.phase.again)) return 'notAllowed'
+    rematch(game, ctx, events)
+    return null
+  }
   if (actor === 'system') return 'notAllowed'
 
   if (action.type === 'setRules') {
@@ -224,19 +230,29 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
 
     case 'rematch':
       if (phase.kind !== 'gameOver') return 'wrongPhase'
-      if (!can.rematch) return 'notHost'
-      game.balls = [0, 0]
-      game.khanaakCalled = false
-      game.lastRoundWinner = null
-      game.roundNumber = 1
-      game.dealer = Math.floor(ctx.rng() * game.playerCount)
-      revealPersonas(game)
-      round.beginRound(game, ctx, events)
+      if (action.now) {
+        if (!can.rematch) return 'notHost'
+        rematch(game, ctx, events)
+      } else {
+        if (!can.again) return 'notAllowed'
+        phase.again = [...phase.again, seat].sort((a, b) => a - b)
+      }
       return null
 
     default:
       return 'notAllowed'
   }
+}
+
+/** The next game, with the same seats and rules. */
+function rematch(game: Game, ctx: Ctx, events: GameEvent[]): void {
+  game.balls = [0, 0]
+  game.khanaakCalled = false
+  game.lastRoundWinner = null
+  game.roundNumber = 1
+  game.dealer = Math.floor(ctx.rng() * game.playerCount)
+  revealPersonas(game)
+  round.beginRound(game, ctx, events)
 }
 
 /** Resolves a phase deadline that has passed. AI turns are driven by the server. */

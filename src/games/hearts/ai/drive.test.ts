@@ -50,6 +50,17 @@ describe('dueStep', () => {
     expect(dueStep({ ...t.game, aiActAt: null }, t.now + 60_000)).toBeNull()
   })
 
+  test('starts the next game once everyone at the table has said Again, and not before', () => {
+    const t = withComputers()
+    const over = (again: number[]): Game => ({ ...t.game, phase: { kind: 'gameOver', again, winner: 0, summary: null as never }, aiActAt: null })
+    expect(dueStep(over([]), t.now)).toBeNull()
+    const step = dueStep(over([0]), t.now)
+    expect(step).toEqual({ actor: 'system', action: { type: 'rematch', now: true } })
+    t.game = over([0])
+    t.do('system', step!.action)
+    expect(t.game.phase.kind).toBe('passing')
+  })
+
   test('is null when the computer time has come but only a human is to act', () => {
     const t = withComputers()
     const game: Game = { ...t.game, phase: { kind: 'roundResult', summary: null as never }, aiActAt: t.now }
@@ -203,7 +214,9 @@ describe('the computer players', () => {
     for (const file of sources) {
       const code = readFileSync(new URL(file, dir), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
       // The search player's imagined games, rebuilt from a view, are a game it steps and scores (search-player spec, rule 2).
-      expect({ file, game: /\bGame\b/.test(code), views: /\bviewFor\b/.test(code) }).toEqual({ file, game: file === 'drive.ts' || file === 'imagine.ts', views: file === 'drive.ts' })
+      // Banter decides nothing: it reads the seats and scores of the game the host hands it, to say something about them.
+      const touches = ['drive.ts', 'imagine.ts', 'banter.ts'].includes(file)
+      expect({ file, game: /\bGame\b/.test(code), views: /\bviewFor\b/.test(code) }).toEqual({ file, game: touches, views: file === 'drive.ts' })
     }
     // And they hold nothing else: the search decides in `search.ts`, from the view.
     const imagine = readFileSync(new URL('imagine.ts', dir), 'utf8')

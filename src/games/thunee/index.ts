@@ -1,4 +1,5 @@
 /** Thunee as a game module: what the room, practice and tests need. Its engine is `./engine/`, its computer players `./ai/`. */
+import { banter } from './ai/banter'
 import { dueStep, reactions } from './ai/drive'
 import type { GameModule } from '../../kit/module'
 import {
@@ -32,4 +33,5 @@ export const thunee: GameModule<Game, Action, GameEvent, View> = {
   actionSchema,
   dueStep,
   reactions,
+  banter,
 }
