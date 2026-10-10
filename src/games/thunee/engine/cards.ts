@@ -18,6 +18,17 @@ export function createDeck(): Card[] {
   return SUITS.flatMap((suit) => RANKS.map((rank) => ({ suit, rank })))
 }
 
+/** Each card's place in `createDeck`'s order, by suit and then rank. */
+const PLACES = new Map(SUITS.map((suit, s) => [suit, new Map(RANKS.map((rank, r) => [rank, s * RANKS.length + r]))]))
+
+/**
+ * Where a card comes in `createDeck`'s order, 0 to 23, or -1 for a card Thunee does not have: cards are
+ * counted and marked by their place rather than by a string each.
+ */
+export function place(card: Card): number {
+  return PLACES.get(card.suit)?.get(card.rank) ?? -1
+}
+
 /** Higher number beats lower within a suit. */
 export function rankStrength(rank: Rank): number {
   return RANKS.length - RANKS.indexOf(rank)

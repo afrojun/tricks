@@ -1,8 +1,8 @@
 /** What a computer player can prove about its opponents' play, from its own full view. */
 import { type Proof, type SeenPlay, chanceOfVoid, noticed, playProofs } from '../../../kit/integrity'
 import { type Mind, TRAITS, roll } from '../../../kit/mind'
-import { type Action, type Card, type Seat, type Suit, type View, type ViewPlaying, RANKS, SUITS, availableActions, cardId, pointsOf, sameCard, seenPlays, teamOf } from '../engine'
-import { type TrickRecord, history, mood, place } from './read'
+import { type Action, type Card, type Seat, type Suit, type View, type ViewPlaying, RANKS, SUITS, availableActions, cardId, place, pointsOf, sameCard, seenPlays, teamOf } from '../engine'
+import { type TrickRecord, history, mood } from './read'
 
 export const inPlay = (view: View): ViewPlaying | null =>
   view.phase.kind === 'playing' || view.phase.kind === 'trickPause' ? view.phase : null

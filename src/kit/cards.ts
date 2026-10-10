@@ -21,9 +21,12 @@ export function sameCard(a: Card, b: Card): boolean {
   return a.suit === b.suit && a.rank === b.rank
 }
 
-/** Whether `hand` holds `card`, by a plain loop: engines and computers ask it of every play. */
+/**
+ * Whether `hand` holds `card`. By a plain loop, since `some` takes a slow path on a frozen array and the
+ * tests freeze every game.
+ */
 export function hasCard(hand: readonly Card[], card: Card): boolean {
-  for (const c of hand) if (c.suit === card.suit && c.rank === card.rank) return true
+  for (const c of hand) if (sameCard(c, card)) return true
   return false
 }
 

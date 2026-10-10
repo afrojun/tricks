@@ -15,6 +15,17 @@ export function createDeck(): Card[] {
   return SUITS.flatMap((suit) => RANKS.map((rank) => ({ suit, rank })))
 }
 
+/** Each card's place in `createDeck`'s order, by suit and then rank. */
+const PLACES = new Map(SUITS.map((suit, s) => [suit, new Map(RANKS.map((rank, r) => [rank, s * RANKS.length + r]))]))
+
+/**
+ * Where a card comes in `createDeck`'s order, 0 to 51, or -1 for a card Hearts does not have: cards are
+ * counted and marked by their place rather than by a string each.
+ */
+export function place(card: Card): number {
+  return PLACES.get(card.suit)?.get(card.rank) ?? -1
+}
+
 const STRENGTH = Object.fromEntries(RANKS.map((rank, i) => [rank, RANKS.length - i])) as Record<Rank, number>
 
 /** Higher number beats lower within a suit: the two is 1 and the ace 13. */

@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest'
-import { CARD_POINTS, RANKS, cardId, createDeck, pointsOf, rankStrength, shuffle } from './cards'
+import { CARD_POINTS, type Card, RANKS, type Rank, SUITS, type Suit, cardId, createDeck, place, pointsOf, rankStrength, shuffle } from './cards'
+import { checkInvariants } from './invariants'
 import { ballsTarget, winningTeam } from './predicates'
 import { TRADITIONAL, TUSCANS_OVERRIDES, diffRules, resolveRules } from './rules'
 import { next, partnerOf, seatsFrom, teamOf } from './seats'
-import { card, cards, seededRng } from './testing'
+import { Table, card, cards, seededRng } from './testing'
 import { isLegalPlay, trickWinner } from './tricks'
 
 describe('cards', () => {
@@ -27,6 +28,24 @@ describe('cards', () => {
     expect(a).toEqual(b)
     expect(a).not.toEqual(c)
     expect(new Set(a.map(cardId)).size).toBe(24)
+  })
+
+  test("each card has its place in the deck's order, and a card Thunee does not have has none", () => {
+    expect(createDeck().map(place)).toEqual([...Array(24).keys()])
+    expect([place({ suit: 'hearts', rank: '8' as Rank }), place({ suit: 'stars' as Suit, rank: 'J' })]).toEqual([-1, -1])
+  })
+
+  test('the invariants find a card Thunee does not have, in place of any card of the deck', () => {
+    const { game } = new Table().do(0, { type: 'start' })
+    const phase = game.phase
+    if (phase.kind !== 'calling') throw new Error(phase.kind)
+    // Of the next suit: a lookup that read a rank it did not know as -1 would put it in the place of this
+    // suit's last card, and miss the swap of that card.
+    for (const at of [...phase.hands.flat(), ...phase.stock]) {
+      const foreign = { suit: SUITS[(SUITS.indexOf(at.suit) + 1) % SUITS.length], rank: '8' as Rank }
+      const swap = (pile: Card[]) => pile.map((c) => (c === at ? foreign : c))
+      expect(() => checkInvariants({ ...game, phase: { ...phase, hands: phase.hands.map(swap), stock: swap(phase.stock) } })).toThrow(/not each of the deck once/)
+    }
   })
 })
 

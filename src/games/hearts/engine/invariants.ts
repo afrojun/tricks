@@ -1,15 +1,21 @@
-import { SUITS, cardId, hasCard, sameCard } from '../../../kit/cards'
-import { isAiControlled } from '../../../kit/table'
+import { cardId, hasCard, sameCard } from '../../../kit/cards'
+import { type Seat, isAiControlled } from '../../../kit/table'
 import { trickWinner } from '../../../kit/tricks'
 import { seatsToAct } from './apply'
-import { type Card, RANKS, TWO_OF_CLUBS, strength } from './cards'
+import { type Card, TWO_OF_CLUBS, place, strength } from './cards'
 import { breaksHearts } from './excuses'
 import { HAND_SIZE, PASS_SIZE, PLAYERS, passDirection, passTarget } from './rules'
 import { gameWinner } from './scoring'
 import type { Game, PlayRecord, RoundPlay } from './types'
 
-/** Each card's place in the deck, by suit and rank: cards are counted by it rather than by a string each. */
-const PLACES = new Map(SUITS.map((suit, s) => [suit as string, new Map(RANKS.map((rank, r) => [rank as string, s * RANKS.length + r]))]))
+/** How a trick of Hearts is won: there is no trump. */
+const ORDER = { trump: null, strength }
+
+/** Whether each of `plays` was made in turn, from `leader` on. */
+function inTurn(plays: readonly PlayRecord[], leader: Seat): boolean {
+  for (let j = 0; j < plays.length; j++) if (plays[j].seat !== (leader + j) % PLAYERS) return false
+  return true
+}
 
 /** Throws if the game is in a state the engine should never produce. */
 export function checkInvariants(game: Game): void {
@@ -30,9 +36,9 @@ export function checkInvariants(game: Game): void {
     let unique = 0
     for (const cards of groups) {
       for (const c of cards) {
-        const place = PLACES.get(c.suit)?.get(c.rank)
-        if (place !== undefined && !seen[place]) {
-          seen[place] = true
+        const at = place(c)
+        if (at !== -1 && !seen[at]) {
+          seen[at] = true
           unique++
         }
         count++
@@ -42,21 +48,23 @@ export function checkInvariants(game: Game): void {
   }
 
   const checkPlay = (play: RoundPlay) => {
+    const { hands, tricks, current } = play
     const records: PlayRecord[] = []
-    for (const t of play.tricks) records.push(...t.plays)
-    records.push(...play.current)
-    allCards([...play.hands, records.map((p) => p.card)])
-    play.hands.forEach((hand, seat) => {
-      const played = play.current.some((p) => p.seat === seat) ? 1 : 0
-      if (hand.length !== HAND_SIZE - play.tricks.length - played) fail(`seat ${seat} holds ${hand.length} cards`)
-    })
+    for (const t of tricks) for (const p of t.plays) records.push(p)
+    for (const p of current) records.push(p)
+    allCards([...hands, records.map((p) => p.card)])
+    for (let seat = 0; seat < hands.length; seat++) {
+      let played = 0
+      for (const p of current) if (p.seat === seat) played = 1
+      if (hands[seat].length !== HAND_SIZE - tricks.length - played) fail(`seat ${seat} holds ${hands[seat].length} cards`)
+    }
     if (records.length > 0 && !sameCard(records[0].card, TWO_OF_CLUBS)) fail('the round did not open with the two of clubs')
-    play.tricks.forEach((t, i) => {
-      if (t.plays.length !== PLAYERS) fail(`trick ${i} has ${t.plays.length} cards`)
-      if (t.winner !== trickWinner(t.plays, { trump: null, strength })) fail(`trick ${i} went to the wrong seat`)
-      const leader = i === 0 ? t.plays[0].seat : play.tricks[i - 1].winner
-      if (t.plays.some((p, j) => p.seat !== (leader + j) % PLAYERS)) fail(`trick ${i} played out of turn`)
-    })
+    for (let i = 0; i < tricks.length; i++) {
+      const plays = tricks[i].plays
+      if (plays.length !== PLAYERS) fail(`trick ${i} has ${plays.length} cards`)
+      if (tricks[i].winner !== trickWinner(plays, ORDER)) fail(`trick ${i} went to the wrong seat`)
+      if (!inTurn(plays, i === 0 ? plays[0].seat : tricks[i - 1].winner)) fail(`trick ${i} played out of turn`)
+    }
     for (const r of records) {
       if (!hasCard(r.handBefore, r.card)) fail(`seat ${r.seat} played ${cardId(r.card)} from a hand without it`)
       if (!game.rules.allowCheating && r.broke.length > 0) fail(`a rule-breaking card was accepted with cheating off`)
@@ -90,7 +98,7 @@ export function checkInvariants(game: Game): void {
       const { tricks, current, hands } = phase.play
       const leader = current.length > 0 ? current[0].seat : tricks.length > 0 ? tricks[tricks.length - 1].winner : hands.findIndex((h) => hasCard(h, TWO_OF_CLUBS))
       if (phase.turn !== (leader + current.length) % PLAYERS) fail(`turn ${phase.turn} after leader ${leader}`)
-      if (current.some((p, j) => p.seat !== (leader + j) % PLAYERS)) fail('the current trick is out of turn')
+      if (!inTurn(current, leader)) fail('the current trick is out of turn')
       break
     }
     case 'trickPause':

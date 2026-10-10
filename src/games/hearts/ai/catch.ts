@@ -7,11 +7,11 @@ import { type Proof, type SeenPlay, chanceOfVoid, noticed, proofsOf } from '../.
 import { type Mind, TRAITS, roll } from '../../../kit/mind'
 import type { Seat } from '../../../kit/table'
 import { availableActions } from '../engine/available'
-import { type Card, QUEEN_OF_SPADES, RANKS, penaltyPoints } from '../engine/cards'
+import { type Card, QUEEN_OF_SPADES, RANKS, penaltyPoints, place } from '../engine/cards'
 import { seenPlays } from '../engine/excuses'
 import { HAND_SIZE, PASS_SIZE, PLAYERS, passTarget } from '../engine/rules'
 import type { Action, View, ViewPlay, ViewPlaying } from '../engine/types'
-import { history, inPlay, mood, place, winningPlay } from './read'
+import { history, inPlay, mood, winningPlay } from './read'
 
 /** How much more a cheat stands out when it dodged the queen of spades. */
 export const QUEEN_DODGE = 1.5
