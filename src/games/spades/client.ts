@@ -23,6 +23,7 @@ export const spadesClient: GameClient<View, Action, GameEvent> = {
   Table,
   rules: ruleBook,
   lobbyTeams: (seat, playerCount) => (playerCount === 4 ? seat % 2 : null),
+  timers: [],
   rejections: REJECTIONS,
   practice: practiceClient(spadesPractice, dwell),
 }

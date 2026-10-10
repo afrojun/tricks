@@ -132,7 +132,7 @@ export function stepField(range: Range, value: number, draft: NumberDraft, direc
 }
 
 /** Any whole number in the range can be typed; − and + move by the rule's step. */
-function NumberRule<R extends object>({ info, value, onChange }: { info: RuleInfo<R>; value: number; onChange: (patch: Partial<R>) => void }) {
+export function NumberRule<R extends object>({ info, value, onChange }: { info: RuleInfo<R>; value: number; onChange: (patch: Partial<R>) => void }) {
   const range = info.range!
   const [draft, setDraft] = useState<NumberDraft>({ text: String(value), typed: false })
   const take = (change: FieldChange) => {

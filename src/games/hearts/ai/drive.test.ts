@@ -18,7 +18,7 @@ import { chooseAction, fallbackAction as randomFallback } from './random'
 /** One human at seat 0 and computers elsewhere, just dealt. */
 function withComputers(overrides: RuleOverrides = {}, seed = 3): Table {
   const t = new Table(overrides, seed)
-  t.game = { ...createGame(), rules: t.game.rules }
+  t.game = { ...createGame(), rules: t.game.rules, settings: t.game.settings }
   t.do(null, { type: 'sit', seat: 0, name: 'You' })
   for (const seat of [1, 2, 3]) t.do(0, { type: 'addAi', seat })
   return t.do(0, { type: 'start' })

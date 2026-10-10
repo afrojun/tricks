@@ -116,8 +116,8 @@ function fixture<G extends TableState, A, E, V extends TableView>({ contract, ta
 /** Seeded whole games per game, seat count and setting. The games' own simulations play many more. */
 const SEEDS = 3
 
-const TABLE_ACTIONS = ['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat']
-const TABLE_PATHS = ['sit.seat', 'sit.name', 'rename.name', 'addAi.seat', 'addAi.persona', 'setPersona.seat', 'setPersona.persona', 'clearSeat.seat', 'setPlayerCount.playerCount', 'replaceWithAi.seat']
+const TABLE_ACTIONS = ['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat', 'setSettings']
+const TABLE_PATHS = ['sit.seat', 'sit.name', 'rename.name', 'addAi.seat', 'addAi.persona', 'setPersona.seat', 'setPersona.persona', 'clearSeat.seat', 'setPlayerCount.playerCount', 'replaceWithAi.seat', 'setSettings.settings', 'setSettings.settings.pace', 'setSettings.settings.timers']
 const overrides = (rules: object) => ['setRules.overrides', ...Object.keys(rules).map((key) => `setRules.overrides.${key}`)]
 const card = (at: string) => [at, `${at}.suit`, `${at}.rank`]
 
@@ -136,6 +136,7 @@ const COVERAGE: Record<string, { phases: string[] | Record<number, string[]>; ac
     ],
     paths: [
       ...TABLE_PATHS,
+      ...['setSettings.settings.timers.call', 'setSettings.settings.timers.thunee'],
       ...overrides(TRADITIONAL),
       ...['call.amount', 'preselectTrump.choice', 'chooseTrump.choice', ...card('playCard.card'), 'claimJodhi.suit', 'claimJodhi.withJack'],
       ...['challengePlay.seat', 'challengeJodhi.claim', 'rematch.now'],

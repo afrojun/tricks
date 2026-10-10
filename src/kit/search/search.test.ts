@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { type Card, cardId, hasCard, removeCard, sameCard } from '../cards'
 import { HONEST } from '../mind'
-import type { Seat, TableView } from '../table'
+import { LIVE, type Seat, type TableView } from '../table'
 import { explain } from './explain'
 import { search } from './search'
 import type { SearchGame } from './types'
@@ -36,6 +36,7 @@ function viewOf(game: Toy, seat: Seat | null): ToyView {
     seats: [],
     host: null,
     owner: null,
+    settings: LIVE,
     playerCount: 2,
     waiting: [],
     phase: { kind: game.turn === null ? 'over' : 'playing' },

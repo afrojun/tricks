@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { LIVE } from '../../../kit/table'
 import { type Action, type Actor, type Game, type GameEvent, createGame, viewFor } from '../engine'
 import { Table } from '../engine/testing'
 import { chooseAction, fallbackAction } from './choose'
@@ -8,7 +9,7 @@ import { mindFor } from '../../../kit/mind'
 /** A four-seat game with one human at seat 0 and computers elsewhere, just dealt. */
 function withComputers(seed = 3): Table {
   const t = new Table(4, {}, seed)
-  t.game = { ...createGame(), rules: t.game.rules }
+  t.game = { ...createGame(), rules: t.game.rules, settings: t.game.settings }
   t.do(null, { type: 'sit', seat: 0, name: 'You' })
   for (const seat of [1, 2, 3]) t.do(0, { type: 'addAi', seat })
   t.do(0, { type: 'start' })
@@ -40,7 +41,7 @@ describe('dueStep', () => {
     const t = new Table(4, { redealIfNoTrumps: false, timers: true })
       .deal(['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh'])
       .toPlay('spades')
-    t.game = { ...t.game, rules: { ...t.game.rules, timers: false }, seats: t.game.seats.map((s, i) => (i === 0 || i === 2 ? { ...s, standIn: true } : s)) }
+    t.game = { ...t.game, settings: LIVE, seats: t.game.seats.map((s, i) => (i === 0 || i === 2 ? { ...s, standIn: true } : s)) }
     t.play('Jc Qh 10c Qc')
     expect(t.game.phase).toMatchObject({ kind: 'trickPause', deadline: null })
     const step = dueStep(t.game, t.now + 60_000)

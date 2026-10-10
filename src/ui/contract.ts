@@ -6,7 +6,7 @@
  */
 import type { ComponentType } from 'react'
 import type { CommonRules } from '../kit/rules'
-import type { Seat, TableView } from '../kit/table'
+import type { Seat, TableView, TimerSpec } from '../kit/table'
 import type { PracticeClient } from '../practice/client'
 import type { RuleBook } from '../presets/book'
 import type { Moment } from './Moments'
@@ -55,11 +55,20 @@ export interface GameClient<V extends ShellView, A, E extends { type: string }> 
   Table: ComponentType<{ view: V; room: string }>
   /** House rules: defaults, schema for share links, built-in presets, and each rule's label and choices. */
   rules: RuleBook<V['rules']>
+  /** The windows the table's timers may close while it plays together, such as Thunee's calling; none for a game without. */
+  timers: readonly TimerControl[]
   /** How the lobby groups seats: a seat's team, or null for a game without teams. */
   lobbyTeams(seat: Seat, playerCount: number): number | null
   /** The words for the game's own reasons for refusing an action; the shell words the table's. */
   rejections: Readonly<Record<string, string>>
   practice: PracticeClient<V, A, E> | null
+}
+
+/** One of a game's timed windows as the host sets it: its id in the table's settings, its label, and its range. */
+export interface TimerControl {
+  id: string
+  label: string
+  spec: TimerSpec
 }
 
 /** Any game's client, as the shell holds it: the view as far as the shell reads it, and the game's actions and events, passed along unread. */

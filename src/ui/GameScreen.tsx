@@ -8,7 +8,13 @@ import { SessionProvider, navigate, useClient, useGameClient, useSession } from 
 import { TalkLayer } from './talk/TalkLayer'
 import { Sheet } from './Sheet'
 import { SuitText } from './SuitText'
-import { rejectionText } from './text'
+import { rejectionText, seatName } from './text'
+import { paceChangedText } from './pace'
+import type { TableEvent } from '../kit/table'
+
+function isPaceChanged(event: { type: string }): event is Extract<TableEvent, { type: 'paceChanged' }> {
+  return event.type === 'paceChanged'
+}
 
 /** Why the room closed this table, for the two closes that wait for the player, and how to come back. */
 const CLOSED = {
@@ -40,6 +46,8 @@ export function Screen({ room }: { room: string }) {
   useEffect(() => {
     const stop = store.onEvent((event, view, seat) => {
       lastEvent.current = event.n
+      // The table's own news, the same in every game.
+      if (isPaceChanged(event)) return setToast({ text: paceChangedText(event.seat === seat ? 'You' : seatName(view, event.seat), event.pace), id: event.n })
       held.take(game.present(event, view, seat), view.phase.kind)
     })
     return () => {

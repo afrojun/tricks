@@ -8,6 +8,7 @@ import { isMuted, setMuted } from './sound'
 import { seatName } from './text'
 import { ThemePicker } from './ThemePicker'
 import { LeaveQuestion } from './Leave'
+import { PaceControls } from './Pace'
 
 /** A line of the menu that opens something or does something: "Rules in this game", "Last trick". */
 export interface MenuRow {
@@ -62,6 +63,11 @@ export function GameMenu({ view, summary, rows }: { view: ShellView; summary: st
           <Switch label="Highlight playable cards" on={marksPlayable} onChange={setShowsPlayable} />
         </div>
       </MenuSection>
+      {!coached && view.host === view.seat && (
+        <MenuSection title="Pace">
+          <PaceControls view={view} />
+        </MenuSection>
+      )}
       <MenuSection title="Look">
         <ThemePicker />
       </MenuSection>

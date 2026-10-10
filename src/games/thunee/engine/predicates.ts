@@ -60,9 +60,9 @@ export function jodhiTimingOk(teamTricksWon: number, rules: RuleSet): boolean {
  * side has opened a claim: only when that partner is a person. A person leading needs no wait, since
  * the claim stays open until they lead; nor does a game with timers, or one without partners.
  */
-export function jodhiWaits(seats: readonly { kind: string; standIn: boolean }[], playerCount: number, rules: Pick<RuleSet, 'timers'>, openFor: Team | null, leader: Seat): boolean {
+export function jodhiWaits(seats: readonly { kind: string; standIn: boolean }[], playerCount: number, timed: boolean, openFor: Team | null, leader: Seat): boolean {
   const partner = partnerOf(leader, playerCount)
-  if (rules.timers || openFor === null || partner === null) return false
+  if (timed || openFor === null || partner === null) return false
   return (seats[leader].kind === 'ai' || seats[leader].standIn) && seats[partner].kind === 'human'
 }
 

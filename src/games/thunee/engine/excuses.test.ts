@@ -83,10 +83,10 @@ describe('the record and the verdict', () => {
       for (let seed = 1; seed <= 6; seed++) {
         const t = new Table(players, { redealIfNoTrumps: false, ...overrides }, seed).do(0, { type: 'start' })
         const chaos = seededRng(seed)
-        t.advance(t.game.rules.callTimerSeconds * 1000)
+        t.advance(t.seconds('call') * 1000)
         const trumper = (t.game.phase as { trumper: number }).trumper
         t.do(trumper, { type: 'chooseTrump', choice: 'lastCard' })
-        if (t.game.phase.kind === 'thuneeWindow') t.advance(t.game.rules.thuneeWindowSeconds * 1000)
+        if (t.game.phase.kind === 'thuneeWindow') t.advance(t.seconds('thunee') * 1000)
         while (t.game.phase.kind === 'playing' || t.game.phase.kind === 'trickPause') {
           const phase = t.game.phase
           if (phase.kind === 'trickPause') {

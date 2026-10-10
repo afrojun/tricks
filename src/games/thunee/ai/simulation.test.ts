@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
   type Game,
-  type RuleOverrides,
   TUSCANS_OVERRIDES,
   SUITS,
   actionSchema,
@@ -13,7 +12,7 @@ import {
   teamOf,
   viewFor,
 } from '../engine'
-import { ALTERNATIVES, Table, seededRng } from '../engine/testing'
+import { ALTERNATIVES, Table, type TableOptions, seededRng } from '../engine/testing'
 import { hiddenFrom } from '../contract'
 import { exposed, same } from '../../../kit/testing'
 import { chooseAction, chooseJodhi } from './choose'
@@ -40,7 +39,7 @@ function expectNoLeak(game: Game, seat: number | null) {
 }
 
 /** Plays one whole game with AI decisions plus occasional cheating, bluffing and challenging. */
-function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
+function playGame(playerCount: 2 | 4, overrides: TableOptions, seed: number) {
   const t = new Table(playerCount, overrides, seed)
   const chaos = seededRng(seed * 7919 + 1)
   const pick = <T,>(items: readonly T[]) => items[Math.floor(chaos() * items.length)]
@@ -141,7 +140,7 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
 }
 
 describe('simulation', () => {
-  const configs: [string, 2 | 4, RuleOverrides][] = [
+  const configs: [string, 2 | 4, TableOptions][] = [
     ['4P traditional', 4, {}],
     ['4P alternatives', 4, ALTERNATIVES],
     ['4P Tuscans', 4, TUSCANS_OVERRIDES],

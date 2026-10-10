@@ -7,6 +7,7 @@ import { listPresets, writeChoice } from '../presets/storage'
 import type { ShellView } from './contract'
 import { type GameSetup, playersKey, setupKey } from './Home'
 import { Link } from './Link'
+import { PaceControls } from './Pace'
 import { RulesList, rulesSummary } from './Rules'
 import { gamePath, roomPath, rulesPath } from './routes'
 import { PERSONA_CHOICES, lobbyPersonaLabel } from './personas'
@@ -64,6 +65,8 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
     if (view.owner !== me) return
     if (setup.playerCount !== view.playerCount) send({ type: 'setPlayerCount', playerCount: setup.playerCount })
     send({ type: 'setRules', overrides: setup.overrides })
+    // A setup saved before the pace existed has none.
+    if (setup.settings && JSON.stringify(setup.settings) !== JSON.stringify(view.settings)) send({ type: 'setSettings', settings: setup.settings })
   }, [setup, view.owner, view.playerCount, me, game, room, send])
   // Until that happens, offer only the seats the creator's game will have.
   const seatLimit = setup?.playerCount ?? view.playerCount
@@ -129,7 +132,8 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
                         lobbyPersonaLabel(seat.persona)
                       ))}
                     {view.host === i && ', host'}
-                    {seat.kind === 'human' && !seat.connected && ', away'}
+                    {/* Over days everyone is away most of the time. */}
+                    {seat.kind === 'human' && !seat.connected && view.settings.pace !== 'async' && ', away'}
                   </p>
                 </div>
                 {seat.kind === 'empty' && me === null && (
@@ -211,6 +215,11 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
               ))}
           </div>
         )}
+      </section>
+
+      <section className="panel p-4 w-full max-w-sm grid gap-3">
+        <h2 className="display text-lg">Pace</h2>
+        <PaceControls view={view} />
       </section>
 
       <div className="w-full max-w-sm grid gap-2">

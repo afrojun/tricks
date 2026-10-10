@@ -6,7 +6,7 @@ import { banter } from './banter'
 /** You at seat 0 and three computers. */
 function table() {
   const t = new Table(4, {}, 3)
-  t.game = { ...createGame(), rules: t.game.rules }
+  t.game = { ...createGame(), rules: t.game.rules, settings: t.game.settings }
   t.do(null, { type: 'sit', seat: 0, name: 'You' })
   for (const seat of [1, 2, 3]) t.do(0, { type: 'addAi', seat })
   return t.game

@@ -33,6 +33,33 @@ export interface SeatInfo {
 /** A seat as a view shows it: a hidden persona is null. */
 export type ViewSeat = Omit<SeatInfo, 'persona'> & { persona: Persona | null }
 
+/** How the table plays: everyone at once, or each in their own time, over hours or days. */
+export type Pace = 'live' | 'async'
+
+/**
+ * How the table is run, which is not a rule of the game: no rule book, preset or share link holds
+ * it, it is not frozen at the start, and the host may change it at any time. A change applies from
+ * the next wait that starts.
+ */
+export interface TableSettings {
+  pace: Pace
+  /**
+   * The seconds each of the game's timed windows stays open, by the window's id; null for none, when
+   * the table waits for everyone. Only while the pace is live.
+   */
+  timers: Readonly<Record<string, number>> | null
+}
+
+/** One of a game's timed windows, such as Thunee's calling: its seconds by default, and the range a host may set. */
+export interface TimerSpec {
+  default: number
+  min: number
+  max: number
+}
+
+/** Every game's start: the table plays at once and waits for everyone. */
+export const LIVE: TableSettings = { pace: 'live', timers: null }
+
 /** A seat the table is waiting on with no deadline, and since when. */
 export interface Waiting {
   seat: Seat
@@ -44,6 +71,7 @@ export interface TableState {
   playerCount: number
   seats: SeatInfo[]
   host: Seat | null
+  settings: TableSettings
   /** Seats the table is waiting on with no deadline, and since when each has been waited on. */
   waiting: Waiting[]
   /** When the next AI-controlled seat should act, if any needs to. */
@@ -63,11 +91,12 @@ export interface TableView {
   /** The seat the host role belongs to. */
   owner: Seat | null
   playerCount: number
+  settings: TableSettings
   waiting: Waiting[]
   phase: { kind: string }
 }
 
-/** Actions every game has. `tick` and `setConnected` come only from the system. */
+/** Actions every game has. `tick`, `setConnected` and `standIn` come only from the system. */
 export type TableAction =
   | { type: 'sit'; seat: Seat; name: string }
   | { type: 'leaveSeat' }
@@ -79,8 +108,10 @@ export type TableAction =
   | { type: 'start' }
   | { type: 'replaceWithAi'; seat: Seat }
   | { type: 'reclaimSeat' }
+  | { type: 'setSettings'; settings: TableSettings }
   | { type: 'tick' }
   | { type: 'setConnected'; seat: Seat; connected: boolean }
+  | { type: 'standIn'; seat: Seat }
 
 export type TableReject =
   | 'notAllowed'
@@ -94,7 +125,8 @@ export type TableReject =
   | 'seatsNotFilled'
   | 'badChoice'
 
-export type TableEvent = { type: 'seatChanged' }
+/** Something changed at the table; or the host changed its pace, which the frame tells everyone. */
+export type TableEvent = { type: 'seatChanged' } | { type: 'paceChanged'; seat: Seat; pace: Pace }
 
 const TABLE_ACTIONS: readonly string[] = [
   'sit',
@@ -107,8 +139,10 @@ const TABLE_ACTIONS: readonly string[] = [
   'start',
   'replaceWithAi',
   'reclaimSeat',
+  'setSettings',
   'tick',
   'setConnected',
+  'standIn',
 ] satisfies TableAction['type'][]
 
 /**
@@ -132,9 +166,11 @@ export function isActor(game: Pick<TableState, 'playerCount'>, actor: unknown): 
   return actor === 'system' || actor === null || (Number.isInteger(actor) && (actor as number) >= 0 && (actor as number) < game.playerCount)
 }
 
+const SYSTEM_ACTIONS: readonly string[] = ['tick', 'setConnected', 'standIn'] satisfies TableAction['type'][]
+
 /**
  * What a game checks before reading any field: an action, by an actor who can be at this table, of the
- * game's shape. Only the system sends `tick` and `setConnected`, which are not parsed. `apply` checks this
+ * game's shape. Only the system sends `tick`, `setConnected` and `standIn`, which are not parsed. `apply` checks this
  * before it copies the game, so a malformed message costs no copy.
  */
 export function screen<A>(
@@ -145,7 +181,7 @@ export function screen<A>(
 ): { action: A } | { rejected: 'notAllowed' | 'notSeated' } {
   if (!isAction(action)) return { rejected: 'notAllowed' }
   if (!isActor(game, actor)) return { rejected: 'notSeated' }
-  if (action.type === 'tick' || action.type === 'setConnected') return { action: action as A }
+  if (SYSTEM_ACTIONS.includes(action.type)) return { action: action as A }
   const shaped = shape.safeParse(action)
   return shaped.success ? { action: shaped.data } : { rejected: 'notAllowed' }
 }
@@ -264,9 +300,9 @@ export function tableAction(
   action: TableAction,
   ctx: Ctx,
   events: { push(event: TableEvent): unknown },
-  options: { seatCounts: readonly number[] },
+  options: TableOptions,
 ): TableReject | null {
-  if (action.type === 'tick' || action.type === 'setConnected') {
+  if (action.type === 'tick' || action.type === 'setConnected' || action.type === 'standIn') {
     if (actor !== 'system') return 'notAllowed'
     if (action.type === 'setConnected') {
       const seat = game.seats[action.seat]
@@ -275,18 +311,30 @@ export function tableAction(
       fixHost(game)
       events.push({ type: 'seatChanged' })
     }
+    if (action.type === 'standIn') {
+      if (standInDue(game, ctx.now) !== action.seat) return 'notAllowed'
+      game.seats[action.seat].standIn = true
+      events.push({ type: 'seatChanged' })
+    }
     return null
   }
   if (actor === 'system') return 'notAllowed'
 
-  if (action.type === 'replaceWithAi' || action.type === 'reclaimSeat') {
+  if (action.type === 'replaceWithAi' || action.type === 'reclaimSeat' || action.type === 'setSettings') {
     if (actor === null) return 'notSeated'
-    return action.type === 'replaceWithAi' ? replaceWithAi(game, actor, action.seat, ctx, events) : reclaimSeat(game, actor, events)
+    if (action.type === 'setSettings') return setSettings(game, actor, action.settings, events, options)
+    return action.type === 'replaceWithAi' ? replaceWithAi(game, actor, action.seat, ctx, events) : reclaimSeat(game, actor, ctx, events)
   }
   return lobbyAction(game, actor, action, ctx, events, options)
 }
 
-type LobbyAction = Exclude<TableAction, { type: 'tick' | 'setConnected' | 'replaceWithAi' | 'reclaimSeat' }>
+/** What the table needs to know of the game: its table sizes, and its timed windows, if it has any. */
+export interface TableOptions {
+  seatCounts: readonly number[]
+  timers?: Readonly<Record<string, TimerSpec>>
+}
+
+type LobbyAction = Exclude<TableAction, { type: 'tick' | 'setConnected' | 'standIn' | 'replaceWithAi' | 'reclaimSeat' | 'setSettings' }>
 
 function lobbyAction(
   game: TableState,
@@ -294,7 +342,7 @@ function lobbyAction(
   action: LobbyAction,
   ctx: Ctx,
   events: { push(event: TableEvent): unknown },
-  options: { seatCounts: readonly number[] },
+  options: TableOptions,
 ): TableReject | null {
   const validSeat = (s: Seat) => Number.isInteger(s) && s >= 0 && s < game.playerCount
 
@@ -391,9 +439,49 @@ function replaceWithAi(game: TableState, actor: Seat, seat: Seat, ctx: Ctx, even
   return null
 }
 
-function reclaimSeat(game: TableState, actor: Seat, events: { push(event: TableEvent): unknown }): TableReject | null {
+/**
+ * The host sets how the table is run, in any phase. Timers must name exactly the game's windows,
+ * each a whole number of seconds in its range; a game without windows has none.
+ */
+function setSettings(game: TableState, actor: Seat, settings: TableSettings, events: { push(event: TableEvent): unknown }, options: TableOptions): TableReject | null {
+  if (actingHost(game) !== actor) return 'notHost'
+  // Read with care: a game's wire schema checks only each field's type, and a toy's none.
+  if (typeof settings !== 'object' || settings === null) return 'notAllowed'
+  if (settings.pace !== 'live' && settings.pace !== 'async') return 'badChoice'
+  const timers: unknown = settings.timers
+  if (timers !== null && (typeof timers !== 'object' || timers === undefined || !validTimers(timers as Record<string, unknown>, options.timers ?? {}))) return 'badChoice'
+  if (settings.pace !== game.settings.pace) events.push({ type: 'paceChanged', seat: actor, pace: settings.pace })
+  else events.push({ type: 'seatChanged' })
+  game.settings = { pace: settings.pace, timers: settings.timers === null ? null : { ...settings.timers } }
+  return null
+}
+
+/** Whether `timers` names exactly the windows in `specs`, each a whole number of seconds in its range. */
+export function validTimers(timers: Readonly<Record<string, unknown>>, specs: Readonly<Record<string, TimerSpec>>): boolean {
+  const ids = Object.keys(specs)
+  if (ids.length === 0 || Object.keys(timers).length !== ids.length) return false
+  return ids.every((id) => {
+    const seconds = Object.hasOwn(timers, id) ? timers[id] : undefined
+    return typeof seconds === 'number' && Number.isInteger(seconds) && seconds >= specs[id].min && seconds <= specs[id].max
+  })
+}
+
+/** Whether the table's timed windows close by themselves: timers are set, and the table plays together. */
+export function timed(settings: TableSettings): boolean {
+  return settings.pace === 'live' && settings.timers !== null
+}
+
+/** The seconds a timed window stays open, or null when the table waits for everyone: no timers, or over days. */
+export function timerSeconds(settings: TableSettings, id: string): number | null {
+  if (settings.pace !== 'live' || settings.timers === null) return null
+  return settings.timers[id] ?? null
+}
+
+function reclaimSeat(game: TableState, actor: Seat, ctx: Ctx, events: { push(event: TableEvent): unknown }): TableReject | null {
   if (!game.seats[actor].standIn) return 'notAllowed'
   game.seats[actor].standIn = false
+  // Their wait starts now: one that began before they sat back down is not theirs to have stalled.
+  game.waiting = game.waiting.map((w) => (w.seat === actor ? { seat: actor, since: ctx.now } : w))
   events.push({ type: 'seatChanged' })
   return null
 }
@@ -428,6 +516,7 @@ export function tableView(game: TableState, seat: Seat | null): Omit<TableView, 
     host: actingHost(game),
     owner: game.host,
     playerCount: game.playerCount,
+    settings: game.settings,
     waiting: game.waiting,
   }
 }
@@ -443,6 +532,8 @@ export const STALL_MS = 60_000
 export function replaceableSeats(view: TableView, now: number): Seat[] {
   if (view.seat === null || view.seats[view.seat].kind !== 'human') return []
   if (view.phase.kind === 'lobby' || view.phase.kind === 'gameOver') return []
+  // Over days everyone is away most of the time, and a slow turn is the day's limit's business.
+  if (view.settings.pace === 'async') return []
   const isHost = view.host === view.seat
   return view.seats.flatMap((s, seat) => {
     if (s.kind !== 'human' || s.standIn || seat === view.seat) return []
@@ -454,6 +545,32 @@ export function replaceableSeats(view: TableView, now: number): Seat[] {
   })
 }
 
+/** Over days, how long the table waits on a person before the computer plays for them. */
+export const TURN_LIMIT_MS = 2 * 24 * 60 * 60 * 1000
+
+/**
+ * The people whose turn has outlasted the limit over days, each with when it did, earliest first,
+ * while someone else at the table still plays for themselves. Of the last person playing the table
+ * waits for ever: a game nobody plays is never played out by the computer.
+ */
+function overdue(game: Pick<TableState, 'settings' | 'seats' | 'waiting'>): { seat: Seat; at: number }[] {
+  if (game.settings.pace !== 'async') return []
+  const playing = (seat: Seat) => game.seats[seat]?.kind === 'human' && !game.seats[seat].standIn
+  const people = game.seats.filter((_, seat) => playing(seat)).length
+  if (people < 2) return []
+  return game.waiting.filter((w) => playing(w.seat)).map((w) => ({ seat: w.seat, at: w.since + TURN_LIMIT_MS })).sort((a, b) => a.at - b.at)
+}
+
+/** The seat the computer should now stand in for, as the table action `standIn` from the system, if any. */
+export function standInDue(game: Pick<TableState, 'settings' | 'seats' | 'waiting'>, now: number): Seat | null {
+  return overdue(game).find((o) => o.at <= now)?.seat ?? null
+}
+
+/** When the next stand-in falls due, for the host's alarm; null if none will. */
+export function standInDeadline(game: Pick<TableState, 'settings' | 'seats' | 'waiting'>): number | null {
+  return overdue(game)[0]?.at ?? null
+}
+
 // ── Wire schemas ─────────────────────────────────────────────────────────
 
 /**
@@ -461,11 +578,18 @@ export function replaceableSeats(view: TableView, now: number): Seat[] {
  * With `bounded: false` only each field's type is checked: what an engine checks before it reads
  * a field, leaving seats, names and counts to `tableAction`, which refuses them with its own reasons.
  */
-export function tableActionSchemas(seatCounts: readonly number[], { bounded = true } = {}) {
+export function tableActionSchemas(seatCounts: readonly number[], { bounded = true, timers = {} as Readonly<Record<string, TimerSpec>> } = {}) {
   const seat = bounded ? z.number().int().min(0).max(Math.max(...seatCounts) - 1) : z.number()
   const name = bounded ? z.string().max(200) : z.string()
   const playerCount = bounded ? z.number().int().refine((n) => seatCounts.includes(n)) : z.number()
   const persona = z.enum([...PERSONAS, 'surprise'])
+  // Each of the game's windows, by its id; a game without windows has no timers to set.
+  const windows = Object.entries(timers)
+  const seconds = z.object(Object.fromEntries(windows.map(([id, spec]) => [id, bounded ? z.number().int().min(spec.min).max(spec.max) : z.number()])))
+  const settings = z.object({
+    pace: z.enum(['live', 'async']),
+    timers: windows.length > 0 ? z.union([z.literal(null), seconds]) : z.literal(null),
+  })
   return [
     z.object({ type: z.literal('sit'), seat, name }),
     z.object({ type: z.literal('leaveSeat') }),
@@ -477,5 +601,6 @@ export function tableActionSchemas(seatCounts: readonly number[], { bounded = tr
     z.object({ type: z.literal('start') }),
     z.object({ type: z.literal('replaceWithAi'), seat }),
     z.object({ type: z.literal('reclaimSeat') }),
+    z.object({ type: z.literal('setSettings'), settings }),
   ] as const
 }

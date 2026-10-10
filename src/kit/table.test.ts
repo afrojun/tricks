@@ -22,9 +22,15 @@ import {
   isActor,
   isAiControlled,
   isTableAction,
+  LIVE,
   nextSeat,
   replaceableSeats,
   redrawSurprises,
+  standInDeadline,
+  standInDue,
+  TURN_LIMIT_MS,
+  timed,
+  timerSeconds,
   seatsFrom,
   settle,
   tableAction,
@@ -40,11 +46,14 @@ interface Toy extends TableState {
 }
 type ToyAction = TableAction | { type: 'setRules'; allowCheating: boolean } | { type: 'wait'; seats: Seat[] } | { type: 'end' } | { type: 'rematch' }
 
+const TOY_TIMERS = { call: { default: 10, min: 3, max: 60 } }
+
 const createToy = (): Toy => ({
   formatVersion: 1,
   playerCount: 4,
   seats: emptySeats(4),
   host: null,
+  settings: LIVE,
   waiting: [],
   aiActAt: null,
   aiSalt: 0,
@@ -56,7 +65,7 @@ function apply(game: Toy, actor: Actor, action: ToyAction, ctx: Ctx): { game: To
   const draft = structuredClone(game)
   const events: TableEvent[] = []
   if (isTableAction(action)) {
-    const rejected = tableAction(draft, actor, action, ctx, events, { seatCounts: [2, 4] })
+    const rejected = tableAction(draft, actor, action, ctx, events, { seatCounts: [2, 4], timers: TOY_TIMERS })
     if (rejected !== null) return { rejected }
     if (action.type === 'start') draft.phase = { kind: 'playing', toAct: [] }
   } else if (action.type === 'setRules') {
@@ -412,6 +421,82 @@ describe('stalled seats', () => {
   })
 })
 
+describe('table settings', () => {
+  const OVER_DAYS = { pace: 'async', timers: null } as const
+
+  test('the host sets the pace and timers in any phase, and a pace change says who changed it', () => {
+    const t = started()
+    expect(t.try(1, { type: 'setSettings', settings: OVER_DAYS })).toBe('notHost')
+    t.events = []
+    t.do(0, { type: 'setSettings', settings: OVER_DAYS })
+    expect(t.game.settings).toEqual(OVER_DAYS)
+    expect(t.events).toEqual([{ type: 'paceChanged', seat: 0, pace: 'async' }])
+    t.events = []
+    t.do(0, { type: 'setSettings', settings: { pace: 'async', timers: { call: 20 } } })
+    expect(t.events).toEqual([{ type: 'seatChanged' }])
+    expect(t.view(2).settings).toEqual({ pace: 'async', timers: { call: 20 } })
+    t.do(0, { type: 'end' }).do(0, { type: 'setSettings', settings: LIVE })
+    expect(t.game.settings).toEqual(LIVE)
+  })
+
+  test('timers must name exactly the game’s windows, each whole and in range', () => {
+    const t = started()
+    for (const timers of <Record<string, number>[]>[{}, { call: 2 }, { call: 61 }, { call: 10.5 }, { call: 10, other: 5 }, { other: 10 }]) {
+      expect(t.try(0, { type: 'setSettings', settings: { pace: 'live', timers } })).toBe('badChoice')
+    }
+    expect(t.try(0, { type: 'setSettings', settings: { pace: 'later' as 'live', timers: null } })).toBe('badChoice')
+    expect(t.try(0, { type: 'setSettings', settings: { pace: 'live', timers: { call: 3 } } })).toBeNull()
+    expect(timerSeconds(t.game.settings, 'call')).toBe(3)
+  })
+
+  test('timers close windows only while the table plays together', () => {
+    expect(timerSeconds({ pace: 'live', timers: { call: 7 } }, 'call')).toBe(7)
+    expect(timerSeconds({ pace: 'async', timers: { call: 7 } }, 'call')).toBeNull()
+    expect(timerSeconds(LIVE, 'call')).toBeNull()
+    expect(timed({ pace: 'live', timers: { call: 7 } })).toBe(true)
+    expect(timed({ pace: 'async', timers: { call: 7 } })).toBe(false)
+  })
+})
+
+describe('over days', () => {
+  /** Four people, playing over days, the table waiting on seat 1 from now. */
+  const waitingOnOne = () => started().do(0, { type: 'setSettings', settings: { pace: 'async', timers: null } }).do(0, { type: 'wait', seats: [1] })
+
+  test('the computer stands in for a person whose turn has waited two days, and not before', () => {
+    const t = waitingOnOne()
+    const due = t.now + TURN_LIMIT_MS
+    expect(standInDeadline(t.game)).toBe(due)
+    expect(standInDue(t.game, due - 1)).toBeNull()
+    t.now = due - 1
+    expect(t.try('system', { type: 'standIn', seat: 1 })).toBe('notAllowed')
+    t.now = due
+    expect(standInDue(t.game, t.now)).toBe(1)
+    t.do('system', { type: 'standIn', seat: 1 })
+    expect(t.game.seats[1].standIn).toBe(true)
+    expect(t.game.aiActAt).not.toBeNull()
+    expect(standInDeadline(t.game)).toBeNull()
+  })
+
+  test('only the system stands in, only over days, and never for the last person playing', () => {
+    const t = waitingOnOne()
+    t.now += TURN_LIMIT_MS
+    expect(t.try(0, { type: 'standIn', seat: 1 })).toBe('notAllowed')
+    const live = waitingOnOne().do(0, { type: 'setSettings', settings: LIVE })
+    expect(standInDue(live.game, live.now + 10 * TURN_LIMIT_MS)).toBeNull()
+    // Seats 0, 2 and 3 are already played for: seat 1 is the last person playing.
+    const last = waitingOnOne()
+    last.game = { ...last.game, seats: last.game.seats.map((s, i) => (i === 1 ? s : { ...s, standIn: true })) }
+    expect(standInDeadline(last.game)).toBeNull()
+    expect(standInDue(last.game, last.now + 10 * TURN_LIMIT_MS)).toBeNull()
+  })
+
+  test('nobody hands a seat to the computer by hand over days', () => {
+    const t = waitingOnOne().do('system', { type: 'setConnected', seat: 1, connected: false })
+    expect(replaceableSeats(t.view(0), t.now + TURN_LIMIT_MS)).toEqual([])
+    expect(t.try(0, { type: 'replaceWithAi', seat: 1 })).toBe('notAllowed')
+  })
+})
+
 describe('waiting and computer turns', () => {
   test('a seat still waited on keeps its start; a new one starts now; the rest are dropped', () => {
     const t = started().do(0, { type: 'wait', seats: [1, 2] })
@@ -530,9 +615,19 @@ describe('wire schemas', () => {
       { type: 'start' },
       { type: 'replaceWithAi', seat: 2 },
       { type: 'reclaimSeat' },
+      { type: 'setSettings', settings: { pace: 'async', timers: null } },
     ]) {
       expect(schema.safeParse(good).success).toBe(true)
     }
+  })
+
+  test('settings name a pace, and timers only the game’s windows, in range', () => {
+    const timed = z.discriminatedUnion('type', [...tableActionSchemas([2, 4], { timers: TOY_TIMERS })])
+    expect(timed.safeParse({ type: 'setSettings', settings: { pace: 'live', timers: { call: 10 } } }).success).toBe(true)
+    expect(timed.safeParse({ type: 'setSettings', settings: { pace: 'live', timers: { call: 99 } } }).success).toBe(false)
+    expect(timed.safeParse({ type: 'setSettings', settings: { pace: 'soon', timers: null } }).success).toBe(false)
+    expect(schema.safeParse({ type: 'setSettings', settings: { pace: 'live', timers: { call: 10 } } }).success).toBe(false)
+    expect(schema.safeParse({ type: 'standIn', seat: 1 }).success).toBe(false)
   })
 
   test('unbounded, they check only that each field has its type, and leave the values to tableAction', () => {

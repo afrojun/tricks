@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { availableActions } from './available'
 import { sameCard } from './cards'
-import { nextDeadline } from './apply'
-import { TRADITIONAL } from './rules'
+import { createGame, nextDeadline } from './apply'
 import { Table, collectCards } from './testing'
 import type { Game, RoundSummary } from './types'
 import { viewFor } from './view'
@@ -136,8 +135,8 @@ describe('calling', () => {
     expect(t.game.waiting).toEqual([0, 1, 2, 3].map((seat) => ({ seat, since: t.now })))
   })
 
-  test('the default rules have no timers', () => {
-    expect(TRADITIONAL.timers).toBe(false)
+  test('a new game has no timers', () => {
+    expect(createGame().settings).toEqual({ pace: 'live', timers: null })
   })
 
   test('a preselected trump is honoured when the window closes', () => {

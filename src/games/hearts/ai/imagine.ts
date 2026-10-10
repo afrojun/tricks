@@ -40,6 +40,7 @@ export function rebuild(view: View, world: World<Card>): Game {
     playerCount: view.playerCount,
     seats: view.seats.map((s) => ({ ...s, persona: s.persona ?? 'straight' })),
     host: view.owner,
+    settings: view.settings,
     waiting: view.waiting.map((w) => ({ ...w })),
     aiActAt: null,
     aiSalt: 0,

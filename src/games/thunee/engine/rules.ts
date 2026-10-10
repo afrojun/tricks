@@ -1,4 +1,5 @@
 import { type CommonRules, diff, resolve } from '../../../kit/rules'
+import type { TimerSpec } from '../../../kit/table'
 
 export { TRICK_PAUSE_MS } from '../../../kit/rules'
 
@@ -22,10 +23,6 @@ export interface RuleSet extends CommonRules {
   ballsToWin: number
   twoToClear: boolean
   twoPlayerTarget: number
-  /** Calling and the Thunee window close when their time runs out; off, they wait until every player has called or passed. */
-  timers: boolean
-  callTimerSeconds: number
-  thuneeWindowSeconds: number
 }
 
 export type RuleOverrides = Partial<RuleSet>
@@ -50,9 +47,6 @@ export const TRADITIONAL: RuleSet = {
   ballsToWin: 12,
   twoToClear: false,
   twoPlayerTarget: 125,
-  timers: false,
-  callTimerSeconds: 10,
-  thuneeWindowSeconds: 5,
 }
 
 /** The house rules at Tuscans. */
@@ -61,7 +55,6 @@ export const TUSCANS_OVERRIDES: RuleOverrides = {
   jodhiTiming: 'anyTrick',
   undercutRestriction: false,
   twoPlayerTarget: 105,
-  thuneeWindowSeconds: 10,
 }
 
 export function resolveRules(overrides: RuleOverrides): RuleSet {
@@ -72,6 +65,17 @@ export function resolveRules(overrides: RuleOverrides): RuleSet {
 export function diffRules(rules: RuleSet): RuleOverrides {
   return diff(TRADITIONAL, rules)
 }
+
+/**
+ * The windows a table's timers may close, which are the table's settings and not rules: calling, and
+ * the Thunee window. Without timers each waits until every player has called or passed.
+ */
+export const TIMERS = {
+  call: { default: 10, min: 3, max: 60 },
+  thunee: { default: 5, min: 0, max: 30 },
+} as const satisfies Record<string, TimerSpec>
+
+export type TimerId = keyof typeof TIMERS
 
 /** Thunee is played by two or four. */
 export const SEAT_COUNTS = [2, 4] as const

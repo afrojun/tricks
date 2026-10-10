@@ -10,7 +10,8 @@ import {
   prospectiveTrumper,
   thuneeEligible,
 } from './predicates'
-import { TRICK_PAUSE_MS } from './rules'
+import { timed, timerSeconds } from '../../../kit/table'
+import { TRICK_PAUSE_MS, type TimerId } from './rules'
 import { type Seat, allSeats, next, seatsFrom, teamOf } from './seats'
 import { type Outcome, finishRound, thuneeTrickResult } from './scoring'
 import { excusesFor, trickWinner } from './tricks'
@@ -49,7 +50,7 @@ export function beginRound(game: Game, ctx: Ctx, events: GameEvent[]): void {
     call: null,
     passed: [],
     preselect: null,
-    deadline: deadlineIn(game, ctx, game.rules.callTimerSeconds),
+    deadline: deadlineIn(game, ctx, 'call'),
   }
   events.push({ type: 'dealt', roundNumber: game.roundNumber, dealer: game.dealer, half: 1 })
 }
@@ -60,9 +61,10 @@ function dealAgain(game: Game, ctx: Ctx, events: GameEvent[], thuneeCaller: Seat
   beginRound(game, ctx, events)
 }
 
-/** When a timed window closes, or null without timers. */
-function deadlineIn(game: Game, ctx: Ctx, seconds: number): number | null {
-  return game.rules.timers ? ctx.now + seconds * 1000 : null
+/** When a timed window closes, or null without timers: none set, or over days. */
+function deadlineIn(game: Game, ctx: Ctx, window: TimerId): number | null {
+  const seconds = timerSeconds(game.settings, window)
+  return seconds === null ? null : ctx.now + seconds * 1000
 }
 
 // ── Calling ──────────────────────────────────────────────────────────────
@@ -70,7 +72,7 @@ function deadlineIn(game: Game, ctx: Ctx, seconds: number): number | null {
 export function call(game: Game, phase: Calling, seat: Seat, action: RoundAction<'call'>, ctx: Ctx, events: GameEvent[]) {
   phase.call = { seat, amount: action.amount }
   phase.preselect = null
-  phase.deadline = deadlineIn(game, ctx, game.rules.callTimerSeconds)
+  phase.deadline = deadlineIn(game, ctx, 'call')
   events.push({ type: 'called', seat, amount: action.amount })
   closeCallingIfDone(game, phase, ctx, events)
 }
@@ -110,10 +112,10 @@ export function chooseTrump(game: Game, choice: TrumpChoice, ctx: Ctx, events: G
     callAmount,
     pending: null,
     passed: [],
-    deadline: deadlineIn(game, ctx, game.rules.thuneeWindowSeconds),
+    deadline: deadlineIn(game, ctx, 'thunee'),
   }
   game.phase = window
-  if ((game.rules.timers && game.rules.thuneeWindowSeconds <= 0) || undecidedThunee(game, window).length === 0) {
+  if (timerSeconds(game.settings, 'thunee') === 0 || undecidedThunee(game, window).length === 0) {
     startPlay(game, window, null, ctx, events)
   }
 }
@@ -242,8 +244,8 @@ export function playCard(game: Game, play: RoundPlay, seat: Seat, card: Card, ct
   // and a person who called Thunee gets as long as they need to challenge before the cards are dealt again.
   const caller = play.thunee?.caller
   const waits = redeal
-    ? !game.rules.timers && caller !== undefined && game.seats[caller].kind === 'human' && !game.seats[caller].standIn
-    : jodhiWaits(game.seats, game.playerCount, game.rules, play.jodhiOpenFor, winner)
+    ? !timed(game.settings) && caller !== undefined && game.seats[caller].kind === 'human' && !game.seats[caller].standIn
+    : jodhiWaits(game.seats, game.playerCount, timed(game.settings), play.jodhiOpenFor, winner)
   game.phase = { kind: 'trickPause', play, deadline: waits ? null : ctx.now + TRICK_PAUSE_MS, redeal }
 }
 

@@ -4,7 +4,7 @@ import { type CoachBasis, type Note, REVIEW_MOMENTS, baselineCoach } from './coa
 import { brokenRules, legalCards } from './integrity'
 import { HONEST, type Mind } from './mind'
 import type { Memory } from './module'
-import { type Seat, type TableState, type TableView, emptySeats, tableView } from './table'
+import { LIVE, type Seat, type TableState, type TableView, emptySeats, tableView } from './table'
 import { collectCards } from './testing'
 import { followSuit, ledSuit } from './tricks'
 
@@ -36,6 +36,7 @@ function game(hands: string[], trick: [Seat, string][], turn: Seat): ToyGame {
     playerCount: 2,
     seats: emptySeats(2).map((s, i) => ({ ...s, name: i === 0 ? 'You' : 'Them', kind: i === 0 ? 'human' : 'ai' })),
     host: 0,
+    settings: LIVE,
     waiting: [],
     aiActAt: null,
     aiSalt: 7,
