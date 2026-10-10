@@ -12,13 +12,15 @@ export interface CallState {
 
 /**
  * Whether `seat` may still make a call in this calling window. The default trumper's side may not open
- * it: their partner may call only over the other side's call.
+ * it. When the other side calls, the default trumper answers first: their partner may call only once
+ * they have passed.
  */
 export function mayCall(seat: Seat, s: CallState): boolean {
   if (s.passed.includes(seat)) return false
   if (callAmounts(s).length === 0) return false
   if (s.call === null) return teamOf(seat) !== teamOf(s.defaultTrumper)
-  return teamOf(seat) !== teamOf(s.call.seat)
+  if (teamOf(seat) === teamOf(s.call.seat)) return false
+  return seat === s.defaultTrumper || teamOf(seat) !== teamOf(s.defaultTrumper) || s.passed.includes(s.defaultTrumper)
 }
 
 /** A call is always the next amount up: 10, then 20, and so on to 104. */

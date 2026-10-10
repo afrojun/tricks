@@ -115,12 +115,12 @@ describe('what computers decide', () => {
     // The games must reach the computers' accusations, or this pins little.
     expect(lines.filter((l) => l.includes('"challenge') && !l.startsWith('0:')).length).toBeGreaterThan(20)
     expect({ actions: lines.length, hashes }).toEqual({
-      actions: 6382,
+      actions: 6423,
       hashes: {
-        '4P traditional, every persona': '67977d21',
-        '4P traditional, sly computers': 'b571a33e',
-        '4P alternatives, cheats and a surprise': 'fef193f1',
-        '4P traditional, straight computers': 'a0cb2349',
+        '4P traditional, every persona': 'd4217f11',
+        '4P traditional, sly computers': 'faaf7e70',
+        '4P alternatives, cheats and a surprise': '3321ffbb',
+        '4P traditional, straight computers': 'b27a8c49',
         '2P traditional, sly': '83dc4a1c',
         '2P alternatives, wild': 'a77ec8d5',
       },

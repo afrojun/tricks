@@ -56,13 +56,16 @@ describe('calling', () => {
     expect(availableActions(viewFor(t.game, 0)).calls).toEqual([10])
   })
 
-  test("the default trumper's partner may call over the other side's call, and the window waits for them", () => {
+  test("the default trumper answers the other side's call first; their partner may call once they pass", () => {
     const t = new Table().deal(D1).do(0, { type: 'pass' }).do(2, { type: 'pass' })
     expect(t.game.phase.kind).toBe('trumpSelection')
     const raised = new Table().deal(D1).do(2, { type: 'call', amount: 10 })
-    expect(availableActions(viewFor(raised.game, 3)).calls).toEqual([20])
+    expect(availableActions(viewFor(raised.game, 1)).calls).toEqual([20])
+    expect(availableActions(viewFor(raised.game, 3)).calls).toEqual([])
+    expect(raised.try(3, { type: 'call', amount: 20 })).toBe('notAllowed')
     raised.do(1, { type: 'pass' })
     expect(raised.game.phase.kind).toBe('calling')
+    expect(availableActions(viewFor(raised.game, 3)).calls).toEqual([20])
     raised.do(3, { type: 'call', amount: 20 })
     expect(calling(raised).call).toEqual({ seat: 3, amount: 20 })
   })
@@ -108,8 +111,10 @@ describe('calling', () => {
     t.do(2, { type: 'call', amount: 10 })
     t.now += 600_000
     t.do('system', { type: 'tick' }) // the system's tick changes nothing
-    expect(t.game.waiting.map((w) => w.seat)).toEqual([1, 3])
-    t.do(1, { type: 'pass' }).do(3, { type: 'pass' })
+    expect(t.game.waiting.map((w) => w.seat)).toEqual([1]) // the default trumper answers first
+    t.do(1, { type: 'pass' })
+    expect(t.game.waiting.map((w) => w.seat)).toEqual([3])
+    t.do(3, { type: 'pass' })
     expect(t.game.phase).toMatchObject({ kind: 'trumpSelection', trumper: 2, callAmount: 10 })
   })
 
@@ -120,7 +125,7 @@ describe('calling', () => {
     t.do(0, { type: 'pass' })
     expect(t.game.waiting).toEqual([{ seat: 2, since: dealt }])
     t.do(2, { type: 'call', amount: 10 })
-    expect(t.game.waiting).toEqual([{ seat: 1, since: t.now }, { seat: 3, since: t.now }])
+    expect(t.game.waiting).toEqual([{ seat: 1, since: t.now }])
     t.now += 50_000
     t.do(1, { type: 'call', amount: 20 })
     expect(t.game.waiting).toEqual([{ seat: 2, since: t.now }]) // seat 0 has passed

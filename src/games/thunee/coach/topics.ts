@@ -22,7 +22,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   calling: {
     title: 'Calling',
     paragraphs: [
-      'After four cards each, players may call for the right to choose trump, one step at a time: 10, then 20, and so on up to 104. If nobody calls, the player to the right of the dealer chooses, so their side may not open: their partner may only call over the other side.',
+      'After four cards each, players may call for the right to choose trump, one step at a time: 10, then 20, and so on up to 104. If nobody calls, the player to the right of the dealer chooses, so their side may not open. When the other side calls, that player answers first; their partner may call only once they pass.',
       'The side that chooses trump defends. The other side, the counting side, tries to reach 105 points (125 in the two-player game), and the amount called is added to their total. So a call makes the other side’s job easier: only call with a strong hand, like two jacks or a jack with another high card of its suit.',
     ],
   },
