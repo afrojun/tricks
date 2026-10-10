@@ -78,15 +78,15 @@ export interface SpadesRules extends CommonRules {
 
 Standard is the default. One preset is built in: Jokers (`jokers: true`).
 
-### 3.2 The losing score
-
-A common house rule, off by default because Pagat's rules have no such limit. When it is on, a round that leaves any side at −200 or below ends the game as reaching `gameEndsAt` does: the highest score wins, and while the highest is shared, play goes on. Without it nothing ends a game in which every side keeps falling, which a 40-game soak under "Bid plus three" found.
-
 ### 3.1 Jokers
 
 Two jokers join the deck and the twos of clubs and hearts leave it, so it stays at 52. Trump, from the top: the big joker, the little joker, the two of diamonds, the two of spades, then the ace of spades down to the three. The two of diamonds is a spade in every way: it follows spades, a diamond lead cannot be followed with it, leading it before spades are broken breaks the rule, and playing it breaks spades. The lowest club in play is the three (with three players, the four when the three was set aside). Everything else is unchanged.
 
 A joker is a card of the rank `BJ` or `LJ` and the suit `spades`, so every card still has a suit; the face draws a joker. Spades' `suitOf(card)` gives the suit a card is played as (spades for the two of diamonds with Jokers on, otherwise the printed suit), and its `strength` orders trump as above. The kit's `ledSuit`, `followSuit` and `trickWinner` take `suitOf` (defaulting to `card.suit`), and legality, the recorded rules broken, proofs, the computers and the coach all read suits through it.
+
+### 3.2 The losing score
+
+A common house rule, off by default because Pagat's rules have no such limit. When it is on, a round that leaves any side at −200 or below ends the game as reaching `gameEndsAt` does: the highest score wins, and while the highest is shared, play goes on. Without it nothing ends a game in which every side keeps falling, which a 40-game soak under "Bid plus three" found.
 
 ## 4. State, actions and events
 
