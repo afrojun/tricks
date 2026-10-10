@@ -21,7 +21,7 @@ const browser: Browser = await chromium.launch({ executablePath: process.env.CHR
 const problems: string[] = []
 
 async function open(name: string) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
   await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
   const page = await context.newPage()
   watch(page, name)

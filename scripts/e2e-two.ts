@@ -10,7 +10,7 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? 
 const problems: string[] = []
 
 async function open(name: string) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
   await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
   const page = await context.newPage()
   page.on('pageerror', (e) => problems.push(`${name} pageerror: ${e.message}`))

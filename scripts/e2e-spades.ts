@@ -16,7 +16,7 @@ const browser: Browser = await chromium.launch({ executablePath: process.env.CHR
 const problems: string[] = []
 
 async function open(name: string) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
   await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
   const page = await context.newPage()
   page.on('pageerror', (e) => problems.push(`${name} pageerror: ${e.message}`))
@@ -175,9 +175,13 @@ for (let i = 0; i < 40 && !(await visible(a, /^Call \d+$/)); i++) await a.waitFo
 await button(a, 'Hint').click()
 check(await seen(a, /Count your tricks|Call Nil|A hand for Nil|No high spades/, 5000), 'practice: the hint counts the hand’s tricks')
 await shot(a, '8-practice')
-// A rule-breaking card's second tap carries the coach's warning.
+// The hint's sheet covers the calling grid until it is closed.
+await button(a, 'Close').click()
+// A rule-breaking card's second tap carries the coach's warning. A click that cannot land waits its whole
+// timeout, so the search is held to a deadline rather than a count alone.
 let warned = false
-for (let i = 0; i < 600 && !warned; i++) {
+const giveUp = Date.now() + 120_000
+for (let i = 0; i < 600 && !warned && Date.now() < giveUp; i++) {
   if (await gotIt.isVisible()) await gotIt.click().catch(() => {})
   const proceed = button(a, 'Continue')
   if (await proceed.isVisible().catch(() => false)) await proceed.click().catch(() => {})
@@ -185,11 +189,13 @@ for (let i = 0; i < 600 && !warned; i++) {
   const mine = (await a.locator('.hand .playing-card[data-playable="true"]').count()) > 0
   const dimmed = a.locator('.hand .playing-card[data-dim="true"]')
   if (mine && (await dimmed.count()) > 0) {
-    await dimmed.first().click({ position: STRIP })
     const why = a.locator('.play-anyway-why')
-    warned = await why.waitFor({ timeout: 2000 }).then(() => true, () => false)
-    check(warned && /challenge you/.test((await why.textContent()) ?? ''), `the second tap shows the coach's warning (${(await why.textContent().catch(() => null)) ?? 'none'})`)
-    await shot(a, '9-practice-warning')
+    // A tap that misses (the hand moving under it) is tried again on the next turn.
+    if (await dimmed.first().click({ position: STRIP, timeout: 2000 }).then(() => true, () => false)) {
+      warned = await why.waitFor({ timeout: 2000 }).then(() => true, () => false)
+      check(warned && /challenge you/.test((await why.textContent()) ?? ''), `the second tap shows the coach's warning (${(await why.textContent().catch(() => null)) ?? 'none'})`)
+      await shot(a, '9-practice-warning')
+    }
   } else if (mine) await a.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500 }).catch(() => {})
   await a.waitForTimeout(150)
 }
