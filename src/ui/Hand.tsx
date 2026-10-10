@@ -1,8 +1,8 @@
 import { AnimatePresence, animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { type Card, cardId, hasCard, sameCard } from '../kit/cards'
-import { PlayingCard } from './Card'
-import { fanTilt } from './hands'
+import { CardBack, PlayingCard } from './Card'
+import { TIER_AT, fanTilt, splitTiers } from './hands'
 import { useShowsPlayable } from './prefs'
 import { useSession } from './session'
 import { cardText } from './text'
@@ -29,7 +29,8 @@ interface HandProps<C extends Card> {
   explain?: (card: C) => string | null
   /**
    * The most cards this hand holds, when more than six (Hearts' thirteen): smaller cards, spaced so
-   * that many fit one row with every index showing.
+   * that many fit one row with every index showing. More than thirteen (Spades' seventeen with three)
+   * are held in two tiers, the back one raised so its indices show, for the whole round.
    */
   most?: number
   /**
@@ -107,6 +108,51 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
     return false
   }
 
+  const tiers = most !== undefined && most > TIER_AT
+  const rows = tiers ? splitTiers(cards) : [cards]
+  const row = (cards: C[], offset: number) => (
+    <AnimatePresence initial={false}>
+      {cards.map((card, i) => (
+        <HandCard
+          key={cardId(card)}
+          card={card}
+          index={offset + i}
+          tilt={fanTilt(i, cards.length)}
+          playable={choose ? choose.onPick !== null : playable}
+          choosing={choose !== undefined}
+          legal={choose !== undefined || !marksPlayable || legal.some((c) => sameCard(c, card))}
+          pending={pending !== null && sameCard(pending, card)}
+          picked={choose !== undefined && hasCard(choose.picked, card)}
+          marked={hasCard(marked, card)}
+          suggested={suggested !== null && sameCard(suggested, card)}
+          explanation={pending !== null && sameCard(pending, card) ? (explain?.(card) ?? null) : null}
+          ownAnyway={!many}
+          shake={shake}
+          dealFrom={dealFrom}
+          dragging={dragging}
+          handTop={() => handRef.current?.getBoundingClientRect().top ?? 0}
+          onPress={() => playable && !choose && setPressed(true)}
+          onAttempt={() => tap(card)}
+          onConfirm={() => confirm(card)}
+        />
+      ))}
+    </AnimatePresence>
+  )
+
+  // Over a long row, a card's own "Play anyway" could run off the screen: it sits above the middle of the row.
+  const anywayOver = many && pending && <PlayAnyway card={pending} explanation={explain?.(pending) ?? null} onConfirm={() => confirm(pending)} />
+  if (tiers) {
+    return (
+      <div ref={handRef} className="hand-tiers" onClick={() => !dragging.current && setPending(null)}>
+        {anywayOver}
+        {rows.map((cards, r) => (
+          <div key={r} className="hand" data-many data-tier={r === 0 ? 'back' : 'front'} style={{ '--count': Math.max(2, cards.length) } as React.CSSProperties}>
+            {row(cards, r === 0 ? 0 : rows[0].length)}
+          </div>
+        ))}
+      </div>
+    )
+  }
   return (
     <div
       ref={handRef}
@@ -116,34 +162,24 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
       style={{ '--count': Math.max(2, cards.length) } as React.CSSProperties}
       onClick={() => !dragging.current && setPending(null)}
     >
-      {/* Over a long row, a card's own "Play anyway" could run off the screen: it sits above the middle of the row. */}
-      {many && pending && <PlayAnyway card={pending} explanation={explain?.(pending) ?? null} onConfirm={() => confirm(pending)} />}
-      <AnimatePresence initial={false}>
-        {cards.map((card, i) => (
-          <HandCard
-            key={cardId(card)}
-            card={card}
-            index={i}
-            count={cards.length}
-            playable={choose ? choose.onPick !== null : playable}
-            choosing={choose !== undefined}
-            legal={choose !== undefined || !marksPlayable || legal.some((c) => sameCard(c, card))}
-            pending={pending !== null && sameCard(pending, card)}
-            picked={choose !== undefined && hasCard(choose.picked, card)}
-            marked={hasCard(marked, card)}
-            suggested={suggested !== null && sameCard(suggested, card)}
-            explanation={pending !== null && sameCard(pending, card) ? (explain?.(card) ?? null) : null}
-            ownAnyway={!many}
-            shake={shake}
-            dealFrom={dealFrom}
-            dragging={dragging}
-            handTop={() => handRef.current?.getBoundingClientRect().top ?? 0}
-            onPress={() => playable && !choose && setPressed(true)}
-            onAttempt={() => tap(card)}
-            onConfirm={() => confirm(card)}
-          />
-        ))}
-      </AnimatePresence>
+      {anywayOver}
+      {row(cards, 0)}
+    </div>
+  )
+}
+
+/** A hand dealt face down, such as one that may still call Blind nil: its cards' backs, fanned as the hand would be. */
+export function HandDown({ count, most }: { count: number; most?: number }) {
+  const many = most !== undefined && most > 6
+  return (
+    <div className="hand" data-many={many || undefined} style={{ '--count': Math.max(2, count) } as React.CSSProperties} aria-label={`${count} cards, face down`}>
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="hand-slot">
+          <span className="hand-back" style={{ '--tilt': `${fanTilt(i, count)}deg` } as React.CSSProperties}>
+            <CardBack size="hand" />
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -178,8 +214,10 @@ function PlayAnyway({ card, explanation, onConfirm }: { card: Card; explanation:
 
 interface HandCardProps {
   card: Card
+  /** Its place in the whole hand, for the order cards are dealt in and stacked. */
   index: number
-  count: number
+  /** How far it leans in its row. */
+  tilt: number
   playable: boolean
   /** Picking cards rather than playing one: no carrying, and no second tap. */
   choosing: boolean
@@ -203,7 +241,7 @@ interface HandCardProps {
 
 /** One card in the hand. It can be picked up and carried anywhere, and is played by letting go over the table. */
 function HandCard(props: HandCardProps) {
-  const { card, index, count, playable, choosing, legal, pending, picked, marked, suggested, explanation, ownAnyway, shake, dealFrom, dragging, handTop, onPress, onAttempt, onConfirm } = props
+  const { card, index, tilt, playable, choosing, legal, pending, picked, marked, suggested, explanation, ownAnyway, shake, dealFrom, dragging, handTop, onPress, onAttempt, onConfirm } = props
   const x = useMotionValue(0)
   const y = useMotionValue(0)
   // A carried card swings a little with the hand that moves it.
@@ -215,7 +253,6 @@ function HandCard(props: HandCardProps) {
     animate(x, 0)
     animate(y, 0)
   }
-  const tilt = fanTilt(index, count)
 
   return (
     <motion.div

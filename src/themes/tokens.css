@@ -41,6 +41,9 @@
   --team1: var(--blue);
   --on-team0: var(--ink);
   --on-team1: var(--paper);
+  /* A third side, for three players each on their own. */
+  --team2: var(--ink);
+  --on-team2: var(--paper);
   --font-display-family: 'Shrikhand', 'Archivo', system-ui, serif;
   --font-body-family: 'Archivo', system-ui, sans-serif;
   --root-size: 16px;

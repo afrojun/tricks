@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { STANDARD } from '../games/hearts/engine'
 import { ruleBook as hearts } from '../games/hearts/ui/rules'
+import { ruleBook as spades } from '../games/spades/ui/rules'
 import { ruleBook as thunee } from '../games/thunee/ui/rules'
 import { type RuleBook, typedNumber, withRule } from './book'
 import { decodeShare, encodeShare } from './share'
@@ -10,6 +11,7 @@ import { listPresets, savePreset } from './storage'
 const BOOKS = [
   ['thunee', thunee],
   ['hearts', hearts],
+  ['spades', spades],
 ] as unknown as [string, RuleBook<Record<string, unknown>>][]
 
 describe.each(BOOKS)('%s’s rule book', (_, book) => {

@@ -1,4 +1,4 @@
-import type { Card, Suit } from '../kit/cards'
+import { type Card, JOKER_NAME, type Suit } from '../kit/cards'
 import { useTheme } from './session'
 import { SUIT_NAME, isRed } from './text'
 
@@ -11,6 +11,9 @@ const PIP: Record<Suit, string> = {
   diamonds: '<path d="M50 5 89 50 50 95 11 50Z"/>',
   clubs: '<circle cx="50" cy="27" r="20"/><circle cx="27" cy="58" r="20"/><circle cx="73" cy="58" r="20"/><circle cx="50" cy="52" r="12"/><path d="M50 40c0 30-4 45-15 55h30C54 85 50 70 50 40Z"/>',
 }
+
+/** A joker's star, drawn where a suit's pip would be. */
+const STAR = '<path d="M50 4 62 37h35L69 58l11 35-30-21-30 21 11-35L3 37h35Z"/>'
 
 /** A suit's pip, in the current colour. Decorative unless given a label. */
 export function Pip({ suit, label, className = '' }: { suit: Suit; label?: string; className?: string }) {
@@ -50,16 +53,23 @@ interface PlayingCardProps {
 
 const COURT = new Set(['J', 'Q', 'K'])
 
+/** A joker's star, in the current colour. */
+function Star() {
+  return <svg className="pip" viewBox="0 0 100 100" aria-hidden dangerouslySetInnerHTML={{ __html: STAR }} />
+}
+
 export function PlayingCard({ card, size = 'hand', onClick, playable, dim, selected, tag, className = '', style }: PlayingCardProps) {
-  const label = `${card.rank} of ${SUIT_NAME[card.suit]}${tag ? `, ${tag.toLowerCase()}` : ''}`
+  // A joker has a suit to play as, but shows a star: the big one red, the little one black.
+  const joker = JOKER_NAME[card.rank]
+  const label = `${joker ?? `${card.rank} of ${SUIT_NAME[card.suit]}`}${tag ? `, ${tag.toLowerCase()}` : ''}`
   const face = (
     <>
       <span className="ix" aria-hidden>
-        <span>{card.rank}</span>
-        <Pip suit={card.suit} />
+        <span>{joker ? 'J' : card.rank}</span>
+        {joker ? <Star /> : <Pip suit={card.suit} />}
       </span>
       <span className="art" aria-hidden>
-        <Pip suit={card.suit} />
+        {joker ? <Star /> : <Pip suit={card.suit} />}
       </span>
       {tag && (
         <span className="card-tag" aria-hidden>
@@ -71,8 +81,8 @@ export function PlayingCard({ card, size = 'hand', onClick, playable, dim, selec
   const shared = {
     className: `playing-card ${className}`,
     'data-size': size,
-    'data-red': isRed(card.suit),
-    'data-court': COURT.has(card.rank) ? card.rank : undefined,
+    'data-red': joker ? card.rank === 'BJ' : isRed(card.suit),
+    'data-court': COURT.has(card.rank) ? card.rank : joker ? 'joker' : undefined,
     'data-playable': playable ?? false,
     'data-dim': dim ?? false,
     'data-selected': selected ?? false,

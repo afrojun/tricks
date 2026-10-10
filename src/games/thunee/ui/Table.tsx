@@ -14,6 +14,7 @@ import {
   teamOf,
 } from '../engine'
 import { AccuseSheet } from '../../../ui/Accuse'
+import { CallGrid } from '../../../ui/Call'
 import { Pip, SuitChip } from '../../../ui/Card'
 import { GameMenu } from '../../../ui/GameMenu'
 import { Hand } from '../../../ui/Hand'
@@ -454,16 +455,13 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
       {can.calls.length > 0 && (
         <div className="grid gap-2">
           {coached && <p className="panel-note text-center text-sm text-on-surface-muted">{CALL_NOTE}</p>}
-          <div className="grid grid-cols-2 gap-2">
-            {can.calls.map((amount) => (
-              <button key={amount} className="btn btn-primary" onClick={() => commit({ type: 'call', amount })}>
-                Call {amount}
-              </button>
-            ))}
-            <button className="btn" onClick={() => commit({ type: 'pass' })}>
-              Pass
-            </button>
-          </div>
+          <CallGrid
+            spelled
+            numbers={can.calls}
+            onCall={(amount) => commit({ type: 'call', amount })}
+            label={(amount) => `Call ${amount}`}
+            inline={[{ label: 'Pass', onClick: () => commit({ type: 'pass' }) }]}
+          />
         </div>
       )}
       {view.seat !== null && phase.passed.includes(view.seat) && <p className="text-center text-on-surface-muted">You passed.</p>}

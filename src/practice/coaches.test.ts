@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { GAMES } from '../games'
 import { availableActions as heartsAvailable } from '../games/hearts/engine'
 import { heartsPractice } from '../games/hearts/practice'
+import { spadesPractice } from '../games/spades/practice'
 import { dwell as heartsDwell } from '../games/hearts/ui/dwell'
 import { thuneeCoach } from '../games/thunee/coach'
 import { advise } from '../games/thunee/coach/advise'
@@ -72,6 +73,7 @@ function followTheCoach<G extends TableState, A extends { type: string }, E, V e
 const COACHED: Record<string, { counts: number[]; play: (playerCount: number, seed: number) => Seen }> = {
   thunee: { counts: [2, 4], play: (n, seed) => followTheCoach(thuneePractice, { type: 'nextRound' }, n, seed, 3000) },
   hearts: { counts: [4], play: (n, seed) => followTheCoach(heartsPractice, { type: 'nextRound' }, n, seed, 20_000) },
+  spades: { counts: [2, 3, 4], play: (n, seed) => followTheCoach(spadesPractice, { type: 'nextRound' }, n, seed, 20_000) },
 }
 
 describe('every game’s coach', () => {

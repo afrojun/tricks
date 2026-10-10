@@ -61,7 +61,7 @@ describe('routes', () => {
   })
 
   test('old addresses and unknown games show the Tricks home', () => {
-    for (const path of ['/game/ABCDEF', '/practice', '/spades', '/spades/ABCDEF', '/thunee/ABCDEF/extra', '/constructor']) {
+    for (const path of ['/game/ABCDEF', '/practice', '/rummy', '/rummy/ABCDEF', '/thunee/ABCDEF/extra', '/constructor']) {
       expect(route(path)).toEqual({ screen: 'tricks' })
     }
   })

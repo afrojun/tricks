@@ -3,6 +3,9 @@ import type { Action as HeartsAction, Card as HeartsCard, View as HeartsView } f
 import { heartsPractice } from '../games/hearts/practice'
 import { type Action as ThuneeAction, type View as ThuneeView, availableActions as thuneeAvailable } from '../games/thunee/engine'
 import { thuneePractice } from '../games/thunee/practice'
+import { TOPICS as SPADES_TOPICS } from '../games/spades/coach/topics'
+import type { Action as SpadesAction, Card as SpadesCard, View as SpadesView } from '../games/spades/engine'
+import { spadesPractice } from '../games/spades/practice'
 import { TOPICS as HEARTS_TOPICS } from '../games/hearts/coach/topics'
 import { TOPICS as THUNEE_TOPICS } from '../games/thunee/coach/topics'
 import type { TableState, TableView } from '../kit/table'
@@ -64,10 +67,19 @@ const HEARTS_MISTAKES: Record<string, Mistake<HeartsView, HeartsAction>> = {
   dumpQueen: () => play('Q', 'diamonds'),
 }
 
+const playSpade = (rank: SpadesCard['rank'], suit: SpadesCard['suit']): SpadesAction => ({ type: 'playCard', card: { rank, suit } })
+
+const SPADES_MISTAKES: Record<string, Mistake<SpadesView, SpadesAction>> = {
+  trump: () => playSpade('2', 'diamonds'),
+  spadesLead: () => playSpade('A', 'spades'),
+  nil: () => playSpade('J', 'hearts'),
+}
+
 /** Each game's practice and the mistake that misses each of its drills. Every game with drills is here. */
 const GAMES = [
   { practice: thuneePractice, mistakes: THUNEE_MISTAKES, topics: THUNEE_TOPICS },
   { practice: heartsPractice, mistakes: HEARTS_MISTAKES, topics: HEARTS_TOPICS },
+  { practice: spadesPractice, mistakes: SPADES_MISTAKES, topics: SPADES_TOPICS },
 ] as const
 
 describe.each(GAMES)('$practice.module.id drills', ({ practice, mistakes, topics }) => {

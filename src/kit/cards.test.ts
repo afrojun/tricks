@@ -41,6 +41,7 @@ describe('cards', () => {
     expect(cardId({ suit: 'hearts', rank: 'J' })).toBe('J-hearts')
     expect(cardText({ suit: 'hearts', rank: 'J' })).toBe('J♥')
     expect(cardText({ suit: 'spades', rank: '10' })).toBe('10♠')
+    expect(cardText({ suit: 'spades', rank: 'BJ' })).toBe('Big joker')
   })
 })
 

@@ -35,3 +35,20 @@ export function pickedFrom<C extends Card>(picks: Picks<C>, hand: readonly C[]):
 export function pickFrom<C extends Card>(picks: Picks<C>, hand: readonly C[], card: C, limit: number): Picks<C> {
   return { from: [...hand], cards: togglePick(pickedFrom(picks, hand), card, limit) }
 }
+
+/** A hand of more than this many cards is shown in two tiers, so every index stays wide enough to read and tap. */
+export const TIER_AT = 13
+
+/**
+ * A sorted hand split for two tiers: the back tier first, then the front, the back the smaller by one at most.
+ * The split falls between two suits when a suit ends within two cards of the middle, nearest it first; otherwise
+ * in the middle, inside a suit, so a hand of fifteen spades still splits evenly.
+ */
+export function splitTiers<C extends Card>(cards: readonly C[]): [C[], C[]] {
+  const middle = Math.floor(cards.length / 2)
+  const boundaries = cards.map((_, i) => i).filter((i) => i > 0 && cards[i].suit !== cards[i - 1].suit)
+  const near = boundaries.filter((i) => Math.abs(i - middle) <= 2).sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle) || a - b)
+  const at = near[0] ?? middle
+  return [cards.slice(0, at), cards.slice(at)]
+}
+

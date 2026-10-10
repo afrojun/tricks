@@ -20,6 +20,8 @@ export type Sound =
   | 'gameWon'
   | 'gameLost'
   | 'tap'
+  | 'chip'
+  | 'bags'
   | 'talkEmote'
   | 'throwSlap'
   | 'throwSoft'
@@ -63,6 +65,10 @@ const SOUNDS: Record<Sound, Recipe> = {
   // For the side that lost, and a spectator: the pot pushed over, to someone else.
   gameLost: { parts: [{ file: 'fs-chips-push', volume: 0.8 }] },
   tap: { parts: [{ file: 'bookFlip1', volume: 0.5, cut: 350 }] },
+  /** One chip on the table: Spades' contract made. */
+  chip: { parts: [{ file: ['fs-chip-0', 'fs-chip-1', 'fs-chip-2'], volume: 0.8 }], haptic: 15 },
+  /** The pot pushed over, quietly: Spades' ten bags. */
+  bags: { parts: [{ file: 'fs-chips-push', volume: 0.6 }], haptic: 40 },
   // Table talk, from the table's own recordings until its landing sounds are recorded. A line plays `tap` until the voices exist.
   talkEmote: { parts: [{ file: 'bookFlip1', volume: 0.3, cut: 250 }] },
   // A chappal's slap, a rose laid down, a tomato's splat, a chip tossed in.

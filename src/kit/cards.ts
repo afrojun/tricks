@@ -43,9 +43,12 @@ export function cardId(card: Card): string {
 export const SUIT_SYMBOL: Record<Suit, string> = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' }
 export const SUIT_NAME: Record<Suit, string> = { hearts: 'Hearts', diamonds: 'Diamonds', clubs: 'Clubs', spades: 'Spades' }
 
-/** `J♥`, `10♠`. */
+/** The two jokers some games add, by rank: Spades' Jokers deck. */
+export const JOKER_NAME: Readonly<Record<string, string>> = { BJ: 'Big joker', LJ: 'Little joker' }
+
+/** `J♥`, `10♠`, `Big joker`. */
 export function cardText(card: Card): string {
-  return `${card.rank}${SUIT_SYMBOL[card.suit]}`
+  return JOKER_NAME[card.rank] ?? `${card.rank}${SUIT_SYMBOL[card.suit]}`
 }
 
 const SUIT_LETTER: Readonly<Record<string, Suit>> = { h: 'hearts', d: 'diamonds', c: 'clubs', s: 'spades' }

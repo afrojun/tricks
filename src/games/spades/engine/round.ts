@@ -194,11 +194,12 @@ export function challengePlay(game: Game, play: RoundPlay, challenger: Seat, acc
   const cheat = firstCheat(open, accused)
   const guilty = cheat !== null
   const penalty = game.rules.renege
-  events.push({ type: 'challengeResolved', challenger, accused, guilty, penalty })
+  const rule = cheat?.broke[0] ?? null
+  const card = (cheat ?? own[own.length - 1]).card
+  events.push({ type: 'challengeResolved', challenger, accused, guilty, penalty, rule, card })
   const atFault = guilty ? accused : challenger
   if (penalty === 'set') {
-    const card = (cheat ?? own[own.length - 1]).card
-    const outcome = { kind: 'challenge', challenger, accused, guilty, rule: cheat?.broke[0] ?? null, card, setSide: sideOf(atFault, game.playerCount) } as const
+    const outcome = { kind: 'challenge', challenger, accused, guilty, rule, card, setSide: sideOf(atFault, game.playerCount) } as const
     finishRound(game, play, outcome, events)
     return
   }

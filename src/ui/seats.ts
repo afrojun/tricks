@@ -9,11 +9,14 @@ export type Where = 'bottom' | 'right' | 'top' | 'left'
 /**
  * Where a seat sits on screen relative to the viewer, who is always at the bottom. Seats are
  * numbered in play order, so the next seat sits on the viewer's right when play goes
- * counterclockwise and on their left when it goes clockwise. For two or four seats.
+ * counterclockwise and on their left when it goes clockwise. For two, three or four seats: with
+ * three the two others sit at the sides and the top stays empty, so a card still travels from the
+ * side it was played on.
  */
 export function place(seat: Seat, me: Seat, playerCount: number, direction: Direction): Where {
   const offset = (seat - me + playerCount) % playerCount
   if (playerCount === 2) return offset === 0 ? 'bottom' : 'top'
+  if (playerCount === 3) return offset === 0 ? 'bottom' : (offset === 1) === (direction === 'clockwise') ? 'left' : 'right'
   return (direction === 'counterclockwise' ? (['bottom', 'right', 'top', 'left'] as const) : (['bottom', 'left', 'top', 'right'] as const))[offset]
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { NO_PICKS, type Picks, fanTilt, pickFrom, pickedFrom, togglePick } from './hands'
+import { NO_PICKS, type Picks, fanTilt, pickFrom, pickedFrom, splitTiers, togglePick } from './hands'
 
 const card = (rank: string, suit: 'hearts' | 'spades' = 'spades') => ({ rank, suit })
 
@@ -63,3 +63,21 @@ describe('cards picked from a hand', () => {
     expect(pickedFrom(pickFrom(picks, next, card('3', 'hearts'), 3), next)).toEqual([card('3', 'hearts')])
   })
 })
+
+describe('a hand in two tiers', () => {
+  const suited = (text: string) => text.split(' ').map((c) => ({ rank: c.slice(0, -1), suit: ({ h: 'hearts', s: 'spades', c: 'clubs', d: 'diamonds' } as const)[c.slice(-1) as 'h'] }))
+
+  test('splits at the suit boundary nearest the middle, within two cards of it', () => {
+    const hand = suited('Ah Kh Qh Jh 10h 9h Ac Kc Qc Jc 10c Ad Kd Qd As Ks Qs')
+    const [back, front] = splitTiers(hand)
+    expect(back).toHaveLength(6)
+    expect(front).toHaveLength(11)
+    expect(back.every((c) => c.suit === 'hearts')).toBe(true)
+  })
+
+  test('splits in the middle, inside a suit, when no suit ends near it', () => {
+    const [back, front] = splitTiers(suited('As Ks Qs Js 10s 9s 8s 7s 6s 5s 4s 3s 2s Ad Kd'))
+    expect([back.length, front.length]).toEqual([7, 8])
+  })
+})
+

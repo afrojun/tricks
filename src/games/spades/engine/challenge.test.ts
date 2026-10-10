@@ -18,7 +18,7 @@ describe('accusing, under "set"', () => {
     expect(phase.summary.reason).toBe('challenge')
     expect(phase.summary.challenge).toMatchObject({ challenger: 1, accused: 2, guilty: true, rule: 'followSuit' })
     expect(phase.summary.sides.map((s) => s.points)).toEqual([-60, 70])
-    expect(t.events).toContainEqual({ type: 'challengeResolved', challenger: 1, accused: 2, guilty: true, penalty: 'set' })
+    expect(t.events).toContainEqual({ type: 'challengeResolved', challenger: 1, accused: 2, guilty: true, penalty: 'set', rule: 'followSuit', card: { suit: 'diamonds', rank: '9' } })
   })
 
   test('a wrong accusation sets the accuser’s side instead', () => {
@@ -43,7 +43,7 @@ describe('accusing, under "Bid plus three"', () => {
     const t = renege({ renege: 'bidPlusThree' }).do(1, { type: 'challengePlay', seat: 2 })
     expect(t.game.phase.kind).toBe('trickPause')
     expect(viewFor(t.game, 0).phase).toMatchObject({ contracts: [9, 7], settled: [0, 0, 1, 0] })
-    expect(t.events).toContainEqual({ type: 'challengeResolved', challenger: 1, accused: 2, guilty: true, penalty: 'bidPlusThree' })
+    expect(t.events).toContainEqual({ type: 'challengeResolved', challenger: 1, accused: 2, guilty: true, penalty: 'bidPlusThree', rule: 'followSuit', card: { suit: 'diamonds', rank: '9' } })
     // Nothing of seat 2 is left to judge until it plays again.
     expect(availableActions(viewFor(t.game, 1)).challengePlay).toEqual([0, 3])
     // Its settled renege is still seen, but never as a cheat to prove.

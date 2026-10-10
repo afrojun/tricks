@@ -15,6 +15,12 @@ describe('where seats sit', () => {
     expect([0, 1, 2, 3].map((seat) => place(seat, 3, 4, 'clockwise'))).toEqual(['left', 'top', 'right', 'bottom'])
   })
 
+  test('three: the next player sits on the side play goes toward, the other opposite it, and the top is empty', () => {
+    expect([0, 1, 2].map((seat) => place(seat, 0, 3, 'clockwise'))).toEqual(['bottom', 'left', 'right'])
+    expect([0, 1, 2].map((seat) => place(seat, 0, 3, 'counterclockwise'))).toEqual(['bottom', 'right', 'left'])
+    expect([0, 1, 2].map((seat) => place(seat, 2, 3, 'clockwise'))).toEqual(['left', 'right', 'bottom'])
+  })
+
   test('two players face each other, either way round', () => {
     for (const direction of ['clockwise', 'counterclockwise'] as const) {
       expect([0, 1].map((seat) => place(seat, 0, 2, direction))).toEqual(['bottom', 'top'])

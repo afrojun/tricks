@@ -360,6 +360,13 @@ html:has(main.home) {
   border: 1.5px solid var(--card-line);
   border-radius: 50%;
 }
+/* A joker's panel: the big one in red and yellow, the little one in ink and blue, under its star. */
+.playing-card[data-court='joker'] .art {
+  background: repeating-linear-gradient(45deg, var(--yellow) 0 5px, var(--suit) 5px 8px);
+}
+.playing-card[data-court='joker']:not([data-red='true']) .art {
+  background: repeating-linear-gradient(45deg, var(--blue) 0 5px, var(--suit) 5px 8px);
+}
 .playing-card[data-court='K'] .art {
   background: repeating-linear-gradient(135deg, var(--yellow) 0 4px, var(--suit) 4px 6px, var(--yellow) 6px 10px, var(--blue) 10px 12px);
 }
@@ -486,6 +493,33 @@ html:has(main.home) {
 .hand[data-many] .playing-card .ix {
   left: 6%;
   font-size: calc(var(--w) * 0.34);
+}
+/*
+ * Two tiers for a hand too long for one row (Spades' seventeen with three): the back tier raised half
+ * a card behind the front, so the indices of both show. The tiers hold for the whole round.
+ */
+.hand-tiers {
+  position: relative;
+  display: grid;
+}
+.hand-tiers .hand[data-tier='back'] {
+  min-height: 0;
+  padding-bottom: 0;
+}
+.hand-tiers .hand[data-tier='front'] {
+  margin-top: calc(var(--w) * -0.8);
+  padding-top: 0;
+}
+/* A hand dealt face down: the backs, leaning as the cards would. */
+.hand-back {
+  display: block;
+  width: var(--w);
+  transform: rotate(var(--tilt, 0deg));
+  transform-origin: 50% 120%;
+}
+.hand-back .playing-card {
+  --w: inherit;
+  width: var(--w);
 }
 /* Picked to pass: raised and ringed, in the accent rather than the warning of "Play anyway". */
 .hand .playing-card.picked {
