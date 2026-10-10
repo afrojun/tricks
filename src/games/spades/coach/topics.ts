@@ -13,8 +13,8 @@ export const TOPICS = {
   aim: {
     title: 'The aim',
     paragraphs: [
-      'Spades is for two, three or four. With four, partners sit opposite and score together; with two or three, everyone plays alone. Aces are high, and spades are always trump.',
-      'Before each round everyone calls how many tricks they will take. Make your call and you score 10 a trick; miss it and you lose as much. The first side to 500 wins.',
+      'Spades is for two, three or four. With four, partners sit opposite and score together as a side; with two or three, everyone plays alone. Aces are high, and spades are always trump.',
+      'Before each round everyone calls how many tricks they will take. Make your call and you score 10 a trick; miss it and you lose as much. When a round ends with anyone at 500 or more, the highest score wins.',
     ],
     example: c('spades', 'A', 'K', 'Q'),
   },
@@ -22,7 +22,7 @@ export const TOPICS = {
     title: 'Calling',
     paragraphs: [
       'Starting left of the dealer, everyone calls once: a number of tricks, or Nil. With four, partners add their calls together: that is the side’s contract.',
-      'Count what your hand will win: the ace of spades, a king of spades with another spade beside it, a queen with two, and every spade past your third. Add side aces, half for a king with a card beside it, and a trick for each short suit you can trump with a spare spade.',
+      'Count what your hand will win. In spades: the ace, a king with another spade beside it, a queen with two, and every spade past your third. In the other suits: each ace, half for a king with a card beside it, and a trick for each short suit you can trump with a spare spade.',
       'Calling too few is safer than too many, but every trick over your call is a bag.',
     ],
   },
@@ -36,21 +36,21 @@ export const TOPICS = {
   bags: {
     title: 'Bags',
     paragraphs: [
-      'Every trick a side takes beyond its contract is a bag. Each bag scores 1, but bags add up over the game: when a side’s count reaches 10, it loses 100.',
+      'Every trick a side takes beyond its call is a bag. Each bag scores 1, but bags add up over the game, and every 10 cost the side 100.',
       'Once your side has made its call, try to lose tricks rather than win them.',
     ],
   },
   nil: {
     title: 'Nil',
     paragraphs: [
-      'Nil is a call to take no tricks at all, for 100. Take even one and it costs 100. A Nil player’s tricks never count toward the partner’s call, and each is a bag.',
-      'Playing Nil, throw your high cards when you cannot follow suit, and play the highest card that still loses. Partner of a Nil: win the tricks it might take. Against a Nil: lead low, so it may have to win.',
+      'Nil is a call to take no tricks at all, for 100. Take even one and it costs 100. A Nil player’s tricks never count towards their partner’s call, and each is a bag.',
+      'Playing Nil, throw your high cards when you cannot follow suit, and play the highest card that still loses. When your partner calls Nil, win the tricks they might take. Against a Nil, lead low, so they may have to win.',
     ],
   },
   partnership: {
     title: 'Playing with a partner',
     paragraphs: [
-      'With four, your partner sits opposite. When your partner is winning a trick, play low and save your strength. When your side has made its contract, stop winning tricks.',
+      'With four, your partner sits opposite. When your partner is winning a trick, play low and save your strength. When your side has made its call, stop winning tricks.',
     ],
   },
   challenge: {

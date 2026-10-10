@@ -4,8 +4,8 @@ import { type Presentation, WIN_BEAT_MS } from '../../../ui/contract'
 import type { Moment } from '../../../ui/Moments'
 import { playSound } from '../../../ui/sound'
 import { seatName } from '../../../ui/text'
-import { type GameEvent, type RoundSummary, type View, isJoker, seatsOf, sideOf } from '../engine'
-import { BROKE, callText, pointsWord, sideName } from './text'
+import { type GameEvent, type RoundSummary, type View, isJoker, sideOf } from '../engine'
+import { BROKE, callText, midSentence, pointsWord, sideName, sideSubject, sidesSubject } from './text'
 
 /** How long each moment holds the middle of the table; `dwell` holds playback at least as long. */
 export const CHALLENGE_BEAT_MS = 1800
@@ -24,11 +24,14 @@ export function sideColour(side: number): string {
 /** The moments a round's score shows: every side set, in one, then every side that paid for bags. */
 export function roundMoments(view: View, summary: RoundSummary): Moment[] {
   if (summary.challenge) return []
-  const set = summary.sides.flatMap((s, side) => (s.contract > 0 && !s.made ? [sideName(view, side)] : []))
-  const bags = summary.sides.flatMap((s, side) => (s.bagPenalty < 0 ? [sideName(view, side)] : []))
+  const set = summary.sides.flatMap((s, side) => (s.contract > 0 && !s.made ? [side] : []))
+  const bags = summary.sides.flatMap((s, side) => (s.bagPenalty < 0 ? [side] : []))
   const out: Moment[] = []
-  if (set.length > 0) out.push({ title: 'Set', detail: `${set.join(', ')} missed the call`, tone: 'danger', ms: SET_MS })
-  if (bags.length > 0) out.push({ title: 'Ten bags', detail: `${bags.join(', ')} lose 100`, tone: 'danger', ms: BAGS_MS })
+  if (set.length > 0) out.push({ title: 'Set', detail: `${sidesSubject(view, set).name} missed ${set.length > 1 ? 'their calls' : 'the call'}`, tone: 'danger', ms: SET_MS })
+  if (bags.length > 0) {
+    const who = sidesSubject(view, bags)
+    out.push({ title: 'Ten bags', detail: `${who.name} ${who.many ? 'lose' : 'loses'} 100`, tone: 'danger', ms: BAGS_MS })
+  }
   return out
 }
 
@@ -38,7 +41,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
   switch (event.type) {
     case 'dealt':
       playSound('deal')
-      return view.playerCount === 2 ? { toast: 'Draw your thirteen cards.' } : {}
+      return view.playerCount === 2 ? { toast: 'Draw your 13 cards.' } : {}
     case 'drew':
     case 'cardsGiven':
       playSound('card')
@@ -54,7 +57,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
     }
     case 'cardsExchanged':
       playSound('deal')
-      return { toast: 'The two cards each way have changed hands.' }
+      return { toast: 'Two cards each way have changed hands.' }
     case 'cardPlayed':
       playSound(isJoker(event.card) || (event.card.suit === 'spades' && event.card.rank === 'A') ? 'slam' : 'card')
       return {}
@@ -68,27 +71,26 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       return { moments: [{ title: 'Nil broken', detail: `${name(event.seat)} took a trick`, tone: 'danger', ms: NIL_BROKEN_MS }] }
     case 'contractMade': {
       playSound('chip')
-      const mine = seat !== null && sideOf(seat, view.playerCount) === event.side
       const contract = 'contracts' in view.phase ? view.phase.contracts[event.side] : 0
-      const who = mine ? (seatsOf(event.side, view.playerCount).length > 1 ? 'Your side has' : 'You have') : `${sideName(view, event.side)} ${seatsOf(event.side, view.playerCount).length > 1 ? 'have' : 'has'}`
-      return { toast: `${who} made ${contract}.` }
+      const who = sideSubject(view, event.side)
+      return { toast: `${who.name} ${who.many ? 'have' : 'has'} made ${contract}.` }
     }
     case 'challengeResolved': {
       playSound('challenge')
       // The verdict follows the challenge in the same message.
       playSound(event.guilty ? 'caught' : 'fair', CHALLENGE_BEAT_MS)
-      const accused = seatName(view, event.accused)
+      const accused = name(event.accused)
       const atFault = event.guilty ? event.accused : event.challenger
-      const side = sideOf(atFault, view.playerCount)
+      const side = sideSubject(view, sideOf(atFault, view.playerCount))
       const cost =
         event.effect === 'set'
-          ? `${sideName(view, side)} ${seatsOf(side, view.playerCount).length > 1 || atFault === seat ? 'are' : 'is'} set`
+          ? `${midSentence(side.name)} ${side.many ? 'are' : 'is'} set`
           : event.effect === 'nilFailed'
-            ? `${name(atFault)} ${atFault === seat ? 'lose' : 'loses'} the Nil`
-            : `three more tricks for ${sideName(view, side)}`
+            ? `${midSentence(name(atFault))} ${atFault === seat ? 'lose' : 'loses'} the Nil`
+            : `three more tricks for ${midSentence(side.name)}`
       return {
         moments: [
-          { title: 'Challenge', detail: `${name(event.challenger)} ${event.challenger === seat ? 'challenge' : 'challenges'} ${accused}`, tone: 'danger', ms: CHALLENGE_BEAT_MS },
+          { title: 'Challenge', detail: `${name(event.challenger)} ${event.challenger === seat ? 'challenge' : 'challenges'} ${midSentence(accused)}`, tone: 'danger', ms: CHALLENGE_BEAT_MS },
           event.guilty
             ? { title: 'Caught', detail: `${accused} ${BROKE[event.rule ?? ''] ?? 'broke a rule'}: ${cost}`, tone: 'danger', ms: VERDICT_BEAT_MS, card: event.card }
             : { title: 'Fair play', detail: `${accused} played by the rules: ${cost}`, tone: 'good', ms: VERDICT_BEAT_MS, card: event.card },
@@ -107,7 +109,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       playSound(mine ? 'gameWon' : 'gameLost')
       const title = mine ? 'You win' : `${sideName(view, event.winner)} ${view.playerCount === 4 ? 'win' : 'wins'}`
       return {
-        moments: [{ title, detail: `On ${pointsWord(view.scores[event.winner])}`, tone: mine || seat === null ? 'win' : 'good', ms: WIN_BEAT_MS, colour }],
+        moments: [{ title, detail: `With ${pointsWord(view.scores[event.winner])}`, tone: mine || seat === null ? 'win' : 'good', ms: WIN_BEAT_MS, colour }],
         celebrate: mine ? colour : undefined,
       }
     }

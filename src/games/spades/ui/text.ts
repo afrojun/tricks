@@ -27,10 +27,32 @@ export function sideName(view: View, side: number): string {
   return ordered.map((s) => (s === view.seat ? 'You' : seatName(view, s))).join(' and ')
 }
 
-/** "were" for a pair or the viewer, "was" for another player alone. */
-function were(view: View, side: number): string {
+/**
+ * A side as a sentence's subject: "Your side" for the viewer and a partner, "You" for the viewer alone, otherwise
+ * its name. `many` when its verb is plural: "You are", "Asha and Chan are", but "Your side is", "Asha is".
+ */
+export function sideSubject(view: View, side: number): { name: string; many: boolean } {
   const seats = seatsOf(side, view.playerCount)
-  return seats.length > 1 || seats[0] === view.seat ? 'were' : 'was'
+  if (view.seat !== null && seats.includes(view.seat)) return seats.length > 1 ? { name: 'Your side', many: false } : { name: 'You', many: true }
+  return { name: sideName(view, side), many: seats.length > 1 }
+}
+
+/** Sides as one subject: "Both sides", "You and Asha", "Your side". `many` as for `sideSubject`. */
+export function sidesSubject(view: View, sides: readonly number[]): { name: string; many: boolean } {
+  if (sides.length === 1) return sideSubject(view, sides[0])
+  if (view.playerCount === 4) return { name: 'Both sides', many: true }
+  const names = sides.map((side, i) => (i === 0 ? sideSubject(view, side).name : midSentence(sideSubject(view, side).name)))
+  return { name: `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`, many: true }
+}
+
+/** A name or a side's name inside a sentence: "You" and "Your" in lower case, anyone else's name as it is. */
+export function midSentence(name: string): string {
+  return name.replace(/^(You|Your)(?= |$)/, (word) => word.toLowerCase())
+}
+
+/** "Your" for the viewer, otherwise "Asha’s". */
+function whose(view: View, seat: Seat): string {
+  return seat === view.seat ? 'Your' : `${seatName(view, seat)}’s`
 }
 
 /** A number of points, with a true minus sign. */
@@ -76,10 +98,10 @@ export function hint(view: View): { text: string; mine: boolean } | null {
   const me = view.seat
   switch (phase.kind) {
     case 'drawing':
-      return phase.turn === me ? { text: 'Keep the top card, or take the next', mine: true } : { text: `${seatName(view, phase.turn)} to draw`, mine: false }
+      return phase.turn === me ? { text: 'Your draw', mine: true } : { text: `${seatName(view, phase.turn)} to draw`, mine: false }
     case 'calling':
-      if (me !== null && !phase.looked[me]) return { text: phase.turn === me ? 'Look at your cards, or call Blind nil' : 'Your cards are face down', mine: phase.turn === me }
-      return phase.turn === me ? { text: 'Call how many tricks you will take', mine: true } : { text: `${seatName(view, phase.turn)} to call`, mine: false }
+      if (me !== null && !phase.looked[me] && phase.turn !== me) return { text: 'Your cards are face down', mine: false }
+      return phase.turn === me ? { text: 'Your call', mine: true } : { text: `${seatName(view, phase.turn)} to call`, mine: false }
     case 'exchanging': {
       if (phase.turn !== me) return { text: `${seatName(view, phase.turn)} to give two cards`, mine: false }
       const to = me === phase.exchange.blind ? partnerOf(me, view.playerCount)! : phase.exchange.blind
@@ -101,19 +123,31 @@ export const BROKE: Record<string, string> = {
   spadesLead: 'led a spade before spades were broken',
 }
 
+/** How each rule-breaking play was caught: "Asha caught you <…>". */
+const CAUGHT: Record<string, string> = {
+  followSuit: 'not following suit',
+  spadesLead: 'leading a spade before spades were broken',
+}
+
 /** The round in a sentence, for the result and the end of the game. */
 export function headline(view: View, summary: RoundSummary): string {
   const c = summary.challenge
   if (c) {
-    const accused = nameFor(view, c.accused)
+    const accused = midSentence(nameFor(view, c.accused))
     const challenger = nameFor(view, c.challenger)
-    return c.guilty ? `${challenger} caught ${accused}, who ${BROKE[c.rule ?? ''] ?? 'broke a rule'}.` : `${challenger} challenged ${accused}, who played fair.`
+    if (c.guilty) return `${challenger} caught ${accused} ${CAUGHT[c.rule ?? ''] ?? 'breaking a rule'}.`
+    return `${challenger} challenged ${accused}, ${c.accused === view.seat ? 'but you' : 'who'} played by the rules.`
   }
   const lines: string[] = []
   summary.sides.forEach((side, i) => {
-    for (const nil of side.nils) lines.push(`${nameFor(view, nil.seat)} ${nil.points > 0 ? 'made' : 'lost'} ${nil.blind ? 'Blind nil' : 'Nil'}.`)
-    if (side.contract > 0 && !side.made) lines.push(`${sideName(view, i)} ${were(view, i)} set.`)
-    if (side.bagPenalty < 0) lines.push(`${sideName(view, i)} lost ${-side.bagPenalty} for bags.`)
+    for (const nil of side.nils) {
+      const what = nil.blind ? 'Blind nil' : 'Nil'
+      if (nil.points > 0) lines.push(`${nameFor(view, nil.seat)} made ${what}.`)
+      else lines.push(`${whose(view, nil.seat)} ${what} was ${nil.failed ? 'lost to a challenge' : 'broken'}.`)
+    }
+    const who = sideSubject(view, i)
+    if (side.contract > 0 && !side.made) lines.push(`${who.name} ${who.many ? 'were' : 'was'} set.`)
+    if (side.bagPenalty < 0) lines.push(`${who.name} lost ${-side.bagPenalty} for bags.`)
   })
   return lines.length > 0 ? lines.join(' ') : 'Every call was made.'
 }
@@ -127,8 +161,8 @@ export function newCards(view: View, phase: ViewPlaying): Card[] {
 }
 
 export const REJECTIONS: Record<Exclude<RejectReason, TableReject>, string> = {
-  notYourTurn: "It isn't your turn.",
-  cardNotInHand: "That card isn't in your hand.",
-  illegalCard: "That card isn't allowed here.",
-  badCall: "That call isn't open to you.",
+  notYourTurn: 'It isn’t your turn.',
+  cardNotInHand: 'That card isn’t in your hand.',
+  illegalCard: 'That card isn’t allowed here.',
+  badCall: 'That call isn’t open to you.',
 }

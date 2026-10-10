@@ -17,7 +17,7 @@ import { Sheet } from '../../../ui/Sheet'
 import { playSound } from '../../../ui/sound'
 import { TalkMine } from '../../../ui/talk/Said'
 import { TalkButton } from '../../../ui/talk/Tray'
-import { seatName } from '../../../ui/text'
+import { plural, seatName } from '../../../ui/text'
 import { LastTrick, NO_TRICK, TrickArea, useGathering } from '../../../ui/Trick'
 import { TOPICS } from '../coach/topics'
 import {
@@ -38,7 +38,7 @@ import {
 import { sideColour } from './present'
 import { RoundResult } from './RoundResult'
 import { useCoach, useSession } from './session'
-import { callText, hint, newCards, points, sideName, sortHand, tally } from './text'
+import { callText, hint, newCards, points, pointsWord, sideName, sortHand, tally } from './text'
 
 type SheetName = 'menu' | 'history' | 'rules' | 'challenge' | 'howto' | null
 
@@ -166,11 +166,7 @@ export function Table({ view, room }: { view: View; room: string }) {
       {sheet === 'challenge' && (
         <AccuseSheet
           title={view.rules.renege === 'set' ? 'Challenge, and end the round' : 'Challenge for three tricks'}
-          risk={
-            view.rules.renege === 'set'
-              ? 'Every card they have played this round is checked. If one broke a rule, their side is set and yours scores what it called; if none did, your side is set instead. Either way the round ends now.'
-              : 'Every card they have played since they were last checked is checked. If one broke a rule, their side must take three more tricks, or a Nil of theirs still standing is lost; if none did, the same falls on you. Play goes on.'
-          }
+          risk={challengeRisk(view)}
           accusations={can.challengePlay
             .filter((seat) => sideOf(seat, view.playerCount) !== sideOf(me, view.playerCount) || watching)
             .map((seat) => ({
@@ -183,6 +179,16 @@ export function Table({ view, room }: { view: View; room: string }) {
       )}
     </div>
   )
+}
+
+/** What a challenge checks and what it costs, for a side of two or a player alone. */
+function challengeRisk(view: View): string {
+  const pairs = view.playerCount === 4
+  if (view.rules.renege === 'set') {
+    const caught = pairs ? 'their side is set and yours scores what it called' : 'they are set and everyone else scores what they called'
+    return `Every card they have played this round is checked. If one broke a rule, ${caught}. If none did, ${pairs ? 'your side is' : 'you are'} set instead. Either way the round ends now.`
+  }
+  return `Every card they have played since they were last challenged is checked. If one broke a rule, ${pairs ? 'their side must' : 'they must'} take three more tricks, or lose their Nil if it still stands. If none did, the same falls on ${pairs ? 'your side' : 'you'}. Play goes on.`
 }
 
 // ── The scores ───────────────────────────────────────────────────────────
@@ -216,19 +222,19 @@ function StatusStrip({ view, onMenu, onTricks }: { view: View; onMenu: () => voi
         return (
           <div key={side} className={`min-w-0 grid gap-1 ${right ? 'order-3' : ''}`}>
             <div className="ticket max-w-full" data-team={right ? 1 : 0} style={{ '--team': sideColour(side), '--on-team': `var(--on-team${side})` } as React.CSSProperties}>
-              <b className="ticket-num tabular-nums" aria-label={`${view.scores[side] ?? 0} points`}>
+              <b className="ticket-num tabular-nums" aria-label={pointsWord(view.scores[side] ?? 0)}>
                 {points(view.scores[side] ?? 0)}
               </b>
               <span className="ticket-who">
                 <span className="ticket-name">{sideName(view, side)}</span>
                 {view.rules.bagPenalty && !three ? (
-                  <span className="pip-track" style={{ gridTemplateColumns: 'repeat(5, 0.45rem)' }} aria-label={`${(view.bags[side] ?? 0) % 10} bags`}>
+                  <span className="pip-track" style={{ gridTemplateColumns: 'repeat(5, 0.45rem)' }} aria-label={plural((view.bags[side] ?? 0) % 10, 'bag')}>
                     {Array.from({ length: 10 }, (_, i) => (
                       <i key={i} data-on={i < (view.bags[side] ?? 0) % 10} />
                     ))}
                   </span>
                 ) : (
-                  <span className="text-xs whitespace-nowrap">{(view.bags[side] ?? 0) % (view.rules.bagPenalty ? 10 : Number.POSITIVE_INFINITY)} bags</span>
+                  <span className="text-xs whitespace-nowrap">{plural((view.bags[side] ?? 0) % (view.rules.bagPenalty ? 10 : Number.POSITIVE_INFINITY), 'bag')}</span>
                 )}
               </span>
             </div>
@@ -336,11 +342,11 @@ function DrawPanel({ view, phase, can }: { view: View; phase: ViewDrawing; can: 
   }
   return (
     <section className="panel p-3 w-full max-w-xs grid gap-2 justify-items-center text-center">
-      <p className="text-sm text-on-surface-muted">{phase.stockCount} left in the stock</p>
+      <p className="text-sm text-on-surface-muted">{plural(phase.stockCount, 'card')} left</p>
       {can.draw && phase.top ? (
         <>
           <PlayingCard card={phase.top} size="trick" />
-          <p className="text-sm">Keep it, and the next card is discarded; or discard it, and take the next unseen.</p>
+          <p className="text-sm">Keep it and discard the next, or discard it and take the next unseen.</p>
           <div className="grid grid-cols-2 gap-2 w-full">
             <button className="btn btn-primary" onClick={() => draw(true)}>
               Keep
@@ -402,7 +408,7 @@ function CallPanel({ view, phase, can }: { view: View; phase: ViewCalling; can: 
       <Discards cards={phase.discards} />
       {!looked && (
         <div className="grid gap-2">
-          <p className="text-center text-sm">Your side is far enough behind to call Blind nil: no tricks, before you look, for 200.</p>
+          <p className="text-center text-sm">{partner !== null ? 'Your side is' : 'You are'} far enough behind to call Blind nil: no tricks, before you look, for 200.</p>
           <button className="btn" onClick={() => commit({ type: 'lookAtHand' })}>
             See my cards
           </button>
@@ -435,7 +441,11 @@ function ExchangePanel({ view, phase }: { view: View; phase: ViewExchanging }) {
     <section className="panel p-3 w-full max-w-xs grid gap-2 text-center">
       <h2 className="display text-lg">Blind nil</h2>
       <p>
-        {seatName(view, blind)} gives two cards to {seatName(view, partner)}, who gives two back.
+        {me === blind
+          ? `You give two cards to ${seatName(view, partner)}, who gives two back.`
+          : me === partner
+            ? `${seatName(view, blind)} gives two cards to you, and you give two back.`
+            : `${seatName(view, blind)} gives two cards to ${seatName(view, partner)}, who gives two back.`}
       </p>
       {party && phase.exchange.gave && me === partner && (
         <div className="flex justify-center gap-1">

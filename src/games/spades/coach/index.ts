@@ -5,6 +5,7 @@
 import { hasCard } from '../../../kit/cards'
 import { type CoachBasis, type GameCoach, baselineCoach } from '../../../kit/coach'
 import { brokenRules } from '../../../kit/integrity'
+import { partnerOf } from '../../../kit/partners'
 import { touching } from '../../../kit/tricks'
 import { decide } from '../ai/choose'
 import { inPlay, order, unseen, winningPlay, wouldWin } from '../ai/read'
@@ -13,7 +14,7 @@ import { type Action, type Card, type GameEvent, type View, type ViewPlaying, av
 import { narrate } from './narrate'
 import { PHRASES } from './phrases'
 import { topicsFor } from './topics'
-import { card, list, sentence, who } from './words'
+import { card, list, ordinal, sentence, who } from './words'
 
 /** Each rule a card can break, by the name Spades' excuses give it: said before the play and in the review. */
 const RULES: Record<'followSuit' | 'spadesLead', (played: Card, view: View, phase: ViewPlaying) => string> = {
@@ -43,8 +44,11 @@ export const spadesBasis: CoachBasis<View, Action, Reason> = {
   asked(view) {
     const phase = view.phase
     if (phase.kind === 'drawing') return 'Keep the top card and discard the next, or discard it and take the next unseen.'
-    if (phase.kind === 'calling') return view.seat !== null && !phase.looked[view.seat] ? 'Look at your cards, or call Blind nil without them.' : 'Call how many tricks you will take, or Nil.'
-    if (phase.kind === 'exchanging') return 'Choose two cards to give.'
+    if (phase.kind === 'calling') return view.seat !== null && !phase.looked[view.seat] ? 'See your cards, or call Blind nil before you do.' : 'Call how many tricks you will take, or Nil.'
+    if (phase.kind === 'exchanging') {
+      const to = view.seat === phase.exchange.blind ? partnerOf(phase.exchange.blind, view.playerCount) : phase.exchange.blind
+      return to === null ? 'Pick two cards to give.' : `Pick two cards for ${who(view, to)}.`
+    }
     const turn = myTurn(view)
     if (turn === null) return ''
     if (forcedCard(turn.hand, turn, view.rules, view.playerCount) !== null) return 'You hold the lowest club, so you lead it to the first trick.'
@@ -53,10 +57,10 @@ export const spadesBasis: CoachBasis<View, Action, Reason> = {
     if (suit === null) {
       const spades = turn.hand.filter((c) => of(c) === 'spades').length
       const blocked = !turn.spadesBroken && spades > 0 && spades < turn.hand.length
-      return `You lead trick ${turn.tricks.length + 1}.${blocked ? ' Spades are not broken yet, so you may not lead one.' : ''}`
+      return `You lead the ${ordinal(turn.tricks.length + 1)} trick.${blocked ? ' Spades are not broken yet, so you may not lead one.' : ''}`
     }
-    if (turn.hand.some((c) => of(c) === suit)) return `${sentence(suit)} were led and you have some, so you must follow suit.`
-    return `You have no ${suit}, so you may play any card, a spade to trump included.`
+    if (turn.hand.some((c) => of(c) === suit)) return `${sentence(suit)} were led and you hold some, so you must follow suit.`
+    return `You hold no ${suit}, so you may play any card, a spade to trump included.`
   },
 
   line(view) {
@@ -100,7 +104,7 @@ export const spadesBasis: CoachBasis<View, Action, Reason> = {
     return RULES[rule as keyof typeof RULES](action.card, view, turn)
   },
 
-  risk: 'If an opponent notices, they can challenge you, and your side is set.',
+  risk: 'If an opponent notices, they can challenge you, and you pay for it.',
 
   when(view) {
     const phase = view.phase

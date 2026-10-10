@@ -107,7 +107,7 @@ const spadesLead: SpadesDrill = {
   brief: {
     tone: 'info',
     title: 'Spades are not broken yet',
-    body: 'Nobody may lead a spade until a spade has been played on another suit, which "breaks" spades, unless their hand holds nothing but spades. You lead the first trick.',
+    body: 'Nobody may lead a spade until one has been played on another suit, which “breaks” spades. A hand of nothing but spades is the exception. You lead the first trick.',
     topic: 'tricks',
   },
   guide(view) {
@@ -136,7 +136,7 @@ const nil: SpadesDrill = {
   brief: {
     tone: 'info',
     title: 'Nil: take no tricks',
-    body: 'You called Nil: 100 if you take no tricks, and minus 100 if you take any. Every high card you keep is a danger, so play under the trick with the highest card that still loses.',
+    body: 'You called Nil: 100 if you take no tricks, and −100 if you take any. Every high card you keep is a danger, so play under the trick with the highest card that still loses.',
     topic: 'nil',
   },
   guide(view) {

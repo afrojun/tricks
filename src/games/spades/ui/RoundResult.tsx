@@ -34,7 +34,7 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
           Next round
         </button>
       ) : (
-        <p className="text-on-surface-muted">Waiting for a player to start the next round.</p>
+        <p className="text-on-surface-muted">Waiting for someone to press Next round.</p>
       )}
     </section>
   )
@@ -44,7 +44,7 @@ type Tone = 'danger' | undefined
 
 /**
  * Every side in a row: what it called, what it took, the round's points and, with `totals`, its score after, in
- * columns down the panel. Under each row, made or set as a tag, then only what else happened: a renege's three,
+ * columns down the panel. Under each row, made or set as a tag, then only what else happened: a challenge's three,
  * a partner's Nil, bags gained, the ten-bag penalty, and with `bags` the count toward the next penalty.
  */
 function SideTable({ view, summary, totals, bags }: { view: View; summary: RoundSummary; totals: boolean; bags: boolean }) {
@@ -119,13 +119,13 @@ function outcome(side: SideResult, challenged: boolean): { called: string; took:
   if (side.set) return { called: 'Nil', took, status: 'Set', tone: 'danger' }
   const made = side.nils.every((nil) => nil.points > 0)
   const failed = side.nils.some((nil) => nil.failed)
-  return { called: 'Nil', took, status: made ? 'Made' : failed ? 'Lost to a renege' : 'Broken', tone: made ? undefined : 'danger' }
+  return { called: 'Nil', took, status: made ? 'Made' : failed ? 'Lost to a challenge' : 'Broken', tone: made ? undefined : 'danger' }
 }
 
 /** What else happened to a side this round, an item each; nothing for a round with nothing to add. */
 function extras(view: View, side: SideResult): { text: string; tone: Tone }[] {
   const items: { text: string; tone: Tone }[] = []
-  if (side.raised > 0) items.push({ text: `+${side.raised} for a renege`, tone: 'danger' })
+  if (side.raised > 0) items.push({ text: `+${side.raised} after a challenge`, tone: 'danger' })
   const lone = side.contract === 0 && side.nils.length === 1
   for (const nil of side.nils) {
     const what = nil.blind ? 'Blind nil' : 'Nil'
@@ -134,7 +134,7 @@ function extras(view: View, side: SideResult): { text: string; tone: Tone }[] {
       if (nil.blind) items.push({ text: what, tone: undefined })
       continue
     }
-    const how = nil.points > 0 ? 'made' : side.set ? 'lost' : nil.failed ? 'lost to a renege' : `broken by ${trickWord(nil.tricks)}`
+    const how = nil.points > 0 ? 'made' : side.set ? 'lost' : nil.failed ? 'lost to a challenge' : `broken by ${trickWord(nil.tricks)}`
     items.push({ text: `${nameFor(view, nil.seat)}: ${what} ${how}, ${signed(nil.points)}`, tone: nil.points > 0 ? undefined : 'danger' })
   }
   if (side.bags > 0) items.push({ text: `+${plural(side.bags, 'bag')}`, tone: undefined })

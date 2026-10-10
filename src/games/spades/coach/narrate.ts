@@ -1,9 +1,9 @@
 /** What each event means for the player, from what they could see. Never a computer's private reasons. */
 import type { Note } from '../../../kit/coach'
 import type { Seat } from '../../../kit/table'
-import { type GameEvent, type View, seatsOf } from '../engine'
+import { type GameEvent, type View, seatsOf, sideOf } from '../engine'
 import type { TopicId } from './topics'
-import { who } from './words'
+import { sideWho, whom, who } from './words'
 
 export function narrate(event: GameEvent, view: View): Note | null {
   const note = (title: string, body: string, topic: TopicId, seats: Seat[] = []): Note => ({ tone: 'info', title, body, topic, ...(seats.length > 0 ? { seats } : {}) })
@@ -15,17 +15,27 @@ export function narrate(event: GameEvent, view: View): Note | null {
     case 'spadesBroken':
       return note('Spades are broken', 'A spade has been played, so from now on anyone may lead spades.', 'tricks')
     case 'nilBroken':
-      return note('Nil broken', `${who(view, event.seat)} took a trick, so the Nil costs 100.`, 'nil', [event.seat])
+      const blind = 'calls' in view.phase && view.phase.calls[event.seat]?.blind
+      return note('Nil broken', `${who(view, event.seat)} took a trick, so the ${blind ? 'Blind nil costs 200' : 'Nil costs 100'}.`, 'nil', [event.seat])
     case 'contractMade': {
       const seats = seatsOf(event.side, view.playerCount)
       const mine = view.seat !== null && seats.includes(view.seat)
-      return note(mine ? 'Your call is made' : 'A call is made', mine ? 'Every trick from here is a bag: try to lose them.' : `${seats.map((s) => who(view, s)).join(' and ')} have made their call.`, 'bags', seats)
+      const made = seats.length > 1 ? `${sideWho(view, seats).name} have made their call.` : `${who(view, seats[0])} has made the call.`
+      return note(mine ? 'Your call is made' : 'A call is made', mine ? 'Every trick from here is a bag: try to lose them.' : made, 'bags', seats)
     }
     case 'challengeResolved': {
       const atFault = event.guilty ? event.accused : event.challenger
+      const side = sideWho(view, seatsOf(sideOf(atFault, view.playerCount), view.playerCount))
+      const sideName = side.name === 'You' || side.name === 'Your side' ? side.name.toLowerCase() : side.name
+      const cost =
+        event.effect === 'set'
+          ? `${sideName} ${side.many ? 'are' : 'is'} set`
+          : event.effect === 'nilFailed'
+            ? `${whom(view, atFault)} ${verb(atFault, 'lose', 'loses')} the Nil`
+            : `${sideName} must take three more tricks`
       return note(
-        `${who(view, event.challenger)} ${verb(event.challenger, 'challenge', 'challenges')}`,
-        `${who(view, event.accused)} ${event.guilty ? 'broke a rule' : 'played by the rules'}, so ${who(view, atFault)}'s side pays.`,
+        `${who(view, event.challenger)} ${verb(event.challenger, 'challenge', 'challenges')} ${whom(view, event.accused)}`,
+        `${who(view, event.accused)} ${event.guilty ? 'broke a rule' : 'played by the rules'}, so ${cost}.`,
         'challenge',
         [event.challenger, event.accused],
       )

@@ -13,24 +13,24 @@ const RULE_INFO: RuleInfo<SpadesRules>[] = [
   { key: 'losingScore', label: 'A side at −200', choices: onOff('Loses, and the game ends', 'Plays on') },
   { key: 'nil', label: 'Nil', choices: onOff('Allowed, for 100', 'Not allowed') },
   { key: 'blindNil', label: 'Blind nil', choices: onOff('Allowed, for 200, when 100 behind', 'Not allowed') },
-  { key: 'bagPenalty', label: 'Bags', choices: onOff('Ten cost 100', 'No penalty') },
+  { key: 'bagPenalty', label: 'Bags', choices: onOff('Every 10 cost 100', 'No penalty') },
   {
     key: 'firstLead',
     label: 'The first lead, with four',
     choices: [
       { value: 'left', label: 'The player left of the dealer' },
-      { value: 'lowestClub', label: 'The two of clubs' },
+      { value: 'lowestClub', label: 'The player with the lowest club' },
     ],
   },
   {
     key: 'renege',
-    label: 'A caught renege',
+    label: 'Caught breaking a rule',
     choices: [
       { value: 'set', label: 'Sets the side, and ends the round' },
       { value: 'bidPlusThree', label: 'Adds three tricks to its call' },
     ],
   },
-  { key: 'jokers', label: 'Jokers', choices: onOff('Two jokers and two twos are the top trumps', 'Not used') },
+  { key: 'jokers', label: 'Jokers', choices: onOff('Two jokers, then the twos of diamonds and spades, are the top trumps', 'Not used') },
   { key: 'allowCheating', label: 'Cheating', choices: onOff('Allowed, and can be challenged', 'Not allowed') },
 ]
 
