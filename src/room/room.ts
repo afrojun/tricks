@@ -169,8 +169,10 @@ class Table {
       await this.matchConnections()
     } else {
       // A room that has saved nothing may still hold what its host keeps (partyserver keeps its
-      // name), so it too is cleared once nobody has sat in it for a day.
-      this.saved.emptySince = this.deps.now()
+      // name), so it too is cleared once nobody has sat in it for a day. It saves when it was
+      // first seen, or every wake would put that day off again.
+      this.saved = { ...fresh(this.module), emptySince: this.deps.now() }
+      await this.host.storage.put(STORAGE_KEY, this.saved)
     }
     // Who is here may have changed while the room slept, which may be all an Again vote waited for.
     await this.enqueue(() => this.drive())
@@ -238,22 +240,27 @@ class Table {
   }
 
   /**
-   * Makes room for a new socket by closing old ones: a device keeps its newest few sockets, and
-   * past the watchers' limits, the room's or their address's, the oldest watcher goes. Connection
-   * ids are the Worker's own, so no two sockets share one.
+   * A device keeps its newest few sockets: a new one past them closes its oldest. Connection ids
+   * are the Worker's own, so no two sockets share one.
    */
   private admit(conn: RoomConnection): void {
-    const oldestFirst = [...this.host.connections()].filter((c) => c.id !== conn.id).sort((a, b) => (a.state?.at ?? 0) - (b.state?.at ?? 0))
-    const mine = oldestFirst.filter((c) => c.state?.token === conn.state?.token)
-    const replaced = mine.slice(0, Math.max(0, mine.length - (MAX_SOCKETS_PER_DEVICE - 1)))
-    for (const old of replaced) this.close(old, REPLACED_CLOSE_CODE, 'Opened again elsewhere')
-    if (this.seatOf(conn) !== null) return
+    const mine = [...this.host.connections()].filter((c) => c.id !== conn.id && c.state?.token === conn.state?.token).sort(byAge)
+    for (const old of mine.slice(0, Math.max(0, mine.length - (MAX_SOCKETS_PER_DEVICE - 1)))) this.close(old, REPLACED_CLOSE_CODE, 'Opened again elsewhere')
+  }
 
-    const watchers = oldestFirst.filter((c) => !replaced.includes(c) && this.seatOf(c) === null)
-    const ip = conn.state?.ip ?? null
-    const fromHere = ip === null ? [] : watchers.filter((c) => c.state?.ip === ip)
-    const crowded = fromHere.length >= MAX_WATCHERS_PER_ADDRESS ? fromHere : watchers.length >= MAX_WATCHERS ? watchers : []
-    if (crowded.length > 0) this.close(crowded[0], ROOM_FULL_CLOSE_CODE, 'Room is full')
+  /**
+   * Holds the watchers to their limits, each address's and the room's, by closing the oldest.
+   * Run after every change: a newcomer, someone standing up and a reset all make watchers. A
+   * newcomer is the newest, so it gets in; a seated socket is never closed here.
+   */
+  private trimWatchers(): void {
+    const watchers = [...this.host.connections()].filter((c) => this.seatOf(c) === null).sort(byAge)
+    const byAddress = new Map<string, RoomConnection[]>()
+    for (const c of watchers) if (c.state?.ip) byAddress.set(c.state.ip, [...(byAddress.get(c.state.ip) ?? []), c])
+    const out = new Set([...byAddress.values()].flatMap((group) => group.slice(0, Math.max(0, group.length - MAX_WATCHERS_PER_ADDRESS))))
+    const left = watchers.filter((c) => !out.has(c))
+    for (const c of left.slice(0, Math.max(0, left.length - MAX_WATCHERS))) out.add(c)
+    for (const c of out) this.close(c, ROOM_FULL_CLOSE_CODE, 'Room is full')
   }
 
   /**
@@ -384,6 +391,7 @@ class Table {
     }
     // An alarm that fired early, or nothing due: make sure the next deadline still has one.
     await this.armAlarm()
+    this.trimWatchers()
   }
 
   /**
@@ -467,6 +475,11 @@ class Table {
   private broadcast(message: Message) {
     for (const conn of this.host.connections()) this.sendTo(conn, message)
   }
+}
+
+/** Oldest socket first. */
+function byAge(a: RoomConnection, b: RoomConnection): number {
+  return (a.state?.at ?? 0) - (b.state?.at ?? 0)
 }
 
 function fresh(module: AnyGameModule): Saved {

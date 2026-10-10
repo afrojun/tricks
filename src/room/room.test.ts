@@ -816,6 +816,20 @@ describe('abandoned rooms', () => {
     expect(w.alarm).toBeNull()
   })
 
+  test('waking does not put off clearing a room nobody sat in', async () => {
+    const w = await new World().boot()
+    const firstSeen = w.now
+    await w.close(await w.connect(TOKENS[0]))
+    w.now += DAY / 2
+    await w.boot() // woken by a visitor, then by its alarm
+    await w.close(await w.connect(TOKENS[1]))
+    expect(w.alarm).toBe(firstSeen + DAY)
+    w.now = firstSeen + DAY
+    await w.boot()
+    expect(w.data.size).toBe(0)
+    expect(w.alarm).toBeNull()
+  })
+
   test('a room reset while someone watches is cleared a day after they go', async () => {
     const { w } = await abandoned()
     const watcher = await w.connect('s'.repeat(20))
@@ -900,6 +914,25 @@ describe('limits', () => {
     expect(friend.sync.seat).toBe(1)
     expect(host.closed).toBeNull()
     expect(w.conns.filter((c) => c.sync.seat === null)).toHaveLength(MAX_WATCHERS - 1)
+  })
+
+  test('standing up makes watchers, who are held to the limits too', async () => {
+    const w = await new World().boot()
+    const ip = '6.6.6.6'
+    let next = 0
+    for (let round = 0; round < 6; round++) {
+      const token = `seat${round}`.padEnd(20, 'x')
+      const socks = []
+      for (let i = 0; i < MAX_SOCKETS_PER_DEVICE; i++) {
+        w.now += 1000
+        socks.push(await w.connect(token, ip))
+      }
+      await w.send(socks[0], { type: 'sit', seat: next % 4, name: 'Squat' })
+      await w.send(socks[0], { type: 'leaveSeat' })
+      next++
+    }
+    const open = w.conns.filter((c) => c.closed === null)
+    expect(open.length).toBeLessThanOrEqual(MAX_WATCHERS_PER_ADDRESS)
   })
 
   test('without an address only the total limits watchers', async () => {
