@@ -9,8 +9,8 @@ import { NIL_POINTS, RENEGE_TRICKS, sideOf } from '../engine/rules'
 import type { View, ViewPlaying } from '../engine/types'
 import { mood, order, standing, standingNil, wouldWin } from './read'
 
-/** The attention Sly assumes of each seat watching it. */
-const ASSUMED_ATTENTION = 0.6
+/** The attention Sly assumes of each seat watching it: in Spades the suit comes round again soon, and the sharp watch for it. */
+const ASSUMED_ATTENTION = 0.8
 /** What winning one trick the contract needs is worth, in points, to a cheat. */
 const TRICK_PRIZE = 30
 /** The fewest points Sly reneges for. */
@@ -79,12 +79,12 @@ export function chooseCheat(view: View, phase: ViewPlaying, honest: Card, mind: 
 
 /**
  * Sly's estimate of the chance that some seat notices a renege of a suit it holds `held` of: each watches with
- * the attention Sly assumes until the first of them must come out, which Sly expects only once the rest of its
- * hand is gone.
+ * the attention Sly assumes until the first of them comes out, which Sly expects about halfway through the rest
+ * of its hand, when the suit is led again.
  */
 function showUpRisk(view: View, phase: ViewPlaying, held: number): number {
   const me = view.seat!
-  const gap = phase.hand.length - 1 - held
+  const gap = Math.floor((phase.hand.length - 1 - held) / 2)
   let unnoticed = 1
   for (const seat of allSeats(view.playerCount)) if (seat !== me) unnoticed *= 1 - noticeOdds(ASSUMED_ATTENTION, gap, 1)
   return 1 - unnoticed

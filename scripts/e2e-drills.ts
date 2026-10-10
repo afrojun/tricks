@@ -50,7 +50,7 @@ async function playThrough(game: string, id: string): Promise<boolean> {
   return false
 }
 
-for (const game of ['thunee', 'hearts']) {
+for (const game of ['thunee', 'hearts', 'spades']) {
   await page.goto(`${base}/${game}`)
   await button('Drills…').click()
   const list = page.getByRole('dialog', { name: 'Drills' })
