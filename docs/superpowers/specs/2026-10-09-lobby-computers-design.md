@@ -12,7 +12,7 @@
 
 **The persona is changed on the seat.** With cheating on, a computer's row shows its persona as a small button where the row's text said "computer: Straight": "Straight", "Sharp", "Sly", "Wild", or "Secret" for a surprise. For the host it is a button that opens the same sheet as before, now titled "Change this computer", and picking sends a new table action `setPersona { seat, persona }`, which sets the seat's persona and, for "Surprise me", draws one and hides it. For a guest it is text. With cheating off there is no persona to show or change, as today.
 
-**Names are drawn at random from a longer list.** `AI_NAMES` grows to two dozen, still prefixed "Bot " so a name at the table says what it is, and `addAi` draws one of the unused names with `ctx.rng()` instead of taking the first. Should a room ever have more computers than names, the fallback "Bot <seat>" stays.
+**Names are drawn at random from a longer list.** `AI_NAMES` grows to two dozen, still prefixed "Bot " so a name at the table says what it is (since superseded: names are plain and the seat's "Computer" tag says it, see `2026-10-10-copy-style-design.md` section 6), and `addAi` draws one of the unused names with `ctx.rng()` instead of taking the first. Should a room ever have more computers than names, the fallback "Bot <seat>" stays.
 
 The list: Asha, Bheki, Chan, Devi, Fatima, Gugu, Hema, Jabu, Kiran, Lindiwe, Mohan, Naledi, Priya, Rajesh, Sipho, Thandi, Vikram, Yusuf, Zanele, Anil, Busi, Dineo, Farouk, Kesh.
 

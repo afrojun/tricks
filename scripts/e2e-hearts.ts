@@ -133,7 +133,7 @@ await handCards(a).nth(2).click({ position: STRIP })
 check((await a.locator('.hand .playing-card.picked').count()) === 3 && (await passLeft.isEnabled()), 'a picked card can be put back and picked again')
 await shot(a, '3-pass')
 await passLeft.click()
-check(await seen(a, /Waiting for .*Bheki/), 'A sees whom the table is waiting on')
+check(await seen(a, /Bheki.* to pass/), 'A sees whom the table is waiting on')
 check(await seen(a, /ready for/), 'A sees the three cards are ready to go')
 await pickThree(b)
 await b.getByRole('button', { name: 'Pass left' }).click()
@@ -184,17 +184,17 @@ for (let i = 0; i < 600 && !accused; i++) {
     accused = true
     const moment = a.locator('.moment', { hasText: 'Challenge' })
     check(await moment.waitFor({ timeout: 3000 }).then(() => true, () => false), `A challenges ${target}, and the challenge takes the middle of the table`)
-    check(await seen(a, `You accused ${target}, but ${target} played by the rules. You take 26; nobody else scores.`, 10_000), 'the round result names the accusation and its verdict')
+    check(await seen(a, `You challenged ${target}, but ${target} played by the rules. You take 26; nobody else scores.`, 10_000), 'the round result names the accusation and its verdict')
   }
   await a.waitForTimeout(100)
 }
 check(played >= 3, `A played ${played} cards by tapping them`)
-check(accused, 'A accused a player')
+check(accused, 'A challenged a player')
 
 // ── The round result ─────────────────────────────────────────────────────
 
 check(await seen(a, 'Round 1 is over', 10_000), 'A sees the round result')
-check(await seen(b, `Asha accused`, 10_000), 'B sees the same verdict')
+check(await seen(b, `Asha challenged`, 10_000), 'B sees the same verdict')
 await a.waitForTimeout(2500) // the moments pass
 const rows = await a.locator('tbody tr td:nth-child(2)').allTextContents()
 check(JSON.stringify(rows) === JSON.stringify(['+26', '0', '0', '0']), `only the wrong accuser scores this round (${rows.join(', ')})`)
@@ -304,14 +304,14 @@ while (winner === null && Date.now() < wholeGameEnds) {
   const over = await gameOver.isVisible()
   if (over || (await roundOver.isVisible())) {
     rounds++
-    const headline = (await (over ? a.getByText(/^Last round:/) : a.locator('section.panel > p').first()).textContent()) ?? ''
+    const headline = (await (over ? a.locator('p.eyebrow', { hasText: /^Last round$/ }).locator('+ p') : a.locator('section.panel > p').first()).textContent()) ?? ''
     // A round's table is name, this round, total; the game over's is place, name, total.
     const column = async (n: number) => (await a.locator(`tbody tr td:nth-child(${n})`).allTextContents()).map((text) => text.trim())
     const names = await column(over ? 2 : 1)
     const totals = (await column(3)).map(numberOf)
     // The game over shows only the totals: the last round's points are what each total rose by.
     const points = over ? names.map((name, i) => totals[i] - (scores.get(name) ?? 0)) : (await column(2)).map(numberOf)
-    check(!/accused|caught/.test(headline), `round ${rounds} ended with its tricks, not an accusation (${headline})`)
+    check(!/challenged|caught/.test(headline), `round ${rounds} ended with its tricks, not an accusation (${headline})`)
     check(mine === 13, `A played all thirteen of their cards in round ${rounds} by tapping them (${mine})`)
     const total = points.reduce((s, p) => s + p, 0)
     // 26 points are taken every round; a moon gives the three others 26 each.
@@ -404,7 +404,7 @@ if (practised) {
       await dimmed.first().click({ position: STRIP })
       const why = a.locator('.play-anyway-why')
       warned = await why.waitFor({ timeout: 2000 }).then(() => true, () => false)
-      check(warned && /accuse you/.test((await why.textContent()) ?? ''), `the second tap shows the coach's warning (${(await why.textContent().catch(() => null)) ?? 'none'})`)
+      check(warned && /challenge you/.test((await why.textContent()) ?? ''), `the second tap shows the coach's warning (${(await why.textContent().catch(() => null)) ?? 'none'})`)
       await shot(a, '11-practice-warning')
       await a.locator('.hand').click({ position: { x: 3, y: 3 } })
     } else if (mine) await a.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500 }).catch(() => {})

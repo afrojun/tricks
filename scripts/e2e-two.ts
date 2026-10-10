@@ -43,7 +43,7 @@ await b.page.getByRole('button', { name: 'Sit here' }).first().click()
 check(b.page.url().endsWith(`/thunee/${code}`), 'lower-case code joined the same room')
 check(!(await b.page.getByRole('button', { name: 'Start game' }).isVisible()), 'guest cannot start the game')
 await a.page.getByRole('button', { name: 'Start game' }).click()
-await b.page.getByText(/unless someone calls/).waitFor()
+await b.page.getByText(/unless someone calls/).first().waitFor()
 
 // Table talk: a line from A shows at A's seat on B's screen; a throw from B lands on A's; muted, A says nothing to B.
 const shows = (locator: Locator) =>

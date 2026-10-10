@@ -1,6 +1,6 @@
 # Copy style
 
-**Status:** draft. Revised after a first audit of every screen (2026-10-10), which settled the earlier open questions from what the copy already does; two remain for Arjun (section 6). The audit's fixes follow this.
+**Status:** decided, and the app follows it (2026-10-10). Revised after a first audit of every screen, which settled the earlier open questions from what the copy already does; Arjun decided the last two (section 6).
 
 Every word a player reads in Tricks: buttons, hints over the hand, toasts and moments, refusals, the lobby, the rule books, the coach's notes and lessons, drill briefs and verdicts, the round result, the rules screen, screen-reader labels, and the manifest's name and description. Not code comments or test names.
 
@@ -73,7 +73,9 @@ Every word a player reads in Tricks: buttons, hints over the hand, toasts and mo
 
 The table words (Yoh, Haibo, Ekse, Eish, Aweh, Lekker) are fixed by the voice sheet. Code identifiers, comments and specs follow the repository's own style, not this one.
 
-## 6. Open questions
+## 6. Decided
 
-1. **How a computer is marked.** Every computer is named "Bot Asha", on purpose (`AI_NAMES` in `src/kit/table.ts`): with cheating off no persona tag shows, so the name is the only marker. "Bot" breaks the glossary on every screen ("Mute Bot Asha", "Waiting for Bot Asha and Bot Devi"). Proposed: plain names, and a "Computer" tag in the seat's tag row at all times.
-2. **Practice names.** Practice seats the computers as "Left", "Across", "Right" or "Partner", so lines read "Pick three for Left" and "Left takes 3 points". Proposed: draw names from `AI_NAMES` as a room does, and let the coach say "on your left" where the position matters.
+Arjun settled the two questions the audit left (2026-10-10):
+
+1. **How a computer is marked.** Computers have plain names from `AI_NAMES` (`src/kit/table.ts`), and the seat's tag row says "Computer" at all times ("Sharp computer" when the persona shows). The name is never the marker.
+2. **Practice names.** Practice computers draw names as a room's do; the coach says where a seat sits where it matters ("Asha, on your right").
