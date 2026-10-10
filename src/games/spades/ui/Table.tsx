@@ -353,7 +353,23 @@ function DrawPanel({ view, phase, can }: { view: View; phase: ViewDrawing; can: 
       ) : (
         <p>{seatName(view, phase.turn)} is drawing.</p>
       )}
+      <Discards cards={phase.discards} />
     </section>
+  )
+}
+
+/** Two players: every card the viewer has discarded, newest last, so a Keep shows the card it threw away. */
+function Discards({ cards }: { cards: readonly Card[] }) {
+  if (cards.length === 0) return null
+  return (
+    <div className="grid gap-1 justify-items-center">
+      <p className="text-sm text-on-surface-muted">You discarded</p>
+      <div className="flex flex-wrap justify-center gap-1">
+        {cards.map((c) => (
+          <PlayingCard key={`${c.rank}${c.suit}`} card={c} size="small" style={{ '--w': '2.2rem' } as React.CSSProperties} />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -383,6 +399,7 @@ function CallPanel({ view, phase, can }: { view: View; phase: ViewCalling; can: 
           {partnerCall ? `${seatName(view, partner)} called ${callText(partnerCall)}.` : `${seatName(view, partner)} calls after you.`}
         </p>
       )}
+      <Discards cards={phase.discards} />
       {!looked && (
         <div className="grid gap-2">
           <p className="text-center text-sm">Your side is far enough behind to call Blind nil: no tricks, before you look, for 200.</p>
