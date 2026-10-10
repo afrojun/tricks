@@ -77,8 +77,11 @@ function hunch(view: View, mind: Mind, accusable: readonly Seat[]): Action | nul
   const traits = TRAITS[mind.persona]
   const me = view.seat
   if (traits.hunchAt === null || me === null) return null
+  const phase = inPlay(view)
   const bySeat = new Map<Seat, Signal[]>()
-  for (const s of findSignals(view)) bySeat.set(s.accused, [...(bySeat.get(s.accused) ?? []), s])
+  // A signal from a trick an accusation has already judged counts no more: under "Bid plus three" play goes on, and
+  // an old hunch must not accuse the same seat again.
+  for (const s of findSignals(view)) if (phase === null || s.at >= phase.settled[s.accused]) bySeat.set(s.accused, [...(bySeat.get(s.accused) ?? []), s])
   for (const [seat, signals] of bySeat) {
     if (signals.length < traits.hunchAt || !accusable.includes(seat)) continue
     const latest = signals[signals.length - 1]

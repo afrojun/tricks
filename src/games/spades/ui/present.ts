@@ -79,10 +79,13 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       playSound(event.guilty ? 'caught' : 'fair', CHALLENGE_BEAT_MS)
       const accused = seatName(view, event.accused)
       const atFault = event.guilty ? event.accused : event.challenger
+      const side = sideOf(atFault, view.playerCount)
       const cost =
-        event.penalty === 'set'
-          ? `${sideName(view, sideOf(atFault, view.playerCount))} ${seatsOf(sideOf(atFault, view.playerCount), view.playerCount).length > 1 ? 'are' : 'is'} set`
-          : `three more tricks for ${sideName(view, sideOf(atFault, view.playerCount))}`
+        event.effect === 'set'
+          ? `${sideName(view, side)} ${seatsOf(side, view.playerCount).length > 1 || atFault === seat ? 'are' : 'is'} set`
+          : event.effect === 'nilFailed'
+            ? `${name(atFault)} ${atFault === seat ? 'lose' : 'loses'} the Nil`
+            : `three more tricks for ${sideName(view, side)}`
       return {
         moments: [
           { title: 'Challenge', detail: `${name(event.challenger)} ${event.challenger === seat ? 'challenge' : 'challenges'} ${accused}`, tone: 'danger', ms: CHALLENGE_BEAT_MS },

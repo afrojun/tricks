@@ -204,7 +204,17 @@ export type GameEvent =
   /** The trick that brings a side's tricks up to its contract. */
   | { type: 'contractMade'; side: number }
   /** The verdict, with the rule broken (null when not guilty) and the card that broke it, or the accused's last card. */
-  | { type: 'challengeResolved'; challenger: Seat; accused: Seat; guilty: boolean; penalty: SpadesRules['renege']; rule: string | null; card: Card }
+  | {
+      type: 'challengeResolved'
+      challenger: Seat
+      accused: Seat
+      guilty: boolean
+      penalty: SpadesRules['renege']
+      /** What befell the side at fault: set, its contract raised by three, or the Nil of the seat at fault lost. */
+      effect: 'set' | 'raised' | 'nilFailed'
+      rule: string | null
+      card: Card
+    }
   | { type: 'roundScored'; summary: RoundSummary }
   | { type: 'gameOver'; winner: number }
 

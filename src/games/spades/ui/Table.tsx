@@ -169,7 +169,7 @@ export function Table({ view, room }: { view: View; room: string }) {
           risk={
             view.rules.renege === 'set'
               ? 'Every card they have played this round is checked. If one broke a rule, their side is set and yours scores what it called; if none did, your side is set instead. Either way the round ends now.'
-              : 'Every card they have played since they were last checked is checked. If one broke a rule, their side must take three more tricks; if none did, yours must. Play goes on.'
+              : 'Every card they have played since they were last checked is checked. If one broke a rule, their side must take three more tricks, or a Nil of theirs still standing is lost; if none did, the same falls on you. Play goes on.'
           }
           accusations={can.challengePlay
             .filter((seat) => sideOf(seat, view.playerCount) !== sideOf(me, view.playerCount) || watching)

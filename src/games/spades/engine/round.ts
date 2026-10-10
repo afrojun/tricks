@@ -196,16 +196,17 @@ export function challengePlay(game: Game, play: RoundPlay, challenger: Seat, acc
   const penalty = game.rules.renege
   const rule = cheat?.broke[0] ?? null
   const card = (cheat ?? own[own.length - 1]).card
-  events.push({ type: 'challengeResolved', challenger, accused, guilty, penalty, rule, card })
   const atFault = guilty ? accused : challenger
+  // A Nil still standing fails; otherwise the side's contract rises.
+  const standingNil = play.calls[atFault].tricks === 0 && !play.nilFailed[atFault] && takenBySeat(play.tricks, game.playerCount)[atFault] === 0
+  const effect = penalty === 'set' ? 'set' : standingNil ? 'nilFailed' : 'raised'
+  events.push({ type: 'challengeResolved', challenger, accused, guilty, penalty, effect, rule, card })
   if (penalty === 'set') {
     const outcome = { kind: 'challenge', challenger, accused, guilty, rule, card, setSide: sideOf(atFault, game.playerCount) } as const
     finishRound(game, play, outcome, events)
     return
   }
   play.settled = play.settled.map((n, s) => (s === accused ? own.length : n))
-  // A Nil still standing fails; otherwise the side's contract rises.
-  const standingNil = play.calls[atFault].tricks === 0 && !play.nilFailed[atFault] && takenBySeat(play.tricks, game.playerCount)[atFault] === 0
   if (standingNil) {
     play.nilFailed = play.nilFailed.map((failed, s) => failed || s === atFault)
   } else {
