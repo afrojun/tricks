@@ -32,7 +32,7 @@ The Durable Object migration from sub-project A is the first one applied in prod
 Cloudflare Workers Builds, connected to the GitHub repository through Cloudflare's GitHub app, builds and deploys the Worker `tricks` on every push to `main`:
 
 1. Install: the build image detects pnpm from the lockfile and uses the version in `packageManager`; Node is the major version in `.node-version` (24).
-2. Build command: `pnpm check && pnpm test && pnpm build`. A failure stops the build before anything is deployed.
+2. Build command: `pnpm build && pnpm test` (until 2026-10-10 `pnpm check && pnpm test && pnpm build`, which type checked twice). A failure stops the build before anything is deployed.
 3. Deploy command: `pnpm exec wrangler deploy`, which follows the config the build wrote. Workers Builds supplies the credentials through a build token on the account, so the repository holds no secrets.
 
 Each build deploys all of `main` as it was at its commit. Unlike the removed workflow, nothing in the repository makes deploys run one at a time: Cloudflare limits concurrent builds per account (one on the free plan, more on paid), but does not promise that two builds of this Worker finish in push order. Leave a build to finish before pushing again when order matters. Their logs are in the dashboard (Workers & Pages, `tricks`, Deployments, View build) or `cf builds list` and `cf builds logs`.
@@ -63,7 +63,7 @@ A deploy restarts every room. Games in progress survive, because everything a ro
 Updated 2026-10-06, at the end of sub-project G (branch `tricks-deploy`, plan `docs/superpowers/plans/2026-10-06-deploy.md`), and again the same day when the deploy moved from a GitHub Action to Cloudflare Workers Builds. Deployed on 2026-10-06:
 
 - The first deploy ran from this machine (`wrangler deploy`), creating the Worker `tricks` (tag `e7057f1ddf744788b9365a227bb20f19`), applying migration `v1` and attaching `tricks.afrojun.dev`.
-- The build trigger was then created with the `cf` CLI: repository connection `92b8cc42-de90-443f-ada5-28e93480e7f3` (`afrojun/tricks`), trigger `03dd1b7f-c5b8-47cd-9d7a-541189452da3` on `main`, build command `pnpm check && pnpm test && pnpm build`, deploy command `pnpm exec wrangler deploy`, build caching on, and the account's existing `afrojun-dev build token`, which proved to carry the routes permission.
+- The build trigger was then created with the `cf` CLI: repository connection `92b8cc42-de90-443f-ada5-28e93480e7f3` (`afrojun/tricks`), trigger `03dd1b7f-c5b8-47cd-9d7a-541189452da3` on `main`, build command `pnpm check && pnpm test && pnpm build` (changed on 2026-10-10 to `pnpm build && pnpm test`, since the build type checks), deploy command `pnpm exec wrangler deploy`, build caching on, and the account's existing `afrojun-dev build token`, which proved to carry the routes permission.
 - `main` was fast-forwarded to `tricks` and pushed. The first Cloudflare build (`3298a7ed-a95d-44f7-93ee-dbb87c0153a2`) used Node 24.21.0 and pnpm 12.9.1, installed with `--frozen-lockfile`, passed 863 tests, and deployed.
 - After it: every address answered 200, unknown and plain room requests 404, and `APP_URL=https://tricks.afrojun.dev pnpm e2e:sockets` played a whole Thunee game and opened a Hearts lobby.
 
@@ -110,7 +110,7 @@ The account checks above and disconnecting Vercel from `main` were done on 2026-
 2. **Create the Worker from the repository.** Cloudflare dashboard, Workers & Pages, Create, Import a repository, `afrojun/tricks`:
    - Project name: `tricks` (it must match `name` in `wrangler.jsonc`).
    - Production branch: `main`. Root directory: `/`.
-   - Build command: `pnpm check && pnpm test && pnpm build`.
+   - Build command: `pnpm build && pnpm test`.
    - Deploy command: `pnpm exec wrangler deploy`.
    - Build token: let Cloudflare create one (it already includes the routes permission), or pick a user API token scoped to this account with Workers Scripts Edit and, on the `afrojun.dev` zone, Workers Routes Edit; the custom domain needs the second. Account-owned API tokens are not supported for builds.
 

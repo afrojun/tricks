@@ -8,9 +8,10 @@ Tricks hosts trick-taking card games at `tricks.afrojun.dev`. Thunee is at `/thu
 pnpm install        # install dependencies
 pnpm dev            # the whole app, pages and rooms, in one Vite server (localhost:5173)
 pnpm check          # type check the app (tsconfig.json) and the Worker (worker/tsconfig.json)
-pnpm test           # unit, contract, room and simulation tests for every game (Vitest)
+pnpm test           # unit, contract, room and simulation tests for every game (Vitest), all but the search player's own
 pnpm test:quick     # the same without its slowest files, the whole-game simulations among them: a quarter of the work
 pnpm test:soak      # 400 simulated games per configuration, Thunee's, Hearts' and Spades'
+pnpm test:search    # the search player's whole games, Hearts' adapter and the gate in small, which pnpm test leaves out
 pnpm test:slots     # who holds the machine's test slots now
 pnpm e2e            # the browser scripts: Thunee for four and for two, hand controls, a practice round, Hearts rooms and practice, Spades rooms for four, three and two and practice, every drill (needs dev running, and Chromium)
 pnpm e2e:sockets    # a whole Thunee game over real sockets, and a Hearts lobby (needs dev running)
@@ -19,7 +20,7 @@ pnpm build          # type check, then the production build: dist/client (the pa
 
 The browser scripts are `scripts/e2e.ts`, `e2e-two.ts`, `e2e-controls.ts`, `e2e-practice.ts`, `e2e-hearts.ts`, `e2e-spades.ts` and `e2e-drills.ts`; `scripts/play.ts` is `e2e:sockets`. They look for the app at `http://localhost:5173` and Chromium at `/usr/bin/chromium`; set `APP_URL` or `CHROMIUM` to point them elsewhere. Run them against the production build with `pnpm build && pnpm preview`, which serves the built Worker on port 4173.
 
-The search player's gate for Hearts is not part of `pnpm test`: `pnpm exec tsx src/games/hearts/ai/gate/run.ts` runs a short version that only prints, and `GATE=full` runs the recorded sizes (about an hour) and writes `src/games/hearts/ai/gate/results/`. Its header lists the parts and sizes.
+The search player's tests in Hearts (`SEARCH` in `vitest.config.ts`) are not part of `pnpm test`, since no game plays it: run `pnpm test:search` after changing `src/kit/search/`, Hearts' search adapter or its gate, or Hearts' engine. Nor is its gate: `pnpm exec tsx src/games/hearts/ai/gate/run.ts` runs a short version that only prints, and `GATE=full` runs the recorded sizes (about an hour) and writes `src/games/hearts/ai/gate/results/`. Its header lists the parts and sizes.
 
 Every Vitest run on the machine, `pnpm test` or `npx vitest`, from any worktree, shares one budget of test slots (`scripts/test-slots.ts`), at a lower priority: a test file runs only while it holds a slot, so several runs at once take turns file by file rather than starving the machine (a run of one file waits for a file of a whole suite, not the suite; a run of one worker, `VITEST_MAX_WORKERS=1`, is sent all its files at once and holds its slot for them all), and a run waiting on others' slots says so. A run alone uses every slot. `TEST_SLOTS` sets the budget, half the hardware threads by default. CI runs without a budget; so does a run that cannot write the slots (in a sandbox, say), and it says so. `--pool=forks` leaves the budget, to profile a file.
 
@@ -160,7 +161,7 @@ The deploy needs none in the repository: Workers Builds deploys with the build t
 
 Tricks runs as one Cloudflare Worker named `tricks` at `https://tricks.afrojun.dev`, a custom domain on the account that holds `afrojun.dev`. It has no `workers.dev` address and no preview addresses. `wrangler.jsonc` holds all of this.
 
-Every push to `main` deploys, through Cloudflare Workers Builds (the Worker's Settings, Builds, in the dashboard; `cf builds triggers list` from the CLI). The build installs with pnpm (the version in `packageManager`, Node from `.node-version`), runs `pnpm check && pnpm test && pnpm build`, then `pnpm exec wrangler deploy`. A failed install, check, test or build stops it before it deploys. A failure in the deploy step itself may come after the Worker was uploaded, so check the Worker's Deployments rather than the build's status. Build logs: the Worker's Deployments, View build; or `cf builds list` and `cf builds logs`. One deploy carries the pages and the rooms together, so a change to the messages between them reaches both at once; tabs already open run the old pages until reloaded, and an installed app runs them until the player accepts the reload its `Update` strip offers (it checks every hour, and on every open).
+Every push to `main` deploys, through Cloudflare Workers Builds (the Worker's Settings, Builds, in the dashboard; `cf builds triggers list` from the CLI). The build installs with pnpm (the version in `packageManager`, Node from `.node-version`), runs `pnpm build && pnpm test` (the build type checks first, so a type error stops it within seconds and nothing is checked twice), then `pnpm exec wrangler deploy`. A failed install, check, build or test stops it before it deploys. A failure in the deploy step itself may come after the Worker was uploaded, so check the Worker's Deployments rather than the build's status. Build logs: the Worker's Deployments, View build; or `cf builds list --external-script-id <the Worker's tag>` and `cf builds logs get <build>`. One deploy carries the pages and the rooms together, so a change to the messages between them reaches both at once; tabs already open run the old pages until reloaded, and an installed app runs them until the player accepts the reload its `Update` strip offers (it checks every hour, and on every open).
 
 - **A deploy restarts every room.** Games in progress survive it, because everything a room knows is saved.
 - **A format version resets.** Pushing a change that raises a game's `FORMAT_VERSION` resets every room of that game, and every practice save of it, as soon as it deploys.

@@ -209,7 +209,7 @@ GATE_DEALS=24 GATE_SEARCHES=play ./node_modules/.bin/tsx src/games/hearts/ai/gat
 GATE=full ./node_modules/.bin/tsx src/games/hearts/ai/gate/run.ts random self cheating determinism
 GATE=full ./node_modules/.bin/tsx src/games/hearts/ai/gate/run.ts speed       # Node, 10, 20 and 30 worlds
 GATE=full ./node_modules/.bin/tsx src/games/hearts/ai/gate/run.ts browser     # Chromium at 1x and 4x
-./node_modules/.bin/vitest run src/kit/search src/games/hearts/ai             # the rules' tests and the gate in small
+./node_modules/.bin/vitest run src/kit/search && pnpm test:search             # the rules' tests and the gate in small
 ```
 
 ### Decision

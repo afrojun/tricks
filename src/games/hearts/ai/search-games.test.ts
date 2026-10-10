@@ -18,7 +18,7 @@ import { checking, full } from './testing'
  * (a seat with no clubs on the first trick, say), and search at every seat imagines the most deals. A game
  * with search at every seat takes most of a second, so with cheating on the variants are played together, in
  * one game that changes every rule. Set SIM_GAMES to play each variant both ways, that many games each
- * (`SIM_GAMES=1 pnpm vitest run src/games/hearts/ai/search-games.test.ts`; `test:soak` leaves this file out).
+ * (`SIM_GAMES=1 pnpm test:search`; `pnpm test` and `test:soak` leave this file out).
  */
 const SOAK = process.env.SIM_GAMES !== undefined
 const GAMES = Number(process.env.SIM_GAMES ?? 1)

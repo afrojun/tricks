@@ -19,6 +19,13 @@ const TESTS = [
 const MOCKING = globSync(TESTS, { cwd: import.meta.dirname }).filter((file) =>
   readFileSync(path.join(import.meta.dirname, file), 'utf8').includes('vi.mock('),
 )
+// The search player's own whole games, adapter and gate: a quarter of the suite's work for a player no game
+// plays yet. `pnpm test` leaves them out, and `pnpm test:search` runs them.
+const SEARCH = [
+  'src/games/hearts/ai/search-games.test.ts',
+  'src/games/hearts/ai/search.test.ts',
+  'src/games/hearts/ai/gate/gate.test.ts',
+]
 // The files that take longest, longest first. Unless every file of a run has timings from an earlier run (a
 // new worktree or CI has none), Vitest would start the largest files first and leave some of these to run
 // alone at the end; they start first instead. `pnpm test:quick` leaves them out.
@@ -87,7 +94,7 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: 'shared', include: TESTS, exclude: [...MOCKING, ...(process.env.TEST_QUICK ? SLOW : [])], isolate: false },
+        test: { name: 'shared', include: TESTS, exclude: [...MOCKING, ...(process.env.TEST_QUICK ? SLOW : []), ...(process.env.TEST_SEARCH ? [] : SEARCH)], isolate: false },
       },
       { extends: true, test: { name: 'isolated', include: MOCKING } },
     ],
