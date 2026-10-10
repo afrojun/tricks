@@ -69,7 +69,7 @@ let refreshed = false
 const started = Date.now()
 while (Date.now() - started < 6 * 60_000) {
   // The game over has its own screen, marked "Game over" over the winner.
-  if (await page.getByText('Game over', { exact: true }).isVisible()) break
+  if (await page.getByText(/^Game over/).isVisible()) break
 
   const once = async (key: string, when: boolean) => {
     if (when && !seen.has(key)) {
@@ -90,14 +90,14 @@ while (Date.now() - started < 6 * 60_000) {
   // Without timers the computer partner's lead waits for this answer.
   else if (await visible('No Jodhi')) await tap(page.getByRole('button', { name: 'No Jodhi' }))
   else if (await visible('Deal next round')) await tap(page.getByRole('button', { name: 'Deal next round' }))
-  else if (await page.getByText(/Your turn/).isVisible()) {
+  else if (await page.getByText(/Your (turn|lead)/).isVisible()) {
     await once('7-my-turn', (await page.locator('.trick-area .playing-card').count()) >= 2)
     // Refresh once, mid-hand: the seat and cards must come back with no name prompt.
     if (!refreshed && (await page.locator('.hand .playing-card').count()) <= 4) {
       refreshed = true
       const before = await page.locator('.hand .playing-card').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
       await page.reload()
-      await page.getByText(/Your turn/).waitFor({ timeout: 10_000 })
+      await page.getByText(/Your (turn|lead)/).waitFor({ timeout: 10_000 })
       const after = await page.locator('.hand .playing-card').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
       if (JSON.stringify(before) !== JSON.stringify(after)) problems.push(`hand changed across refresh: ${before} -> ${after}`)
       if (await page.getByPlaceholder('Name').isVisible()) problems.push('asked for a name after refresh')
@@ -111,7 +111,7 @@ while (Date.now() - started < 6 * 60_000) {
 }
 
 await shot('9-game-over')
-const finished = await page.getByText('Game over', { exact: true }).isVisible()
+const finished = await page.getByText(/^Game over/).isVisible()
 await page.getByRole('button', { name: 'Open menu' }).click().catch(() => {})
 await shot('10-menu')
 // Old addresses are not redirected: they show the Tricks home.

@@ -5,7 +5,7 @@ import { WIN_BEAT_MS } from '../../../ui/contract'
 import { playSound } from '../../../ui/sound'
 import { dwell } from './dwell'
 import { BALL_STAGGER_MS, CHALLENGE_BEAT_MS, MAX_WIN_WAIT_MS, VERDICT_BEAT_MS, present, winWait } from './present'
-import { headline } from './RoundResult'
+import { ballsWhy, headline } from './RoundResult'
 
 vi.mock('../../../ui/sound', async (original) => ({ ...(await original<object>()), playSound: vi.fn() }))
 
@@ -50,6 +50,42 @@ describe('a verdict says what was done', () => {
     const fair = challenged({ ...play, guilty: false })
     expect(verdict(fair)).toMatchObject({ title: 'Fair play', detail: 'P0 followed suit', tone: 'good' })
     expect(headline(view, fair)).toBe('P1 challenged P0 over playing 9♥, and was wrong.')
+  })
+})
+
+describe('a round says why it is worth its balls', () => {
+  const normal = (callAmount: number, total: number): RoundSummary => ({
+    ...challenged(undefined),
+    reason: 'normal',
+    winner: total >= 105 ? 1 : 0,
+    balls: total >= 105 && callAmount > 0 ? 2 : 1,
+    callAmount,
+    normal: { countingTeam: 1, lines: [], total, target: 105 },
+  })
+
+  test('a call lost is worth 2 balls, and says what it would have been without one', () => {
+    expect(ballsWhy(view, normal(20, 113), 8)).toEqual({ line: 'P0 called 20 and lost: 2 balls', aside: '1 ball without a call. The call doubles it.' })
+  })
+
+  test('without a call, either side takes 1 ball', () => {
+    expect(ballsWhy(view, normal(0, 113), 8).line).toBe('You & P3 reached 113, needing 105: 1 ball')
+    expect(ballsWhy(view, normal(20, 90), 8).line).toBe('P0 & P2 held the counting side to 90, short of 105: 1 ball')
+  })
+
+  test('a Thunee lost to the partner says what it costs, when that is not the usual 4', () => {
+    const caught: RoundSummary = { ...challenged(undefined), reason: 'thunee', winner: 1, balls: 8, thunee: { caller: 0, success: false, partnerCatch: true } }
+    expect(ballsWhy(view, caught, 8)).toEqual({
+      line: 'P0 called Thunee and their own partner took a trick: 8 balls',
+      aside: "A Thunee lost to the caller's partner costs 8 balls instead of 4.",
+    })
+    expect(ballsWhy(view, { ...caught, balls: 4 }, 4).aside).toBeUndefined()
+  })
+
+  test('a Thunee made under the team rule credits the side, not the caller alone', () => {
+    const made: RoundSummary = { ...challenged(undefined), reason: 'thunee', winner: 0, balls: 4, thunee: { caller: 0, success: true, partnerCatch: false } }
+    expect(ballsWhy(view, made, 8).line).toBe('P0 called Thunee and won every trick: 4 balls')
+    const team = { ...view, rules: { ...view.rules, thuneeWinner: 'team' as const } }
+    expect(ballsWhy(team, made, 8).line).toBe('P0 called Thunee and their side won every trick: 4 balls')
   })
 })
 

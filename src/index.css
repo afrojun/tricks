@@ -697,6 +697,239 @@ html:has(main.home) {
   margin-inline: auto;
 }
 
+/* The player's own line at the foot of the table: the cue, and the buttons that act now. The buttons never wrap: the cue gives way first. */
+.player-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.9rem;
+  padding: 0.25rem 0.75rem;
+}
+/* Two lines at most, for what a call costs while calling; in play the cue is a few words. */
+.player-cue {
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+/* The player's roles and what they have said, small on the top corner of their hand. */
+.hand-tags {
+  position: absolute;
+  top: 0;
+  right: 0.75rem;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  /* A throw at the player aims here, so it has a size even with nothing said. */
+  min-width: 2.5rem;
+  min-height: 1.25rem;
+  pointer-events: none;
+}
+.hand-tags .role-badge {
+  background: var(--ink);
+}
+.hand-tags .bubble {
+  margin-top: 0;
+  padding: 0 0.45rem;
+  font-size: 0.75rem;
+}
+.hand-tags .bubble::before {
+  display: none;
+}
+
+/* ── Round result ─────────────────────────────────────────────────────── */
+
+/* The winning side's balls after the round, the ones just won larger and in yellow. */
+.ball-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 0.5rem;
+}
+.ball-track i {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  border: var(--line-width) solid var(--line);
+  opacity: 0.4;
+}
+.ball-track i[data-on='true'] {
+  background: var(--ink);
+  opacity: 1;
+}
+.ball-track i[data-new='true'] {
+  background: var(--accent);
+  scale: 1.25;
+}
+/* The score as a till receipt: a line each, dotted between, and the total under a rule. */
+.receipt {
+  font-variant-numeric: tabular-nums;
+}
+.receipt p {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 2px dotted color-mix(in srgb, var(--line) 30%, transparent);
+}
+.receipt p[data-head] {
+  padding-top: 0;
+  border-bottom: 0;
+  font-size: 0.85rem;
+}
+.receipt p[data-total] {
+  border-bottom: 0;
+  border-top: var(--line-width) solid var(--line);
+  font-weight: 800;
+}
+.receipt p[data-total] b {
+  font-size: 1.25rem;
+  font-weight: 900;
+  font-stretch: 80%;
+}
+.team-tag {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--team0);
+  color: var(--on-team0);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.team-tag[data-team='1'] {
+  background: var(--team1);
+  color: var(--on-team1);
+}
+
+/* The coach's review under a round's score: a row that opens onto the notes. */
+.review-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.75rem;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  font-weight: 800;
+  text-align: left;
+}
+.review-row[aria-expanded='true'] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.review-body {
+  padding: 0.75rem;
+  border: var(--line-width) solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: var(--field);
+  font-size: 0.95rem;
+}
+
+/* ── Menu ─────────────────────────────────────────────────────────────── */
+
+/* Rows in a box: one that opens something ends in a chevron, a setting in a switch, a look in swatches. */
+.menu-group {
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  overflow: hidden;
+}
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.25rem 0.75rem;
+  font-weight: 700;
+  text-align: left;
+}
+.menu-row + .menu-row {
+  border-top: var(--line-width) solid var(--paper-shade);
+}
+button.menu-row:active {
+  background: var(--paper-shade);
+}
+.menu-chevron {
+  color: var(--on-surface-muted);
+  font-weight: 400;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.switch {
+  flex: none;
+  position: relative;
+  width: 2.9rem;
+  height: 1.65rem;
+  border: var(--line-width) solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-shade);
+  box-shadow: 0 2px 0 var(--line);
+  transition: background var(--motion);
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.65rem - 4px - 2 * var(--line-width));
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--surface);
+  border: var(--line-width) solid var(--line);
+  box-sizing: border-box;
+  transition: transform var(--motion);
+}
+.switch[data-on='true'] {
+  background: var(--accent);
+}
+.switch[data-on='true']::after {
+  transform: translateX(1.25rem);
+}
+.swatch {
+  position: relative;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: var(--line-width) solid var(--line);
+  box-shadow: 0 3px 0 var(--line);
+}
+.swatch-back {
+  --back: var(--red);
+  width: 1.6rem;
+  height: 2.2rem;
+  border-radius: 5px;
+  background-color: var(--card-face);
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 3px, var(--back) 3px 4.5px),
+    repeating-linear-gradient(-45deg, transparent 0 3px, var(--back) 3px 4.5px);
+}
+.swatch-back[data-back='blue'] {
+  --back: var(--blue);
+}
+.swatch-back[data-back='ink'] {
+  --back: var(--ink);
+}
+.swatch[aria-pressed='true'] {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.menu-rule {
+  border: 0;
+  border-top: var(--line-width) solid var(--paper-shade);
+  margin: 0.75rem 0 0.5rem;
+}
+.menu-leave {
+  color: var(--danger);
+  border-color: var(--danger);
+}
 /* A new version waiting: a strip across the top, in the room --update-h makes for it, so it covers nothing. */
 .update {
   position: fixed;

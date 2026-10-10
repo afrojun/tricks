@@ -57,11 +57,11 @@ describe('passing', () => {
   test('the hint names the player the cards go to, then who the table is waiting on', () => {
     const t = new Table().deal(HANDS)
     const before = named(t, 1)
-    expect(hint(before, 0)).toEqual({ text: 'Choose three cards to pass to Chan.', mine: true })
-    expect(hint(before, 2)).toEqual({ text: 'Choose 1 more card to pass to Chan.', mine: true })
-    expect(hint(before, 3)).toEqual({ text: 'Tap Pass left to give them to Chan.', mine: true })
+    expect(hint(before, 0)).toEqual({ text: 'Pick three for Chan', mine: true })
+    expect(hint(before, 2)).toEqual({ text: '1 more for Chan', mine: true })
+    expect(hint(before, 3)).toEqual({ text: 'Ready for Chan', mine: true })
     t.do(1, { type: 'choosePass', cards: cards('8h 7h 6h') })
-    expect(hint(named(t, 1), 0)).toEqual({ text: 'Waiting for Asha, Chan and Devi to choose.', mine: false })
+    expect(hint(named(t, 1), 0)).toEqual({ text: 'Waiting for Asha, Chan and Devi to choose', mine: false })
   })
 
   test('cards passed to the viewer are new until the viewer plays a card', () => {
@@ -86,13 +86,13 @@ describe('passing', () => {
 describe('play', () => {
   test('your turn, the opening lead, and someone else to play', () => {
     const t = new Table({ passing: 'none' }).deal(HANDS)
-    expect(hint(named(t, 0), 0)).toEqual({ text: 'Your turn to lead the two of clubs.', mine: true })
-    expect(hint(named(t, 2), 0)).toEqual({ text: 'Asha to play.', mine: false })
+    expect(hint(named(t, 0), 0)).toEqual({ text: 'Your lead: the two of clubs', mine: true })
+    expect(hint(named(t, 2), 0)).toEqual({ text: 'Asha to play', mine: false })
     t.play('2c')
-    expect(hint(named(t, 1), 0)).toEqual({ text: 'Your turn. Tap a card or drag it onto the table.', mine: true })
+    expect(hint(named(t, 1), 0)).toEqual({ text: 'Your turn', mine: true })
     t.play('8c 10c Ac')
     t.endPause()
-    expect(hint(named(t, 3), 0)).toEqual({ text: 'Your turn to lead. Tap a card or drag it onto the table.', mine: true })
+    expect(hint(named(t, 3), 0)).toEqual({ text: 'Your lead', mine: true })
   })
 
   test('who took a trick, and what it was worth', () => {

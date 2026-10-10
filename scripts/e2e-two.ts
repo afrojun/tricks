@@ -80,7 +80,7 @@ async function act(page: Page): Promise<boolean> {
     await page.locator('.panel .btn').first().click({ timeout: 1500 }).catch(() => {})
     return true
   }
-  if (await page.getByText(/Your turn/).isVisible()) {
+  if (await page.getByText(/Your (turn|lead)/).isVisible()) {
     // On the strip the card shows: its centre can be under the next card in the fan.
     await page.locator('.hand .playing-card[data-dim="false"]').first().click({ position: { x: 24, y: 30 }, timeout: 1500 }).catch(() => {})
     return true

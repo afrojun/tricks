@@ -22,7 +22,7 @@ await page.getByRole('button', { name: 'Sit here' }).first().click()
 await addComputers(page, 3)
 await page.getByRole('button', { name: 'Start game' }).click()
 const tap = (name: string) => page.getByRole('button', { name, exact: true }).click({ timeout: 1000 }).catch(() => {})
-for (let i = 0; i < 900 && !(await page.getByText(/Your turn/).isVisible()); i++) {
+for (let i = 0; i < 900 && !(await page.getByText(/Your (turn|lead)/).isVisible()); i++) {
   await tap('Pass')
   await tap('No Thunee')
   if (await page.getByText('Choose trump').isVisible()) await page.locator('.panel .btn').first().click({ timeout: 1000 }).catch(() => {})

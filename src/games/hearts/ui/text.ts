@@ -64,18 +64,18 @@ export function hint(view: View, picked: number): { text: string; mine: boolean 
   if (phase.kind === 'passing') {
     if (me !== null && phase.choice === null && view.direction !== 'none') {
       const to = seatName(view, passTarget(me, view.direction))
-      if (picked === 0) return { text: `Choose three cards to pass to ${to}.`, mine: true }
-      if (picked < 3) return { text: `Choose ${3 - picked} more card${picked === 2 ? '' : 's'} to pass to ${to}.`, mine: true }
-      return { text: `Tap ${passButton(view.direction)} to give them to ${to}.`, mine: true }
+      if (picked === 0) return { text: `Pick three for ${to}`, mine: true }
+      if (picked < 3) return { text: `${3 - picked} more for ${to}`, mine: true }
+      return { text: `Ready for ${to}`, mine: true }
     }
-    return { text: `Waiting for ${listNames(view, stillChoosing(view, phase))} to choose.`, mine: false }
+    return { text: `Waiting for ${listNames(view, stillChoosing(view, phase))} to choose`, mine: false }
   }
   if (phase.kind === 'playing') {
-    if (phase.turn !== me) return { text: `${seatName(view, phase.turn!)} to play.`, mine: false }
-    if (phase.tricks.length === 0 && phase.current.length === 0) return { text: 'Your turn to lead the two of clubs.', mine: true }
-    return { text: `Your turn${phase.current.length === 0 ? ' to lead' : ''}. Tap a card or drag it onto the table.`, mine: true }
+    if (phase.turn !== me) return { text: `${seatName(view, phase.turn!)} to play`, mine: false }
+    if (phase.tricks.length === 0 && phase.current.length === 0) return { text: 'Your lead: the two of clubs', mine: true }
+    return { text: phase.current.length === 0 ? 'Your lead' : 'Your turn', mine: true }
   }
-  if (phase.kind === 'roundResult') return { text: `Round ${view.roundNumber} is over.`, mine: false }
+  if (phase.kind === 'roundResult') return { text: `Round ${view.roundNumber} is over`, mine: false }
   return null
 }
 

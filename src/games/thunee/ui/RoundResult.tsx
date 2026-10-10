@@ -55,54 +55,149 @@ function verbFor(view: View, team: Team, base: string): string {
   return view.playerCount === 2 && !(view.seat !== null && teamOf(view.seat) === team) ? `${base}s` : base
 }
 
+/** A seat by name, or "You". */
+function who(view: View, seat: number): string {
+  return seat === view.seat ? 'You' : seatName(view, seat)
+}
+
+/** Why the round is worth the balls it is: one line, then a quieter one for the rule behind the number when it is not plain. */
+export function ballsWhy(view: View, s: RoundSummary, partnerCatchBalls: number): { line: string; aside?: string } {
+  const balls = plural(s.balls, 'ball')
+  if (s.challenge) return { line: `${headline(view, s).replace(/\.$/, '')}: ${balls}`, aside: 'A challenge is always worth 4 balls, to whoever was right.' }
+  if (s.thunee) {
+    const caller = who(view, s.thunee.caller)
+    // Under the team rule a partner may win the tricks too: the side wins or loses them.
+    const by = view.rules.thuneeWinner === 'team' ? ` and ${caller === 'You' ? 'your' : 'their'} side` : ' and'
+    if (s.thunee.success) return { line: `${caller} called Thunee${by} won every trick: ${balls}` }
+    if (!s.thunee.partnerCatch) return { line: `${caller} called Thunee${by} lost a trick: ${balls}` }
+    return {
+      line: `${caller} called Thunee and their own partner took a trick: ${balls}`,
+      aside: partnerCatchBalls === 4 ? undefined : `A Thunee lost to the caller's partner costs ${plural(partnerCatchBalls, 'ball')} instead of 4.`,
+    }
+  }
+  if (s.double) {
+    const caller = who(view, s.double.caller)
+    return s.double.success
+      ? { line: `${caller} called Double and won the last trick: ${balls}` }
+      : { line: `${caller} called Double and lost the last trick: ${balls}`, aside: 'A Double is worth 2 balls if made, and costs 4 if not.' }
+  }
+  if (s.khanaak) {
+    const caller = who(view, s.khanaak.caller)
+    const kind = s.khanaak.backward ? 'a backward Khanaak' : 'Khanaak'
+    return s.khanaak.success
+      ? { line: `${caller} made ${kind}: ${balls}`, aside: s.khanaak.backward ? 'Called by the counting side, a Khanaak is worth 6 balls instead of 3.' : undefined }
+      : { line: `${caller} called ${kind} and it failed: ${balls}`, aside: 'A Khanaak that fails costs 4 balls.' }
+  }
+  const n = s.normal!
+  const reached = n.total >= n.target
+  if (reached && s.callAmount > 0) {
+    return { line: `${who(view, s.trumper)} called ${s.callAmount} and lost: ${balls}`, aside: '1 ball without a call. The call doubles it.' }
+  }
+  return reached
+    ? { line: `${teamName(view, n.countingTeam, view.seat)} reached ${n.total}, needing ${n.target}: ${balls}` }
+    : { line: `${teamName(view, (1 - n.countingTeam) as Team, view.seat)} held the counting side to ${n.total}, short of ${n.target}: ${balls}` }
+}
+
+/** The result fills the table: the panel scrolls if it must, and its button stays in reach below it. */
+function ResultFrame({ children, footer }: { children: React.ReactNode; footer: React.ReactNode }) {
+  return (
+    <div className="h-full w-full max-w-sm mx-auto flex flex-col">
+      {/* Room for the panel's plate, which overhangs its right and bottom edges. */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-2 pb-3">{children}</div>
+      <div className="shrink-0 pt-2">{footer}</div>
+    </div>
+  )
+}
+
+/** The winning side's balls, the new ones marked. */
+function BallTrack({ view, summary }: { view: View; summary: RoundSummary }) {
+  const after = summary.ballsAfter[summary.winner]
+  const length = Math.max(view.ballsTarget, after)
+  return (
+    <span className="ball-track" aria-hidden>
+      {Array.from({ length }, (_, i) => (
+        <i key={i} data-on={i < after} data-new={i >= after - summary.balls && i < after} />
+      ))}
+    </span>
+  )
+}
+
+function BallsLine({ view }: { view: View }) {
+  return (
+    <p className="text-on-surface-muted flex flex-wrap items-center gap-x-1.5 gap-y-1">
+      Balls:
+      {([0, 1] as Team[]).map((team) => (
+        <span key={team} className="team-tag" data-team={team}>
+          {teamName(view, team, view.seat)} {view.balls[team]}
+        </span>
+      ))}
+      · first to {view.ballsTarget}
+    </p>
+  )
+}
+
 export function RoundResult({ view, summary, winner, can }: { view: View; summary: RoundSummary; winner: Team | null; can: Available }) {
   const { send } = useSession()
   // A drill ends with its round: its verdict says what next.
   const drilled = useCoach()?.state.drill != null
   if (winner !== null) return <GameOver view={view} summary={summary} winner={winner} can={can} />
+  const why = ballsWhy(view, summary, view.rules.thuneePartnerCatchBalls)
+  const n = summary.normal
   return (
-    <section className="panel p-4 w-full max-w-sm grid gap-3">
-      <h2 className="display text-xl">{`${teamName(view, summary.winner, view.seat)} ${verbFor(view, summary.winner, 'take')} ${plural(summary.balls, 'ball')}`}</h2>
-      <p>{headline(view, summary)}</p>
+    <ResultFrame
+      footer={
+        drilled ? null : can.nextRound ? (
+          <button
+            className="btn btn-primary w-full"
+            onClick={() => {
+              playSound('tap')
+              send({ type: 'nextRound' })
+            }}
+          >
+            Deal next round
+          </button>
+        ) : (
+          <p className="text-center">Waiting for a player to deal the next round.</p>
+        )
+      }
+    >
+      <section className="panel p-4 grid gap-3">
+        <div>
+          <h2 className="display text-3xl">{`${teamName(view, summary.winner, view.seat)} ${verbFor(view, summary.winner, 'take')} ${plural(summary.balls, 'ball')}`}</h2>
+          <BallTrack view={view} summary={summary} />
+        </div>
+        <div>
+          <p className="font-bold">{why.line}</p>
+          {why.aside && <p className="text-on-surface-muted">{why.aside}</p>}
+        </div>
 
-      {summary.normal && (
-        <table className="w-full">
-          <caption className="text-left text-sm text-on-surface-muted pb-1">Counting side: {teamName(view, summary.normal.countingTeam)}</caption>
-          <tbody>
-            {summary.normal.lines
+        {n && (
+          <div className="receipt">
+            <p className="text-on-surface-muted" data-head>
+              Counted by {teamName(view, n.countingTeam, view.seat)}
+            </p>
+            {n.lines
               .filter((line) => line.value !== 0 || line.label === 'cards')
               .map((line) => (
-                <tr key={line.label}>
-                  <td>{LINE_LABEL[line.label]}</td>
-                  <td className="text-right tabular-nums">{line.value > 0 && line.label !== 'cards' ? `+${line.value}` : line.value}</td>
-                </tr>
+                <p key={line.label}>
+                  <span>{line.label !== 'call' ? LINE_LABEL[line.label] : summary.trumper === view.seat ? 'Your call' : `${seatName(view, summary.trumper)}'s call`}</span>
+                  <b>{line.value > 0 && line.label !== 'cards' ? `+${line.value}` : line.value}</b>
+                </p>
               ))}
-            <tr className="border-t border-line font-semibold">
-              <td>Total (needs {summary.normal.target})</td>
-              <td className="text-right tabular-nums">{summary.normal.total}</td>
-            </tr>
-          </tbody>
-        </table>
-      )}
+            <p data-total>
+              <span>
+                Total <span className="text-on-surface-muted font-normal">needs {n.target}</span>
+              </span>
+              <b>{n.total}</b>
+            </p>
+          </div>
+        )}
 
-      <p className="text-on-surface-muted">
-        Balls: {teamName(view, 0)} {summary.ballsAfter[0]}, {teamName(view, 1)} {summary.ballsAfter[1]}. First to {view.ballsTarget}.
-      </p>
-
-      <CoachReview view={view} shown={HALVES} />
-
-      <TableNames view={view} />
-      {drilled ? null : can.nextRound ? (
-        <button className="btn btn-primary" onClick={() => {
-            playSound('tap')
-            send({ type: 'nextRound' })
-          }}>
-          Deal next round
-        </button>
-      ) : (
-        <p className="text-on-surface-muted">Waiting for a player to deal the next round.</p>
-      )}
-    </section>
+        <BallsLine view={view} />
+        <CoachReview view={view} shown={HALVES} />
+        <TableNames view={view} />
+      </section>
+    </ResultFrame>
   )
 }
 
@@ -118,31 +213,34 @@ function GameOver({ view, summary, winner, can }: { view: View; summary: RoundSu
     </div>
   )
   return (
-    <section className="panel p-4 w-full max-w-sm grid gap-3">
-      <div>
-        <p className="eyebrow">Game over</p>
-        <h2 className="display text-2xl">{mine ? 'You win' : `${teamName(view, winner)} ${verbFor(view, winner, 'win')}`}</h2>
-      </div>
-      <div className="final-score">
-        {side(winner)}
-        {side(loser)}
-      </div>
-      <p>
-        {mine ? 'Well played: ' : ''}
-        {`${plural(view.ballsTarget, 'ball')} in ${plural(summary.roundNumber, 'round')}.`}
-      </p>
-      <p className="text-on-surface-muted">Last round: {headline(view, summary)}</p>
-
-      <CoachReview view={view} shown={HALVES} />
-
-      <Again
-        view={view}
-        again={view.phase.kind === 'gameOver' ? view.phase.again : []}
-        canAgain={can.again}
-        canStart={can.rematch}
-        onAgain={() => send({ type: 'rematch' })}
-        onStart={() => send({ type: 'rematch', now: true })}
-      />
-    </section>
+    <ResultFrame
+      footer={
+        <Again
+          view={view}
+          again={view.phase.kind === 'gameOver' ? view.phase.again : []}
+          canAgain={can.again}
+          canStart={can.rematch}
+          onAgain={() => send({ type: 'rematch' })}
+          onStart={() => send({ type: 'rematch', now: true })}
+        />
+      }
+    >
+      <section className="panel p-4 grid gap-3">
+        <div>
+          <p className="eyebrow">Game over · first to {view.ballsTarget}</p>
+          <h2 className="display text-2xl">{mine ? 'You win' : `${teamName(view, winner)} ${verbFor(view, winner, 'win')}`}</h2>
+        </div>
+        <div className="final-score">
+          {side(winner)}
+          {side(loser)}
+        </div>
+        <p>
+          {mine ? 'Well played: ' : ''}
+          {`${summary.ballsAfter[winner]} balls to ${summary.ballsAfter[loser]}, in ${plural(summary.roundNumber, 'round')}.`}
+        </p>
+        <p className="text-on-surface-muted">Last round: {headline(view, summary)}</p>
+        <CoachReview view={view} shown={HALVES} />
+      </section>
+    </ResultFrame>
   )
 }

@@ -119,7 +119,7 @@ async function toMyTurn(needIllegal = false) {
       if (await button.isVisible()) await tap(button)
     }
     if (await page.getByText('Choose trump').isVisible()) await tap(page.locator('.panel .btn').first())
-    if (await page.getByText(/Your turn/).isVisible()) {
+    if (await page.getByText(/Your (turn|lead)/).isVisible()) {
       if (!needIllegal || (await illegal().count()) > 0) return
       await tap(legal())
     }
@@ -142,7 +142,7 @@ async function dragUp(card: Locator, distance: number) {
 await toMyTurn()
 let before = await handCount()
 await dragUp(legal(), 30)
-check((await handCount()) === before && (await page.getByText(/Your turn/).isVisible()), 'a short drag returns the card and plays nothing')
+check((await handCount()) === before && (await page.getByText(/Your (turn|lead)/).isVisible()), 'a short drag returns the card and plays nothing')
 await dragUp(legal(), 130)
 check(before - (await settledCount(before)) === 1, 'a long drag plays exactly one card')
 

@@ -43,7 +43,7 @@ const STRIP = { x: 8, y: 30 }
 const handCards = (page: Page) => page.locator('.hand .playing-card')
 const handSize = (page: Page) => handCards(page).count()
 const trickOf = (page: Page) => page.locator('.trick-area .playing-card').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')).sort())
-const myTurn = (page: Page) => page.getByText(/^Your turn/).isVisible()
+const myTurn = (page: Page) => page.getByText(/^Your (turn|lead)/).isVisible()
 
 const a = await open('A')
 let b = await open('B')
@@ -149,8 +149,9 @@ for (const [page, who] of [[a, 'A'], [b, 'B']] as const) {
 /** Plays the first card the rules allow, at the player's turn. Returns whether one was played: the turn has passed on. */
 async function playLegal(page: Page) {
   if (!(await myTurn(page))) return false
-  await page.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500 }).catch(() => {})
-  return page.getByText(/^Your turn/).waitFor({ state: 'hidden', timeout: 1500 }).then(() => true, () => false)
+  // Forced: the outer cards of a full fan lean, so the strip can fall on the card's own slot, which takes the tap.
+  await page.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500, force: true }).catch(() => {})
+  return page.getByText(/^Your (turn|lead)/).waitFor({ state: 'hidden', timeout: 1500 }).then(() => true, () => false)
 }
 
 let played = 0
@@ -336,6 +337,8 @@ while (winner === null && Date.now() < wholeGameEnds) {
   } else if (await playLegal(a)) mine++
   else await a.waitForTimeout(100)
 }
+// A game that never ended shows where it stopped.
+if (winner === null) await shot(a, 'whole-stuck')
 const finals = [...scores.values()]
 check(winner !== null, `the whole game ends, after ${rounds} rounds`)
 check(Math.max(...finals) >= 25, `someone reached 25 (${listed(scores)})`)
@@ -395,7 +398,7 @@ if (practised) {
     const mine = (await a.locator('.hand .playing-card[data-playable="true"]').count()) > 0
     const dimmed = a.locator('.hand .playing-card[data-dim="true"]')
     // At the opening lead only the two of clubs may be played at all: no trick is complete and none is begun.
-    const opening = (await a.getByRole('button', { name: 'Last trick' }).isDisabled()) && (await a.locator('.trick-area .playing-card').count()) === 0
+    const opening = (await a.getByRole('button', { name: 'Last trick' }).count()) === 0 && (await a.locator('.trick-area .playing-card').count()) === 0
     if (mine && !opening && (await dimmed.count()) > 0) {
       await dimmed.first().click({ position: STRIP })
       const why = a.locator('.play-anyway-why')

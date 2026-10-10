@@ -81,11 +81,14 @@ export function Table({ view, room }: { view: View; room: string }) {
   return (
     <div className="h-[calc(100dvh-var(--update-h,0px))] flex flex-col overflow-hidden" data-felt-table>
       <header className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 text-sm">
-        <p className="text-muted">Round {view.roundNumber}</p>
+        <p className="text-muted">
+          Round {view.roundNumber} · ends at {view.rules.gameEndsAt}
+        </p>
         <button className="btn btn-quiet btn-small" onClick={() => setSheet('menu')} aria-label="Open menu">
           Menu
         </button>
-        <p className="text-muted text-right">Ends at {view.rules.gameEndsAt}</p>
+        {/* The player's own points, as every other seat shows theirs. */}
+        <div className="justify-self-end">{!watching && <Points view={view} seat={me} />}</div>
       </header>
 
       {(phase.kind === 'roundResult' || phase.kind === 'gameOver') && !gathering ? (
@@ -117,23 +120,28 @@ export function Table({ view, room }: { view: View; room: string }) {
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {coached && <CoachStrip lessons={TOPICS} />}
-        {!watching && ((phase.kind !== 'roundResult' && phase.kind !== 'gameOver') || gathering) && <Mine view={view} turn={myTurn} />}
-        {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. The talk button keeps the row's right end. */}
-        <div className={`hint-row flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
-          <TalkMine />
-          {!coached && (
-            <span className={`text-center ${line?.mine ? 'font-semibold' : ''}`}>{watching ? 'You are watching this game.' : line?.mine ? <Cued text={line.text} /> : line?.text}</span>
-          )}
+        {/* The player's line, one row: what to do, and the buttons that act now, with the talk button at its right end. Its height is kept, so the hand does not move. */}
+        <div className="hint-row player-line" aria-live="polite">
+          {!coached && <span className="player-cue">{watching ? 'You are watching this game.' : line?.mine ? <b className="cue">{line.text}</b> : line?.text}</span>}
+          {!watching && <ActionButtons view={view} can={can} picked={picked} onSheet={setSheet} />}
           <TalkButton />
         </div>
+        {/* How to play a card, said once: on the player's first turn of the game. */}
+        {!coached && myTurn && view.roundNumber === 1 && phase.tricks.length === 0 && (
+          <p className="px-3 text-sm text-muted">Tap a card or drag it onto the table.</p>
+        )}
         {can.reclaimSeat && <TakeOver />}
         {watching ? (
           <div className="flex justify-center pb-3">
             <HeartsSeat view={view} seat={0} />
           </div>
         ) : (phase.kind === 'roundResult' || phase.kind === 'gameOver') && !gathering ? null : (
-          // A round's result has the room: the hand, empty by then, keeps a card's height in play.
-          <>
+          // A round's result has the room: the hand, empty by then, keeps a card's height in play. The corner
+          // of the hand is where a throw at the player lands, and where what they say shows.
+          <div className="relative">
+            <div className="hand-tags" data-seat-name={me}>
+              <TalkMine />
+            </div>
             <Hand
               cards={hand}
               playable={myTurn}
@@ -152,8 +160,7 @@ export function Table({ view, room }: { view: View; room: string }) {
               }
               marked={playing ? newCards(playing) : []}
             />
-            <ActionBar view={view} can={can} picked={picked} onSheet={setSheet} />
-          </>
+          </div>
         )}
       </div>
 
@@ -185,23 +192,13 @@ export function Table({ view, room }: { view: View; room: string }) {
   )
 }
 
-/** The player's own line, with its first sentence (such as "Your turn") on the yellow cue. */
-function Cued({ text }: { text: string }) {
-  const end = text.indexOf('. ')
-  if (end === -1) return <b className="cue">{text}</b>
-  return (
-    <>
-      <b className="cue">{text.slice(0, end)}</b> {text.slice(end + 2)}
-    </>
-  )
-}
 
 // ── Seats ────────────────────────────────────────────────────────────────
 
 /** A seat's points this round and in all. */
-function Points({ view, seat, row = false }: { view: View; seat: Seat; row?: boolean }) {
+function Points({ view, seat }: { view: View; seat: Seat }) {
   return (
-    <p className={`text-muted tabular-nums ${row ? 'flex gap-3' : 'grid justify-items-center text-xs'}`}>
+    <p className="text-muted tabular-nums grid justify-items-center text-xs">
       <span>
         <b className="text-ink">{points(takenThisRound(view)[seat])}</b> this round
       </span>
@@ -234,17 +231,6 @@ function HeartsSeat({ view, seat, side }: { view: View; seat: Seat; side?: 'left
 }
 
 /** The viewer's own line over the hand. */
-function Mine({ view, turn }: { view: View; turn: boolean }) {
-  return (
-    <div className="flex items-center justify-center gap-3 px-3 text-sm">
-      {/* Where a throw at the player lands. */}
-      <span className="seat-name" data-turn={turn} data-seat-name={view.seat!}>
-        You
-      </span>
-      <Points view={view} seat={view.seat!} row />
-    </div>
-  )
-}
 
 // ── Centre of the table ──────────────────────────────────────────────────
 
@@ -284,32 +270,32 @@ function TrickMiddle({ view, playing }: { view: View; playing: ViewPlaying | nul
 // ── Actions and the menu ─────────────────────────────────────────────────
 
 /** Under the hand: the pass while choosing; in play, the last trick and the challenge (absent with cheating off). */
-function ActionBar({ view, can, picked, onSheet }: { view: View; can: Available; picked: Card[]; onSheet: (s: SheetName) => void }) {
+/** The buttons that act now, beside the cue: the pass while choosing, then the last trick and a challenge once there is one. */
+function ActionButtons({ view, can, picked, onSheet }: { view: View; can: Available; picked: Card[]; onSheet: (s: SheetName) => void }) {
   const { send } = useSession()
   const phase = view.phase
   if (phase.kind === 'passing' && can.pass.length > 0 && view.direction !== 'none') {
     const ready = picked.length === PASS_SIZE
     return (
-      <div className="flex justify-center px-2 pb-2 min-h-13">
-        <button className={`btn btn-primary ${ready ? 'attention' : ''}`} disabled={!ready} onClick={() => send({ type: 'choosePass', cards: picked })}>
-          {passButton(view.direction)}
-        </button>
-      </div>
+      <button className={`btn btn-primary btn-small ml-auto shrink-0 ${ready ? 'attention' : ''}`} disabled={!ready} onClick={() => send({ type: 'choosePass', cards: picked })}>
+        {passButton(view.direction)}
+      </button>
     )
   }
-  if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return <div className="h-13" />
-  // As tall as the pass bar's full-size button, so the hand does not move when passing ends.
+  if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return null
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 px-2 pb-2 min-h-13">
-      <button className="btn btn-quiet btn-small" disabled={phase.tricks.length === 0} onClick={() => onSheet('history')}>
-        Last trick
-      </button>
-      {view.rules.allowCheating && (
-        <button className="btn btn-quiet btn-small" disabled={can.challengePlay.length === 0} onClick={() => onSheet('challenge')}>
+    <span className="ml-auto flex shrink-0 gap-2">
+      {phase.tricks.length > 0 && (
+        <button className="btn btn-quiet btn-small" onClick={() => onSheet('history')}>
+          Last trick
+        </button>
+      )}
+      {view.rules.allowCheating && can.challengePlay.length > 0 && (
+        <button className="btn btn-quiet btn-small" onClick={() => onSheet('challenge')}>
           Challenge
         </button>
       )}
-    </div>
+    </span>
   )
 }
 
@@ -320,40 +306,24 @@ function MenuSheet({ view, room, onSheet, onRestart }: { view: View; room: strin
   return (
     <GameMenu
       view={view}
-      intro={
-        <>
-          <p className="text-on-surface-muted">
-            {coached ? 'Practice game' : `Game ${room}`}, round {view.roundNumber}. {rulesSummary(game, view.rules)}.
-          </p>
-          {coached && (
-            <div className="flex flex-wrap gap-2">
-              <button className="btn btn-small" onClick={() => onSheet('howto')}>
-                How to play
-              </button>
-              <button
-                className="btn btn-small"
-                onClick={() => {
+      summary={`${coached ? 'Practice game' : `Game ${room}`}, round ${view.roundNumber} · ${rulesSummary(game, view.rules)}`}
+      rows={[
+        { label: 'Rules in this game', onClick: () => onSheet('rules') },
+        { label: 'Last trick', onClick: () => onSheet('history') },
+        ...(coached
+          ? [
+              { label: 'How to play', onClick: () => onSheet('howto') },
+              {
+                label: 'New practice game',
+                onClick: () => {
                   onRestart()
                   coached.coach.restart(view.playerCount)
                   onSheet(null)
-                }}
-              >
-                New practice game
-              </button>
-            </div>
-          )}
-        </>
-      }
-      actions={
-        <>
-          <button className="btn btn-small" onClick={() => onSheet('rules')}>
-            Rules in this game
-          </button>
-          <button className="btn btn-small" onClick={() => onSheet('history')}>
-            Last trick
-          </button>
-        </>
-      }
+                },
+              },
+            ]
+          : []),
+      ]}
     />
   )
 }

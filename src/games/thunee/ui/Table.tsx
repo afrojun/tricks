@@ -109,6 +109,7 @@ export function Table({ view, room }: { view: View; room: string }) {
   // The round's result takes the table once its last trick has been gathered in.
   const gathering = useGathering(ended, phase.kind === 'trickPause')
   const over = ended && !gathering
+  const crowded = playing !== null && actionCount(can, playing, view.rules.allowCheating) >= 3
 
   return (
     <div className="h-[calc(100dvh-var(--update-h,0px))] flex flex-col overflow-hidden" data-felt-table>
@@ -116,8 +117,8 @@ export function Table({ view, room }: { view: View; room: string }) {
       <RoundFacts view={view} />
 
       {over ? (
-        // The result takes the width, and may need to scroll; the seats have no cards to show.
-        <div className="flex-1 min-h-0 overflow-y-auto grid justify-items-center items-start px-3 py-2">
+        // The result takes the table: its panel scrolls if it must, with its button below; the seats have no cards to show.
+        <div className="flex-1 min-h-0 px-3 py-2">
           <Centre view={view} can={can} />
         </div>
       ) : (
@@ -146,19 +147,20 @@ export function Table({ view, room }: { view: View; room: string }) {
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {coached && <CoachStrip lessons={TOPICS} />}
-        {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. The talk button keeps the row's right end. */}
-        <div className={`hint-row flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
-          {!watching && <RoleBadges view={view} seat={me} />}
-          {!watching &&
-            said(view, me).map((text) => (
-              <span key={text} className="bubble" data-mine>
-                {text}
-              </span>
-            ))}
-          <TalkMine />
-          {!coached && <span className="text-center">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>}
+        {/*
+          The player's line, one row: what to do, and the buttons that act now, with the talk button at its
+          right end. Its height is kept, so the hand does not move when a button comes or goes; three buttons
+          say what to do, and the cue gives way.
+        */}
+        <div className="hint-row player-line" aria-live="polite">
+          {!coached && !crowded && <span className="player-cue">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>}
+          {!watching && !over && <ActionButtons can={can} playing={playing} accuse={view.rules.allowCheating} onSheet={setSheet} />}
           <TalkButton />
         </div>
+        {/* How to play a card, said once: on the player's first turn of the game. */}
+        {!coached && myTurn && view.roundNumber === 1 && phase.tricks.length === 0 && (
+          <p className="px-3 text-sm text-muted">Tap a card or drag it onto the table.</p>
+        )}
         {can.reclaimSeat && <TakeOver />}
         {watching && (
           <div className="flex justify-center pb-3">
@@ -167,7 +169,17 @@ export function Table({ view, room }: { view: View; room: string }) {
         )}
         {/* A round's result has the room: the hand, empty by then, keeps a card's height in play. */}
         {!watching && !over && (
-          <>
+          <div className="relative">
+            {/* The player's roles and what they have said, on the corner of their hand, which is where a throw at them lands. */}
+            <div className="hand-tags" data-seat-name={me}>
+              <RoleBadges view={view} seat={me} />
+              {said(view, me).map((text) => (
+                <span key={text} className="bubble" data-mine>
+                  {text}
+                </span>
+              ))}
+              <TalkMine />
+            </div>
             <Hand
               cards={hand}
               playable={myTurn}
@@ -178,8 +190,7 @@ export function Table({ view, room }: { view: View; room: string }) {
               suggested={advised?.type === 'playCard' ? advised.card : null}
               explain={coached ? (card) => check(view, { type: 'playCard', card })?.body ?? null : undefined}
             />
-            <ActionBar can={can} playing={playing} accuse={view.rules.allowCheating} onSheet={setSheet} />
-          </>
+          </div>
         )}
       </div>
 
@@ -507,72 +518,67 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
 
 // ── Hint line and actions ────────────────────────────────────────────────
 
+/** What to do now, in a phrase: the cue for the player's own turn, a few words otherwise. */
 function Hint({ view, can }: { view: View; can: Available }) {
   const phase = view.phase
   if (phase.kind === 'playing') {
-    if (phase.turn === view.seat)
-      return (
-        <span className="font-semibold">
-          <b className="cue">Your turn{phase.current.length === 0 ? ' to lead' : ''}</b> Tap a card or drag it onto the table.
-        </span>
-      )
-    return <>{seatName(view, phase.turn!)} to play.</>
+    if (phase.turn === view.seat) return <b className="cue">{phase.current.length === 0 ? 'Your lead' : 'Your turn'}</b>
+    return <>{seatName(view, phase.turn!)} to play</>
   }
-  if (phase.kind === 'trickPause' && phase.redeal) {
-    if (can.pass) return <>Neither opponent has trump, so the cards are dealt again. Challenge first if you think one hid a trump.</>
-    return <>Neither side can stop this Thunee without trump: the cards will be dealt again.</>
-  }
-  if (phase.kind === 'trickPause' && can.pass) return <>Your side won the trick. Call Jodhi, or say No Jodhi to play on.</>
-  if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <>Your side won the trick. You can call Jodhi now.</>
+  if (phase.kind === 'trickPause' && phase.redeal) return can.pass ? <b className="cue">Nobody else has trump</b> : <>Dealing again: nobody else has trump</>
+  if (phase.kind === 'trickPause' && can.pass) return <b className="cue">Your side won: Jodhi?</b>
+  if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <b className="cue">You can call Jodhi</b>
   const jodhiFrom = phase.kind === 'trickPause' ? pauseWaitingOn(phase, view.playerCount) : []
-  if (jodhiFrom.length > 0) return <>Waiting for {seatName(view, jodhiFrom[0])} to call Jodhi or play on.</>
+  if (jodhiFrom.length > 0) return <>Waiting for {seatName(view, jodhiFrom[0])}</>
   if (phase.kind === 'calling' && can.calls.length > 0) return <>{CALL_NOTE}</>
   if (phase.kind === 'trumpSelection' && can.chooseTrump.length > 0) return <>{LAST_CARD_NOTE}</>
-  if (phase.kind === 'roundResult') return <>Round {view.roundNumber} is over.</>
+  if (phase.kind === 'roundResult') return <>Round {view.roundNumber} is over</>
   return null
 }
 
-/** `accuse`: whether accusations are part of this game; with cheating off there is no Challenge button. */
-function ActionBar({ can, playing, accuse, onSheet }: { can: Available; playing: ViewPlaying | null; accuse: boolean; onSheet: (s: SheetName) => void }) {
+const canChallenge = (can: Available, accuse: boolean) => accuse && (can.challengePlay.length > 0 || can.challengeJodhi.length > 0 || can.challengeThunee)
+
+/** How many buttons the player's line shows now. */
+function actionCount(can: Available, playing: ViewPlaying, accuse: boolean): number {
+  const answer = playing.kind === 'trickPause' && can.pass
+  return [can.claimJodhi.length > 0, answer, can.callDouble, can.callKhanaak, canChallenge(can, accuse)].filter(Boolean).length
+}
+
+/** The buttons that act now, beside the cue; each appears only while it does something. Without cheating there is no Challenge. */
+function ActionButtons({ can, playing, accuse, onSheet }: { can: Available; playing: ViewPlaying | null; accuse: boolean; onSheet: (s: SheetName) => void }) {
   const { send } = useSession()
-  // Before play the space is kept, so the table does not jump when the first trick starts.
-  if (!playing) return <div className="h-13" />
-  const canChallenge = can.challengePlay.length > 0 || can.challengeJodhi.length > 0 || can.challengeThunee
-  const noJodhi = playing.kind === 'trickPause' && can.pass
-  const calls = [can.claimJodhi.length > 0, noJodhi, can.callDouble, can.callKhanaak].filter(Boolean).length
-  // Three buttons or more are small and close up, and four drop "Call", so they keep to one row and the hand does not rise.
-  const buttons = calls + (accuse ? 1 : 0)
-  const size = buttons >= 3 ? 'btn-small !px-2' : ''
-  const call = (name: string) => (buttons >= 4 ? name : `Call ${name}`)
-  // Tall enough for a full-size call button, so one appearing does not lift the hand.
+  if (!playing) return null
+  const answer = playing.kind === 'trickPause' && can.pass
+  // Three or more close up, leaving the talk button its room.
+  const size = actionCount(can, playing, accuse) >= 3 ? 'btn-small !px-2' : 'btn-small'
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 px-2 pb-2 min-h-13">
+    <span className="ml-auto flex shrink-0 gap-2">
       {can.claimJodhi.length > 0 && (
         <button className={`btn btn-primary attention ${size}`} onClick={() => onSheet('jodhi')} aria-label="Call Jodhi">
-          {call('Jodhi')}
+          Jodhi
         </button>
       )}
-      {noJodhi && (
+      {answer && (
         <button className={`btn ${size}`} onClick={() => send({ type: 'pass' })}>
           {playing.redeal ? 'Deal again' : 'No Jodhi'}
         </button>
       )}
       {can.callDouble && (
         <button className={`btn btn-primary attention ${size}`} onClick={() => send({ type: 'callDouble' })} aria-label="Call Double">
-          {call('Double')}
+          Double
         </button>
       )}
       {can.callKhanaak && (
         <button className={`btn btn-primary attention ${size}`} onClick={() => send({ type: 'callKhanaak' })} aria-label="Call Khanaak">
-          {call('Khanaak')}
+          Khanaak
         </button>
       )}
-      {accuse && (
-        <button className={`btn btn-quiet btn-small ${buttons >= 3 ? '!px-2' : ''}`} disabled={!canChallenge} onClick={() => onSheet('challenge')}>
+      {canChallenge(can, accuse) && (
+        <button className={`btn btn-quiet ${size}`} onClick={() => onSheet('challenge')}>
           Challenge
         </button>
       )}
-    </div>
+    </span>
   )
 }
 
@@ -643,39 +649,23 @@ function MenuSheet({ view, room, onSheet }: { view: View; room: string; onSheet:
   return (
     <GameMenu
       view={view}
-      intro={
-        <>
-          <p className="text-on-surface-muted">
-            {coached ? 'Practice game' : `Game ${room}`}, round {view.roundNumber}. {rulesSummary(game, view.rules)}.
-          </p>
-          {coached && (
-            <div className="flex flex-wrap gap-2">
-              <button className="btn btn-small" onClick={() => onSheet('howto')}>
-                How to play
-              </button>
-              <button
-                className="btn btn-small"
-                onClick={() => {
+      summary={`${coached ? 'Practice game' : `Game ${room}`}, round ${view.roundNumber} · ${rulesSummary(game, view.rules)}`}
+      rows={[
+        { label: 'Rules in this game', onClick: () => onSheet('rules') },
+        { label: 'Last trick', onClick: () => onSheet('history') },
+        ...(coached
+          ? [
+              { label: 'How to play', onClick: () => onSheet('howto') },
+              {
+                label: 'New practice game',
+                onClick: () => {
                   coached.coach.restart(view.playerCount)
                   onSheet(null)
-                }}
-              >
-                New practice game
-              </button>
-            </div>
-          )}
-        </>
-      }
-      actions={
-        <>
-          <button className="btn btn-small" onClick={() => onSheet('rules')}>
-            Rules in this game
-          </button>
-          <button className="btn btn-small" onClick={() => onSheet('history')}>
-            Last trick
-          </button>
-        </>
-      }
+                },
+              },
+            ]
+          : []),
+      ]}
     />
   )
 }
