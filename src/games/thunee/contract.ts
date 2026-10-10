@@ -9,15 +9,16 @@ import {
   type RuleOverrides,
   type View,
   SUITS,
-  availableActions,
   seatsToAct,
   seenPlays,
   viewFor,
 } from './engine'
+import { availableActions, seenBy } from './engine/available'
 import type { Contract } from '../../kit/contract'
 import { brokenRules } from '../../kit/integrity'
 import { HONEST } from '../../kit/mind'
 import { type Seat, allSeats } from '../../kit/table'
+import { same } from '../../kit/testing'
 import { thunee } from '.'
 
 /** What a run saw, to show the mischief reached the corners it should. */
@@ -135,13 +136,19 @@ export function thuneeContract(overrides: RuleOverrides, playerCount: 2 | 4): { 
       return told ? "shows the suit of another player's Jodhi" : null
     },
 
-    check(game, events) {
+    check(game, events, _step, views) {
       for (const e of events) {
         if (e.type === 'challengeResolved') {
           tally.accusations++
           if (!game.rules.allowCheating) fail('an accusation with cheating off')
         }
         if (e.type === 'roundScored') checkSummary(game, e.summary)
+      }
+
+      // The engine checks round actions against `seenBy`, which must answer just as the view does.
+      const can = views.map((view) => availableActions(view))
+      for (const seat of allSeats(game.playerCount)) {
+        if (!same(availableActions(seenBy(game, seat)), can[seat])) fail(`seat ${seat} may do otherwise than its view says`)
       }
 
       const phase = game.phase
@@ -159,9 +166,9 @@ export function thuneeContract(overrides: RuleOverrides, playerCount: 2 | 4): { 
         })
       }
       if (phase.kind === 'playing') {
-        const table = availableActions(viewFor(game, phase.turn))
+        const table = can[phase.turn]
         const full = availableActions(viewFor(game, phase.turn, 'full'))
-        if (JSON.stringify(table) !== JSON.stringify(full)) fail('what a player may do depends on memory')
+        if (!same(table, full)) fail('what a player may do depends on memory')
         if (table.legal.length === 0) fail('no legal card')
       }
     },

@@ -1,12 +1,12 @@
 /** Helpers for tests and simulations. Not used by the app. */
-import { deepFreeze, seededRng } from '../../../kit/testing'
+import { deepFreeze, same, seededRng } from '../../../kit/testing'
 import { settle } from '../../../kit/table'
 import { apply, createGame, seatsToAct, untimedSeats } from './apply'
 import { type Card, type Rank, type Suit, createDeck, sameCard } from './cards'
 import { type RuleOverrides, resolveRules } from './rules'
 import { type Seat, allSeats, next, seatsFrom } from './seats'
 import type { Action, Actor, Ctx, Game, GameEvent } from './types'
-import { availableActions } from './available'
+import { availableActions, seenBy } from './available'
 import { viewFor } from './view'
 
 export { collectCards, deepFreeze, seededRng } from '../../../kit/testing'
@@ -66,9 +66,15 @@ export class Table {
     return { now: this.now, rng: this.rng }
   }
 
-  /** Applies an action and returns the rejection reason, or null on success. */
+  /**
+   * Applies an action and returns the rejection reason, or null on success. The engine checks a seat's round
+   * actions against `seenBy`, which must first answer just as the seat's view does.
+   */
   try(actor: Actor, action: Action) {
     deepFreeze(this.game)
+    if (typeof actor === 'number' && !same(availableActions(seenBy(this.game, actor)), availableActions(viewFor(this.game, actor)))) {
+      throw new Error(`seat ${actor} may do otherwise than its view says, in ${this.game.phase.kind}`)
+    }
     const result = apply(this.game, actor, action, this.ctx)
     if ('rejected' in result) return result.rejected
     this.game = result.game

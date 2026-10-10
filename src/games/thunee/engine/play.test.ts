@@ -283,6 +283,16 @@ describe('double', () => {
     expect(can(corner.play(FIVE).endPause(), 1).callDouble).toBe(false)
     expect(can(start({ double: false }, SWEEP).play(FIVE).endPause(), 1).callDouble).toBe(false)
   })
+
+  test('corner house is one ball short of the target a Khanaak raised', () => {
+    const raised = (balls: number) => {
+      const t = start({ khanaakRaisesTarget: true }, SWEEP)
+      t.game = { ...t.game, balls: [0, balls], khanaakCalled: true }
+      return t.play(FIVE).endPause()
+    }
+    expect(raised(12).try(1, { type: 'callDouble' })).toBe('notAllowed')
+    expect(raised(11).try(1, { type: 'callDouble' })).toBeNull()
+  })
 })
 
 describe('khanaak', () => {
@@ -444,6 +454,14 @@ describe('between rounds', () => {
     expect(over.try(1, { type: 'rematch' })).toBe('notAllowed')
     over.do(0, { type: 'rematch', now: true })
     expect(over.game).toMatchObject({ balls: [0, 0], roundNumber: 1, khanaakCalled: false, lastRoundWinner: null })
+    expect(over.game.phase.kind).toBe('calling')
+  })
+
+  test('with the host away, the next person present starts the next game now', () => {
+    const over = start()
+    over.game = { ...over.game, balls: [0, 11] }
+    over.play(D1_FULL).endPause().do('system', { type: 'setConnected', seat: 0, connected: false })
+    over.do(1, { type: 'rematch', now: true })
     expect(over.game.phase.kind).toBe('calling')
   })
 })

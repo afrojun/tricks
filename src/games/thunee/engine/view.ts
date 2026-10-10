@@ -1,6 +1,7 @@
 import type { Memory } from '../../../kit/module'
 import { tableView } from '../../../kit/table'
 import { ballsTarget } from './predicates'
+import type { Card } from './cards'
 import type { Seat } from './seats'
 import type { Game, Phase, RoundPlay, ViewPhase, ViewPlaying, View } from './types'
 
@@ -18,11 +19,9 @@ export function viewFor(game: Game, seat: Seat | null, memory: Memory = 'table')
   }
 }
 
-function ownHand(hands: readonly (readonly unknown[])[], seat: Seat | null) {
-  return {
-    hand: seat === null ? [] : [...(hands[seat] as never[])],
-    handCounts: hands.map((h) => h.length),
-  }
+/** The viewer's own hand; a spectator holds none. */
+function ownHand(hands: readonly (readonly Card[])[], seat: Seat | null): Card[] {
+  return seat === null ? [] : [...hands[seat]]
 }
 
 function viewPhase(phase: Phase, seat: Seat | null, memory: Memory): ViewPhase {
@@ -32,7 +31,8 @@ function viewPhase(phase: Phase, seat: Seat | null, memory: Memory): ViewPhase {
     case 'calling':
       return {
         kind: 'calling',
-        ...ownHand(phase.hands, seat),
+        hand: ownHand(phase.hands, seat),
+        handCounts: phase.hands.map((h) => h.length),
         defaultTrumper: phase.defaultTrumper,
         call: phase.call,
         passed: phase.passed,
@@ -42,14 +42,16 @@ function viewPhase(phase: Phase, seat: Seat | null, memory: Memory): ViewPhase {
     case 'trumpSelection':
       return {
         kind: 'trumpSelection',
-        ...ownHand(phase.hands, seat),
+        hand: ownHand(phase.hands, seat),
+        handCounts: phase.hands.map((h) => h.length),
         trumper: phase.trumper,
         callAmount: phase.callAmount,
       }
     case 'thuneeWindow':
       return {
         kind: 'thuneeWindow',
-        ...ownHand(phase.hands, seat),
+        hand: ownHand(phase.hands, seat),
+        handCounts: phase.hands.map((h) => h.length),
         trumper: phase.trumper,
         trump: seat === phase.trumper ? phase.trump : null,
         callAmount: phase.callAmount,
@@ -80,7 +82,8 @@ function viewPlay(
   const trumpVisible = play.trumpRevealed || (seat === play.trumper && play.thunee === null)
   return {
     kind,
-    ...ownHand(play.hands, seat),
+    hand: ownHand(play.hands, seat),
+    handCounts: play.hands.map((h) => h.length),
     trumper: play.trumper,
     callAmount: play.callAmount,
     trump: trumpVisible ? play.trump : null,

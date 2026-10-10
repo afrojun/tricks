@@ -1,8 +1,9 @@
+import { actingHost } from '../../../kit/table'
 import { type Card, type Suit, SUITS } from './cards'
-import { callAmounts, mayCall, pauseWaitingOn, prospectiveTrumper, thuneeEligible, trumpChoices } from './predicates'
-import { type Seat, teamOf } from './seats'
+import { type CallState, ballsTarget, callAmounts, mayCall, pauseWaitingOn, prospectiveTrumper, thuneeEligible, trumpChoices } from './predicates'
+import { type Seat, type Team, teamOf } from './seats'
 import { legalPlays } from './tricks'
-import type { TrumpChoice, View } from './types'
+import type { Game, TrumpChoice, View, ViewSeat } from './types'
 
 /** Everything the viewer may do right now. The engine validates round actions against this. */
 export interface Available {
@@ -50,7 +51,91 @@ const NOTHING: Available = {
   reclaimSeat: false,
 }
 
-export function availableActions(view: View): Available {
+/** What `availableActions` reads of a view. A `View` is one; the engine builds one from the game with `seenBy`. */
+export interface Seen extends Pick<View, 'seat' | 'host' | 'playerCount' | 'rules' | 'balls' | 'ballsTarget'> {
+  seats: readonly Pick<ViewSeat, 'kind' | 'standIn'>[]
+  phase:
+    | { kind: 'lobby' | 'roundResult' }
+    | ({ kind: 'calling'; hand: readonly Card[] } & CallState)
+    | { kind: 'trumpSelection'; hand: readonly Card[]; trumper: Seat }
+    | { kind: 'thuneeWindow'; hand: readonly Card[]; trumper: Seat; pending: Seat | null; passed: readonly Seat[] }
+    | {
+        kind: 'playing' | 'trickPause'
+        hand: Card[]
+        trump: Suit | null
+        thunee: { caller: Seat } | null
+        half: 1 | 2
+        tricks: readonly { winner: Seat; half: 1 | 2 }[]
+        current: readonly { seat: Seat; card: Card }[]
+        turn: Seat | null
+        jodhiClaims: readonly { seat: Seat; suit: Suit | null }[]
+        jodhiOpenFor: Team | null
+        double: { caller: Seat } | null
+        khanaak: { caller: Seat } | null
+        deadline: number | null
+        redeal: boolean
+      }
+    | { kind: 'gameOver'; again: readonly Seat[] }
+}
+
+/**
+ * What `viewFor(game, seat)` shows that `availableActions` reads, sharing the game's arrays rather than
+ * copying them: the engine checks every round action against it, and a whole view costs more than the step.
+ * Its tricks and claims are the game's own, with the cards and suits a view hides, none of which
+ * `availableActions` reads: it reads the suits of the viewer's own claims alone.
+ */
+export function seenBy(game: Game, seat: Seat): Seen {
+  const table = {
+    seat,
+    seats: game.seats,
+    host: actingHost(game),
+    playerCount: game.playerCount,
+    rules: game.rules,
+    balls: game.balls,
+    ballsTarget: ballsTarget(game.rules, game.khanaakCalled),
+  }
+  const phase = game.phase
+  switch (phase.kind) {
+    case 'calling': {
+      const { defaultTrumper, call, passed } = phase
+      return { ...table, phase: { kind: 'calling', hand: phase.hands[seat], defaultTrumper, call, passed } }
+    }
+    case 'trumpSelection':
+      return { ...table, phase: { kind: 'trumpSelection', hand: phase.hands[seat], trumper: phase.trumper } }
+    case 'thuneeWindow': {
+      const { trumper, pending, passed } = phase
+      return { ...table, phase: { kind: 'thuneeWindow', hand: phase.hands[seat], trumper, pending, passed } }
+    }
+    case 'playing':
+    case 'trickPause': {
+      const { hands, trumper, trump, trumpRevealed, thunee, half, tricks, current, jodhiClaims, jodhiOpenFor, double, khanaak } = phase.play
+      const trumpVisible = trumpRevealed || (seat === trumper && thunee === null)
+      return {
+        ...table,
+        phase: {
+          kind: phase.kind,
+          hand: hands[seat],
+          trump: trumpVisible ? trump : null,
+          thunee,
+          half,
+          tricks,
+          current,
+          turn: phase.kind === 'playing' ? phase.turn : null,
+          jodhiClaims,
+          jodhiOpenFor,
+          double,
+          khanaak,
+          deadline: phase.kind === 'trickPause' ? phase.deadline : null,
+          redeal: phase.kind === 'trickPause' && phase.redeal,
+        },
+      }
+    }
+    default:
+      return { ...table, phase }
+  }
+}
+
+export function availableActions(view: Seen): Available {
   const me = view.seat
   if (me === null) return NOTHING
   const out: Available = { ...NOTHING, reclaimSeat: view.seats[me].standIn }
@@ -82,9 +167,6 @@ export function availableActions(view: View): Available {
     }
     case 'playing':
     case 'trickPause': {
-      const tricksThisHalf = phase.tricks.filter((t) => t.half === phase.half)
-      const special = phase.thunee !== null || phase.double !== null || phase.khanaak !== null
-
       if (phase.kind === 'playing' && phase.turn === me) {
         out.legal = legalPlays(
           phase.hand,
@@ -93,6 +175,8 @@ export function availableActions(view: View): Available {
           view.rules,
         )
         out.play = view.rules.allowCheating ? phase.hand : out.legal
+        const tricksThisHalf = phase.tricks.filter((t) => t.half === phase.half)
+        const special = phase.thunee !== null || phase.double !== null || phase.khanaak !== null
         const lastTrick = view.playerCount === 4 && tricksThisHalf.length === 5 && !special
         if (lastTrick) {
           const wonAllFive = tricksThisHalf.every((t) => teamOf(t.winner) === myTeam)
@@ -112,7 +196,7 @@ export function availableActions(view: View): Available {
       if (view.rules.allowCheating) {
         // Once a trick has been completed, every seat has played a card this round.
         const played = phase.tricks.length > 0 ? view.seats.map((_, seat) => seat) : phase.current.map((p) => p.seat)
-        out.challengePlay = played.filter((s) => teamOf(s) !== myTeam).sort()
+        out.challengePlay = played.filter((s) => teamOf(s) !== myTeam).sort((a, b) => a - b)
         out.challengeJodhi = phase.jodhiClaims.flatMap((j, i) => (teamOf(j.seat) !== myTeam ? [i] : []))
         out.challengeThunee = phase.thunee !== null && teamOf(phase.thunee.caller) !== myTeam
       }

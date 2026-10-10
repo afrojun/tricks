@@ -1,14 +1,12 @@
-import { copy } from '../../../kit/copy'
 import { type Actor, type Ctx, againComplete, checkLobbyHost, emptySeats, isTableAction, redrawSurprises, screen, settle, tableAction } from '../../../kit/table'
 import { hasCard } from './cards'
-import { availableActions } from './available'
+import { availableActions, seenBy } from './available'
 import { actionShape } from './schema'
 import { mayCall, pauseWaitingOn } from './predicates'
 import { SEAT_COUNTS, TRADITIONAL, resolveRules } from './rules'
 import * as round from './round'
 import { type Seat, allSeats } from './seats'
-import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type RejectReason, type TrickPause } from './types'
-import { viewFor } from './view'
+import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type Phase, type RejectReason, type RoundPlay, type TrickPause } from './types'
 
 export function createGame(): Game {
   return {
@@ -36,9 +34,38 @@ export function createGame(): Game {
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
   const screened = screen(game, actor, action, actionShape)
   if ('rejected' in screened) return screened
-  const draft = copy(game)
+  const draft = copyGame(game)
   const result = run(draft, actor, screened.action, ctx)
   return 'rejected' in result ? result : { game: draft, events: result.events }
+}
+
+/**
+ * A copy of `game` for `step` to change: every object and array that `step` changes in place is new,
+ * and the rest is shared with `game`, since the engine never changes it once made: the rules, cards, the
+ * plays and tricks, claims and summaries. A copy of every card and play cost more than the step.
+ */
+function copyGame(game: Game): Game {
+  return { ...game, seats: game.seats.map((s) => ({ ...s })), balls: [game.balls[0], game.balls[1]], phase: copyPhase(game.phase) }
+}
+
+function copyPhase(phase: Phase): Phase {
+  switch (phase.kind) {
+    case 'calling':
+    case 'thuneeWindow':
+      return { ...phase, hands: phase.hands.map((h) => [...h]), stock: [...phase.stock], passed: [...phase.passed] }
+    case 'trumpSelection':
+      return { ...phase, hands: phase.hands.map((h) => [...h]), stock: [...phase.stock] }
+    case 'playing':
+    case 'trickPause':
+      return { ...phase, play: copyPlay(phase.play) }
+    default:
+      return { ...phase }
+  }
+}
+
+function copyPlay(play: RoundPlay): RoundPlay {
+  const { hands, stock, tricks, current, jodhiClaims } = play
+  return { ...play, hands: hands.map((h) => [...h]), stock: [...stock], tricks: [...tricks], current: [...current], jodhiClaims: [...jodhiClaims] }
 }
 
 /**
@@ -152,7 +179,7 @@ function dispatch(game: Game, actor: Actor, action: Action, ctx: Ctx, events: Ga
 }
 
 function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: GameEvent[]): RejectReason | null {
-  const can = availableActions(viewFor(game, seat))
+  const can = availableActions(seenBy(game, seat))
   const phase = game.phase
 
   switch (action.type) {

@@ -1,7 +1,11 @@
 import { isAiControlled } from '../../../kit/table'
 import { seatsToAct, untimedSeats } from './apply'
-import { type Card, cardId } from './cards'
+import { type Card, RANKS, SUITS } from './cards'
 import type { Game, RoundPlay } from './types'
+
+/** A card's own bit, so that cards make a number: every card of the deck once is `WHOLE_DECK`. */
+const bit = (c: Card) => 1 << (SUITS.indexOf(c.suit) * RANKS.length + RANKS.indexOf(c.rank))
+const WHOLE_DECK = 2 ** 24 - 1
 
 /** Throws if the game is in a state the engine should never produce. */
 export function checkInvariants(game: Game): void {
@@ -15,17 +19,26 @@ export function checkInvariants(game: Game): void {
   if (game.dealer < 0 || game.dealer >= n) fail(`dealer ${game.dealer}`)
   if (game.balls.some((b) => b < 0 || !Number.isInteger(b))) fail(`balls ${game.balls}`)
 
-  const allCards = (cards: Card[]) => {
-    const ids = new Set(cards.map(cardId))
-    if (cards.length !== 24 || ids.size !== 24) fail(`${cards.length} cards, ${ids.size} unique`)
+  /** Every card of the deck once, among `piles` and the cards played to `tricks`. */
+  const allCards = (piles: readonly (readonly Card[])[], tricks: readonly (readonly { card: Card }[])[] = []) => {
+    let count = 0
+    let seen = 0
+    for (const pile of piles) {
+      for (const c of pile) {
+        count++
+        seen |= bit(c)
+      }
+    }
+    for (const plays of tricks) {
+      for (const p of plays) {
+        count++
+        seen |= bit(p.card)
+      }
+    }
+    if (count !== 24 || seen !== WHOLE_DECK) fail(`${count} cards, not each of the deck once`)
   }
   const checkPlay = (play: RoundPlay) => {
-    allCards([
-      ...play.hands.flat(),
-      ...play.stock,
-      ...play.tricks.flatMap((t) => t.plays.map((p) => p.card)),
-      ...play.current.map((p) => p.card),
-    ])
+    allCards([...play.hands, play.stock], [...play.tricks.map((t) => t.plays), play.current])
     const tricksThisHalf = play.tricks.filter((t) => t.half === play.half).length
     play.hands.forEach((hand, seat) => {
       const played = play.current.some((p) => p.seat === seat) ? 1 : 0
@@ -43,11 +56,11 @@ export function checkInvariants(game: Game): void {
   switch (phase.kind) {
     case 'calling':
     case 'trumpSelection':
-      allCards([...phase.hands.flat(), ...phase.stock])
+      allCards([...phase.hands, phase.stock])
       if (phase.hands.some((h) => h.length !== 4)) fail('hands are not four cards')
       break
     case 'thuneeWindow':
-      allCards([...phase.hands.flat(), ...phase.stock])
+      allCards([...phase.hands, phase.stock])
       if (phase.hands.some((h) => h.length !== 6)) fail('hands are not six cards')
       break
     case 'playing':
