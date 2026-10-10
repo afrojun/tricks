@@ -64,6 +64,20 @@ export const TOKEN_PARAM = 'token'
 export const MIN_TOKEN_LENGTH = 16
 export const MAX_TOKEN_LENGTH = 64
 
+/**
+ * The connection query parameter asking a development room to run its clock this many times faster than real
+ * time, for the browser scripts (`tricks-pace` in the page's storage). A deployed room ignores it.
+ */
+export const PACE_PARAM = 'pace'
+/** The fastest a room or a practice table runs. */
+export const MAX_PACE = 20
+
+/** A pace read from text: a number from 1 to `MAX_PACE`, or 1 for anything else. */
+export function paceOf(text: string | null): number {
+  const pace = Number(text)
+  return Number.isFinite(pace) && pace >= 1 ? Math.min(pace, MAX_PACE) : 1
+}
+
 /** Heartbeat frames, sent as bare strings outside the JSON protocol. */
 export const PING = 'ping'
 export const PONG = 'pong'

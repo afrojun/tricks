@@ -2,7 +2,7 @@
  * Plays one practice round in a browser at phone size by always taking the coach's hint, through to
  * the coach's review. Needs only `pnpm dev`. Usage: pnpm tsx scripts/e2e-practice.ts [theme] [shots-dir]
  */
-import { launch } from './browser'
+import { launch, paced } from './browser'
 
 const theme = process.argv[2] ?? 'green'
 const shots = process.argv[3] ?? '/tmp/shots'
@@ -14,6 +14,7 @@ await context.addInitScript((t) => {
   localStorage.setItem('tricks-theme', t)
   localStorage.setItem('tricks-muted', '1')
 }, theme)
+await paced(context)
 const page = await context.newPage()
 const problems: string[] = []
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))

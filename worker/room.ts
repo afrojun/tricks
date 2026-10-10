@@ -1,6 +1,6 @@
 import { type Connection, type ConnectionContext, Server, type WSMessage } from 'partyserver'
 import { PING, PONG } from '../src/protocol'
-import { type ConnState, TableRoom } from '../src/room/room'
+import { type ConnState, TableRoom, defaultDeps } from '../src/room/room'
 
 /**
  * A room as a Durable Object: adapts partyserver to `TableRoom` and holds no game logic. With
@@ -28,7 +28,7 @@ export class Room extends Server<Env> {
         deleteAll: () => ctx.storage.deleteAll(),
       },
       connections: () => this.getConnections<ConnState>(),
-    })
+    }, { ...defaultDeps, paced: import.meta.env.DEV })
   }
 
   onStart() {

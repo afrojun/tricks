@@ -4,7 +4,7 @@
  * between them. Needs `pnpm dev`.
  */
 import type { Locator, Page } from 'playwright-core'
-import { launch } from './browser'
+import { launch, paced } from './browser'
 
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 const browser = await launch()
@@ -13,6 +13,7 @@ const problems: string[] = []
 async function open(name: string) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
   await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
+  await paced(context)
   const page = await context.newPage()
   page.on('pageerror', (e) => problems.push(`${name} pageerror: ${e.message}`))
   return { context, page }

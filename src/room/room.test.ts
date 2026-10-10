@@ -11,10 +11,12 @@ import { type View as HeartsView, availableActions as heartsAvailable, createGam
 import { GameStore } from '../client/store'
 import {
   type ServerMessage as GenericServerMessage,
+  MAX_PACE,
   REPLACED_CLOSE_CODE,
   ROOM_FULL_CLOSE_CODE,
   TOO_MANY_MESSAGES_CLOSE_CODE,
   UNKNOWN_ROOM_CLOSE_CODE,
+  paceOf,
   roomName,
 } from '../protocol'
 import {
@@ -70,6 +72,8 @@ class World {
   now = 1_000_000
   conns: FakeConn[] = []
   writes: string[] = []
+  /** Whether connections may set the room's pace, as on the development server. */
+  paced = false
   server!: TableRoom
   private nextId = 0
 
@@ -96,7 +100,7 @@ class World {
 
   /** Builds a new server instance over the same storage and the same open sockets, as after hibernation. */
   async wake() {
-    this.server = new TableRoom(this.host, { now: () => this.now, rng: seededRng(42) })
+    this.server = new TableRoom(this.host, { now: () => this.now, rng: seededRng(42), paced: this.paced })
     await this.server.onStart()
     return this
   }
@@ -106,7 +110,7 @@ class World {
     this.conns = this.conns.filter((c) => c !== conn)
   }
 
-  async connect(token: string, ip: string | null = null) {
+  async connect(token: string, ip: string | null = null, query = '') {
     const conn = new FakeConn(`c${this.nextId++}`, token)
     const original = conn.send.bind(conn)
     conn.send = (raw: string) => {
@@ -120,7 +124,7 @@ class World {
       this.conns = this.conns.filter((c) => c !== conn)
     }
     this.conns.push(conn)
-    await this.server.onConnect(conn, `https://x/parties/room/${this.host.name}?token=${token}`, ip)
+    await this.server.onConnect(conn, `https://x/parties/room/${this.host.name}?token=${token}${query}`, ip)
     return conn
   }
 
@@ -733,6 +737,65 @@ describe('AI seats', () => {
     expect(back.sync.seat).toBe(2)
     await w.send(back, { type: 'reclaimSeat' })
     expect(back.view.seats[2]).toMatchObject({ standIn: false, connected: true })
+  })
+})
+
+describe('pace', () => {
+  /** One person and three computers, the person asking for `query` as they connect. */
+  async function computersGame(paced: boolean, query: string) {
+    const w = new World()
+    w.paced = paced
+    await w.boot()
+    const me = await w.connect(TOKENS[0], null, query)
+    await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
+    for (const seat of [1, 2, 3]) await w.send(me, { type: 'addAi', seat })
+    await w.send(me, { type: 'start' })
+    return { w, me }
+  }
+  const saved = (w: World) => w.data.get('state') as { game: TableState; clock?: { rate: number } }
+  const due = (w: World) => gameOf(w.host.name)!.nextDeadline(saved(w).game)!
+
+  test('a development room asked for a pace runs its clock that much faster, through a wake too', async () => {
+    const { w, me } = await computersGame(true, '&pace=4')
+    const start = w.now
+    // The clock started with the table's time at real time, and nothing has moved real time since.
+    expect(w.alarm).toBe(Math.max(Math.ceil(start + (due(w) - start) / 4), w.now + 1))
+    const version = me.sync.version
+    await w.fireAlarm()
+    expect(me.sync.version).toBeGreaterThan(version) // a computer acted a quarter of its delay in
+    expect(me.sync.now).toBe(start + (w.now - start) * 4)
+
+    await w.wake()
+    w.now += 1000
+    const watcher = await w.connect('w'.repeat(20))
+    expect(watcher.sync.now).toBe(start + (w.now - start) * 4)
+    expect(me.inbox.filter((m) => m.type === 'error' || m.type === 'rejected')).toEqual([])
+  })
+
+  test('a room saved at a pace runs on at real time where pace is not allowed, from the time its table had got to', async () => {
+    const { w } = await computersGame(true, '&pace=4')
+    const start = w.now
+    await w.fireAlarm()
+    const reached = start + (w.now - start) * 4
+    w.paced = false
+    await w.wake()
+    expect(saved(w).clock).toMatchObject({ rate: 1 })
+    w.now += 1000
+    const watcher = await w.connect('w'.repeat(20), null, '&pace=4')
+    expect(watcher.sync.now).toBe(reached + 1000)
+    expect(w.alarm === null || w.alarm >= w.now).toBe(true)
+  })
+
+  test('a deployed room keeps real time, whatever pace a connection asks for', async () => {
+    const { w, me } = await computersGame(false, '&pace=4')
+    expect(saved(w).clock).toBeUndefined()
+    expect(w.alarm).toBe(Math.max(due(w), w.now + 1))
+    await w.fireAlarm()
+    expect(me.sync.now).toBe(w.now)
+  })
+
+  test('a pace is a number from 1 to 20, and anything else is real time', () => {
+    expect([paceOf('4'), paceOf('2.5'), paceOf('100'), paceOf('0.5'), paceOf('fast'), paceOf(''), paceOf(null)]).toEqual([4, 2.5, MAX_PACE, 1, 1, 1, 1])
   })
 })
 

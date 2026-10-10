@@ -3,7 +3,7 @@
  * Thunee, one human against three computers, with a page refresh mid-hand.
  * Needs `pnpm dev` running. Usage: pnpm tsx scripts/e2e.ts [theme] [shots-dir]
  */
-import { launch } from './browser'
+import { launch, paced } from './browser'
 import { addComputers } from './lobby'
 
 const theme = process.argv[2] ?? 'green'
@@ -23,6 +23,7 @@ await context.addInitScript((t) => {
   localStorage.setItem('tricks-theme', t)
   localStorage.setItem('tricks-muted', '1')
 }, theme)
+await paced(context)
 const page = await context.newPage()
 const problems: string[] = []
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))

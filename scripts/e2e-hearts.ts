@@ -12,7 +12,7 @@
  * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
 import type { Browser, Page } from 'playwright-core'
-import { launch } from './browser'
+import { launch, paced } from './browser'
 import { TOPICS } from '../src/games/hearts/coach/topics'
 import { addComputers } from './lobby'
 
@@ -24,6 +24,7 @@ const problems: string[] = []
 async function open(name: string) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
   await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
+  await paced(context)
   const page = await context.newPage()
   watch(page, name)
   return page

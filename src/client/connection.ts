@@ -1,7 +1,8 @@
 import PartySocket from 'partysocket'
 import type { TableAction, TableView } from '../kit/table'
-import { PING, PONG, REPLACED_CLOSE_CODE, ROOM_FULL_CLOSE_CODE, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
+import { PACE_PARAM, PING, PONG, REPLACED_CLOSE_CODE, ROOM_FULL_CLOSE_CODE, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
 import { deviceToken } from './identity'
+import { pace } from './pace'
 import type { Say } from '../kit/talk'
 import { Playback } from './playback'
 import { type ConnectionStatus, GameStore } from './store'
@@ -37,6 +38,7 @@ export interface SessionGame<E> {
 export function openSession<V extends TableView, A, E>(game: SessionGame<E>, code: string): Session<V, A, E> {
   const store = new GameStore<V, E>()
   const talk = new TalkStore()
+  const speed = pace()
   const playback = new Playback<V, E>(
     (message, receivedAt) => {
       if (message.type === 'said') return talk.receive(message)
@@ -48,7 +50,7 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
         if (message.seat !== null && message.view.seats[message.seat].standIn) post({ type: 'reclaimSeat' } satisfies TableAction)
       }
     },
-    (event) => game.dwell(event),
+    (event) => game.dwell(event) / speed,
   )
   // The rooms are served by the same Worker as the page, so they share its origin.
   const socket = new PartySocket({
@@ -56,7 +58,7 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     protocol: location.protocol === 'https:' ? 'wss' : 'ws',
     party: 'room',
     room: roomName(game.id, code),
-    query: { [TOKEN_PARAM]: deviceToken() },
+    query: { [TOKEN_PARAM]: deviceToken(), ...(speed > 1 && { [PACE_PARAM]: String(speed) }) },
     shouldReconnectOnClose: (e) => HELD[e.code] === undefined,
   })
   /** Any game's actions include the table's, such as taking a seat back. */

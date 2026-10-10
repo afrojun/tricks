@@ -4,6 +4,7 @@
  * Any game with a `GamePractice` can be practised; what is said comes from its coach.
  */
 import type { Session } from '../client/connection'
+import { pace } from '../client/pace'
 import { Playback } from '../client/playback'
 import { GameStore } from '../client/store'
 import { TalkStore } from '../client/talk'
@@ -150,12 +151,13 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
   const talk = new TalkStore()
   /** Coach snapshots waiting for the table sync they describe, by version. */
   const pending = new Map<number, Snapshot<A, N, D>>()
+  const speed = pace()
   const playback = new Playback<V, E>((message, receivedAt) => {
     store.receive(message, receivedAt)
     if (message.type !== 'sync') return
     show(message.version)
     message.said?.forEach((said) => talk.receive(said))
-  }, dwell)
+  }, (event) => dwell(event) / speed)
   let version = 0
   /** Event numbers keep rising across restarts, so the store never mistakes new events for old. */
   let eventN = 0
@@ -304,7 +306,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
       if (closed) return
       const advanced = game.advance(ms, sheetOpen())
       publish(advanced.events, [], advanced.said)
-    }, ms)
+    }, ms / speed)
   }
 
   const apply = (action: A) => {

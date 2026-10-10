@@ -14,6 +14,7 @@ import { HONEST } from '../src/kit/mind'
 import { type Action, type GameEvent, type View, availableActions } from '../src/games/thunee/engine'
 import type { Said, Say } from '../src/kit/talk'
 import { type ServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../src/protocol'
+import { PACE } from './browser'
 
 const app = new URL(process.env.APP_URL ?? 'http://localhost:5173')
 const host = app.host
@@ -36,7 +37,7 @@ class Player {
     this.connect()
   }
   connect() {
-    this.socket = new PartySocket({ host, protocol, party: 'room', room, query: { token: this.token } })
+    this.socket = new PartySocket({ host, protocol, party: 'room', room, query: { token: this.token, pace: PACE } })
     this.socket.addEventListener('message', (e) => {
       const msg = JSON.parse(e.data as string) as ServerMessage<View, GameEvent>
       if (msg.type === 'sync') {

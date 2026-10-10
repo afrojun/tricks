@@ -8,3 +8,8 @@ declare namespace Cloudflare {
 }
 
 interface Env extends Cloudflare.Env {}
+
+/** What Vite tells the Worker's code of how it was built: `DEV` under `pnpm dev`, false in a build. */
+interface ImportMeta {
+  readonly env: { readonly DEV: boolean }
+}

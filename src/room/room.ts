@@ -9,6 +9,7 @@ import {
   type ServerMessage,
   MAX_TOKEN_LENGTH,
   MIN_TOKEN_LENGTH,
+  PACE_PARAM,
   PING,
   PONG,
   REPLACED_CLOSE_CODE,
@@ -17,6 +18,7 @@ import {
   TOO_MANY_MESSAGES_CLOSE_CODE,
   UNKNOWN_ROOM_CLOSE_CODE,
   clientMessageSchema,
+  paceOf,
 } from '../protocol'
 
 /** What a socket keeps through the host sleeping: its device token, the address it came from, and when it opened. */
@@ -64,14 +66,21 @@ interface Saved {
   eventCount: number
   /** When the last seated human disconnected; null while one is present or the room is unused. */
   emptySince: number | null
+  /**
+   * A development room's clock, `rate` times faster than real time since it was asked to run so (`PACE_PARAM`):
+   * the table's time was `table` at real time `real`. Without it the table's time is real time.
+   */
+  clock?: { rate: number; real: number; table: number }
 }
 
 export interface Deps {
   now: () => number
   rng: () => number
+  /** Whether a connection may set the room's pace, as only the development server's rooms allow. */
+  paced?: boolean
 }
 
-const defaultDeps: Deps = {
+export const defaultDeps: Deps = {
   now: () => Date.now(),
   rng: () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32,
 }
@@ -166,6 +175,13 @@ class Table {
     const stored = await this.host.storage.get<Saved>(STORAGE_KEY)
     if (stored && stored.game?.formatVersion === this.module.formatVersion) {
       this.saved = stored
+      // A room saved at a pace under `pnpm dev` and opened where pace is not allowed (`pnpm preview` shares its
+      // storage) runs on at real time, its clock carrying on from where the table's time had got to.
+      const clock = stored.clock
+      if (!this.deps.paced && clock && clock.rate !== 1) {
+        this.saved = { ...stored, clock: { rate: 1, real: this.deps.now(), table: this.now() } }
+        await this.host.storage.put(STORAGE_KEY, this.saved)
+      }
       await this.matchConnections()
     } else {
       // A room that has saved nothing may still hold what its host keeps (partyserver keeps its
@@ -191,7 +207,7 @@ class Table {
       seat.connected = present.has(i)
       changed = true
     })
-    const since = emptySince(this.saved.game, this.saved.emptySince ?? null, this.deps.now())
+    const since = emptySince(this.saved.game, this.saved.emptySince ?? null, this.now())
     if (!changed && since === this.saved.emptySince) return
     this.saved = { ...this.saved, emptySince: since, version: this.saved.version + 1 }
     await this.host.storage.put(STORAGE_KEY, this.saved)
@@ -199,11 +215,13 @@ class Table {
   }
 
   onConnect(conn: RoomConnection, url: string, ip: string | null): Promise<void> {
-    const given = new URL(url).searchParams.get(TOKEN_PARAM) ?? ''
+    const query = new URL(url).searchParams
+    const given = query.get(TOKEN_PARAM) ?? ''
     const valid = given.length >= MIN_TOKEN_LENGTH && given.length <= MAX_TOKEN_LENGTH
     // A connection without a usable token is an anonymous spectator.
     conn.setState({ token: valid ? given : `anon-${conn.id}`, ip, at: this.deps.now() })
     return this.enqueue(async () => {
+      if (this.deps.paced) await this.pace(query.get(PACE_PARAM))
       this.admit(conn)
       this.send(conn, []) // the current view, with no events to replay
       const seat = this.seatOf(conn)
@@ -331,7 +349,7 @@ class Table {
   /** Applies one action: validate, check, save, then tell everyone. Returns whether it was applied. */
   private async act(actor: Actor, action: unknown, sender?: RoomConnection): Promise<boolean> {
     const before = this.saved.game
-    const result = this.module.apply(before, actor, action, { now: this.deps.now(), rng: this.deps.rng })
+    const result = this.module.apply(before, actor, action, { now: this.now(), rng: this.deps.rng })
     if ('rejected' in result) {
       if (sender) this.sendTo(sender, { type: 'rejected', reason: result.rejected })
       return false
@@ -347,11 +365,12 @@ class Table {
 
     const events: NumberedEvent<Event>[] = result.events.map((e, i) => ({ ...e, n: this.saved.eventCount + i + 1 }))
     this.saved = {
+      ...this.saved,
       game: result.game,
       tokens,
       version: this.saved.version + 1,
       eventCount: this.saved.eventCount + events.length,
-      emptySince: emptySince(result.game, this.saved.emptySince, this.deps.now()),
+      emptySince: emptySince(result.game, this.saved.emptySince, this.now()),
     }
     await this.host.storage.put(STORAGE_KEY, this.saved)
     await this.armAlarm()
@@ -379,7 +398,7 @@ class Table {
   private async drive(): Promise<void> {
     for (let guard = 0; guard < 100; guard++) {
       const game = this.saved.game
-      const now = this.deps.now()
+      const now = this.now()
       if (this.saved.emptySince !== null && now >= this.saved.emptySince + ABANDONED_AFTER_MS) {
         await this.reset()
         break
@@ -405,7 +424,8 @@ class Table {
       return
     }
     // The clock runs on, so the room is cleared once the watchers go too.
-    this.saved = { ...fresh(this.module), version: this.saved.version + 1, eventCount: this.saved.eventCount, emptySince: this.deps.now() }
+    const { version, eventCount, clock } = this.saved
+    this.saved = { ...fresh(this.module), version: version + 1, eventCount, emptySince: this.now(), ...(clock && { clock }) }
     await this.host.storage.put(STORAGE_KEY, this.saved)
     for (const conn of this.host.connections()) this.send(conn, [])
   }
@@ -415,7 +435,28 @@ class Table {
     const times = [this.module.nextDeadline(this.saved.game), expiry].filter((t): t is number => t !== null)
     const deadline = times.length > 0 ? Math.min(...times) : null
     if (deadline === null) await this.host.storage.deleteAlarm()
-    else await this.host.storage.setAlarm(Math.max(deadline, this.deps.now() + 1))
+    else await this.host.storage.setAlarm(Math.max(Math.ceil(this.realAt(deadline)), this.deps.now() + 1))
+  }
+
+  /** The table's time: real time, unless a development room runs its clock faster. */
+  private now(): number {
+    const clock = this.saved.clock
+    return clock ? clock.table + (this.deps.now() - clock.real) * clock.rate : this.deps.now()
+  }
+
+  /** The real time at which the table's clock reaches `at`. */
+  private realAt(at: number): number {
+    const clock = this.saved.clock
+    return clock ? clock.real + (at - clock.table) / clock.rate : at
+  }
+
+  /** Runs a development room's clock at the pace a connection asks for, carrying on from the table's time now. */
+  private async pace(asked: string | null): Promise<void> {
+    const rate = paceOf(asked)
+    if (asked === null || rate === (this.saved.clock?.rate ?? 1)) return
+    this.saved = { ...this.saved, clock: { rate, real: this.deps.now(), table: this.now() } }
+    await this.host.storage.put(STORAGE_KEY, this.saved)
+    await this.armAlarm()
   }
 
   private parse(message: string | ArrayBuffer | ArrayBufferView): ClientMessage<unknown> | null {
@@ -447,7 +488,7 @@ class Table {
       return {
         type: 'sync',
         version: this.saved.version,
-        now: this.deps.now(),
+        now: this.now(),
         seat,
         view: this.module.viewFor(this.saved.game, seat),
         events,
