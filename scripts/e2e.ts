@@ -3,14 +3,14 @@
  * Thunee, one human against three computers, with a page refresh mid-hand.
  * Needs `pnpm dev` running. Usage: pnpm tsx scripts/e2e.ts [theme] [shots-dir]
  */
-import { chromium } from 'playwright-core'
+import { launch } from './browser'
 import { addComputers } from './lobby'
 
 const theme = process.argv[2] ?? 'green'
 const shots = process.argv[3] ?? '/tmp/shots'
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
+const browser = await launch()
 // Reduced motion, as every browser script asks, unless MOTION=1.
 const reduced = process.env.MOTION !== '1'
 const context = await browser.newContext({

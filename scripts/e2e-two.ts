@@ -3,10 +3,11 @@
  * its connection mid-hand and comes back. On the way, a line, a throw and a mute
  * between them. Needs `pnpm dev`.
  */
-import { type Locator, type Page, chromium } from 'playwright-core'
+import type { Locator, Page } from 'playwright-core'
+import { launch } from './browser'
 
 const base = process.env.APP_URL ?? 'http://localhost:5173'
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
+const browser = await launch()
 const problems: string[] = []
 
 async function open(name: string) {

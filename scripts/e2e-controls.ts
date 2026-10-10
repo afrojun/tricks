@@ -5,12 +5,13 @@
  * "Look", and computers added in one tap each, one changed to Sharp on its row. Last, share links.
  * Needs `pnpm dev`.
  */
-import { type Locator, chromium } from 'playwright-core'
+import type { Locator } from 'playwright-core'
+import { launch } from './browser'
 import { encodeShare } from '../src/presets/share'
 import { addComputers } from './lobby'
 
 const base = process.env.APP_URL ?? 'http://localhost:5173'
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
+const browser = await launch()
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
 await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
 const page = await context.newPage()

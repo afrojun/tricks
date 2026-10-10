@@ -11,13 +11,14 @@
  * a new practice game dropping the old game's picks, and the coach's warning on a second tap.
  * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
-import { type Browser, type Page, chromium } from 'playwright-core'
+import type { Browser, Page } from 'playwright-core'
+import { launch } from './browser'
 import { TOPICS } from '../src/games/hearts/coach/topics'
 import { addComputers } from './lobby'
 
 const shots = process.argv[2] ?? '/tmp/shots'
 const base = process.env.APP_URL ?? 'http://localhost:5173'
-const browser: Browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
+const browser: Browser = await launch()
 const problems: string[] = []
 
 async function open(name: string) {

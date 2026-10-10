@@ -2,13 +2,13 @@
  * Plays one practice round in a browser at phone size by always taking the coach's hint, through to
  * the coach's review. Needs only `pnpm dev`. Usage: pnpm tsx scripts/e2e-practice.ts [theme] [shots-dir]
  */
-import { chromium } from 'playwright-core'
+import { launch } from './browser'
 
 const theme = process.argv[2] ?? 'green'
 const shots = process.argv[3] ?? '/tmp/shots'
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
+const browser = await launch()
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
 await context.addInitScript((t) => {
   localStorage.setItem('tricks-theme', t)
