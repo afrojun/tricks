@@ -15,7 +15,7 @@ describe('round moments', () => {
     expect(roundMoments(view, paid([-100, 0, 0]))).toMatchObject([{ title: 'Ten bags', detail: 'You lose 100' }])
     expect(roundMoments(view, paid([-200, -100, 0]))).toMatchObject([
       { title: 'Ten bags', detail: 'P1 loses 100' },
-      { title: '20 bags', detail: 'You lose 200' },
+      { title: 'Ten bags twice', detail: 'You lose 200' },
     ])
     expect(roundMoments(view, paid([0, -100, -100]))).toMatchObject([{ title: 'Ten bags', detail: 'P1 and P2 lose 100' }])
   })

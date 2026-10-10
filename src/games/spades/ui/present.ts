@@ -31,7 +31,7 @@ export function roundMoments(view: View, summary: RoundSummary): Moment[] {
   const paid = [...new Set(summary.sides.map((s) => s.bagPenalty).filter((p) => p < 0))].sort((a, b) => b - a)
   for (const penalty of paid) {
     const who = sidesSubject(view, summary.sides.flatMap((s, side) => (s.bagPenalty === penalty ? [side] : [])))
-    out.push({ title: penalty < -100 ? `${-penalty / 10} bags` : 'Ten bags', detail: `${who.name} ${who.many ? 'lose' : 'loses'} ${-penalty}`, tone: 'danger', ms: BAGS_MS })
+    out.push({ title: penalty === -100 ? 'Ten bags' : penalty === -200 ? 'Ten bags twice' : `Ten bags ${-penalty / 100} times`, detail: `${who.name} ${who.many ? 'lose' : 'loses'} ${-penalty}`, tone: 'danger', ms: BAGS_MS })
   }
   return out
 }
@@ -100,7 +100,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
     }
     case 'roundScored': {
       const moments = roundMoments(view, event.summary)
-      if (moments.some((m) => m.title === 'Ten bags')) playSound('bags', moments[0].title === 'Set' ? SET_MS : 0)
+      if (event.summary.sides.some((s) => s.bagPenalty < 0)) playSound('bags', moments[0].title === 'Set' ? SET_MS : 0)
       if (moments[0]?.title === 'Set') playSound('caught')
       return moments.length > 0 ? { moments } : {}
     }

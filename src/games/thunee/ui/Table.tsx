@@ -286,7 +286,10 @@ function RoundFacts({ view }: { view: View }) {
   const trump = (suit: Suit) => facts.push({ text: <Trump suit={suit} />, on: true })
 
   if (playing?.thunee) {
-    say(`Thunee: ${playing.thunee.caller === view.seat ? 'you' : seatName(view, playing.thunee.caller)} must win every trick`)
+    const caller = playing.thunee.caller
+    // Under "Either partner" the caller's side must win every trick, not the caller alone.
+    const who = view.rules.thuneeWinner === 'team' && view.playerCount === 4 ? (view.seat !== null && teamOf(caller) === teamOf(view.seat) ? 'your side' : `${seatName(view, caller)}’s side`) : caller === view.seat ? 'you' : seatName(view, caller)
+    say(`Thunee: ${who} must win every trick`)
     if (playing.trump) trump(playing.trump)
   } else if (playing) {
     if (playing.trump) trump(playing.trump)
