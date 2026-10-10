@@ -4,6 +4,7 @@ import type { Note } from '../practice/contract'
 import { CoachContext } from './coach/context'
 import type { ShellView } from './contract'
 import { ErrorBoundary, Screen } from './GameScreen'
+import { replaceTableAddress } from './Leave'
 import { drillPath, drillQuery, gamePath, practicePath } from './routes'
 import { SessionContext, navigate, useGameClient } from './session'
 
@@ -24,7 +25,7 @@ export function PracticeScreen() {
     const address = () => {
       const drill = opened.coach.getState().drill
       const path = drill ? drillPath(game.id, drill.id) : practicePath(game.id)
-      if (location.pathname + location.search !== path) history.replaceState(null, '', path)
+      if (location.pathname + location.search !== path) replaceTableAddress(path)
     }
     address()
     const stop = opened.coach.subscribe(address)
