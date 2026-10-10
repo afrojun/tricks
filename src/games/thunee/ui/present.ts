@@ -4,8 +4,8 @@ import { type Sound, playSound } from '../../../ui/sound'
 import { SUIT_NAME, seatName } from '../../../ui/text'
 import { teamName } from './text'
 
-export const CHALLENGE_BEAT_MS = 1000
-export const VERDICT_BEAT_MS = 1300
+export const CHALLENGE_BEAT_MS = 1800
+export const VERDICT_BEAT_MS = 2600
 /** The balls a round won fill one at a time on the score track, this far apart. */
 export const BALL_STAGGER_MS = 280
 /** A breath between the last ball landing and the win. */
@@ -26,7 +26,7 @@ const BROKE: Record<string, string> = { renege: 'did not follow suit', undercut:
 export function present(event: GameEvent, view: View, seat: Seat | null): Presentation {
   const name = (s: Seat) => (s === seat ? 'You' : seatName(view, s))
   const verb = (s: Seat, you: string, they: string) => (s === seat ? you : they)
-  const call = (sound: Sound, s: Seat, what: string, detail?: string, ms = 1500): Presentation => {
+  const call = (sound: Sound, s: Seat, what: string, detail?: string, ms = 2000): Presentation => {
     playSound(sound)
     return { moments: [{ title: what, detail: detail ?? `${name(s)} ${verb(s, 'call', 'calls')} it`, tone: 'call', ms }] }
   }
@@ -51,7 +51,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       playSound(seat !== null && teamOf(event.seat) === teamOf(seat) ? 'sweep' : 'sweepTheirs')
       return {}
     case 'thuneeCalled':
-      return call('big', event.seat, 'Thunee', undefined, 1700)
+      return call('big', event.seat, 'Thunee', undefined, 2200)
     case 'doubleCalled':
       return call('big', event.seat, 'Double')
     case 'khanaakCalled':
