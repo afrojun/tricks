@@ -30,7 +30,9 @@ export interface PlayRecord<C> {
 
 /** The rules whose excuses `handBefore` shows to be false. */
 export function brokenRules<C>(handBefore: readonly C[], excuses: readonly Excuse<C>[]): string[] {
-  return excuses.filter((e) => handBefore.some((c) => e.without(c))).map((e) => e.rule)
+  const broke: string[] = []
+  for (const e of excuses) if (handBefore.some(e.without)) broke.push(e.rule)
+  return broke
 }
 
 /** The cards of `hand` whose excuses all hold. */

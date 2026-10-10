@@ -1,11 +1,10 @@
 import { hasCard, sameCard } from '../../../kit/cards'
-import { copy } from '../../../kit/copy'
 import { type Actor, type Ctx, type Seat, againComplete, allSeats, checkLobbyHost, emptySeats, isTableAction, redrawSurprises, screen, settle, tableAction } from '../../../kit/table'
 import { availableActions, seenBy } from './available'
 import { PASS_SIZE, PLAYERS, SEAT_COUNTS, STANDARD, resolveRules } from './rules'
 import * as round from './round'
 import { actionShape } from './schema'
-import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type RejectReason } from './types'
+import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type Phase, type RejectReason, type RoundPlay } from './types'
 
 export function createGame(): Game {
   return {
@@ -30,26 +29,59 @@ export function createGame(): Game {
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
   const screened = screen(game, actor, action, actionShape)
   if ('rejected' in screened) return screened
-  const draft = copy(game)
-  const result = run(draft, actor, screened.action, ctx)
+  const draft = copyGame(game)
+  const result = stepScreened(draft, actor, screened.action, ctx)
   return 'rejected' in result ? result : { game: draft, events: result.events }
+}
+
+/**
+ * A copy of `game` for `step` to change: every object and array that `step` changes in place is new, and the
+ * rest is shared with `game`, since the engine never changes it once made, only replaces it: the rules, the
+ * scores, cards, each hand, the plays and tricks, the cards passed, and summaries. A copy of every card and
+ * play cost more than the step.
+ */
+function copyGame(game: Game): Game {
+  return { ...game, seats: game.seats.map((s) => ({ ...s })), phase: copyPhase(game.phase) }
+}
+
+function copyPhase(phase: Phase): Phase {
+  switch (phase.kind) {
+    case 'passing':
+      return { ...phase, chosen: [...phase.chosen] }
+    case 'playing':
+    case 'trickPause':
+      return { ...phase, play: copyPlay(phase.play) }
+    case 'gameOver':
+      return { ...phase }
+    default:
+      // A lobby and a round's result are replaced, never changed.
+      return phase
+  }
+}
+
+function copyPlay(play: RoundPlay): RoundPlay {
+  return { ...play, hands: [...play.hands], tricks: [...play.tricks], current: [...play.current] }
 }
 
 /**
  * The in-place half of `apply`: changes `draft` and returns the events. On a
  * rejection the draft is left as it was, since every action is checked before
  * anything is changed. The caller must own the draft: not frozen, and not
- * shared with views still in use. For imagined games, such as the search
- * player's; everything else goes through `apply`.
+ * shared with views still in use. It is the module's `step`, for imagined
+ * games. The search player, which makes its actions from the game's own
+ * cards, uses `stepScreened`; everything else goes through `apply`.
  */
 export function step(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
   // Checked before any field is read: a client could send anything at all.
   const screened = screen(draft, actor, action, actionShape)
-  return 'rejected' in screened ? screened : run(draft, actor, screened.action, ctx)
+  return 'rejected' in screened ? screened : stepScreened(draft, actor, screened.action, ctx)
 }
 
-/** `step` for an action that has passed `screen`. */
-function run(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
+/**
+ * `step` for an action of a known good shape: one that has passed `screen`, or one the search player made
+ * from the game's own cards. It is checked against the rules as any other.
+ */
+export function stepScreened(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
   const kind = draft.phase.kind
   const events: GameEvent[] = []
   const rejected = dispatch(draft, actor, action, ctx, events)
@@ -78,8 +110,8 @@ export function seatsToAct(game: Game): Seat[] {
 export function nextDeadline(game: Game): number | null {
   const phase = game.phase
   const phaseDeadline = 'deadline' in phase ? phase.deadline : null
-  const times = [phaseDeadline, game.aiActAt].filter((t): t is number => t !== null)
-  return times.length > 0 ? Math.min(...times) : null
+  if (phaseDeadline === null || game.aiActAt === null) return phaseDeadline ?? game.aiActAt
+  return Math.min(phaseDeadline, game.aiActAt)
 }
 
 function dispatch(game: Game, actor: Actor, action: Action, ctx: Ctx, events: GameEvent[]): RejectReason | null {

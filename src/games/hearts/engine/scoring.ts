@@ -22,16 +22,20 @@ export function takenBySeat(tricks: Tricks, rules: Pick<HeartsRules, 'jackOfDiam
  */
 export function roundPoints(tricks: Tricks, rules: HeartsRules): { points: number[]; moon: Seat | null } {
   const penalty = allSeats(PLAYERS).map(() => 0)
-  for (const t of tricks) penalty[t.winner] += penaltyPoints(t.plays.map((p) => p.card))
-  const taken = takenBySeat(tricks, rules)
-  const jack = taken.map((points, seat) => points - penalty[seat])
+  const taken = allSeats(PLAYERS).map(() => 0)
+  for (const t of tricks) {
+    const cards = t.plays.map((p) => p.card)
+    penalty[t.winner] += penaltyPoints(cards)
+    taken[t.winner] += trickPoints(cards, rules)
+  }
   const shooter = penalty.findIndex((p) => p === MOON_POINTS)
   if (shooter === -1) return { points: taken, moon: null }
   const moon = (seat: Seat) => {
     if (rules.moon === 'othersAdd') return seat === shooter ? 0 : MOON_POINTS
     return seat === shooter ? -MOON_POINTS : 0
   }
-  return { points: allSeats(PLAYERS).map((seat) => moon(seat) + jack[seat]), moon: shooter }
+  // What a seat took beyond its penalty points is the jack of diamonds'.
+  return { points: allSeats(PLAYERS).map((seat) => moon(seat) + taken[seat] - penalty[seat]), moon: shooter }
 }
 
 /** Once any score reaches the end, the single lowest score wins; while the lowest is shared, play goes on. */

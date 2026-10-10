@@ -21,13 +21,16 @@ export function sameCard(a: Card, b: Card): boolean {
   return a.suit === b.suit && a.rank === b.rank
 }
 
+/** Whether `hand` holds `card`, by a plain loop: engines and computers ask it of every play. */
 export function hasCard(hand: readonly Card[], card: Card): boolean {
-  return hand.some((c) => sameCard(c, card))
+  for (const c of hand) if (c.suit === card.suit && c.rank === card.rank) return true
+  return false
 }
 
+/** A new hand without the first copy of `card`; the same cards when it holds none. */
 export function removeCard<C extends Card>(hand: readonly C[], card: Card): C[] {
   const i = hand.findIndex((c) => sameCard(c, card))
-  return i === -1 ? [...hand] : [...hand.slice(0, i), ...hand.slice(i + 1)]
+  return hand.filter((_, j) => j !== i)
 }
 
 export function cardId(card: Card): string {

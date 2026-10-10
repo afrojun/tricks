@@ -13,7 +13,8 @@ export interface TrickOrder<C> {
 export function trickWinner<C extends Card>(plays: readonly { seat: Seat; card: C }[], { trump, strength }: TrickOrder<C>): Seat {
   const led = plays[0].card.suit
   let best = plays[0]
-  for (const play of plays.slice(1)) {
+  for (let i = 1; i < plays.length; i++) {
+    const play = plays[i]
     const bestIsTrump = best.card.suit === trump
     const isTrump = play.card.suit === trump
     if (isTrump && !bestIsTrump) best = play

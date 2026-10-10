@@ -7,7 +7,7 @@
 import { brokenRules } from '../../../kit/integrity'
 import type { SearchGame, World } from '../../../kit/search/types'
 import { type Seat, allSeats, isAiControlled } from '../../../kit/table'
-import { nextDeadline, seatsToAct, step } from '../engine/apply'
+import { nextDeadline, seatsToAct, stepScreened } from '../engine/apply'
 import type { Card } from '../engine/cards'
 import { legalPlays, seenPlays } from '../engine/excuses'
 import { PASS_SIZE, PLAYERS, type PassDirection, passTarget } from '../engine/rules'
@@ -115,9 +115,12 @@ export function value(game: Game, seat: Seat): number {
   return -phase.summary.points[seat]
 }
 
-/** The parts of Hearts' `SearchGame` that work on an imagined game. */
+/**
+ * The parts of Hearts' `SearchGame` that work on an imagined game. Its actions are made from the game's own
+ * cards, so `step` skips the screen of their shape, but not the rules.
+ */
 export const imagined: Pick<SearchGame<Game, Action, View, Card>, 'step' | 'rebuild' | 'rollout' | 'value' | 'trickWinner' | 'seatsToAct' | 'nextDeadline'> = {
-  step,
+  step: stepScreened,
   rebuild,
   rollout,
   value,

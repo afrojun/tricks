@@ -15,9 +15,11 @@ export function createDeck(): Card[] {
   return SUITS.flatMap((suit) => RANKS.map((rank) => ({ suit, rank })))
 }
 
-/** Higher number beats lower within a suit. */
+const STRENGTH = Object.fromEntries(RANKS.map((rank, i) => [rank, RANKS.length - i])) as Record<Rank, number>
+
+/** Higher number beats lower within a suit: the two is 1 and the ace 13. */
 export function strength(card: Card): number {
-  return RANKS.length - RANKS.indexOf(card.rank)
+  return STRENGTH[card.rank]
 }
 
 /** Hearts and the queen of spades: the cards that make up a round's 26 points. */

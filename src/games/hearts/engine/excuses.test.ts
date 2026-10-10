@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'vitest'
-import { cardId, hasCard } from '../../../kit/cards'
-import { brokenRules, playProofs } from '../../../kit/integrity'
-import { seededRng } from '../../../kit/testing'
+import { SUITS, cardId, hasCard, sameCard, shuffle } from '../../../kit/cards'
+import { brokenRules, legalCards, playProofs } from '../../../kit/integrity'
+import { same, seededRng } from '../../../kit/testing'
 import { availableActions } from './available'
-import { JACK_OF_DIAMONDS, QUEEN_OF_SPADES } from './cards'
+import { JACK_OF_DIAMONDS, QUEEN_OF_SPADES, TWO_OF_CLUBS, createDeck } from './cards'
 import { LEAD, VOID } from './deals'
-import { type Situation, excusesFor, seenPlays } from './excuses'
-import { OMNIBUS, STANDARD, resolveRules } from './rules'
+import { type Situation, excusesFor, isOpeningLead, legalPlays, seenPlays, situation } from './excuses'
+import { HAND_SIZE, OMNIBUS, STANDARD, resolveRules } from './rules'
 import { Table, card, playOf } from './testing'
 import type { Game } from './types'
 import { viewFor } from './view'
@@ -91,6 +91,47 @@ describe('one description of each rule', () => {
     for (let seed = 1; seed <= 12; seed++) broken += agreeingRound(seed)
     // The random cards must actually break rules, or this proves little.
     expect(broken).toBeGreaterThan(20)
+  })
+
+  test('each excuse depends on the situation alone, so a hand is asked once for each rule whether it belies it', () => {
+    // legalPlays relies on it. In every situation, under each rule that changes an excuse: every card that needs
+    // a rule needs the same excuse, over the whole deck; and of hands of a few suits, the legal cards are those
+    // whose excuses each hold, as asked for every card.
+    const deck = createDeck()
+    const rng = seededRng(3)
+    const wrong: string[] = []
+    const asked = new Set<string>()
+    for (const set of [STANDARD, resolveRules({ pointsOnFirstTrick: true })]) {
+      for (const led of [null, ...SUITS]) {
+        for (const firstTrick of [true, false]) {
+          for (const heartsBroken of [false, true]) {
+            const round = { current: led === null ? [] : [{ card: card(`2${led[0]}`) }], tricks: firstTrick ? [] : [{}], heartsBroken }
+            const at = situation(round)
+            const excuses = new Map<string, boolean[]>()
+            for (const c of deck) {
+              for (const e of excusesFor(c, at, set)) {
+                const without = deck.map(e.without)
+                if (!excuses.has(e.rule)) excuses.set(e.rule, without)
+                if (!same(without, excuses.get(e.rule))) wrong.push(`${cardId(c)} needs another ${e.rule} in ${JSON.stringify(at)}`)
+              }
+            }
+            const opening = isOpeningLead(round)
+            for (let i = 0; i < 30; i++) {
+              const suits = SUITS.filter(() => rng() < 0.5)
+              const queen = rng() < 0.5
+              const pool = deck.filter((c) => suits.includes(c.suit) || (queen && sameCard(c, QUEEN_OF_SPADES)))
+              const hand = shuffle(pool, rng).slice(0, 1 + Math.floor(rng() * HAND_SIZE))
+              if (!opening) for (const c of hand) for (const e of excusesFor(c, at, set)) asked.add(`${e.rule} ${hand.some(e.without) ? 'belied' : 'borne out'}`)
+              const each = opening ? hand.filter((c) => sameCard(c, TWO_OF_CLUBS)) : legalCards(hand, (c) => excusesFor(c, at, set))
+              if (!same(legalPlays(hand, round, set), each)) wrong.push(`${hand.map(cardId)} in ${JSON.stringify(at)}`)
+            }
+          }
+        }
+      }
+    }
+    expect(wrong).toEqual([])
+    // Each rule's excuse must be both belied and borne out, or the hands prove little.
+    expect([...asked].sort()).toEqual(['firstTrickPoints belied', 'firstTrickPoints borne out', 'followSuit belied', 'followSuit borne out', 'heartsLead belied', 'heartsLead borne out'])
   })
 
   test('an observer proves a renege from public cards alone', () => {

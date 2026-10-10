@@ -37,7 +37,10 @@ export type World<C extends Card> = C[][]
 
 /** What a game supplies to the search player. */
 export interface SearchGame<G, A, V extends TableView, C extends Card = Card> {
-  /** The in-place half of `apply` (rule 1). */
+  /**
+   * The in-place half of `apply` (rule 1). The search sends it only actions it made, from the candidates and
+   * `rollout`, so it may leave out `apply`'s check of a message's shape; never the rules (rule 5).
+   */
   step(draft: G, actor: Actor, action: A | TableAction, ctx: Ctx): { events: unknown[] } | { rejected: string }
   /** Where every card is or may be, from one seat's `full` view (rule 3). */
   knowledge(view: V): Knowledge<C>

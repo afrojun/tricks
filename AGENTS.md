@@ -76,7 +76,7 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 
 ### Adding a game
 
-1. **Engine** (`src/games/<id>/engine/`), on the kit. `Game` extends `TableState`; the view extends `TableView` and carries its `rules` (a rule set with `allowCheating`); `availableActions` is what both `apply` and the screens check; `apply` is a copy of the game (the kit's `copy`, or as Thunee's, a copy of only what `step` changes) then an exported `step`; a `FORMAT_VERSION`. Its rules of play are excuses. Tests under `allowCheating` true and false.
+1. **Engine** (`src/games/<id>/engine/`), on the kit. `Game` extends `TableState`; the view extends `TableView` and carries its `rules` (a rule set with `allowCheating`); `availableActions` is what both `apply` and the screens check; `apply` is a copy of the game (the kit's `copy`, or as Thunee's and Hearts', a copy of only what `step` changes) then an exported `step`; a `FORMAT_VERSION`. Its rules of play are excuses. Tests under `allowCheating` true and false.
 2. **Computer players** (`ai/`), driven only through the module's `dueStep` and `reactions`. Each decision carries a reason code: the coach puts it into words. Optionally `banter`: the game's events as the kit's moments, for `banterFor`.
 3. **Module** (`index.ts`): its `GameModule`, with `step`, added to `GAMES` in `src/games/index.ts`. The room and the Worker then hold its rooms.
 4. **Contract fixture** (`contract.ts`): a start, a random legal player, mischief, the cards each seat may not see, and the view's secrets. Add it to `FIXTURES`, and its first-round phases and action fields to `COVERAGE`, in `src/games/index.test.ts`, and to `FIXTURES` in `src/kit/search/step.test.ts`.

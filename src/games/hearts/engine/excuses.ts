@@ -4,7 +4,7 @@
  * cards it has seen all come from `excusesFor`.
  */
 import { type Suit, sameCard } from '../../../kit/cards'
-import { type Excuse, type SeenPlay, legalCards } from '../../../kit/integrity'
+import type { Excuse, SeenPlay } from '../../../kit/integrity'
 import { followSuit, ledSuit } from '../../../kit/tricks'
 import { type Card, QUEEN_OF_SPADES, TWO_OF_CLUBS, isPointCard } from './cards'
 import type { HeartsRules } from './rules'
@@ -36,6 +36,8 @@ export function situation(round: RoundSoFar): Situation {
  * - `followSuit`: a card off the led suit, from a hand with none of it.
  * - `firstTrickPoints`: a heart or the queen of spades on the first trick, from a hand of nothing else.
  * - `heartsLead`: a heart led before hearts are broken, from a hand of nothing but hearts.
+ *
+ * Each excuse depends on the situation alone, never on the card that needs it: `legalPlays` relies on it.
  */
 export function excusesFor(card: Card, at: Situation, rules: HeartsRules): Excuse<Card>[] {
   const out = followSuit(card, at.led)
@@ -56,11 +58,16 @@ export function isOpeningLead(round: RoundSoFar): boolean {
   return round.tricks.length === 0 && round.current.length === 0
 }
 
-/** The cards of `hand` that obey the rules as the next card of `round`. */
+/**
+ * The cards of `hand` that obey the rules as the next card of `round`: those whose excuses all hold. An
+ * excuse depends on the situation alone, never on the card that needs it, so whether the hand belies each
+ * rule's is asked once, not once for every card.
+ */
 export function legalPlays(hand: readonly Card[], round: RoundSoFar, rules: HeartsRules): Card[] {
   if (isOpeningLead(round)) return hand.filter((c) => sameCard(c, TWO_OF_CLUBS))
   const at = situation(round)
-  return legalCards(hand, (c) => excusesFor(c, at, rules))
+  const belied: Record<string, boolean> = {}
+  return hand.filter((card) => excusesFor(card, at, rules).every((e) => !(belied[e.rule] ??= hand.some(e.without))))
 }
 
 /** Whether a card breaks hearts when played: any heart, legal or not, and the queen of spades under its rule. */

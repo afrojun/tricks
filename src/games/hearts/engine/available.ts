@@ -87,9 +87,9 @@ export function availableActions(view: Seen): Available {
         out.play = view.rules.allowCheating && !isOpeningLead(phase) ? phase.hand : out.legal
       }
       if (view.rules.allowCheating) {
-        // Once a trick has been completed, every seat has played a card this round.
-        const played = phase.tricks.length > 0 ? allSeats(view.playerCount) : phase.current.map((p) => p.seat)
-        out.challengePlay = played.filter((s) => s !== me).sort((a, b) => a - b)
+        // Once a trick has been completed, every seat has played a card this round; before, those on the table have.
+        const played = phase.tricks.length > 0 ? allSeats(view.playerCount) : phase.current.map((p) => p.seat).sort((a, b) => a - b)
+        out.challengePlay = played.filter((s) => s !== me)
       }
       break
     }
