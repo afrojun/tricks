@@ -234,7 +234,7 @@ function proofText(view: View, id: string, accused: number): string {
     const suit = id.split(':')[2] as Suit
     return `${name} called Thunee holding six ${suitPlural(suit)}: they have played nothing else, and nobody else holds one. The rules forbid that call. ${end}`
   }
-  if (kind === 'jodhi') return `${name} called a Jodhi, but no suit fits: in every suit, a king or queen it needs is in your hand or already played. ${end}`
+  if (kind === 'jodhi') return `${name} called a Jodhi, but no suit fits: in every suit it could be, a card it needs is in your hand or already played. ${end}`
   void revealAt
   return `${name} has broken the rules. ${end}`
 }

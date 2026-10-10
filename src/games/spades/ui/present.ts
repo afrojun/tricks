@@ -25,12 +25,13 @@ export function sideColour(side: number): string {
 export function roundMoments(view: View, summary: RoundSummary): Moment[] {
   if (summary.challenge) return []
   const set = summary.sides.flatMap((s, side) => (s.contract > 0 && !s.made ? [side] : []))
-  const bags = summary.sides.flatMap((s, side) => (s.bagPenalty < 0 ? [side] : []))
   const out: Moment[] = []
   if (set.length > 0) out.push({ title: 'Set', detail: `${sidesSubject(view, set).name} missed ${set.length > 1 ? 'their calls' : 'the call'}`, tone: 'danger', ms: SET_MS })
-  if (bags.length > 0) {
-    const who = sidesSubject(view, bags)
-    out.push({ title: 'Ten bags', detail: `${who.name} ${who.many ? 'lose' : 'loses'} 100`, tone: 'danger', ms: BAGS_MS })
+  // One moment for each amount paid: a round that crosses ten bags twice costs 200.
+  const paid = [...new Set(summary.sides.map((s) => s.bagPenalty).filter((p) => p < 0))].sort((a, b) => b - a)
+  for (const penalty of paid) {
+    const who = sidesSubject(view, summary.sides.flatMap((s, side) => (s.bagPenalty === penalty ? [side] : [])))
+    out.push({ title: penalty < -100 ? `${-penalty / 10} bags` : 'Ten bags', detail: `${who.name} ${who.many ? 'lose' : 'loses'} ${-penalty}`, tone: 'danger', ms: BAGS_MS })
   }
   return out
 }

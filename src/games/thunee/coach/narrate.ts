@@ -49,12 +49,18 @@ export function narrate(event: GameEvent, view: View): Note | null {
     }
     case 'thuneeCalled': {
       const caller = name(event.seat)
+      // Under "Either partner" the caller's side must win every trick between them, and a partner's trick helps.
+      const together = view.playerCount === 4 && view.rules.thuneeWinner === 'team'
       const body =
         event.seat === view.seat
-          ? `You must now win all six tricks yourself. Lose one and ${otherSide(view)} gets 4 balls.`
+          ? together
+            ? `Your side must now win all six tricks. Lose one and ${otherSide(view)} gets 4 balls.`
+            : `You must now win all six tricks yourself. Lose one and ${otherSide(view)} gets 4 balls.`
           : isPartner(view, event.seat)
-            ? `${caller} must win all six tricks alone. Do not take a trick from them: if you win one, the other side gets ${view.rules.thuneePartnerCatchBalls} balls.`
-            : `${caller} must win all six tricks alone. Take one trick to stop it, and ${sideDoes(view, teamOf(view.seat ?? 0), 'gets', 'get')} 4 balls.`
+            ? together
+              ? `${caller} called it for your side: together you must win all six tricks. Lose one and the other side gets 4 balls.`
+              : `${caller} must win all six tricks alone. Do not take a trick from them: if you win one, the other side gets ${view.rules.thuneePartnerCatchBalls} balls.`
+            : `${caller} must win all six tricks${together ? ' with their partner' : ' alone'}. Take one trick to stop it, and ${sideDoes(view, teamOf(view.seat ?? 0), 'gets', 'get')} 4 balls.`
       return note(`${caller} ${verb(view, event.seat, 'call', 'calls')} Thunee`, body, { topic: 'thunee', seats: [event.seat] })
     }
     case 'trumpRevealed':

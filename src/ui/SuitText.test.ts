@@ -22,4 +22,10 @@ describe('suit text', () => {
     expect(pieces('10♥ beats 9♥, and 4♠ beats the A♣.')).toEqual(['[10♥ red]', ' beats ', '[9♥ red]', ', and ', '[4♠]', ' beats the ', '[A♣]', '.'])
     expect(pieces('Trump is ♦')).toEqual(['Trump is ', '[♦ red]'])
   })
+
+  test('a screen reader hears each card by name', () => {
+    const out = SuitText({ text: 'Play K♦, then 10♥ or ♣' }) as Span[]
+    const labels = out.filter((p) => isValidElement(p)).map((p) => (p.props as { 'aria-label'?: string })['aria-label'])
+    expect(labels).toEqual(['king of diamonds', '10 of hearts', 'clubs'])
+  })
 })

@@ -5,6 +5,7 @@ import { CardBack, PlayingCard } from './Card'
 import { TIER_AT, fanTilt, splitTiers } from './hands'
 import { useShowsPlayable } from './prefs'
 import { useSession } from './session'
+import { SuitText } from './SuitText'
 import { cardText, plural } from './text'
 
 /** Shared between a card in the hand and the same card on the table, so it travels between them. */
@@ -198,7 +199,11 @@ function useLift(lifted: boolean) {
 function PlayAnyway({ card, explanation, onConfirm }: { card: Card; explanation: string | null; onConfirm: () => void }) {
   return (
     <>
-      {explanation && <p className="panel play-anyway-why">{explanation}</p>}
+      {explanation && (
+        <p className="panel play-anyway-why">
+          <SuitText text={explanation} />
+        </p>
+      )}
       <button
         className="btn btn-danger btn-small play-anyway"
         onClick={(e) => {

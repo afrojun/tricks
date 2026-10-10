@@ -120,10 +120,10 @@ export function highestTrump(phase: ViewPlaying): Card | null {
   return trumps.sort((a, b) => rankStrength(b.rank) - rankStrength(a.rank))[0] ?? null
 }
 
-/** What failing a Thunee costs: 4 balls, or the house's count (8 in Traditional) if the caller's partner takes a trick. */
+/** What failing a Thunee costs: 4 balls, or the house's count (8 in Traditional) if the caller's partner takes a trick when the caller must win alone. */
 export function thuneeRisk(view: View): string {
   const caught = view.rules.thuneePartnerCatchBalls
-  return view.playerCount === 4 && caught !== 4
+  return view.playerCount === 4 && view.rules.thuneeWinner === 'callerOnly' && caught !== 4
     ? `If you lose a trick, the other side gets 4 balls, or ${caught} balls if your own partner is the one who takes it.`
     : `If you lose a trick, ${otherSide(view)} gets 4 balls.`
 }

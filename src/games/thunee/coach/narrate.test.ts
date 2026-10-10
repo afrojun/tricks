@@ -27,6 +27,17 @@ describe('narrate', () => {
     expect(said).toContain('105')
   })
 
+  test('a Thunee the caller must win alone, or with their partner', () => {
+    const alone = table()
+    const together = new Table(4, { redealIfNoTrumps: false, thuneeWinner: 'team' }).deal(D1)
+    const said = (t: Table, seat: number) => text(narrate({ type: 'thuneeCalled', seat: 2 } as GameEvent, you(t.game, seat)))
+    expect(said(alone, 0)).toContain('Do not take a trick from them')
+    expect(said(together, 0)).toContain('together you must win all six tricks')
+    expect(said(together, 0)).not.toContain('Do not take a trick')
+    expect(said(alone, 1)).toContain('win all six tricks alone')
+    expect(said(together, 1)).toContain('win all six tricks with their partner')
+  })
+
   test("a computer's card that shows a missing suit", () => {
     const t = played('Jc Qh')
     expect(text(narrate({ type: 'cardPlayed', seat: 3, card: card('Qh') }, you(t.game)))).toMatch(/P3 has no clubs/)
