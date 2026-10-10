@@ -12,8 +12,8 @@ import { rejectionText } from './text'
 
 /** Why the room closed this table, for the two closes that wait for the player, and how to come back. */
 const CLOSED = {
-  replaced: { text: 'This table is open somewhere else on this device.', retry: 'Play here' },
-  full: { text: 'Too many people are watching this table.', retry: 'Try again' },
+  replaced: { text: 'This game is open somewhere else on this device.', retry: 'Play here' },
+  full: { text: 'Too many people are watching this game.', retry: 'Try again' },
 } as const
 
 /** The frame around any game's table: the connection, the lobby or the game's own table, what its events show, and the table's talk. */
