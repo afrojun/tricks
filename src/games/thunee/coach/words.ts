@@ -1,9 +1,9 @@
 /** Small pieces of wording the coach shares. */
-import { type Card, type Seat, type Suit, type View, CARD_POINTS, FOUR_PLAYER_TARGET, SUIT_NAME, cardText, teamOf } from '../engine'
+import { type Card, type Seat, type Suit, type Team, type View, CARD_POINTS, FOUR_PLAYER_TARGET, cardText, teamOf } from '../engine'
 
 export const card = cardText
 
-/** "You", or the seat's name. */
+/** "You", or the seat's name, to start a sentence. */
 export function who(view: View, seat: Seat): string {
   return seat === view.seat ? 'You' : view.seats[seat]?.name || `Seat ${seat + 1}`
 }
@@ -11,6 +11,11 @@ export function who(view: View, seat: Seat): string {
 /** Lower-case "you" for the middle of a sentence. */
 export function whoIn(view: View, seat: Seat): string {
   return seat === view.seat ? 'you' : who(view, seat)
+}
+
+/** "Your", or the seat's name with ’s. */
+export function whose(view: View, seat: Seat): string {
+  return seat === view.seat ? 'Your' : `${who(view, seat)}’s`
 }
 
 /** Third-person verb, unless the subject is "you": verb(view, seat, 'win', 'wins'). */
@@ -22,14 +27,66 @@ export function isPartner(view: View, seat: Seat): boolean {
   return view.seat !== null && seat !== view.seat && view.playerCount === 4 && teamOf(seat) === teamOf(view.seat)
 }
 
-/** "Partner" is already a name in practice; elsewhere "your partner Asha". */
+/** "your partner Asha". */
 export function partnerName(view: View, seat: Seat): string {
-  const name = who(view, seat)
-  return name === 'Partner' ? 'Partner' : `your partner ${name}`
+  return `your partner ${who(view, seat)}`
 }
 
+/**
+ * Where a seat sits from the reader's: "on your right", "opposite you", "on your left". Seats are
+ * numbered in play order and Thunee goes counterclockwise, so the next seat is on the reader's right.
+ * Empty with two players, or for the reader.
+ */
+export function sits(view: View, seat: Seat): string {
+  if (view.seat === null || seat === view.seat || view.playerCount !== 4) return ''
+  return ['', 'on your right', 'opposite you', 'on your left'][(seat - view.seat + 4) % 4]
+}
+
+/** "Asha, on your right," for the middle of a sentence; the name alone when where they sit says nothing. */
+export function named(view: View, seat: Seat): string {
+  const where = sits(view, seat)
+  return where ? `${whoIn(view, seat)}, ${where},` : whoIn(view, seat)
+}
+
+/**
+ * A side, for the middle of a sentence: "your side" and "the other side", or with two players, where
+ * a side is one player, "you" and the other player's name.
+ */
+export function sideOf(view: View, team: Team | number): string {
+  const mine = view.seat !== null && teamOf(view.seat) === team
+  if (view.playerCount === 2) return mine ? 'you' : who(view, team as Seat)
+  return mine ? 'your side' : 'the other side'
+}
+
+/** A side and its verb: "your side gets", "the other side gets", but with two players "you get". */
+export function sideDoes(view: View, team: Team | number, they: string, you: string): string {
+  const side = sideOf(view, team)
+  return `${side} ${side === 'you' ? you : they}`
+}
+
+/** The reader's own side, for the middle of a sentence. */
+export function yourSide(view: View): string {
+  return view.seat === null ? 'your side' : sideOf(view, teamOf(view.seat))
+}
+
+/** The other side, for the middle of a sentence. */
+export function otherSide(view: View): string {
+  return view.seat === null ? 'the other side' : sideOf(view, 1 - teamOf(view.seat))
+}
+
+/** "your side’s", "the other side’s", "Asha’s", "your". */
+export function sidePossessive(side: string): string {
+  return side === 'you' ? 'your' : `${side}’s`
+}
+
+/** The suit's name in lower case: "hearts". */
 export function suitPlural(suit: Suit): string {
-  return SUIT_NAME[suit].toLowerCase()
+  return suit
+}
+
+/** One card of the suit: "heart". */
+export function suitOne(suit: Suit): string {
+  return suit.replace(/s$/, '')
 }
 
 export function points(cards: readonly Card[]): number {

@@ -154,7 +154,7 @@ export function Table({ view, room }: { view: View; room: string }) {
           say what to do, and the cue gives way.
         */}
         <div className="hint-row player-line" aria-live="polite">
-          {!coached && !crowded && <span className="player-cue">{watching ? 'You are watching this game.' : <Hint view={view} can={can} />}</span>}
+          {!coached && !crowded && <span className="player-cue">{watching ? 'You’re watching' : <Hint view={view} can={can} />}</span>}
           {!watching && !over && <ActionButtons can={can} playing={playing} accuse={view.rules.allowCheating} onSheet={setSheet} />}
           <TalkButton />
         </div>
@@ -286,7 +286,7 @@ function RoundFacts({ view }: { view: View }) {
   const trump = (suit: Suit) => facts.push({ text: <Trump suit={suit} />, on: true })
 
   if (playing?.thunee) {
-    say(`Thunee: ${seatName(view, playing.thunee.caller)} must win every trick`)
+    say(`Thunee: ${playing.thunee.caller === view.seat ? 'you' : seatName(view, playing.thunee.caller)} must win every trick`)
     if (playing.trump) trump(playing.trump)
   } else if (playing) {
     if (playing.trump) trump(playing.trump)
@@ -300,7 +300,7 @@ function RoundFacts({ view }: { view: View }) {
     say(`${who} to ${target}`)
   } else if (phase.kind === 'thuneeWindow') {
     if (phase.trump) trump(phase.trump)
-    else say('Trump is chosen')
+    else say('Trump hidden')
     if (phase.callAmount > 0) say(`Call ${phase.callAmount}`)
   } else if (phase.kind === 'calling' || phase.kind === 'trumpSelection') {
     say(`Round ${view.roundNumber}`)
@@ -448,7 +448,7 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
       </p>
       {can.preselect.length > 0 && (
         <div className="grid gap-2">
-          <p className="panel-note text-center text-sm text-on-surface-muted">Pick trump now. It is kept if nobody outcalls you.</p>
+          <p className="panel-note text-center text-sm text-on-surface-muted">Pick trump now. It stands unless someone calls higher.</p>
           <TrumpButtons choices={can.preselect} chosen={phase.preselect} onChoose={(choice) => send({ type: 'preselectTrump', choice })} />
         </div>
       )}
@@ -494,15 +494,17 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
       {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.rules.thuneeWindowSeconds} />}
       <p className="text-center">
         {phase.pending !== null
-          ? `${seatName(view, phase.pending)} wants Thunee. The trumping side can take it instead.`
-          : 'Anyone for Thunee? Win all six tricks for 4 balls.'}
+          ? `${phase.pending === view.seat ? 'You want' : `${seatName(view, phase.pending)} wants`} Thunee. The trumping side can take it instead.`
+          : view.rules.thuneeCaller === 'trumperOnly'
+            ? `Only ${phase.trumper === view.seat ? 'you' : seatName(view, phase.trumper)} may call Thunee. Win all six tricks for 4 balls.`
+            : 'Anyone for Thunee? Win all six tricks for 4 balls.'}
       </p>
       {(can.callThunee || can.pass) && (
         // The middle of the table never widens for a panel, so its buttons wrap when a narrow screen needs it.
         <div className="flex flex-wrap gap-2">
           {can.callThunee && (
-            <button className="btn btn-danger flex-1" onClick={() => commit({ type: 'callThunee' })}>
-              Call Thunee
+            <button className="btn btn-danger flex-1" onClick={() => commit({ type: 'callThunee' })} aria-label="Call Thunee">
+              Thunee
             </button>
           )}
           <button className="btn flex-1" onClick={() => commit({ type: 'pass' })}>
@@ -523,8 +525,14 @@ function Hint({ view, can }: { view: View; can: Available }) {
     if (phase.turn === view.seat) return <b className="cue">{phase.current.length === 0 ? 'Your lead' : 'Your turn'}</b>
     return <>{seatName(view, phase.turn!)} to play</>
   }
-  if (phase.kind === 'trickPause' && phase.redeal) return can.pass ? <b className="cue">They hold no trump</b> : <>Dealing again: the other side holds no trump</>
-  if (phase.kind === 'trickPause' && can.pass) return <b className="cue">Your side won: Jodhi?</b>
+  if (phase.kind === 'trickPause' && phase.redeal) {
+    if (can.pass) return <b className="cue">They hold no trump</b>
+    // Only a Thunee deals again mid-round: its caller's opponents have shown no trump.
+    const caller = phase.thunee?.caller
+    const theirs = view.seat !== null && caller !== undefined && teamOf(caller) !== teamOf(view.seat)
+    return <>{theirs ? 'Dealing again: your side holds no trump' : 'Dealing again: they hold no trump'}</>
+  }
+  if (phase.kind === 'trickPause' && can.pass) return <b className="cue">{view.playerCount === 2 ? 'You won the trick: Jodhi?' : 'Your side won the trick: Jodhi?'}</b>
   if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <b className="cue">You can call Jodhi</b>
   const jodhiFrom = phase.kind === 'trickPause' ? pauseWaitingOn(phase, view.playerCount) : []
   if (jodhiFrom.length > 0) return <>Waiting for {seatName(view, jodhiFrom[0])}</>
@@ -590,15 +598,15 @@ function JodhiSheet({ can, trump, challenged, onDone }: { can: Available; trump:
   }
   return (
     <div className="grid gap-3">
-      <p>Name the suit you hold the King and Queen of.{challenged && ' Opponents can challenge a false call for 4 balls.'}</p>
+      <p>Which suit are your king and queen in?{challenged && ' Opponents can challenge a false call for 4 balls.'}</p>
       {can.claimJodhi.map((suit) => (
         <div key={suit} className="flex items-center gap-2">
           <Pip suit={suit} label={SUIT_NAME[suit]} className={`w-7 h-7 shrink-0 ${isRedSuit(suit) ? 'text-danger' : ''}`} />
           <button className="btn btn-small flex-1" onClick={() => claim(suit, false)}>
-            King and Queen, {jodhiPoints(suit, false, trump)}
+            King and queen, {jodhiPoints(suit, false, trump)}
           </button>
           <button className="btn btn-small flex-1" onClick={() => claim(suit, true)}>
-            With the Jack, {jodhiPoints(suit, true, trump)}
+            With the jack, {jodhiPoints(suit, true, trump)}
           </button>
         </div>
       ))}
@@ -615,7 +623,7 @@ function ChallengeSheet({ view, can, playing, onClose }: { view: View; can: Avai
       accusations={[
         ...can.challengePlay.map((seat) => ({
           key: `play-${seat}`,
-          label: `${seatName(view, seat)} did not follow suit`,
+          label: `${seatName(view, seat)} broke a rule`,
           send: () => send({ type: 'challengePlay', seat }),
         })),
         ...(can.challengeThunee && playing.thunee
@@ -631,7 +639,7 @@ function ChallengeSheet({ view, can, playing, onClose }: { view: View; can: Avai
           const claim = playing.jodhiClaims[index]
           return {
             key: `jodhi-${index}`,
-            label: `${seatName(view, claim.seat)}'s Jodhi ${claim.points} is false`,
+            label: `${seatName(view, claim.seat)}’s Jodhi ${claim.points} is false`,
             send: () => send({ type: 'challengeJodhi', claim: index }),
           }
         }),

@@ -14,29 +14,29 @@ export const TOPICS: Record<TopicId, Topic> = {
   cards: {
     title: 'The cards',
     paragraphs: [
-      'Thunee uses 24 cards: the J, 9, A, 10, K and Q of each suit. In every suit the jack is highest, then the 9, the ace, the 10, the king and the queen.',
-      'Cards are worth points: jack 30, 9 20, ace 11, 10 10, king 3, queen 2. Winning a trick wins the points of every card in it.',
+      'Thunee uses 24 cards: the jack, 9, ace, 10, king and queen of each suit. In every suit the jack is highest, then the 9, the ace, the 10, the king and the queen.',
+      'A jack is worth 30 points, a 9 is worth 20, an ace 11, a 10 is worth 10, a king 3 and a queen 2. Winning a trick wins the points of every card in it.',
     ],
     example: c('hearts', 'J', '9', 'A', '10', 'K', 'Q'),
   },
   calling: {
     title: 'Calling',
     paragraphs: [
-      'After four cards each, players may call for the right to choose trump, one step at a time: 10, then 20, and so on up to 104. If nobody calls, the player to the right of the dealer chooses, so their side may not open. When the other side calls, that player answers first; their partner may call only once they pass.',
-      'The side that chooses trump defends. The other side, the counting side, tries to reach 105 points (125 in the two-player game), and the amount called is added to their total. So a call makes the other side’s job easier: only call with a strong hand, like two jacks or a jack with another high card of its suit.',
+      'After four cards each, players may call for the right to choose trump, one step at a time: 10, then 20, and so on up to 104. If nobody calls, the player to the right of the dealer chooses, so their side may not call first. When the other side calls, that player answers first; their partner may call only once they pass.',
+      'The side that chooses trump is the trumping side. The other side, the counting side, tries to reach 105 points (125 in the two-player game), and the amount called is added to their total. So a call makes the other side’s job easier: only call with a strong hand, like two jacks or a jack with another high card of its suit.',
     ],
   },
   trump: {
     title: 'Trump',
     paragraphs: [
       'Trump is the strongest suit for the round. Any trump beats any card of another suit.',
-      'The trumper picks a suit they hold, or "last card": the suit of the last card they will be dealt. Nobody else learns trump until the first card of play is led.',
+      'The trumper picks a suit they hold, or “last card”: the suit of the last card they will be dealt. Nobody else learns trump until the first card of play is led.',
     ],
   },
   following: {
     title: 'Following suit',
     paragraphs: [
-      'Whoever leads a trick may play any card. Everyone else must play the same suit if they have it. With none of that suit you may play any card, with one limit: you may not play a trump lower than a trump already in the trick, unless you hold nothing but trumps.',
+      'Whoever leads a trick may play any card. Everyone else must play the same suit if they hold any. With none of that suit you may play any card, with one limit: you may not play a trump lower than a trump already in the trick, unless you hold nothing but trumps.',
       'The highest trump wins the trick; with no trump in it, the highest card of the suit led wins. The winner leads the next trick.',
       'The app lets you break this rule, but an opponent who spots it can challenge and win 4 balls.',
     ],
@@ -84,14 +84,14 @@ export const TOPICS: Record<TopicId, Topic> = {
   khanaak: {
     title: 'Khanaak',
     paragraphs: [
-      'In the four-player game, if your side has called a Jodhi, you may call Khanaak on your turn in the last trick, before playing. You must win that trick yourself, your side must have lost at least one trick, and your side’s Jodhi plus 10 must be more than the other side’s card points plus their Jodhi. The call does not count.',
-      'It is worth 3 balls, or 6 from the counting side. If it fails, the other side gets 4.',
+      'In the four-player game, if your side has called a Jodhi, you may call Khanaak on your turn in the last trick, before playing. You must win that trick yourself, your side must have lost at least one trick, and your side’s Jodhi plus 10 must be more than the other side’s card points plus their Jodhi. The amount called is left out.',
+      'It is worth 3 balls. Called from the counting side it is a backward Khanaak, worth 6. If it fails, the other side gets 4.',
     ],
   },
   challenge: {
     title: 'Challenges',
     paragraphs: [
-      'If you see an opponent break the rules, such as not following suit when they had the suit, or calling a Jodhi they did not hold, you may challenge. The round ends at once.',
+      'If you see an opponent break the rules, such as not following suit when they held the suit, or calling a Jodhi they did not hold, you may challenge. The round ends at once.',
       'A correct challenge wins your side 4 balls. A wrong one gives 4 balls to them, so only challenge when you are sure.',
     ],
   },

@@ -5,15 +5,16 @@ import { useCoach } from '../../../ui/coach/context'
 import type { DealShown } from '../../../ui/coach/CoachSheets'
 import { useSession } from './session'
 import { playSound } from '../../../ui/sound'
-import { SUIT_NAME, cardText, plural, seatName } from '../../../ui/text'
+import { cardText, plural, seatName } from '../../../ui/text'
 import { sortHand, teamName } from './text'
+import { SuitText } from '../../../ui/SuitText'
 
 const LINE_LABEL: Record<ScoreLine['label'], string> = {
   cards: 'Cards won',
   lastTrick: 'Last trick',
   call: 'Call',
   jodhi: 'Jodhi',
-  opponentJodhi: "Opponents' Jodhi",
+  opponentJodhi: 'Trumping side’s Jodhi',
 }
 
 /** A Thunee round is dealt in two halves, six cards each, and the review shows both. */
@@ -22,27 +23,33 @@ const HALVES: DealShown<Card> = { sort: sortHand, dealName: (half) => (half === 
 /** What a guilty play was caught doing, by the first rule it broke. */
 const CAUGHT: Record<string, string> = { renege: 'not following suit', undercut: 'undercutting a trump' }
 
-/** One sentence saying why the round ended as it did. */
-export function headline(view: View, s: RoundSummary): string {
-  const name = (seat: number) => seatName(view, seat)
+/** One sentence saying why the round ended as it did; `start` false for after a colon, where "you" is lower case. */
+export function headline(view: View, s: RoundSummary, start = true): string {
+  const you = (seat: number) => seat === view.seat
+  /** The sentence's subject: "You" (or "you"), or the name. */
+  const subject = (seat: number) => (you(seat) ? (start ? 'You' : 'you') : seatName(view, seat))
+  const object = (seat: number) => (you(seat) ? 'you' : seatName(view, seat))
+  const whose = (seat: number) => (you(seat) ? (start ? 'Your' : 'your') : `${seatName(view, seat)}’s`)
   if (s.challenge) {
     const c = s.challenge
-    const what = c.kind === 'play' ? (c.card ? `playing ${cardText(c.card)}` : 'a play') : c.kind === 'thunee' ? 'their Thunee' : `a Jodhi in ${SUIT_NAME[c.suit!]}`
+    const what = c.kind === 'play' ? (c.card ? `playing ${cardText(c.card)}` : 'a play') : c.kind === 'thunee' ? `${you(c.accused) ? 'your' : 'their'} Thunee` : `a Jodhi in ${c.suit!}`
     const offence = c.kind === 'play' ? CAUGHT[c.rule ?? 'renege'] : c.kind === 'thunee' ? 'calling Thunee with six cards of one suit' : 'calling a false Jodhi'
     return c.guilty
-      ? `${name(c.challenger)} caught ${name(c.accused)} ${offence}.`
-      : `${name(c.challenger)} challenged ${name(c.accused)} over ${what}, and was wrong.`
+      ? `${subject(c.challenger)} caught ${object(c.accused)} ${offence}.`
+      : `${subject(c.challenger)} challenged ${object(c.accused)} over ${what}, and ${you(c.challenger) ? 'were' : 'was'} wrong.`
   }
   if (s.thunee) {
-    if (s.thunee.success) return `${name(s.thunee.caller)} made the Thunee.`
-    return s.thunee.partnerCatch ? `${name(s.thunee.caller)}'s Thunee was caught by their own partner.` : `${name(s.thunee.caller)}'s Thunee was stopped.`
+    if (s.thunee.success) return `${subject(s.thunee.caller)} made the Thunee.`
+    return s.thunee.partnerCatch
+      ? `${whose(s.thunee.caller)} Thunee was caught by ${you(s.thunee.caller) ? 'your' : 'their'} own partner.`
+      : `${whose(s.thunee.caller)} Thunee was stopped.`
   }
-  if (s.double) return s.double.success ? `${name(s.double.caller)} made the Double.` : `${name(s.double.caller)}'s Double failed.`
+  if (s.double) return s.double.success ? `${subject(s.double.caller)} made the Double.` : `${whose(s.double.caller)} Double failed.`
   if (s.khanaak) {
     const kind = s.khanaak.backward ? 'backward Khanaak' : 'Khanaak'
     return s.khanaak.success
-      ? `${name(s.khanaak.caller)} made the ${kind}: Jodhi ${s.khanaak.jodhi} plus 10 against ${s.khanaak.opponentPoints}.`
-      : `${name(s.khanaak.caller)}'s ${kind} failed.`
+      ? `${subject(s.khanaak.caller)} made the ${kind}: Jodhi ${s.khanaak.jodhi} plus 10 against ${s.khanaak.opponentPoints}.`
+      : `${whose(s.khanaak.caller)} ${kind} failed.`
   }
   const n = s.normal!
   return n.total >= n.target
@@ -71,8 +78,8 @@ export function ballsWhy(view: View, s: RoundSummary, partnerCatchBalls: number)
     if (s.thunee.success) return { line: `${caller} called Thunee${by} won every trick: ${balls}` }
     if (!s.thunee.partnerCatch) return { line: `${caller} called Thunee${by} lost a trick: ${balls}` }
     return {
-      line: `${caller} called Thunee and their own partner took a trick: ${balls}`,
-      aside: partnerCatchBalls === 4 ? undefined : `A Thunee lost to the caller's partner costs ${plural(partnerCatchBalls, 'ball')} instead of 4.`,
+      line: `${caller} called Thunee and ${caller === 'You' ? 'your' : 'their'} own partner took a trick: ${balls}`,
+      aside: partnerCatchBalls === 4 ? undefined : `A Thunee lost to the caller’s partner costs ${plural(partnerCatchBalls, 'ball')} instead of 4.`,
     }
   }
   if (s.double) {
@@ -94,8 +101,8 @@ export function ballsWhy(view: View, s: RoundSummary, partnerCatchBalls: number)
     return { line: `${who(view, s.trumper)} called ${s.callAmount} and lost: ${balls}`, aside: '1 ball without a call. The call doubles it.' }
   }
   return reached
-    ? { line: `${teamName(view, n.countingTeam, view.seat)} reached ${n.total}, needing ${n.target}: ${balls}` }
-    : { line: `${teamName(view, (1 - n.countingTeam) as Team, view.seat)} held the counting side to ${n.total}, short of ${n.target}: ${balls}` }
+    ? { line: `${teamName(view, n.countingTeam, view.seat, ' and ')} reached ${n.total}, needing ${n.target}: ${balls}` }
+    : { line: `${teamName(view, (1 - n.countingTeam) as Team, view.seat, ' and ')} held the counting side to ${n.total}, short of ${n.target}: ${balls}` }
 }
 
 /** The result fills the table: the panel scrolls if it must, and its button stays in reach below it. */
@@ -157,30 +164,32 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
             Deal next round
           </button>
         ) : (
-          <p className="text-center">Waiting for a player to deal the next round.</p>
+          <p className="text-center">Waiting for someone to deal the next round</p>
         )
       }
     >
       <section className="panel p-4 grid gap-3">
         <div>
-          <h2 className="display text-3xl">{`${teamName(view, summary.winner, view.seat)} ${verbFor(view, summary.winner, 'take')} ${plural(summary.balls, 'ball')}`}</h2>
+          <h2 className="display text-3xl">{`${teamName(view, summary.winner, view.seat, ' and ')} ${verbFor(view, summary.winner, 'take')} ${plural(summary.balls, 'ball')}`}</h2>
           <BallTrack view={view} summary={summary} />
         </div>
         <div>
-          <p className="font-bold">{why.line}</p>
+          <p className="font-bold">
+            <SuitText text={why.line} />
+          </p>
           {why.aside && <p className="text-on-surface-muted">{why.aside}</p>}
         </div>
 
         {n && (
           <div className="receipt">
             <p className="text-on-surface-muted" data-head>
-              Counted by {teamName(view, n.countingTeam, view.seat)}
+              Counted by {teamName(view, n.countingTeam, view.seat, ' and ').replace(/^You\b/, 'you')}
             </p>
             {n.lines
               .filter((line) => line.value !== 0 || line.label === 'cards')
               .map((line) => (
                 <p key={line.label}>
-                  <span>{line.label !== 'call' ? LINE_LABEL[line.label] : summary.trumper === view.seat ? 'Your call' : `${seatName(view, summary.trumper)}'s call`}</span>
+                  <span>{line.label !== 'call' ? LINE_LABEL[line.label] : summary.trumper === view.seat ? 'Your call' : `${seatName(view, summary.trumper)}’s call`}</span>
                   <b>{line.value > 0 && line.label !== 'cards' ? `+${line.value}` : line.value}</b>
                 </p>
               ))}
@@ -228,7 +237,7 @@ function GameOver({ view, summary, winner, can }: { view: View; summary: RoundSu
       <section className="panel p-4 grid gap-3">
         <div>
           <p className="eyebrow">Game over · first to {view.ballsTarget}</p>
-          <h2 className="display text-2xl">{mine ? 'You win' : `${teamName(view, winner)} ${verbFor(view, winner, 'win')}`}</h2>
+          <h2 className="display text-2xl">{mine ? 'You win' : `${teamName(view, winner, null, ' and ')} ${verbFor(view, winner, 'win')}`}</h2>
         </div>
         <div className="final-score">
           {side(winner)}
@@ -238,7 +247,9 @@ function GameOver({ view, summary, winner, can }: { view: View; summary: RoundSu
           {mine ? 'Well played: ' : ''}
           {`${summary.ballsAfter[winner]} balls to ${summary.ballsAfter[loser]}, in ${plural(summary.roundNumber, 'round')}.`}
         </p>
-        <p className="text-on-surface-muted">Last round: {headline(view, summary)}</p>
+        <p className="text-on-surface-muted">
+          <SuitText text={`Last round: ${headline(view, summary, false)}`} />
+        </p>
         <CoachReview view={view} shown={HALVES} />
       </section>
     </ResultFrame>

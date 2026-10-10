@@ -34,22 +34,38 @@ describe('a verdict says what was done', () => {
   test('a renege did not follow suit', () => {
     const summary = challenged({ ...play, guilty: true, rule: 'renege' })
     expect(verdict(summary)).toMatchObject({ title: 'Caught', detail: 'P0 did not follow suit', tone: 'danger', card: card('9h') })
-    expect(headline(view, summary)).toBe('P1 caught P0 not following suit.')
+    expect(headline(view, summary)).toBe('You caught P0 not following suit.')
   })
 
   test('an undercut is called an undercut', () => {
     const summary = challenged({ ...play, guilty: true, rule: 'undercut' })
     expect(verdict(summary)).toMatchObject({ title: 'Caught', detail: 'P0 undercut a trump' })
-    expect(headline(view, summary)).toBe('P1 caught P0 undercutting a trump.')
+    expect(headline(view, summary)).toBe('You caught P0 undercutting a trump.')
   })
 
   test('a false Jodhi, and a fair play, read as before', () => {
     const jodhi = challenged({ challenger: 1, accused: 0, kind: 'jodhi', guilty: true, suit: 'spades' })
     expect(verdict(jodhi)).toMatchObject({ title: 'Caught', detail: 'P0 called a false Jodhi' })
-    expect(headline(view, jodhi)).toBe('P1 caught P0 calling a false Jodhi.')
+    expect(headline(view, jodhi)).toBe('You caught P0 calling a false Jodhi.')
+    expect(headline(viewFor(new Table(4).game, 0), jodhi, false)).toBe('P1 caught you calling a false Jodhi.')
     const fair = challenged({ ...play, guilty: false })
     expect(verdict(fair)).toMatchObject({ title: 'Fair play', detail: 'P0 followed suit', tone: 'good' })
-    expect(headline(view, fair)).toBe('P1 challenged P0 over playing 9♥, and was wrong.')
+    expect(headline(view, fair)).toBe('You challenged P0 over playing 9♥, and were wrong.')
+    expect(headline(viewFor(new Table(4).game, 2), fair)).toBe('P1 challenged P0 over playing 9♥, and was wrong.')
+  })
+})
+
+describe('lines every seat sees, and lines to the reader', () => {
+  test('dealing again names the side by its role, or says the Thunee cannot be stopped', () => {
+    expect(present({ type: 'dealCancelled', thuneeCaller: null }, view, 1).toast).toBe('The counting side holds no trump. Dealing again.')
+    expect(present({ type: 'dealCancelled', thuneeCaller: 0 }, view, 1).toast).toBe('Nobody can stop the Thunee. Dealing again.')
+  })
+
+  test('the accused reads "you"', () => {
+    const challenge = present({ type: 'challengeResolved', challenger: 0, accused: 1, guilty: true }, view, 1).moments?.[0]
+    expect(challenge?.detail).toBe('P0 challenges you')
+    const caught = present({ type: 'roundScored', summary: challenged({ challenger: 0, accused: 1, kind: 'play', card: card('9h'), guilty: true, rule: 'renege' }) }, view, 1).moments?.[0]
+    expect(caught?.detail).toBe('You did not follow suit')
   })
 })
 
@@ -68,15 +84,15 @@ describe('a round says why it is worth its balls', () => {
   })
 
   test('without a call, either side takes 1 ball', () => {
-    expect(ballsWhy(view, normal(0, 113), 8).line).toBe('You & P3 reached 113, needing 105: 1 ball')
-    expect(ballsWhy(view, normal(20, 90), 8).line).toBe('P0 & P2 held the counting side to 90, short of 105: 1 ball')
+    expect(ballsWhy(view, normal(0, 113), 8).line).toBe('You and P3 reached 113, needing 105: 1 ball')
+    expect(ballsWhy(view, normal(20, 90), 8).line).toBe('P0 and P2 held the counting side to 90, short of 105: 1 ball')
   })
 
   test('a Thunee lost to the partner says what it costs, when that is not the usual 4', () => {
     const caught: RoundSummary = { ...challenged(undefined), reason: 'thunee', winner: 1, balls: 8, thunee: { caller: 0, success: false, partnerCatch: true } }
     expect(ballsWhy(view, caught, 8)).toEqual({
       line: 'P0 called Thunee and their own partner took a trick: 8 balls',
-      aside: "A Thunee lost to the caller's partner costs 8 balls instead of 4.",
+      aside: 'A Thunee lost to the caller’s partner costs 8 balls instead of 4.',
     })
     expect(ballsWhy(view, { ...caught, balls: 4 }, 4).aside).toBeUndefined()
   })
@@ -149,10 +165,10 @@ describe('the win', () => {
     expect(won.moments).toEqual([{ title: 'You win', detail: '12 balls to 7', tone: 'win', ms: WIN_BEAT_MS, colour: 'var(--team1)' }])
     expect(won.celebrate).toBe('var(--team1)')
     const lost = present({ type: 'gameOver', winner: 1 }, over(), 0)
-    expect(lost.moments).toEqual([expect.objectContaining({ title: 'P1 & P3 win', tone: 'good' })])
+    expect(lost.moments).toEqual([expect.objectContaining({ title: 'P1 and P3 win', tone: 'good' })])
     expect(lost.celebrate).toBeUndefined()
     const watched = present({ type: 'gameOver', winner: 1 }, over(), null)
-    expect(watched.moments).toEqual([expect.objectContaining({ title: 'P1 & P3 win', tone: 'win', colour: 'var(--team1)' })])
+    expect(watched.moments).toEqual([expect.objectContaining({ title: 'P1 and P3 win', tone: 'win', colour: 'var(--team1)' })])
     expect(watched.celebrate).toBeUndefined()
   })
 

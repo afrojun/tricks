@@ -6,7 +6,7 @@ import { decide } from '../ai/choose'
 import { HONEST } from '../../../kit/mind'
 import type { DecisionRecord, Note } from './note'
 import { illegalKind } from './check'
-import { card, suitPlural, trickLabel, who } from './words'
+import { card, sentence, sideDoes, sideOf, suitPlural, trickLabel, who, whoIn, yourSide } from './words'
 
 export interface ReviewInput {
   decisions: readonly DecisionRecord[]
@@ -24,7 +24,8 @@ export function review(input: ReviewInput): Note[] {
   return [score(input), ...moments(input), ...uncaught(input)]
 }
 
-function lineText(line: ScoreLine): string {
+/** One line of the counting side's sum; `whose` is "your" or "their", for its own Jodhi. */
+function lineText(line: ScoreLine, whose: string): string {
   const signed = (n: number) => (n >= 0 ? `+${n}` : `−${-n}`)
   switch (line.label) {
     case 'cards':
@@ -34,15 +35,15 @@ function lineText(line: ScoreLine): string {
     case 'call':
       return `${signed(line.value)} from the call`
     case 'jodhi':
-      return `${signed(line.value)} Jodhi`
+      return `${signed(line.value)} for ${whose} Jodhi`
     case 'opponentJodhi':
-      return `${signed(line.value)} for the trumping side's Jodhi`
+      return `${signed(line.value)} for the trumping side’s Jodhi`
   }
 }
 
 function score({ summary: s, view, you, decisions }: ReviewInput): Note {
   const ours = (team: number) => team === teamOf(you)
-  const sideName = (team: number) => (ours(team) ? 'Your side' : 'The other side')
+  const to = (team: number) => sideOf(view, team)
   const balls = `${s.balls} ball${s.balls === 1 ? '' : 's'}`
   let body: string
   if (s.challenge) {
@@ -50,19 +51,19 @@ function score({ summary: s, view, you, decisions }: ReviewInput): Note {
     const what =
       c.kind === 'jodhi' ? 'calling a false Jodhi' : c.kind === 'thunee' ? 'calling Thunee with six cards of one suit' : playOffence(decisions, c.accused === you ? c.card : undefined)
     body = c.guilty
-      ? `The round ended with a challenge: ${who(view, c.challenger)} caught ${c.accused === you ? 'you' : who(view, c.accused)} ${what}. That is 4 balls to ${sideName(s.winner).toLowerCase()}.`
-      : `The round ended with a challenge that was wrong: ${who(view, c.accused)} had played fairly, so 4 balls go to ${sideName(s.winner).toLowerCase()}.`
+      ? `The round ended with a challenge: ${whoIn(view, c.challenger)} caught ${whoIn(view, c.accused)} ${what}. That is 4 balls to ${to(s.winner)}.`
+      : `The round ended with a challenge that was wrong: ${whoIn(view, c.accused)} played by the rules, so 4 balls go to ${to(s.winner)}.`
   } else if (s.thunee) {
-    body = s.thunee.success ? `${who(view, s.thunee.caller)} won all six tricks: the Thunee is worth ${balls}.` : `The Thunee was stopped: ${balls} to ${sideName(s.winner).toLowerCase()}.`
+    body = s.thunee.success ? `${who(view, s.thunee.caller)} won all six tricks: the Thunee is worth ${balls}.` : `The Thunee was stopped: ${balls} to ${to(s.winner)}.`
   } else if (s.double) {
-    body = s.double.success ? `The Double came off: ${balls}.` : `The Double failed: ${balls} to ${sideName(s.winner).toLowerCase()}.`
+    body = s.double.success ? `The Double came off: ${balls}.` : `The Double failed: ${balls} to ${to(s.winner)}.`
   } else if (s.khanaak) {
-    body = s.khanaak.success ? `The Khanaak came off: ${balls}.` : `The Khanaak failed: ${balls} to ${sideName(s.winner).toLowerCase()}.`
+    body = s.khanaak.success ? `The Khanaak came off: ${balls}.` : `The Khanaak failed: ${balls} to ${to(s.winner)}.`
   } else {
     const n = s.normal!
-    const lines = n.lines.filter((l) => l.value !== 0 || l.label === 'cards').map(lineText).join(', ')
+    const lines = n.lines.filter((l) => l.value !== 0 || l.label === 'cards').map((l) => lineText(l, ours(n.countingTeam) ? 'your' : 'their')).join(', ')
     const reached = n.total >= n.target
-    body = `${sideName(n.countingTeam)} counted: ${lines}, making ${n.total} against the ${n.target} needed. ${reached ? 'That is enough' : 'That is short'}, so ${sideName(s.winner).toLowerCase()} takes ${balls}.`
+    body = `${sentence(to(n.countingTeam))} counted: ${lines}, making ${n.total} against the ${n.target} needed. ${reached ? 'That is enough' : 'That is short'}, so ${sideDoes(view, s.winner, 'takes', 'take')} ${balls}.`
   }
   return { tone: 'info', title: `Round ${s.roundNumber}`, body, topic: s.challenge ? 'challenge' : 'counting' }
 }
@@ -97,18 +98,35 @@ function capital(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-function describe(action: Action): string {
+/** An action in words, as done ("played Q♠") and as advice ("play Q♠"). */
+function describe(action: Action, view: View): { done: string; advice: string } {
+  const both = (done: string, advice: string) => ({ done, advice })
   switch (action.type) {
     case 'playCard':
-      return card(action.card)
+      return both(`played ${card(action.card)}`, `play ${card(action.card)}`)
     case 'call':
-      return `calling ${action.amount}`
+      return both(`called ${action.amount}`, `call ${action.amount}`)
     case 'pass':
-      return 'passing'
-    case 'chooseTrump':
-      return action.choice === 'lastCard' ? 'last card' : `${suitPlural(action.choice)} as trump`
+      return view.phase.kind === 'trickPause' && view.phase.redeal ? both('dealt again', 'deal again') : both('passed', 'pass')
+    case 'preselectTrump':
+    case 'chooseTrump': {
+      const choice = action.choice === 'lastCard' ? 'last card' : suitPlural(action.choice)
+      return both(`chose ${choice}`, `choose ${choice}`)
+    }
+    case 'callThunee':
+      return both('called Thunee', 'call Thunee')
+    case 'claimJodhi':
+      return both('called Jodhi', 'call Jodhi')
+    case 'callDouble':
+      return both('called Double', 'call Double')
+    case 'callKhanaak':
+      return both('called Khanaak', 'call Khanaak')
+    case 'challengePlay':
+    case 'challengeJodhi':
+    case 'challengeThunee':
+      return both('challenged', 'challenge')
     default:
-      return action.type.replace(/([A-Z])/g, ' $1').toLowerCase()
+      return both('played on', 'play on')
   }
 }
 
@@ -129,11 +147,11 @@ function moments({ decisions }: ReviewInput): Note[] {
   return worst.map(({ d }) => {
     const why = advise(d.view)
     const reason = why && same(why.action, d.advised!) ? ` ${why.note.body}` : ''
-    const where = d.taken.type === 'playCard' ? capital(trickName(d.view)) : 'Calling'
+    const where = inPlay(d.view) ? capital(trickName(d.view)) : 'Calling'
     return {
       tone: 'suggest' as const,
-      title: `${where}: you chose ${describe(d.taken)}`,
-      body: `The hint was ${describe(d.advised!)}.${reason}`,
+      title: `${where}: you ${describe(d.taken, d.view).done}`,
+      body: `The hint was to ${describe(d.advised!, d.view).advice}.${reason}`,
       cards: d.advised!.type === 'playCard' ? [d.advised!.card] : undefined,
     }
   })
@@ -153,7 +171,7 @@ function uncaught({ decisions, summary, you }: ReviewInput): Note[] {
       return {
         tone: 'warn' as const,
         title: `${capital(trickName(d.view))}: a rule broken`,
-        body: `${what} Nobody challenged this time, but a challenge would have cost your side 4 balls.`,
+        body: `${what} Nobody challenged this time, but a challenge would have cost ${yourSide(d.view)} 4 balls.`,
         topic: 'challenge' as const,
       }
     })

@@ -2,14 +2,14 @@
  * Warnings before a mistake. Only a fixed list of mistakes, and never the coach's own advice:
  * each judgement rule fires only when the player's move has the problem and the advised move does not.
  */
-import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, SUIT_NAME, availableActions, excusesFor, hasCard, holdsSixOfOneSuit, rankStrength, teamOf, trickWinner } from '../engine'
+import { type Action, type Card, type View, type ViewPlaying, CALL_AMOUNTS, CARD_POINTS, availableActions, excusesFor, hasCard, holdsSixOfOneSuit, rankStrength, teamOf, trickWinner } from '../engine'
 import { callLimit, chooseJodhi, decide } from '../ai/choose'
 import { brokenRules } from '../../../kit/integrity'
 import { HONEST } from '../../../kit/mind'
 import { wouldWin } from '../ai/read'
 import { findProofs, inPlay } from '../ai/suspicion'
 import type { Note, WarningRule } from './note'
-import { card, isPartner, list, suitPlural, target, who } from './words'
+import { card, isPartner, list, otherSide, sentence, sidePossessive, suitPlural, target, who, whoIn } from './words'
 
 /** `{ type: 'tick' }` stands for tapping Continue at the end of a trick. */
 export function check(view: View, action: Action): Note | null {
@@ -28,12 +28,13 @@ export function check(view: View, action: Action): Note | null {
       const limit = callLimit(view.phase.hand)
       const firstAbove = CALL_AMOUNTS.find((a) => a > limit)
       if (firstAbove === undefined || action.amount <= firstAbove) return null
-      return warn('overcall', 'That call is high for this hand', `Your four cards are worth calling up to ${limit || 'nothing'}. A call is added to the other side's points, so calling ${action.amount} makes their ${target(view)} much easier.`, { topic: 'calling' })
+      const worth = limit > 0 ? `Your four cards are worth calling up to ${limit}.` : 'Your four cards are not worth a call.'
+      return warn('overcall', 'That call is high for this hand', `${worth} A call is added to ${sidePossessive(otherSide(view))} points, so calling ${action.amount} makes their ${target(view)} much easier.`, { topic: 'calling' })
     }
     case 'callThunee': {
       if (view.phase.kind !== 'thuneeWindow') return null
       if (holdsSixOfOneSuit(view.phase.hand)) {
-        return warn('illegal', 'That breaks the rules', 'A player holding six cards of one suit may not call Thunee. If the other side challenges, they win 4 balls.', { topic: 'thunee' })
+        return warn('illegal', 'That breaks the rules', `A player holding six cards of one suit may not call Thunee. If ${otherSide(view)} challenges, they win 4 balls.`, { topic: 'thunee' })
       }
       if (decide(view, HONEST).reason.code !== 'thuneeUnsafe') return null
       return warn('thunee', 'Are you sure about Thunee?', `Thunee means winning all six tricks yourself, and your hand cannot promise that. ${thuneeRisk(view)}`, { topic: 'thunee' })
@@ -57,8 +58,8 @@ export function check(view: View, action: Action): Note | null {
       if (proven) return null
       const accused =
         action.type === 'challengePlay' ? action.seat : action.type === 'challengeJodhi' ? inPlay(view)?.jodhiClaims[action.claim]?.seat : inPlay(view)?.thunee?.caller
-      const name = accused === undefined ? 'them' : who(view, accused)
-      return warn('challenge', 'Nothing proves that yet', `You have not seen ${name} break a rule. A wrong challenge gives the other side 4 balls.`, { topic: 'challenge' })
+      const name = accused === undefined ? 'them' : whoIn(view, accused)
+      return warn('challenge', 'Nothing proves that yet', `You have not seen ${name} break a rule. A wrong challenge gives ${otherSide(view)} 4 balls.`, { topic: 'challenge' })
     }
     default:
       return null
@@ -76,7 +77,7 @@ function checkPlay(view: View, phase: ViewPlaying, played: Card, warn: Warn): No
     const top = highestTrump(phase)
     const why =
       illegalKind(phase, played, view.rules) === 'follow'
-        ? `${SUIT_NAME[led!]} were led and you hold ${list(held.map(card))}, so you must follow suit.`
+        ? `${sentence(suitPlural(led!))} were led and you hold ${list(held.map(card))}, so you must follow suit.`
         : `You may not play a trump lower than ${top ? card(top) : 'the trump'} already in this trick while you hold cards of another suit.`
     return warn('illegal', 'That breaks the rules', `${why} If an opponent notices, they can challenge and win 4 balls.`, { cards: held, topic: 'following' })
   }
@@ -104,7 +105,7 @@ function checkPlay(view: View, phase: ViewPlaying, played: Card, warn: Warn): No
     return warn(
       'givePoints',
       'That gives them points',
-      `${who(view, winner)} is winning this trick and ${card(played)} cannot beat it. If they keep this trick, they take its ${CARD_POINTS[played.rank]} points too. A cheaper card risks less.`,
+      `${who(view, winner)} is winning this trick and ${card(played)} cannot beat it: if they keep the trick, they take its ${CARD_POINTS[played.rank]} points too. A cheaper card risks less.`,
       { cards: [played], seats: [winner] },
     )
   }
@@ -119,11 +120,12 @@ export function highestTrump(phase: ViewPlaying): Card | null {
   return trumps.sort((a, b) => rankStrength(b.rank) - rankStrength(a.rank))[0] ?? null
 }
 
-/** What failing a Thunee costs: 4 balls, or 8 if the caller's partner takes a trick. */
+/** What failing a Thunee costs: 4 balls, or the house's count (8 in Traditional) if the caller's partner takes a trick. */
 export function thuneeRisk(view: View): string {
-  return view.playerCount === 4
-    ? 'If you lose a trick, the other side gets 4 balls, or 8 balls if your own partner is the one who takes it.'
-    : 'If you lose a trick, the other side gets 4 balls.'
+  const caught = view.rules.thuneePartnerCatchBalls
+  return view.playerCount === 4 && caught !== 4
+    ? `If you lose a trick, the other side gets 4 balls, or ${caught} balls if your own partner is the one who takes it.`
+    : `If you lose a trick, ${otherSide(view)} gets 4 balls.`
 }
 
 /**

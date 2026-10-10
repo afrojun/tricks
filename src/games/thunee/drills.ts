@@ -6,7 +6,7 @@ import { cardsFrom } from '../../kit/cards'
 import { settle } from '../../kit/table'
 import type { DecisionRecord, Drill, DrillTable, Verdict } from '../../practice/contract'
 import type { Note } from './coach/note'
-import { card, who } from './coach/words'
+import { card, named, sentence, who } from './coach/words'
 import {
   type Action,
   type Card,
@@ -190,7 +190,7 @@ const khanaak: ThuneeDrill = {
     return {
       tone: 'suggest',
       title: 'Call Khanaak, then play',
-      body: `Your side's Jodhi is ${ours}, and the other side has ${theirs}. ${ours} plus 10 is more than ${theirs}, and your ${card(phase.hand[0])} wins this trick. Call Khanaak first, then play it.`,
+      body: `Your side’s Jodhi is ${ours}, and the other side has ${theirs}. ${ours} plus 10 is more than ${theirs}, and your ${card(phase.hand[0])} wins this trick. Call Khanaak first, then play it.`,
       cards: phase.hand,
       topic: 'khanaak',
     }
@@ -218,7 +218,7 @@ const thunee: ThuneeDrill = {
   brief: {
     tone: 'info',
     title: 'Win all six tricks',
-    body: 'Once everyone has six cards, anyone may call Thunee: a promise to win every trick alone. The caller leads, and the first card led becomes trump. Winning all six is worth 4 balls. Look at your hand: can anyone beat it?',
+    body: 'Once everyone has six cards, anyone may call Thunee: a promise to win every trick alone. Winning all six is worth 4 balls. Look at your hand: can anyone beat it?',
     cards: cards('Jh 9h Ah 10h Kh Js'),
     topic: 'thunee',
   },
@@ -247,11 +247,11 @@ const thunee: ThuneeDrill = {
   },
 }
 
-/** Right trumped your A♥ while holding a heart, then led one. */
+/** The player on your right (seat 1) trumped your A♥ while holding a heart, then led one. */
 const challenge: ThuneeDrill = {
   id: 'challenge',
-  title: 'Catch a renege',
-  summary: 'An opponent failed to follow suit. Prove it.',
+  title: 'Catch a cheat',
+  summary: 'An opponent did not follow suit. Prove it.',
   playerCount: 4,
   arrange(t) {
     deal(t, ['Ah Jd 9d Ac 10c Kc', '10h 9s Jc 9c Kd Qd', 'Kh Jh Ad 10d Qc Qs', 'Qh 9h Js As 10s Ks'], 2)
@@ -271,7 +271,7 @@ const challenge: ThuneeDrill = {
     return {
       tone: 'suggest',
       title: `${name} broke the rules`,
-      body: `In the first trick ${name} trumped your A♥ with the 9♠. Now ${name} has led the 10♥, so ${name} had a heart then, and had to play it. Challenge ${name}.`,
+      body: `In the first trick ${named(view, 1)} trumped your A♥ with the 9♠. Now they have led the 10♥, so they held a heart then and had to play it. Challenge ${name}.`,
       cards: cards('9s 10h'),
       seats: [1],
       topic: 'challenge',
@@ -283,11 +283,11 @@ const challenge: ThuneeDrill = {
     const c = summary?.challenge
     if (c && c.challenger === view.seat) {
       if (c.guilty) return passed({ title: 'Caught', body: `${name} held the 10♥ when the A♥ was led. A correct challenge wins your side 4 balls.` })
-      return missed({ title: 'A wrong challenge', body: `${who(view, c.accused)} followed the rules, so the other side wins 4 balls. It was ${name} who reneged.` })
+      return missed({ title: 'A wrong challenge', body: `${who(view, c.accused)} played by the rules, so the other side wins 4 balls. It was ${named(view, 1)} who broke them.` })
     }
     const could = (v: View) => availableActions(v).challengePlay.includes(1)
     if (passedUp(decisions, could, (a) => a.type === 'challengePlay'))
-      return missed({ title: 'The renege went by', body: `${name} trumped the A♥ while holding the 10♥. A challenge then would have won 4 balls.`, cards: cards('9s 10h') })
+      return missed({ title: 'A broken rule went by', body: `${sentence(named(view, 1))} trumped the A♥ while holding the 10♥. A challenge then would have won 4 balls.`, cards: cards('9s 10h') })
     return null
   },
 }

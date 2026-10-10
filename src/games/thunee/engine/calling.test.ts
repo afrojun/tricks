@@ -219,9 +219,9 @@ describe('trump and the final deal', () => {
   test('the deal is cancelled when the counting team holds no trump, once everyone has seen all six cards, if the setting is on', () => {
     const t = new Table().deal(NO_SPADES).advance(10_000).do(1, { type: 'chooseTrump', choice: 'spades' })
     expect(t.game.phase).toMatchObject({ kind: 'thuneeWindow', hands: [{ length: 6 }, { length: 6 }, { length: 6 }, { length: 6 }] })
-    expect(t.events).not.toContainEqual({ type: 'dealCancelled' })
+    expect(t.events).not.toContainEqual(expect.objectContaining({ type: 'dealCancelled' }))
     t.advance(10_000) // the Thunee window closes with no call
-    expect(t.events).toContainEqual({ type: 'dealCancelled' })
+    expect(t.events).toContainEqual({ type: 'dealCancelled', thuneeCaller: null })
     expect(t.game.phase.kind).toBe('calling')
     expect(t.game.roundNumber).toBe(1)
     expect(t.game.dealer).toBe(0)
@@ -327,7 +327,7 @@ describe('Thunee: six of one suit, and no trump on the other side', () => {
     expect(t.game.phase).toMatchObject({ kind: 'trickPause', redeal: true })
     expect(viewFor(t.game, 0).phase).toMatchObject({ redeal: true })
     t.endPause()
-    expect(t.events).toContainEqual({ type: 'dealCancelled' })
+    expect(t.events).toContainEqual({ type: 'dealCancelled', thuneeCaller: 1 })
     expect(t.game).toMatchObject({ roundNumber: 1, balls: [0, 0], phase: { kind: 'calling' } })
 
     const off = thuneeBy(1).play('Js Jc Qs Jh')
@@ -355,7 +355,7 @@ describe('Thunee: six of one suit, and no trump on the other side', () => {
     expect(availableActions(viewFor(t.game, 1)).pass).toBe(true)
     expect(availableActions(viewFor(t.game, 3)).pass).toBe(false)
     t.do(1, { type: 'pass' })
-    expect(t.events).toContainEqual({ type: 'dealCancelled' })
+    expect(t.events).toContainEqual({ type: 'dealCancelled', thuneeCaller: 1 })
     expect(t.game.phase.kind).toBe('calling')
 
     // Seat 0 really had no spades, so the challenge is wrong.
@@ -367,7 +367,7 @@ describe('Thunee: six of one suit, and no trump on the other side', () => {
     // Seat 1 trumps with hearts and holds all six; seat 0 never sees one.
     const t = new Table(2).deal(['Js 9s As 10s Ks Qs', 'Jh 9h Ah 10h Kh Qh']).toPlay('hearts')
     t.play('Js Qh  Jh 9s  9h As  Ah 10s  10h Ks  Kh Qs').endPause()
-    expect(t.events).toContainEqual({ type: 'dealCancelled' })
+    expect(t.events).toContainEqual({ type: 'dealCancelled', thuneeCaller: null })
     expect(t.game).toMatchObject({ roundNumber: 1, balls: [0, 0], phase: { kind: 'calling' } })
 
     const off = new Table(2, { redealIfNoTrumps: false }).deal(['Js 9s As 10s Ks Qs', 'Jh 9h Ah 10h Kh Qh']).toPlay('hearts')

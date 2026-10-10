@@ -172,7 +172,7 @@ describe('advice', () => {
 
   test('a points warning does not assume the trick is already lost', () => {
     const t = four(['Jh 9h Ks Qs 10c Qd', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jd 9d Ad 10d Kh Qh']).toPlay('spades').play('Jc Qh 10c Qc  9c Kh Qd 10s  Js')
-    expect(check(you(t.game, 2), { type: 'playCard', card: card('Ah') })?.body).toMatch(/If they keep/)
+    expect(check(you(t.game, 2), { type: 'playCard', card: card('Ah') })?.body).toMatch(/if they keep/)
   })
 })
 

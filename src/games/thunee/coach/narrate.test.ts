@@ -112,7 +112,7 @@ describe('review', () => {
     const small: DecisionRecord = { view: early, advised: { type: 'playCard', card: card('10c') }, taken: { type: 'playCard', card: card('Qs') } }
     const big: DecisionRecord = { view: late, advised: { type: 'playCard', card: card('Qd') }, taken: { type: 'playCard', card: card('Jh') } }
     const moments = review({ decisions: [small, big], summary: summary(), dealt: [], you: 0, view: early }).filter((n) => n.tone === 'suggest')
-    expect(moments.map((n) => n.title)).toEqual(['Trick 1: you chose Q♠', 'Trick 2: you chose J♥'])
+    expect(moments.map((n) => n.title)).toEqual(['Trick 1: you played Q♠', 'Trick 2: you played J♥'])
   })
 
   test('a rule broken and not caught is pointed out', () => {

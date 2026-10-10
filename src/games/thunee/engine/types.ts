@@ -205,7 +205,8 @@ export type GameEvent =
   | { type: 'called'; seat: Seat; amount: number }
   | { type: 'passed'; seat: Seat }
   | { type: 'trumpChosen'; seat: Seat; lastCard: boolean }
-  | { type: 'dealCancelled' }
+  /** Dealt again: the counting side held no trump, or, with `thuneeCaller`, that Thunee's caller's opponents showed none. */
+  | { type: 'dealCancelled'; thuneeCaller: Seat | null }
   | { type: 'thuneeCalled'; seat: Seat }
   | { type: 'trumpRevealed'; suit: Suit }
   | { type: 'cardPlayed'; seat: Seat; card: Card }

@@ -54,9 +54,9 @@ export function beginRound(game: Game, ctx: Ctx, events: GameEvent[]): void {
   events.push({ type: 'dealt', roundNumber: game.roundNumber, dealer: game.dealer, half: 1 })
 }
 
-/** The counting side holds no trump: the same dealer deals the round again. */
-function dealAgain(game: Game, ctx: Ctx, events: GameEvent[]): void {
-  events.push({ type: 'dealCancelled' })
+/** The counting side holds no trump, or a Thunee's caller's opponents have shown none: the same dealer deals the round again. */
+function dealAgain(game: Game, ctx: Ctx, events: GameEvent[], thuneeCaller: Seat | null = null): void {
+  events.push({ type: 'dealCancelled', thuneeCaller })
   beginRound(game, ctx, events)
 }
 
@@ -272,7 +272,7 @@ export function afterTrick(game: Game, play: RoundPlay, ctx: Ctx, events: GameEv
     const result = thuneeTrickResult(game, play.thunee.caller, last.winner)
     if (!result.ok) return finishRound(game, play, { kind: 'thunee', success: false, partnerCatch: result.partnerCatch }, events)
     // A redeal the trick made plain comes first, even on the sixth trick, as the pause has told everyone.
-    if (redeal) return dealAgain(game, ctx, events)
+    if (redeal) return dealAgain(game, ctx, events, play.thunee.caller)
     if (tricksThisHalf === 6) return finishRound(game, play, { kind: 'thunee', success: true, partnerCatch: false }, events)
   }
 

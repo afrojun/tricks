@@ -1,5 +1,5 @@
 /** The suggested move for the player's decision, and why: the honest computer's choice, put into words. */
-import { type Action, type Available, type Card, type Suit, type View, type ViewPlaying, SUIT_NAME, availableActions, jodhiPoints, sameCard } from '../engine'
+import { type Action, type Available, type Card, type Suit, type View, type ViewPlaying, availableActions, jodhiPoints, sameCard } from '../engine'
 import { decide, chooseJodhi } from '../ai/choose'
 import { HONEST } from '../../../kit/mind'
 import { wouldWin } from '../ai/read'
@@ -7,7 +7,7 @@ import type { Decision, Reason } from '../ai/reasons'
 import { findProofs, inPlay } from '../ai/suspicion'
 import type { Note } from './note'
 import { thuneeRisk } from './check'
-import { card, count, isPartner, list, points, suitPlural, trickLabel, who } from './words'
+import { card, count, isPartner, list, otherSide, partnerName, points, sentence, sidePossessive, suitPlural, trickLabel, who, yourSide } from './words'
 
 export interface Advice {
   note: Note
@@ -33,7 +33,7 @@ export function advise(view: View): Advice | null {
       note: {
         tone: 'suggest',
         title: 'Call Jodhi',
-        body: `You hold the king and queen of ${suitPlural(jodhi.suit)}${jodhi.withJack ? ' and the jack' : ''}, and your side has just won a trick. Calling it adds ${pts} to your side.`,
+        body: `You hold the king and queen of ${suitPlural(jodhi.suit)}${jodhi.withJack ? ' and the jack' : ''}, and ${yourSide(view) === 'you' ? 'you have' : 'your side has'} just won a trick. Calling it adds ${pts} to ${yourSide(view) === 'you' ? 'your points' : 'your side'}.`,
         topic: 'jodhi',
       },
     }
@@ -57,7 +57,7 @@ function titleOf(action: Action): string {
     case 'pass':
       return 'Pass'
     case 'chooseTrump':
-      return action.choice === 'lastCard' ? 'Choose last card' : `Choose ${SUIT_NAME[action.choice]}`
+      return action.choice === 'lastCard' ? 'Choose last card' : `Choose ${action.choice}`
     case 'callThunee':
       return 'Call Thunee'
     case 'playCard':
@@ -121,11 +121,11 @@ function explain(view: View, can: Available, { action, reason, alternatives }: D
   }
   switch (reason.code) {
     case 'callStrong':
-      return `Your four cards hold ${strength(reason)}: strong enough to choose trump. A call is added to the other side's points, so this hand is worth calling up to ${reason.limit}.`
+      return `Your four cards hold ${strength(reason)}: strong enough to choose trump. A call is added to ${sidePossessive(otherSide(view))} points, so this hand is worth calling up to ${reason.limit}.`
     case 'passWeak': {
       const next = can.calls[0]
       if (reason.limit > 0 && next !== undefined) return `Your four cards hold ${strength(reason)}, worth calling up to ${reason.limit}. The next call would be ${next}, more than this hand is worth, so pass.`
-      return `Your four cards hold ${strength(reason)}. That is not strong enough to call: a call is added to the other side's points.`
+      return `Your four cards hold ${strength(reason)}. That is not strong enough to call: a call is added to ${sidePossessive(otherSide(view))} points.`
     }
     case 'strongestSuit':
       return `You hold ${list(reason.cards.map(card))} in ${suitPlural(reason.suit)}, more strength than in any other suit. The more good trumps you hold, the more tricks you can take.`
@@ -146,13 +146,13 @@ function explain(view: View, can: Available, { action, reason, alternatives }: D
     case 'thuneeLeadHigh':
       return 'In a Thunee you must win every trick, and no card of yours is sure to, so lead your strongest.'
     case 'thuneeSetTrump':
-      return `The first card you lead in a Thunee makes its suit trump. ${suitPlural(reason.card.suit)} are your longest suit, so lead your best of them.`
+      return `The first card you lead in a Thunee makes its suit trump. ${sentence(suitPlural(reason.card.suit))} are your longest suit, so lead your best of them.`
     case 'thuneeDrawTrumps':
-      return `The other side may still hold trumps, and a trump can cut any other card you lead. Lead trumps until they have none.${others(alternatives, reason.card)}`
+      return `${sentence(otherSide(view))} may still hold trumps, and a trump can cut any other card you lead. Lead trumps until they have none.${others(alternatives, reason.card)}`
     case 'thuneeSureLead':
-      return `Nobody can beat ${card(reason.card)}: every higher card is played or in your hand, and the other side cannot trump it.${others(alternatives, reason.card)}`
+      return `Nobody can beat ${card(reason.card)}: every higher card is played or in your hand, and ${otherSide(view)} cannot trump it.${others(alternatives, reason.card)}`
     case 'keepOffThunee':
-      return `${phase && phase.thunee ? who(view, phase.thunee.caller) : 'Your partner'} called Thunee and must win every trick alone. If you take one, the Thunee fails, so stay under them and get rid of high cards you could later be forced to win with.`
+      return `${phase && phase.thunee ? sentence(partnerName(view, phase.thunee.caller)) : 'Your partner'} called Thunee and must win every trick alone. If you take one, the Thunee fails, so stay under them and get rid of high cards you could later be forced to win with.`
     case 'feedPartner':
       return `${partnerText(view, phase)} already has this trick and you play last, so give them your most valuable card: ${card(reason.card)} is worth ${points([reason.card])}.`
     case 'holdUnderPartner':
@@ -170,11 +170,11 @@ function explain(view: View, can: Available, { action, reason, alternatives }: D
     case 'sureDouble':
       return 'Your side has won the first five tricks and your card wins the last. Double is worth 2 balls.'
     case 'sureKhanaak':
-      return "Your side's Jodhi plus 10 is more than the other side's card points plus their Jodhi, and your card wins the last trick. Khanaak is worth 3 balls, or 6 from the counting side."
+      return 'Your side’s Jodhi plus 10 is more than the other side’s card points plus their Jodhi, and your card wins the last trick. Khanaak is worth 3 balls, or 6 from the counting side.'
     case 'dealAgain':
-      return 'Both opponents have played another suit to a trump lead, so neither holds trump and nobody can stop your Thunee. The cards are dealt again. Challenge instead only if you can prove one of them hid a trump.'
+      return 'Both opponents have played another suit to a trump lead, so neither holds trump and nobody can stop your Thunee. Challenge instead only if you can prove one of them hid a trump.'
     case 'noJodhi':
-      return 'You hold no king and queen of a suit you have not already called, so there is no Jodhi to call. Play on.'
+      return 'You hold no king and queen of a suit you have not already called, so there is no Jodhi to call. Press No Jodhi.'
     case 'fallback':
       return action.type === 'playCard' ? `${card(action.card)} is a safe card to play.` : 'This is the safe choice.'
   }
@@ -189,7 +189,7 @@ function others(alternatives: readonly Card[] | undefined, chosen: Card): string
 function partnerText(view: View, phase: ViewPlaying | null): string {
   if (phase === null || phase.current.length === 0) return 'Your partner'
   const partner = phase.current.map((p) => p.seat).find((s) => isPartner(view, s))
-  return partner === undefined ? 'Your partner' : who(view, partner) === 'Partner' ? 'Partner' : `Your partner ${who(view, partner)}`
+  return partner === undefined ? 'Your partner' : sentence(partnerName(view, partner))
 }
 
 /** One sentence on the other cards that would also win, when there are some. */
@@ -224,7 +224,7 @@ function proofText(view: View, id: string, accused: number): string {
     if (!phase || !t) return `trick ${Number(i) + 1}`
     return trickLabel(view.playerCount, t.half, phase.tricks.slice(0, Number(i)).filter((x) => x.half === t.half).length)
   }
-  const end = 'A correct challenge wins your side 4 balls.'
+  const end = `A correct challenge wins ${yourSide(view)} 4 balls.`
   if (kind === 'renege') {
     const led = trick(cheatAt)?.plays[0]?.card.suit
     if (led) return `On ${label(cheatAt)} ${name} did not follow ${suitPlural(led)}, but has since played one. ${end}`
@@ -234,7 +234,7 @@ function proofText(view: View, id: string, accused: number): string {
     const suit = id.split(':')[2] as Suit
     return `${name} called Thunee holding six ${suitPlural(suit)}: they have played nothing else, and nobody else holds one. The rules forbid that call. ${end}`
   }
-  if (kind === 'jodhi') return `${name} called a Jodhi, but no suit it could be in fits: for each, a card it needs is in your hand or has been played elsewhere. ${end}`
+  if (kind === 'jodhi') return `${name} called a Jodhi, but no suit fits: in every suit, a king or queen it needs is in your hand or already played. ${end}`
   void revealAt
   return `${name} has broken the rules. ${end}`
 }

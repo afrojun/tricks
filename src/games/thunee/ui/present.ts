@@ -1,7 +1,7 @@
 import { type GameEvent, type RoundSummary, type Seat, type View, teamOf } from '../engine'
 import { type Presentation, WIN_BEAT_MS } from '../../../ui/contract'
 import { type Sound, playSound } from '../../../ui/sound'
-import { SUIT_NAME, seatName } from '../../../ui/text'
+import { seatName } from '../../../ui/text'
 import { teamName } from './text'
 
 export const CHALLENGE_BEAT_MS = 1800
@@ -25,6 +25,7 @@ const BROKE: Record<string, string> = { renege: 'did not follow suit', undercut:
 /** Turns one game event into a sound and, where it helps, a toast or a moment in the middle of the table. */
 export function present(event: GameEvent, view: View, seat: Seat | null): Presentation {
   const name = (s: Seat) => (s === seat ? 'You' : seatName(view, s))
+  const nameIn = (s: Seat) => (s === seat ? 'you' : seatName(view, s))
   const verb = (s: Seat, you: string, they: string) => (s === seat ? you : they)
   const call = (sound: Sound, s: Seat, what: string, detail?: string, ms = 2000): Presentation => {
     playSound(sound)
@@ -40,9 +41,11 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
     case 'trumpChosen':
       return { toast: `${name(event.seat)} ${verb(event.seat, 'have', 'has')} chosen trump${event.lastCard ? ' by last card' : ''}.` }
     case 'dealCancelled':
-      return { toast: 'The other side holds no trump. Dealing again.' }
+      // Every seat sees the same line, so it names the side by its role, never as "the other side".
+      if (event.thuneeCaller !== null && event.thuneeCaller !== undefined) return { toast: 'Nobody can stop the Thunee. Dealing again.' }
+      return { toast: view.playerCount === 2 ? 'The counting player holds no trump. Dealing again.' : 'The counting side holds no trump. Dealing again.' }
     case 'trumpRevealed':
-      return { toast: `Trump is ${SUIT_NAME[event.suit]}.` }
+      return { toast: `Trump is ${event.suit}.` }
     case 'cardPlayed':
       playSound(event.card.rank === 'J' ? 'slam' : 'card')
       return {}
@@ -61,22 +64,22 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
         'jodhi',
         event.seat,
         `Jodhi ${event.points}`,
-        `${name(event.seat)} ${verb(event.seat, 'hold', 'holds')} King and Queen${event.withJack ? ' with the Jack' : ''} of ${event.points >= 40 ? 'trumps' : 'a suit'}`,
+        `${name(event.seat)} ${verb(event.seat, 'hold', 'holds')} the king and queen of ${event.points >= 40 ? 'trump' : 'a suit'}${event.withJack ? ', with the jack' : ''}`,
         2600,
       )
     case 'challengeResolved':
       playSound('challenge')
       return {
-        moments: [{ title: 'Challenge', detail: `${name(event.challenger)} ${verb(event.challenger, 'challenge', 'challenges')} ${seatName(view, event.accused)}`, tone: 'danger', ms: CHALLENGE_BEAT_MS }],
+        moments: [{ title: 'Challenge', detail: `${name(event.challenger)} ${verb(event.challenger, 'challenge', 'challenges')} ${nameIn(event.accused)}`, tone: 'danger', ms: CHALLENGE_BEAT_MS }],
       }
     case 'roundScored': {
       const c = event.summary.challenge
       if (!c) return {}
       // The verdict comes in the same message as the challenge, and its moment shows after the challenge's.
       playSound(c.guilty ? 'caught' : 'fair', CHALLENGE_BEAT_MS)
-      const accused = seatName(view, c.accused)
-      const what = c.kind === 'play' ? 'followed suit' : c.kind === 'thunee' ? 'could call Thunee' : `held the Jodhi in ${SUIT_NAME[c.suit!]}`
-      const offence = c.kind === 'play' ? BROKE[c.rule ?? 'renege'] : c.kind === 'thunee' ? 'called Thunee with six of one suit' : 'called a false Jodhi'
+      const accused = name(c.accused)
+      const what = c.kind === 'play' ? 'followed suit' : c.kind === 'thunee' ? 'could call Thunee' : `held the Jodhi in ${c.suit!}`
+      const offence = c.kind === 'play' ? BROKE[c.rule ?? 'renege'] : c.kind === 'thunee' ? 'called Thunee with six cards of one suit' : 'called a false Jodhi'
       return {
         moments: [
           c.guilty
@@ -93,7 +96,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       const colour = `var(--team${event.winner})`
       const cancel = playSound(mine ? 'gameWon' : 'gameLost', after)
       // The winners see "You win" and their colour floods the table under confetti; the losers see who did, quietly; a spectator sees the colour without the confetti.
-      const title = mine ? 'You win' : `${teamName(view, event.winner)} ${view.playerCount === 2 ? 'wins' : 'win'}`
+      const title = mine ? 'You win' : `${teamName(view, event.winner, null, ' and ')} ${view.playerCount === 2 ? 'wins' : 'win'}`
       return {
         after,
         cancel,
