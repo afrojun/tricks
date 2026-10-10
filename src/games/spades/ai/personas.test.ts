@@ -11,16 +11,14 @@ const atRisk = () => new Table(4).deal(FOUR, 3).call(3, 'nil', 3, 3).play('2c')
 const mind = (persona: Persona) => ({ persona, salt: 7 })
 
 describe('cheating', () => {
-  test('Wild and Sly renege to save a Nil; Straight and Sharp never do', () => {
+  test('Wild reneges to save a Nil; Sly weighs it and, so early, with three watching, holds back; Straight and Sharp never do', () => {
     const t = atRisk()
-    for (const persona of ['wild', 'sly'] as const) {
-      const d = decide(viewFor(t.game, 1, 'full'), mind(persona))!
-      expect(d.reason).toMatchObject({ code: 'renege', saves: 'nil' })
-      if (d.action.type !== 'playCard') throw new Error(d.action.type)
-      expect(d.action.card.suit).not.toBe('clubs')
-      expect(d.action.card.suit).not.toBe('spades')
-    }
-    for (const persona of ['straight', 'sharp'] as const) expect(decide(viewFor(t.game, 1, 'full'), mind(persona))!.reason.code).toBe('playLow')
+    const d = decide(viewFor(t.game, 1, 'full'), mind('wild'))!
+    expect(d.reason).toMatchObject({ code: 'renege', saves: 'nil' })
+    if (d.action.type !== 'playCard') throw new Error(d.action.type)
+    expect(d.action.card.suit).not.toBe('clubs')
+    expect(d.action.card.suit).not.toBe('spades')
+    for (const persona of ['sly', 'straight', 'sharp'] as const) expect(decide(viewFor(t.game, 1, 'full'), mind(persona))!.reason.code).toBe('playLow')
   })
 })
 
