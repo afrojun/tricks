@@ -5,6 +5,8 @@ import { OMNIBUS_OVERRIDES, type RuleOverrides } from './engine/rules'
 
 /** Raise with SIM_GAMES=400 for a soak run. A game of Hearts is several hundred actions, so the default is small. */
 const GAMES = Number(process.env.SIM_GAMES ?? 10)
+/** src/kit/search/step.test.ts plays Standard's first three seeds, with cheating on and off, so these start after them. */
+const FIRST_SEED = 4
 
 describe('the module contract', () => {
   const configs: [string, RuleOverrides][] = [
@@ -19,7 +21,7 @@ describe('the module contract', () => {
       const { contract, tally } = heartsContract(overrides)
       let actions = 0
       let refused = 0
-      for (let seed = 1; seed <= GAMES; seed++) {
+      for (let seed = FIRST_SEED; seed < FIRST_SEED + GAMES; seed++) {
         const run = runContract(contract, seed)
         expect(run.game.phase.kind).toBe('gameOver')
         actions += run.actions

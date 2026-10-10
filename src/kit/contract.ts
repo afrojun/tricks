@@ -301,8 +301,8 @@ function describe(value: unknown): string {
  * player count, or anything of the clock or the random draws, it refuses alike in every game with
  * that many players. Most malformed messages are refused so, since the engines screen a message
  * before reading the game. The first game of each player count is watched for these refusals, and
- * they are not sent again. A wrapped `apply` that reads the game or the context before the engine
- * does (`ctx.now`, say) makes every refusal look read, and so sends every message in every state.
+ * they are not sent again. A wrapped `apply` that reads the game or the context itself (`ctx.now`,
+ * say) makes every refusal look read, and so sends every message in every state.
  */
 export function checkMalformed<G extends TableState, A, E, V extends TableView>(
   module: GameModule<G, A, E, V>,

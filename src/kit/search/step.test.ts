@@ -1,12 +1,17 @@
 /**
  * Rule 1 of the search player: each engine's `step` is the in-place half of its `apply`. Every game in the list
- * that has a `step` is played through an `apply` that also runs `step` on a copy, with the same random draws,
- * and the two must agree on every state, every event and every rejection; a rejected step leaves its draft as it was.
+ * is played through an `apply` that also runs `step` on a copy, with the same random draws, and the two must
+ * agree on every state, every event and every rejection; a rejected step leaves its draft as it was.
+ *
+ * These are the list's seeded contract games and its malformed-action check, played here alone: each game is
+ * checked against the contract and its step at once, rather than played again for each.
  */
 import { describe, expect, test } from 'vitest'
 import { GAMES } from '../../games'
+import { STANDARD } from '../../games/hearts'
 import { heartsContract } from '../../games/hearts/contract'
 import { thuneeContract } from '../../games/thunee/contract'
+import { TRADITIONAL } from '../../games/thunee/engine'
 import { type Contract, checkMalformed, runContract } from '../contract'
 import type { AnyGameModule } from '../module'
 import type { Actor, Ctx, TableState, TableView } from '../table'
@@ -88,30 +93,92 @@ function checked(module: AnyGameModule, tally: Tally, probes = false): AnyGameMo
 
 type AnyContract = Contract<TableState, unknown, { type: string }, TableView>
 
-/** Each game's contract fixture: its random legal player, mischief and hidden cards. */
-const FIXTURES: Record<string, (playerCount: number, allowCheating: boolean) => AnyContract> = {
-  thunee: (playerCount, allowCheating) => thuneeContract({ allowCheating }, playerCount as 2 | 4).contract as unknown as AnyContract,
-  hearts: (_, allowCheating) => heartsContract({ allowCheating }).contract as unknown as AnyContract,
+/** A game's contract fixture under one setting, and what its mischief reached. */
+interface Fixture {
+  contract: AnyContract
+  tally: { cheats: number; accusations: number }
 }
+
+/** Each game's contract fixture: its random legal player, mischief and hidden cards, at a seat count and with cheating on or off. */
+const FIXTURES: Record<string, (playerCount: number, allowCheating: boolean) => Fixture> = {
+  thunee: (playerCount, allowCheating) => fixture(thuneeContract({ allowCheating }, playerCount as 2 | 4)),
+  hearts: (_, allowCheating) => fixture(heartsContract({ allowCheating })),
+}
+
+/** A game's fixture, its contract widened to any game's and its tally still checked. */
+function fixture<G extends TableState, A, E, V extends TableView>({ contract, tally }: { contract: Contract<G, A, E, V>; tally: Fixture['tally'] }): Fixture {
+  return { contract: contract as unknown as AnyContract, tally }
+}
+/** Seeded whole games per game, seat count and setting. The games' own simulations play many more. */
 const SEEDS = 3
 
-describe('step is the in-place half of apply', () => {
-  const stepping = [...GAMES.values()].filter((module) => module.step !== undefined)
+const TABLE_ACTIONS = ['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat']
+const TABLE_PATHS = ['sit.seat', 'sit.name', 'rename.name', 'addAi.seat', 'addAi.persona', 'setPersona.seat', 'setPersona.persona', 'clearSeat.seat', 'setPlayerCount.playerCount', 'replaceWithAi.seat']
+const overrides = (rules: object) => ['setRules.overrides', ...Object.keys(rules).map((key) => `setRules.overrides.${key}`)]
+const card = (at: string) => [at, `${at}.suit`, `${at}.rank`]
 
-  test('every game that has a step is checked, Hearts among them; a game without one is left for later', () => {
-    expect(stepping.map((m) => m.id)).toContain('hearts')
+/**
+ * What the malformed-action check must reach in each game: the phases of a first round, every action a client may
+ * send, and every field. A union's shapes with fields of their own would add those fields here; neither game has one
+ * yet (Thunee's trump choice is a suit or `lastCard`), so the exact lists below fail the day one appears unlisted.
+ */
+const COVERAGE: Record<string, { phases: string[]; actions: string[]; paths: string[] }> = {
+  thunee: {
+    phases: ['calling', 'trumpSelection', 'thuneeWindow', 'playing', 'trickPause', 'roundResult'],
+    actions: [
+      ...TABLE_ACTIONS,
+      ...['setRules', 'call', 'pass', 'preselectTrump', 'chooseTrump', 'callThunee', 'playCard', 'claimJodhi', 'callDouble', 'callKhanaak'],
+      ...['challengePlay', 'challengeJodhi', 'challengeThunee', 'nextRound', 'rematch'],
+    ],
+    paths: [
+      ...TABLE_PATHS,
+      ...overrides(TRADITIONAL),
+      ...['call.amount', 'preselectTrump.choice', 'chooseTrump.choice', ...card('playCard.card'), 'claimJodhi.suit', 'claimJodhi.withJack'],
+      ...['challengePlay.seat', 'challengeJodhi.claim', 'rematch.now'],
+    ],
+  },
+  hearts: {
+    phases: ['passing', 'playing', 'trickPause', 'roundResult'],
+    actions: [...TABLE_ACTIONS, 'setRules', 'choosePass', 'playCard', 'challengePlay', 'nextRound', 'rematch'],
+    paths: [
+      ...TABLE_PATHS,
+      ...overrides(STANDARD),
+      ...['choosePass.cards', ...card('choosePass.cards.0'), ...card('choosePass.cards.1'), ...card('choosePass.cards.2')],
+      ...[...card('playCard.card'), 'challengePlay.seat', 'rematch.now'],
+    ],
+  },
+}
+
+describe('step is the in-place half of apply', () => {
+  test('every game in the list has a step, a contract fixture, and what the malformed-action check must reach in it', () => {
+    for (const [id, module] of GAMES) expect(module.step, id).toBeDefined()
     expect(Object.keys(FIXTURES).sort()).toEqual([...GAMES.keys()].sort())
+    expect(Object.keys(COVERAGE).sort()).toEqual([...GAMES.keys()].sort())
   })
 
-  for (const module of stepping) {
+  for (const module of GAMES.values()) {
     for (const playerCount of module.seatCounts) {
       for (const allowCheating of [true, false]) {
-        test(`${module.id}, ${playerCount} players, cheating ${allowCheating ? 'on' : 'off'}: seeded whole games, refusals included`, () => {
+        test(`${module.id}, ${playerCount} players, cheating ${allowCheating ? 'on' : 'off'}: seeded whole games keep the contract, refusals included`, () => {
           const tally: Tally = { applied: 0, rejected: 0 }
-          const contract = FIXTURES[module.id](playerCount, allowCheating)
+          const fixture = FIXTURES[module.id](playerCount, allowCheating)
+          // The fixture plays the listed module itself, not a copy of its parts; here its apply checks its step.
+          expect(fixture.contract.module).toBe(module)
+          let actions = 0
+          let refused = 0
           for (let seed = 1; seed <= SEEDS; seed++) {
-            const run = runContract({ ...contract, module: checked(module, tally, true) }, seed)
+            const run = runContract({ ...fixture.contract, module: checked(module, tally, true) }, seed)
             expect(run.game.phase.kind).toBe('gameOver')
+            expect(run.game.playerCount).toBe(playerCount)
+            actions += run.actions
+            refused += run.refused
+          }
+          expect(actions).toBeGreaterThan(SEEDS * 50)
+          // The mischief must reach the corners it is meant to, or this proves little.
+          if (allowCheating) expect(fixture.tally.cheats).toBeGreaterThan(0)
+          else {
+            expect(fixture.tally).toMatchObject({ cheats: 0, accusations: 0 })
+            expect(refused).toBeGreaterThan(0)
           }
           // A Thunee game with cheating on can end inside a hundred actions once a cheat is caught, so the bar is modest.
           expect(tally.applied).toBeGreaterThan(SEEDS * 50)
@@ -122,7 +189,14 @@ describe('step is the in-place half of apply', () => {
 
     test(`${module.id}: every malformed action, from anyone, in every phase reached`, () => {
       const tally: Tally = { applied: 0, rejected: 0 }
-      checkMalformed(checked(module, tally))
+      const covered = checkMalformed(checked(module, tally))
+      expect(covered.states[0]).toBe('an empty lobby')
+      for (const count of module.seatCounts) {
+        expect(covered.states).toContain(`a full lobby of ${count}`)
+        for (const phase of COVERAGE[module.id].phases) expect(covered.states).toContain(`${phase} with ${count}`)
+      }
+      expect([...covered.actions].sort()).toEqual([...COVERAGE[module.id].actions].sort())
+      expect([...covered.paths].sort()).toEqual([...COVERAGE[module.id].paths].sort())
       expect(tally.rejected).toBeGreaterThan(10_000)
       expect(tally.applied).toBeGreaterThan(100)
     })
@@ -131,7 +205,7 @@ describe('step is the in-place half of apply', () => {
   test('the check catches a step that differs from apply, or changes a draft it refuses', () => {
     const hearts = GAMES.get('hearts')!
     const tally: Tally = { applied: 0, rejected: 0 }
-    const contract = FIXTURES.hearts(4, true)
+    const { contract } = FIXTURES.hearts(4, true)
     const extraEvent: AnyGameModule = {
       ...hearts,
       step(draft, actor, action, ctx) {

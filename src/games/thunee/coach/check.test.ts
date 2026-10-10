@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { type Game, type View, viewFor } from '../engine'
 import { Table, card } from '../engine/testing'
-import { thuneePractice } from '../practice'
-import { playPractice } from '../testing'
-import { PracticeGame } from '../../../practice/game'
-import { advise } from './advise'
 import { check } from './check'
 
 // Dealer 0: seat 1 is trumper (team 1), seat 2 leads; trump is spades. Order of play 2, 3, 0, 1.
@@ -65,18 +61,5 @@ describe('check', () => {
   test('a challenge with nothing to prove', () => {
     const v = you(played('Jc Qh 10c').game)
     expect(check(v, { type: 'challengePlay', seat: 3 })).toMatchObject({ rule: 'challenge' })
-  })
-
-  test('the advice itself never draws a warning', () => {
-    for (const players of [2, 4] as const) {
-      for (let seed = 1; seed <= 5; seed++) {
-        const p = PracticeGame.start(thuneePractice, players, seed, 'Ann')
-        playPractice(p, 3000, () => {
-          const v = p.coachView()
-          const a = advise(v)
-          if (a) expect(check(v, a.action), `${players}p seed ${seed} ${JSON.stringify(a.action)}`).toBeNull()
-        })
-      }
-    }
   })
 })

@@ -28,7 +28,7 @@ const pick = <T>(items: readonly T[], rng: () => number): T => items[Math.floor(
 
 /**
  * Whether `known` holds `card`, as `hasCard` says. The kit's, which every part of the game calls on hands of
- * every kind, runs at a third of this speed here, and `hidden` is asked for every view after every action.
+ * every kind, runs slower here, and `hidden` is asked for every view after every action.
  */
 function knows(known: readonly Card[], card: Card): boolean {
   for (const k of known) if (k.suit === card.suit && k.rank === card.rank) return true

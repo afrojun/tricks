@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'vitest'
 import { GAMES, gameOf, isRoomName } from '.'
-import { type Game, type View, TRADITIONAL } from './thunee/engine'
+import type { Game, View } from './thunee/engine'
 import { Table } from './thunee/engine/testing'
-import { type Contract, type ContractRun, checkMalformed, runContract } from '../kit/contract'
-import type { Actor, Seat, TableState, TableView } from '../kit/table'
-import { STANDARD, hearts } from './hearts'
-import { heartsContract } from './hearts/contract'
+import { checkMalformed, runContract } from '../kit/contract'
+import type { Actor, Seat } from '../kit/table'
+import { hearts } from './hearts'
 import { thunee } from './thunee'
 import { thuneeContract } from './thunee/contract'
 
@@ -46,61 +45,11 @@ describe('the list of games', () => {
   })
 })
 
+/**
+ * Every game in the list plays its seeded contract games, and meets every malformed action, once each, in
+ * src/kit/search/step.test.ts, which checks its step alongside. Here, that the checks catch what they should.
+ */
 describe('every game in the list', () => {
-  const TABLE_ACTIONS = ['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat']
-  const TABLE_PATHS = ['sit.seat', 'sit.name', 'rename.name', 'addAi.seat', 'addAi.persona', 'setPersona.seat', 'setPersona.persona', 'clearSeat.seat', 'setPlayerCount.playerCount', 'replaceWithAi.seat']
-  const overrides = (rules: object) => ['setRules.overrides', ...Object.keys(rules).map((key) => `setRules.overrides.${key}`)]
-  const card = (at: string) => [at, `${at}.suit`, `${at}.rank`]
-
-  /**
-   * What the malformed-action check must reach in each game: the phases of a first round, every action a client may
-   * send, and every field. A union's shapes with fields of their own would add those fields here; neither game has one
-   * yet (Thunee's trump choice is a suit or `lastCard`), so the exact lists below fail the day one appears unlisted.
-   */
-  const COVERAGE: Record<string, { phases: string[]; actions: string[]; paths: string[] }> = {
-    thunee: {
-      phases: ['calling', 'trumpSelection', 'thuneeWindow', 'playing', 'trickPause', 'roundResult'],
-      actions: [
-        ...TABLE_ACTIONS,
-        ...['setRules', 'call', 'pass', 'preselectTrump', 'chooseTrump', 'callThunee', 'playCard', 'claimJodhi', 'callDouble', 'callKhanaak'],
-        ...['challengePlay', 'challengeJodhi', 'challengeThunee', 'nextRound', 'rematch'],
-      ],
-      paths: [
-        ...TABLE_PATHS,
-        ...overrides(TRADITIONAL),
-        ...['call.amount', 'preselectTrump.choice', 'chooseTrump.choice', ...card('playCard.card'), 'claimJodhi.suit', 'claimJodhi.withJack'],
-        ...['challengePlay.seat', 'challengeJodhi.claim', 'rematch.now'],
-      ],
-    },
-    hearts: {
-      phases: ['passing', 'playing', 'trickPause', 'roundResult'],
-      actions: [...TABLE_ACTIONS, 'setRules', 'choosePass', 'playCard', 'challengePlay', 'nextRound', 'rematch'],
-      paths: [
-        ...TABLE_PATHS,
-        ...overrides(STANDARD),
-        ...['choosePass.cards', ...card('choosePass.cards.0'), ...card('choosePass.cards.1'), ...card('choosePass.cards.2')],
-        ...[...card('playCard.card'), 'challengePlay.seat', 'rematch.now'],
-      ],
-    },
-  }
-
-  test('each game says what the malformed-action check must reach in it', () => {
-    expect(Object.keys(COVERAGE).sort()).toEqual([...GAMES.keys()].sort())
-  })
-
-  for (const [id, module] of GAMES) {
-    test(`${id} never throws on a malformed action, from anyone at the table or not, in any phase`, () => {
-      const covered = checkMalformed(module)
-      expect(covered.states[0]).toBe('an empty lobby')
-      for (const count of module.seatCounts) {
-        expect(covered.states).toContain(`a full lobby of ${count}`)
-        for (const phase of COVERAGE[id].phases) expect(covered.states).toContain(`${phase} with ${count}`)
-      }
-      expect([...covered.actions].sort()).toEqual([...COVERAGE[id].actions].sort())
-      expect([...covered.paths].sort()).toEqual([...COVERAGE[id].paths].sort())
-    })
-  }
-
   test('the check catches a game that reads a field, a field of a field, or a whole action carelessly', () => {
     /** Thunee as it is, except that it throws on one input, as a careless read would. */
     const careless = (fault: (actor: Actor, action: Record<string, unknown> | null) => boolean): typeof thunee => ({
@@ -122,30 +71,6 @@ describe('every game in the list', () => {
 })
 
 describe('every game in the list keeps the module contract', () => {
-  /** A game's contract fixture under one setting, its own types put away. */
-  interface Fixture {
-    module: unknown
-    play(seed: number): ContractRun<TableState>
-    tally: { cheats: number; accusations: number }
-  }
-  const fixture = <G extends TableState, A, E, V extends TableView>({ contract, tally }: { contract: Contract<G, A, E, V>; tally: Fixture['tally'] }): Fixture => ({
-    module: contract.module,
-    play: (seed) => runContract(contract, seed),
-    tally,
-  })
-
-  /** Each game's random legal player, mischief and hidden cards, at a seat count and with cheating on or off. */
-  const FIXTURES: Record<string, (playerCount: number, allowCheating: boolean) => Fixture> = {
-    thunee: (playerCount, allowCheating) => fixture(thuneeContract({ allowCheating }, playerCount as 2 | 4)),
-    hearts: (_, allowCheating) => fixture(heartsContract({ allowCheating })),
-  }
-  /** Seeded whole games per game, seat count and setting. The games' own simulations play many more. */
-  const SEEDS = 3
-
-  test('no game is listed without a contract fixture', () => {
-    expect(Object.keys(FIXTURES).sort()).toEqual([...GAMES.keys()].sort())
-  })
-
   describe('the gate judges the views the module itself produces', () => {
     const { contract } = thuneeContract({}, 4)
     /** Thunee with its views changed by `change`, played through the same fixture. */
@@ -186,32 +111,4 @@ describe('every game in the list keeps the module contract', () => {
       expect(contract.checkView!(paused, null, thunee.viewFor(paused, null))).toBeNull()
     })
   })
-
-  for (const [id, module] of GAMES) {
-    for (const playerCount of module.seatCounts) {
-      for (const allowCheating of [true, false]) {
-        test(`${id}, ${playerCount} players, cheating ${allowCheating ? 'on' : 'off'}: seeded games end with invariants and views intact after every action`, () => {
-          const gate = FIXTURES[id](playerCount, allowCheating)
-          // The listed module itself is what is played, not a copy of its parts.
-          expect(gate.module).toBe(module)
-          let actions = 0
-          let refused = 0
-          for (let seed = 1; seed <= SEEDS; seed++) {
-            const run = gate.play(seed)
-            expect(run.game.phase.kind).toBe('gameOver')
-            expect(run.game.playerCount).toBe(playerCount)
-            actions += run.actions
-            refused += run.refused
-          }
-          expect(actions).toBeGreaterThan(SEEDS * 50)
-          // The mischief must reach the corners it is meant to, or this proves little.
-          if (allowCheating) expect(gate.tally.cheats).toBeGreaterThan(0)
-          else {
-            expect(gate.tally).toMatchObject({ cheats: 0, accusations: 0 })
-            expect(refused).toBeGreaterThan(0)
-          }
-        })
-      }
-    }
-  }
 })

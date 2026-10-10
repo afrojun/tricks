@@ -133,11 +133,19 @@ describe('the round log', () => {
 
 describe('whole games', () => {
   const GAMES = Number(process.env.SIM_GAMES ?? 6)
+  const { advise, check } = thuneePractice.coach
   for (const players of [2, 4] as const) {
-    test(`${players} players, following the computer's own advice, always finish`, () => {
+    test(`${players} players, following the computer's own advice, always finish, and the coach never warns against its advice`, () => {
       for (let seed = 1; seed <= GAMES; seed++) {
         const p = PracticeGame.start(thuneePractice, players, seed, 'Ann')
-        playPractice(p, 20_000, () => checkInvariants(p.game))
+        playPractice(p, 20_000, () => {
+          checkInvariants(p.game)
+          // Checked after every step, so without expect's cost.
+          const view = p.coachView()
+          const advice = advise(view)
+          const warning = advice && check(view, advice.action)
+          if (warning) throw new Error(`seed ${seed} ${JSON.stringify(advice.action)}: ${warning.body}`)
+        })
         expect(p.game.phase.kind, `seed ${seed}`).toBe('gameOver')
         expect(p.round.dealt.length).toBeGreaterThan(0)
       }
