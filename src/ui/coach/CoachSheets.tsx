@@ -132,8 +132,9 @@ export function HowToPlaySheet({ lessons, onClose }: { lessons: Lessons; onClose
     <Sheet title="How to play" onClose={onClose}>
       <div className="grid gap-2">
         {Object.keys(lessons).map((id) => (
-          <button key={id} className="btn justify-start" onClick={() => setOpen(id)}>
-            {lessons[id].title}
+          <button key={id} className="btn" onClick={() => setOpen(id)}>
+            {/* The title takes the row, so every one starts at the same edge: `.btn` centres what it holds. */}
+            <span className="flex-1 text-left">{lessons[id].title}</span>
           </button>
         ))}
       </div>
