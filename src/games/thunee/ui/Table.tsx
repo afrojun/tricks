@@ -147,7 +147,7 @@ export function Table({ view, room }: { view: View; room: string }) {
       )}
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        {coached && <CoachStrip lessons={TOPICS} />}
+        {coached && <CoachStrip lessons={TOPICS} over={over} />}
         {/*
           The player's line, one row: what to do, and the buttons that act now, with the talk button at its
           right end. Its height is kept, so the hand does not move when a button comes or goes; three buttons

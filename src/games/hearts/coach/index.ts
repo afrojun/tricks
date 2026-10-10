@@ -6,11 +6,11 @@
 import { hasCard } from '../../../kit/cards'
 import { type CoachBasis, type GameCoach, baselineCoach } from '../../../kit/coach'
 import { brokenRules } from '../../../kit/integrity'
-import { ledSuit } from '../../../kit/tricks'
+import { ledSuit, touching } from '../../../kit/tricks'
 import { decide } from '../ai/choose'
-import { winningPlay } from '../ai/read'
+import { inPlay, unseen, winningPlay, wouldWin } from '../ai/read'
 import type { Reason } from '../ai/reasons'
-import { type Action, type Card, type GameEvent, type View, type ViewPlaying, availableActions, excusesFor, isOpeningLead, isPointCard, situation, trickPoints } from '../engine'
+import { type Action, type Card, type GameEvent, type View, type ViewPlaying, availableActions, excusesFor, isOpeningLead, isPointCard, situation, strength, trickPoints } from '../engine'
 import { narrate } from './narrate'
 import { PHRASES } from './phrases'
 import { topicsFor } from './topics'
@@ -85,6 +85,31 @@ export const heartsBasis: CoachBasis<View, Action, Reason> = {
   },
 
   risk: 'If anyone notices, they can accuse you: the round ends at once, and you take 26 points.',
+
+  when(view) {
+    const play = inPlay(view)
+    return view.phase.kind === 'passing' ? 'Passing' : play ? `Trick ${play.tricks.length + 1}` : 'This round'
+  },
+
+  hinted: (action) => action.type === 'choosePass' || action.type === 'playCard',
+
+  // Touching cards worth the same points that win or lose this trick alike: a card already on it may lie between them.
+  asGood(view, advised, taken) {
+    const turn = myTurn(view)
+    if (turn === null || advised.type !== 'playCard' || taken.type !== 'playCard') return false
+    const worth = (c: Card) => trickPoints([c], view.rules)
+    const wins = (c: Card) => turn.current.length === 0 || wouldWin(turn.current, view.seat!, c)
+    return (
+      worth(advised.card) === worth(taken.card) && wins(advised.card) === wins(taken.card) && touching(advised.card, taken.card, unseen(turn), { strength })
+    )
+  },
+
+  // The points riding on the trick, the two cards' own included; the pass sets up the whole round.
+  stake(view, advised, taken) {
+    const turn = myTurn(view)
+    if (turn === null || advised.type !== 'playCard' || taken.type !== 'playCard') return 10
+    return 1 + Math.abs(trickPoints([...turn.current.map((p) => p.card), advised.card, taken.card], view.rules))
+  },
 }
 
 export const heartsCoach: GameCoach<View, Action, GameEvent> = { ...baselineCoach(heartsBasis), narrate, topicsFor }

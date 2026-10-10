@@ -71,6 +71,7 @@ export function Table({ view, room }: { view: View; room: string }) {
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
   // The round's result takes the table once its last trick has been gathered in.
   const gathering = useGathering(phase.kind === 'roundResult' || phase.kind === 'gameOver', phase.kind === 'trickPause')
+  const over = (phase.kind === 'roundResult' || phase.kind === 'gameOver') && !gathering
   const hand = 'hand' in phase ? sortHand(phase.hand) : []
   const line = hint(view, picked.length)
   // Cards passed to the viewer arrive from the player who gave them; a new deal from across the table.
@@ -91,7 +92,7 @@ export function Table({ view, room }: { view: View; room: string }) {
         <div className="justify-self-end">{!watching && <Points view={view} seat={me} />}</div>
       </header>
 
-      {(phase.kind === 'roundResult' || phase.kind === 'gameOver') && !gathering ? (
+      {over ? (
         // The result needs the width; the seats' points are in its table.
         <div className="flex-1 min-h-0 overflow-y-auto grid justify-items-center items-start px-3 py-2">
           <RoundResult view={view} summary={phase.summary} winner={phase.kind === 'gameOver' ? phase.winner : null} can={can} />
@@ -119,7 +120,7 @@ export function Table({ view, room }: { view: View; room: string }) {
       )}
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        {coached && <CoachStrip lessons={TOPICS} />}
+        {coached && <CoachStrip lessons={TOPICS} over={over} />}
         {/* The player's line, one row: what to do, and the buttons that act now, with the talk button at its right end. Its height is kept, so the hand does not move. */}
         <div className="hint-row player-line" aria-live="polite">
           {!coached && <span className="player-cue">{watching ? 'You are watching this game.' : line?.mine ? <b className="cue">{line.text}</b> : line?.text}</span>}

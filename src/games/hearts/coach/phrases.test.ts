@@ -21,7 +21,7 @@ import {
   viewFor,
 } from '../engine'
 import { Table, card, cards } from '../engine/testing'
-import { heartsCoach } from '.'
+import { heartsBasis, heartsCoach } from '.'
 
 const you = (game: Game, seat = 0): View => viewFor(game, seat, 'full')
 const play = (c: string): Action => ({ type: 'playCard', card: card(c) })
@@ -241,20 +241,37 @@ describe('Hearts’ one warning: a card that breaks a rule', () => {
     expect(heartsCoach.check(you(lead.game, 2), play('8h'))?.body).toBe(`Hearts are not broken yet, so 8♥ may not be led while you hold another suit. ${RISK}`)
   })
 
-  test('the review names each rule broken, and nothing else', () => {
+  test('the review names each rule broken, then each move against the hint, with its reason', () => {
     const t = new Table({ passing: 'none' }).deal(NO_PASS).play('2c 3c 8c')
     const v = you(t.game, 3)
+    const hint = heartsCoach.advise(v)!
     const notes = heartsCoach.review({
       decisions: [
-        { view: v, advised: play('4d'), taken: play('Kh') },
-        { view: v, advised: play('4d'), taken: play('Ad') },
+        { view: v, advised: hint.action, taken: play('Kh') },
+        { view: v, advised: hint.action, taken: play('Ad') },
       ],
       summary: null,
       dealt: [],
       you: 3,
       view: v,
     })
-    expect(notes).toEqual([{ tone: 'warn', title: 'A rule broken', body: 'K♥ is a point card, and none may be played to the first trick while you hold anything else.', cards: [card('Kh')] }])
+    expect(notes[0]).toEqual({ tone: 'warn', title: 'Trick 1: a rule broken', body: 'K♥ is a point card, and none may be played to the first trick while you hold anything else.', cards: [card('Kh')] })
+    expect(notes.slice(1)).toEqual([{ tone: 'suggest', title: 'Trick 1: you chose “Play A♦”', body: `The hint was “${hint.note.title}”. ${hint.note.body}`, cards: hint.note.cards }])
+  })
+
+  test('in the review, touching cards are as good as each other, unless the card between them is on the table and one wins', () => {
+    // Seat 1 follows the 2♣ with the 9♣; seat 2 holds the 8♣ and 10♣, and the 7♣ under them.
+    const t = new Table({ passing: 'none' })
+      .deal([
+        '2c 3c 4c 2d 3d 4d 5d 2h 3h 4h 5h 2s 3s',
+        '9c 5c 6c 6d 7d 8d 9d 6h 7h 8h 9h 4s 5s',
+        '8c 10c 7c 10d Jd Qd Kd 10h Jh Qh Kh 6s 7s',
+        'Jc Qc Kc Ac Ad Ah 8s 9s 10s Js Qs Ks As',
+      ])
+      .play('2c 9c')
+    const v = you(t.game, 2)
+    expect(heartsBasis.asGood!(v, play('8c'), play('10c'))).toBe(false)
+    expect(heartsBasis.asGood!(v, play('7c'), play('8c'))).toBe(true)
   })
 
   test('with cheating off the card is refused, so there is nothing to warn about', () => {

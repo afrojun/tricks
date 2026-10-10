@@ -52,3 +52,13 @@ export function unbrokenLead<C extends Card>(card: C, led: Suit | null, suit: Su
   if (led !== null || broken || suitOf(card) !== suit) return []
   return [{ rule, without: (c) => suitOf(c) !== suit }]
 }
+
+/**
+ * Whether two cards are equals: of one suit, with no card between them that the player cannot account for
+ * (`unseen`), so whichever is played, the hand keeps the same power.
+ */
+export function touching<C extends Card>(a: C, b: C, unseen: readonly C[], { strength, suitOf = printed }: Pick<TrickOrder<C>, 'strength' | 'suitOf'>): boolean {
+  if (suitOf(a) !== suitOf(b)) return false
+  const [low, high] = [strength(a), strength(b)].sort((x, y) => x - y)
+  return !unseen.some((c) => suitOf(c) === suitOf(a) && strength(c) > low && strength(c) < high)
+}

@@ -7,7 +7,7 @@
  * Tier 2 is written by hand, game by game: a game's coach may start from the baseline and replace
  * any member, or supply every one.
  */
-import type { Card } from './cards'
+import { type Card, sameCard } from './cards'
 import { HONEST, type Mind } from './mind'
 import type { Seat, TableView } from './table'
 
@@ -91,13 +91,27 @@ export interface CoachBasis<V extends TableView, A, R extends Reason> {
   breaks(view: V, action: A): string | null
   /** What breaking a rule risks once someone notices. */
   risk: string
+  /** Where in the round a decision was made, as the review heads it: "Calling", "Trick 4". */
+  when(view: V): string
+  /** Whether the hint could have chosen an action, so the review weighs it against the hint; an accusation, say, is not. Every action unless given. */
+  hinted?(action: A): boolean
+  /** Whether the player's choice did all the hint's would have, such as a card touching it: the review lets it pass. */
+  asGood?(view: V, advised: A, taken: A): boolean
+  /** How much rode on a decision, for the review to pick the moments that mattered most; 1 unless given. */
+  stake?(view: V, advised: A, taken: A): number
 }
+
+/** At most this many moments against the hint in a review: the ones with most at stake. */
+export const REVIEW_MOMENTS = 3
 
 /**
  * A complete coach from a game's computer player and its words. The situation is what the player
  * is asked, and the game's line; the hint is the honest computer's choice with the phrase for its
  * reason; the one warning is for breaking a rule, so the hint, which keeps the rules, is never
- * warned against; the review lists the rule-breaking plays. It narrates nothing and teaches no topics.
+ * warned against. The review lists the rule-breaking plays, then the moments with most at stake where
+ * the player chose otherwise than the hint, each with the hint's reason; it says so when every choice
+ * was the hint's. A hand-written player cannot say how much worse a choice was, so a moment is put as
+ * what the hint was and why, never as a mistake. It narrates nothing and teaches no topics.
  */
 export function baselineCoach<V extends TableView, A, R extends Reason>(basis: CoachBasis<V, A, R>): GameCoach<V, A, unknown> {
   const honest = (view: V) => (view.seat === null ? null : basis.decide(view, HONEST))
@@ -106,6 +120,13 @@ export function baselineCoach<V extends TableView, A, R extends Reason>(basis: C
   const shown = (action: A) => {
     const cards = basis.cards(action)
     return cards.length > 0 ? { cards } : {}
+  }
+
+  /** One action, whatever the order of its cards. */
+  const same = (a: A, b: A) => {
+    const [x, y] = [basis.cards(a), basis.cards(b)]
+    const rest = (action: A) => JSON.stringify({ ...(action as object), card: undefined, cards: undefined })
+    return rest(a) === rest(b) && x.length === y.length && x.every((c) => y.some((d) => sameCard(c, d)))
   }
 
   return {
@@ -127,10 +148,35 @@ export function baselineCoach<V extends TableView, A, R extends Reason>(basis: C
     },
     narrate: () => null,
     topicsFor: () => [],
-    review: ({ decisions }) =>
-      decisions.flatMap(({ view, taken }) => {
+    review({ decisions }) {
+      const broken: Note[] = decisions.flatMap(({ view, taken }) => {
         const why = basis.breaks(view, taken)
-        return why === null ? [] : [{ tone: 'warn' as const, title: 'A rule broken', body: why, ...shown(taken) }]
-      }),
+        return why === null ? [] : [{ tone: 'warn' as const, title: `${basis.when(view)}: a rule broken`, body: why, ...shown(taken) }]
+      })
+      const differed = decisions
+        .map((d, i) => ({ ...d, i }))
+        .filter((d): d is typeof d & { advised: A } => d.advised !== null && (basis.hinted?.(d.taken) ?? true) && !same(d.advised, d.taken))
+        .filter((d) => basis.breaks(d.view, d.taken) === null)
+        .filter((d) => !basis.asGood?.(d.view, d.advised, d.taken))
+      const moments: Note[] = differed
+        .map((d) => ({ d, stake: basis.stake?.(d.view, d.advised, d.taken) ?? 1 }))
+        .sort((a, b) => b.stake - a.stake || a.d.i - b.d.i)
+        .slice(0, REVIEW_MOMENTS)
+        .sort((a, b) => a.d.i - b.d.i)
+        .map(({ d }) => {
+          const decision = honest(d.view)
+          // The advice was the honest computer's choice from this view, so its reason is asked again.
+          const why = decision && same(decision.action, d.advised) ? ` ${phrase(decision.reason, d.view)}` : ''
+          return {
+            tone: 'suggest' as const,
+            title: `${basis.when(d.view)}: you chose “${basis.name(d.taken)}”`,
+            body: `The hint was “${basis.name(d.advised)}”.${why}`,
+            ...shown(d.advised),
+          }
+        })
+      if (broken.length === 0 && moments.length === 0 && decisions.some((d) => d.advised !== null))
+        return [{ tone: 'info', title: 'As the coach would have', body: 'Every choice this round was the hint’s, or one just as good.' }]
+      return [...broken, ...moments]
+    },
   }
 }

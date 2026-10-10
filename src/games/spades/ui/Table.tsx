@@ -106,7 +106,7 @@ export function Table({ view, room }: { view: View; room: string }) {
       )}
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        {coached && <CoachStrip lessons={TOPICS} />}
+        {coached && <CoachStrip lessons={TOPICS} over={over} />}
         {/* The player's line, one row: what to do, and the buttons that act now, with the talk button at its right end. */}
         <div className="hint-row player-line" aria-live="polite">
           {!coached && <span className="player-cue">{watching ? 'You are watching this game.' : line?.mine ? <b className="cue">{line.text}</b> : line?.text}</span>}

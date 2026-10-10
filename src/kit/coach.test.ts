@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { type Card, SUIT_NAME, cardText, sameCard } from './cards'
-import { type CoachBasis, type Note, baselineCoach } from './coach'
+import { type CoachBasis, type Note, REVIEW_MOMENTS, baselineCoach } from './coach'
 import { brokenRules, legalCards } from './integrity'
 import { HONEST, type Mind } from './mind'
 import type { Memory } from './module'
@@ -84,6 +84,11 @@ const toy: CoachBasis<ToyView, ToyAction, ToyReason> = {
     return `${cardText(action.card)} does not follow ${SUIT_NAME[led!].toLowerCase()}, and you hold some.`
   },
   risk: 'Anyone who notices can say so.',
+  when: (view) => (view.phase.trick.length === 0 ? 'Leading' : 'Following'),
+  hinted: (action) => action.type === 'playCard',
+  // 2♣ and 3♣ are equals here.
+  asGood: (_, advised, taken) => advised.type === 'playCard' && taken.type === 'playCard' && [advised.card, taken.card].every((x) => x.suit === 'clubs' && ['2', '3'].includes(x.rank)),
+  stake: (view) => (view.phase.trick.length === 0 ? 2 : 1),
 }
 
 const coach = baselineCoach(toy)
@@ -139,16 +144,48 @@ describe('the baseline coach', () => {
     expect(coach.topicsFor(you(FOLLOW), { type: 'dealt' })).toEqual([])
   })
 
-  test('the review lists the rule-breaking plays only, not every move that differed from the advice', () => {
-    const decisions = [
-      { view: you(LEAD), advised: play('2c'), taken: play('4h') },
-      { view: you(FOLLOW), advised: play('2c'), taken: play('9c') },
-      { view: you(FOLLOW), advised: play('2c'), taken: play('4h') },
-    ]
-    expect(coach.review({ decisions, summary: null, dealt: [], you: 0, view: you(FOLLOW) })).toEqual([
-      { tone: 'warn', title: 'A rule broken', body: '4♥ does not follow clubs, and you hold some.', cards: [c('4h')] },
+  const review = (decisions: { view: ToyView; advised: ToyAction | null; taken: ToyAction }[], basis = toy) =>
+    baselineCoach(basis).review({ decisions, summary: null, dealt: [], you: 0, view: you(FOLLOW) })
+
+  test('the review lists the rule-breaking plays, then the moments against the hint, each with the hint and its reason', () => {
+    expect(
+      review([
+        { view: you(LEAD), advised: play('2c'), taken: play('4h') },
+        { view: you(FOLLOW), advised: play('2c'), taken: play('9c') },
+        { view: you(FOLLOW), advised: play('2c'), taken: play('4h') },
+      ]),
+    ).toEqual([
+      { tone: 'warn', title: 'Following: a rule broken', body: '4♥ does not follow clubs, and you hold some.', cards: [c('4h')] },
+      {
+        tone: 'suggest',
+        title: 'Leading: you chose “Play 4♥”',
+        body: 'The hint was “Play 2♣”. Of the cards in sight, 2♣, 9♣ or 4♥, 2♣ is the lowest.',
+        cards: [c('2c')],
+      },
+      { tone: 'suggest', title: 'Following: you chose “Play 9♣”', body: 'The hint was “Play 2♣”. 2♣ follows suit cheaply.', cards: [c('2c')] },
     ])
-    expect(coach.review({ decisions: decisions.slice(0, 2), summary: null, dealt: [], you: 0, view: you(FOLLOW) })).toEqual([])
+  })
+
+  test('the review keeps the moments with most at stake, in the order they came', () => {
+    const lead = { view: you(LEAD), advised: play('2c'), taken: play('9c') }
+    const follow = { view: you(FOLLOW), advised: play('2c'), taken: play('9c') }
+    const notes = review([follow, lead, follow, lead, follow])
+    expect(notes).toHaveLength(REVIEW_MOMENTS)
+    // Both leads, at stake 2, and the first follow.
+    expect(notes.map((n) => n.title.split(':')[0])).toEqual(['Following', 'Leading', 'Leading'])
+  })
+
+  test('a choice as good as the hint, or one the hint never makes, is not a moment; a round of the hint’s choices says so', () => {
+    const notes = review([
+      { view: you(FOLLOW), advised: play('2c'), taken: play('2c') },
+      { view: you(FOLLOW), advised: play('2c'), taken: play('3c') },
+      { view: you(FOLLOW), advised: play('2c'), taken: { type: 'tick' } },
+    ])
+    expect(notes).toEqual([{ tone: 'info', title: 'As the coach would have', body: 'Every choice this round was the hint’s, or one just as good.' }])
+    expect(review([{ view: you(WAIT), advised: null, taken: { type: 'tick' } }])).toEqual([])
+    // Without the game's hooks every other action is a moment, of equal weight.
+    const bare = { ...toy, hinted: undefined, asGood: undefined, stake: undefined }
+    expect(review([{ view: you(FOLLOW), advised: play('2c'), taken: play('3c') }], bare).map((n) => n.title)).toEqual(['Following: you chose “Play 3♣”'])
   })
 })
 

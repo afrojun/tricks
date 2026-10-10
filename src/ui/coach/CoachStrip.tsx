@@ -11,9 +11,11 @@ const { useSession } = sessionHooks<ShellView, unknown, { type: string }>()
 
 /**
  * The coach's line above the hand: the situation and Hint on your decision, otherwise the latest news.
- * In a drill, its guide comes first, and once it is over its verdict, with Try again.
+ * In a drill, its guide comes first, and once it is over its verdict, with Try again. Once the round's
+ * result is `over` the table, the result and its review say it all, so the line steps aside, but for a
+ * drill's verdict; a lesson or sheet still opens over the result.
  */
-export function CoachStrip({ lessons }: { lessons: Lessons }) {
+export function CoachStrip({ lessons, over = false }: { lessons: Lessons; over?: boolean }) {
   const coached = useCoach()
   const { send } = useSession()
   const [hintOpen, setHintOpen] = useState(false)
@@ -33,40 +35,42 @@ export function CoachStrip({ lessons }: { lessons: Lessons }) {
   const line: Note | null = verdict?.note ?? state.guide ?? (state.trickPaused ? state.latest : (state.situation ?? state.latest))
   return (
     <>
-      <div className="coach-strip" aria-live="polite">
-        <button className="coach-line" onClick={() => setLogOpen(true)} aria-label="Show this round so far">
-          {line ? (
-            <>
-              <strong>{line.title}.</strong> {line.body}
-            </>
-          ) : (
-            'The coach explains each move here.'
-          )}
-        </button>
-        {/* A pause can hold a decision too, a Jodhi to call: then Hint stands beside Continue. */}
-        {state.advice && !verdict && (
-          <button
-            className="btn btn-small"
-            onClick={() => {
-              coached.coach.hint()
-              setHintOpen(true)
-            }}
-          >
-            Hint
+      {(!over || verdict) && (
+        <div className="coach-strip" aria-live="polite">
+          <button className="coach-line" onClick={() => setLogOpen(true)} aria-label="Show this round so far">
+            {line ? (
+              <>
+                <strong>{line.title}.</strong> {line.body}
+              </>
+            ) : (
+              'The coach explains each move here.'
+            )}
           </button>
-        )}
-        {drill && verdict ? (
-          <button className="btn btn-primary btn-small" onClick={() => coached.coach.openDrill(drill.id)}>
-            Try again
-          </button>
-        ) : (
-          state.trickPaused && (
-            <button className="btn btn-primary btn-small" onClick={() => coached.coach.continueTrick()}>
-              Continue
+          {/* A pause can hold a decision too, a Jodhi to call: then Hint stands beside Continue. */}
+          {state.advice && !verdict && (
+            <button
+              className="btn btn-small"
+              onClick={() => {
+                coached.coach.hint()
+                setHintOpen(true)
+              }}
+            >
+              Hint
             </button>
-          )
-        )}
-      </div>
+          )}
+          {drill && verdict ? (
+            <button className="btn btn-primary btn-small" onClick={() => coached.coach.openDrill(drill.id)}>
+              Try again
+            </button>
+          ) : (
+            state.trickPaused && (
+              <button className="btn btn-primary btn-small" onClick={() => coached.coach.continueTrick()}>
+                Continue
+              </button>
+            )
+          )}
+        </div>
+      )}
 
       {/* A topic or warning takes the screen; the hint waits behind it. */}
       {hintOpen && state.advice && !state.topic && !state.warning && (
