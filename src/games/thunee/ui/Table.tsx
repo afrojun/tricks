@@ -523,7 +523,7 @@ function Hint({ view, can }: { view: View; can: Available }) {
     if (phase.turn === view.seat) return <b className="cue">{phase.current.length === 0 ? 'Your lead' : 'Your turn'}</b>
     return <>{seatName(view, phase.turn!)} to play</>
   }
-  if (phase.kind === 'trickPause' && phase.redeal) return can.pass ? <b className="cue">Nobody else has trump</b> : <>Dealing again: nobody else has trump</>
+  if (phase.kind === 'trickPause' && phase.redeal) return can.pass ? <b className="cue">They hold no trump</b> : <>Dealing again: the other side holds no trump</>
   if (phase.kind === 'trickPause' && can.pass) return <b className="cue">Your side won: Jodhi?</b>
   if (phase.kind === 'trickPause' && can.claimJodhi.length > 0) return <b className="cue">You can call Jodhi</b>
   const jodhiFrom = phase.kind === 'trickPause' ? pauseWaitingOn(phase, view.playerCount) : []

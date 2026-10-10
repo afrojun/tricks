@@ -578,6 +578,17 @@ html:has(main.home) {
   font-size: 0.875rem;
   font-weight: 600;
 }
+/*
+ * Where the trick sits alone in the middle of its stage (Thunee's), a short stage would push the
+ * winner's line into the player's line below it: there it rises, over the bottom card, to stay on the stage.
+ */
+.trick-stage:has(> .trick-area) {
+  container-type: size;
+}
+.trick-stage:has(> .trick-area) .trick-cue {
+  /* The stage's middle, half the cross (three rows and two gaps), less the line's own height. */
+  top: min(calc(100% + var(--trick-w) * 0.6), calc(50cqh + var(--trick-w) * 1.425 + 0.35rem - 1.75rem));
+}
 /* A game's own lines under the trick start below the winner's line. */
 .trick-below {
   margin-top: calc(var(--trick-w) * 0.6 + 2rem);
@@ -746,6 +757,12 @@ html:has(main.home) {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+/* A cue that wraps is a strip on each of its lines, not a pill its words spill out of. */
+.player-cue .cue {
+  display: inline;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 /* The player's roles and what they have said, small on the top corner of their hand. */
 .hand-tags {
