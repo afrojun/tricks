@@ -1,10 +1,10 @@
 /** Hearts' side of the module contract: its random legal player, its mischief, and what each seat may not see. For tests. */
-import { isDeepStrictEqual } from 'node:util'
-import { cardId, sameCard } from '../../kit/cards'
+import { type Card, sameCard } from '../../kit/cards'
 import type { Contract } from '../../kit/contract'
 import { brokenRules } from '../../kit/integrity'
 import { type Persona, TRAITS, mindFor } from '../../kit/mind'
 import { type Seat, allSeats } from '../../kit/table'
+import { same } from '../../kit/testing'
 import { hearts } from '.'
 import { availableActions, seenBy } from './engine/available'
 import { seenPlays } from './engine/excuses'
@@ -25,6 +25,15 @@ export interface HeartsTally {
 }
 
 const pick = <T>(items: readonly T[], rng: () => number): T => items[Math.floor(rng() * items.length)]
+
+/**
+ * Whether `known` holds `card`, as `hasCard` says. The kit's, which every part of the game calls on hands of
+ * every kind, runs at a third of this speed here, and `hidden` is asked for every view after every action.
+ */
+function knows(known: readonly Card[], card: Card): boolean {
+  for (const k of known) if (k.suit === card.suit && k.rank === card.rank) return true
+  return false
+}
 
 const PERSONAS: (Persona | 'surprise')[] = ['surprise', 'sharp', 'wild']
 
@@ -85,14 +94,16 @@ export function heartsContract(overrides: RuleOverrides): { contract: Contract<G
       if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return []
       const play = phase.play
       // What a seat gave and received it knows, wherever those cards are now.
-      const known = new Set(seat === null ? [] : [...play.gave[seat], ...play.received[seat]].map(cardId))
-      const forgotten = play.tricks.slice(0, -1).flatMap((t) => t.plays.map((p) => p.card))
-      return [...play.hands.filter((_, s) => s !== seat).flat(), ...forgotten].filter((c) => !known.has(cardId(c)))
+      const known = seat === null ? [] : [...play.gave[seat], ...play.received[seat]]
+      const hidden: Card[] = []
+      for (let s = 0; s < PLAYERS; s++) if (s !== seat) for (const card of play.hands[s]) if (!knows(known, card)) hidden.push(card)
+      for (let t = 0; t < play.tricks.length - 1; t++) for (const p of play.tricks[t].plays) if (!knows(known, p.card)) hidden.push(p.card)
+      return hidden
     },
 
     secrets: ['handBefore', 'broke', 'aiSalt'],
 
-    check(game, events, step) {
+    check(game, events, step, views) {
       const phase = game.phase
       for (const e of events) {
         if (e.type === 'challengeResolved') {
@@ -109,27 +120,28 @@ export function heartsContract(overrides: RuleOverrides): { contract: Contract<G
       }
 
       // The engine checks round actions against `seenBy`, which must answer just as the view does.
+      const can = views.map((view) => availableActions(view))
       for (const seat of allSeats(PLAYERS)) {
-        if (!isDeepStrictEqual(availableActions(seenBy(game, seat)), availableActions(viewFor(game, seat)))) fail(`seat ${seat} may do otherwise than its view says`)
+        if (!same(availableActions(seenBy(game, seat)), can[seat])) fail(`seat ${seat} may do otherwise than its view says`)
       }
 
       if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return
-      const records = [...phase.play.tricks.flatMap((t) => t.plays), ...phase.play.current]
       if (events.some((e) => e.type === 'cardPlayed')) {
+        const records = [...phase.play.tricks.flatMap((t) => t.plays), ...phase.play.current]
         const latest = records[records.length - 1]
         if (latest.broke.length > 0) tally.cheats++
         // One description: the record agrees with the excuses an observer derives from public cards.
         const seen = seenPlays(viewFor(game, (records.length + 1) % PLAYERS, 'full'))
-        if (seen.map((p) => `${p.seat}:${cardId(p.card)}`).join() !== records.map((r) => `${r.seat}:${cardId(r.card)}`).join()) fail('seen plays differ')
+        if (seen.length !== records.length || seen.some((p, i) => p.seat !== records[i].seat || !sameCard(p.card, records[i].card))) fail('seen plays differ')
         records.forEach((r, i) => {
           const observed = brokenRules(r.handBefore, seen[i].excuses)
           if (observed.join() !== r.broke.join()) fail(`play ${i} broke ${r.broke} but an observer finds ${observed}`)
         })
       }
       if (phase.kind === 'playing') {
-        const table = availableActions(viewFor(game, phase.turn))
+        const table = can[phase.turn]
         const full = availableActions(viewFor(game, phase.turn, 'full'))
-        if (JSON.stringify(table) !== JSON.stringify(full)) fail('what a player may do depends on memory')
+        if (!same(table, full)) fail('what a player may do depends on memory')
         if (table.legal.length === 0) fail('no legal card')
         if (!table.legal.every((c) => table.play.some((p) => sameCard(p, c)))) fail('a legal card is refused')
         if (!game.rules.allowCheating && table.play.length !== table.legal.length) fail('a rule-breaking card is offered with cheating off')

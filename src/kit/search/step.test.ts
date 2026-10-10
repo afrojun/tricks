@@ -3,7 +3,6 @@
  * that has a `step` is played through an `apply` that also runs `step` on a copy, with the same random draws,
  * and the two must agree on every state, every event and every rejection; a rejected step leaves its draft as it was.
  */
-import { isDeepStrictEqual } from 'node:util'
 import { describe, expect, test } from 'vitest'
 import { GAMES } from '../../games'
 import { heartsContract } from '../../games/hearts/contract'
@@ -11,7 +10,7 @@ import { thuneeContract } from '../../games/thunee/contract'
 import { type Contract, checkMalformed, runContract } from '../contract'
 import type { AnyGameModule } from '../module'
 import type { Actor, Ctx, TableState, TableView } from '../table'
-import { deepFreeze, seededRng } from '../testing'
+import { clone, deepFreeze, same, seededRng } from '../testing'
 
 interface Tally {
   applied: number
@@ -25,8 +24,11 @@ function compare(module: AnyGameModule, game: TableState, actor: Actor, action: 
   const step = module.step
   if (step === undefined) throw new Error(`${module.id} has no step`)
   const draws: number[] = []
+  // Both contexts read `ctx` only when asked: `checkMalformed` watches what a refusal reads, and a read here would count.
   const applied = module.apply(game, actor, action, {
-    now: ctx.now,
+    get now() {
+      return ctx.now
+    },
     rng: () => {
       const x = ctx.rng()
       draws.push(x)
@@ -37,12 +39,14 @@ function compare(module: AnyGameModule, game: TableState, actor: Actor, action: 
     throw new Error(`${module.id}, ${game.phase.kind}: ${shown(action)} by ${actor}: ${what}`)
   }
   // A refusal is stepped on the game itself, frozen: any change to the draft throws.
-  const draft = 'rejected' in applied ? deepFreeze(game) : structuredClone(game)
+  const draft = 'rejected' in applied ? deepFreeze(game) : clone(game)
   let used = 0
   let stepped: ReturnType<NonNullable<AnyGameModule['step']>>
   try {
     stepped = step(draft, actor, action, {
-      now: ctx.now,
+      get now() {
+        return ctx.now
+      },
       rng: () => {
         if (used === draws.length) throw new Error(`step drew more randomness than apply`)
         return draws[used++]
@@ -58,8 +62,8 @@ function compare(module: AnyGameModule, game: TableState, actor: Actor, action: 
   } else {
     tally.applied++
     if ('rejected' in stepped) fail(`apply accepted, step refused (${stepped.rejected})`)
-    else if (!isDeepStrictEqual(stepped.events, applied.events)) fail('the events differ')
-    if (!isDeepStrictEqual(draft, applied.game)) fail('the states differ')
+    else if (!same(stepped.events, applied.events)) fail('the events differ')
+    if (!same(draft, applied.game)) fail('the states differ')
   }
   return applied
 }

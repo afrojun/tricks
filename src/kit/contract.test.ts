@@ -21,6 +21,8 @@ interface Faults {
   spectator?: boolean
   /** Reads a joker's flag once it knows the choice is a joker. */
   branch?: boolean
+  /** Reads a named card's suit before anything else once the game is naming, and in the lobby reads only the phase. */
+  phase?: boolean
 }
 
 const cardSchema = z.object({ suit: z.enum(['clubs', 'hearts']), rank: z.string() })
@@ -38,6 +40,7 @@ function toy(faults: Faults = {}, actionSchema: z.ZodType = toySchema): GameModu
     seatCounts: [2],
     createGame: () => ({ formatVersion: 1, playerCount: 2, seats: emptySeats(2), host: null, waiting: [], aiActAt: null, aiSalt: 0, phase: { kind: 'lobby' } }),
     apply(game: TableState, actor: Actor, action: ToyAction, ctx: Ctx) {
+      if (faults.phase && game.phase.kind === 'naming' && isAction(action) && action.type === 'name') void (action.card as { suit: unknown }).suit
       if (!isAction(action)) return { rejected: 'notAllowed' }
       if (!faults.actor && !isActor(game, actor)) return { rejected: 'notSeated' }
       const draft = structuredClone(game)
@@ -116,6 +119,11 @@ describe('the malformed-action check', () => {
 
   test('finds an actor outside the table', () => {
     expect(() => checkMalformed(toy({ actor: true }))).toThrow(/^toy: \{"type":"rename","name":"x"\} by 2 in an empty lobby threw TypeError/)
+  })
+
+  test('sends again in every game a message refused once the game was read', () => {
+    // Sent from the lobby, `{"type":"name"}` is refused having read the game, which the check notices.
+    expect(() => checkMalformed(toy({ phase: true }))).toThrow(/^toy: \{"type":"name"\} by 0 in naming with 2 threw TypeError/)
   })
 
   test('sends an action with no fields from every actor, a spectator included', () => {

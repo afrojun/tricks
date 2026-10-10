@@ -6,10 +6,10 @@
  * not used by the app.
  */
 import { z } from 'zod'
-import { type Card, cardId } from './cards'
+import type { Card } from './cards'
 import type { GameModule } from './module'
 import { type Actor, type Ctx, type Seat, type TableState, type TableView, allSeats, isAiControlled } from './table'
-import { collectCards, deepFreeze, seededRng } from './testing'
+import { deepFreeze, exposed, seededRng } from './testing'
 
 /** Where an action came from. Only mischief may be refused. */
 export type Source = 'player' | 'computer' | 'system' | 'mischief'
@@ -31,8 +31,11 @@ export interface Contract<G extends TableState, A, E, V extends TableView> {
    * what is wrong with it, or null. Given the view the module produced, the one a client receives.
    */
   checkView?(game: G, seat: Seat | null, view: V): string | null
-  /** The game's own checks after every applied action. Throws on a failure. */
-  check?(game: G, events: readonly E[], step: { actor: Actor; action: A; source: Source }): void
+  /**
+   * The game's own checks after every applied action. Throws on a failure. `views` are the seats' views just
+   * checked, by seat, for checks that read them.
+   */
+  check?(game: G, events: readonly E[], step: { actor: Actor; action: A; source: Source }, views: readonly V[]): void
 }
 
 export interface ContractRun<G> {
@@ -58,14 +61,14 @@ export function runContract<G extends TableState, A, E, V extends TableView>(
   let game = contract.start(ctx())
   const run: ContractRun<G> = { game, actions: 0, mischief: 0, refused: 0 }
 
-  const checkViews = () => {
+  /** Checks each seat's view and a spectator's, and returns the seats' views. */
+  const checkViews = (): V[] => {
+    const views: V[] = []
     for (const seat of [...allSeats(game.playerCount), null]) {
       const view = module.viewFor(game, seat)
-      const hidden = new Set(contract.hidden(game, seat).map(cardId))
-      const leaked = collectCards(view).filter((c) => hidden.has(cardId(c)))
-      if (leaked.length > 0) fail(`the view for ${seat} leaks ${JSON.stringify(leaked)}`)
-      const text = JSON.stringify(view)
-      for (const secret of contract.secrets) if (text.includes(`"${secret}":`)) fail(`the view for ${seat} holds ${secret}`)
+      const shown = exposed(view, contract.hidden(game, seat), contract.secrets)
+      if (shown.cards.length > 0) fail(`the view for ${seat} leaks ${JSON.stringify(shown.cards)}`)
+      for (const secret of contract.secrets) if (shown.keys.has(secret)) fail(`the view for ${seat} holds ${secret}`)
       const wrong = contract.checkView?.(game, seat, view) ?? null
       if (wrong !== null) fail(`the view for ${seat} ${wrong}`)
       if (game.phase.kind !== 'gameOver') {
@@ -73,7 +76,9 @@ export function runContract<G extends TableState, A, E, V extends TableView>(
           if (game.seats[i].personaHidden && s.persona !== null) fail(`the view for ${seat} shows seat ${i}'s hidden persona`)
         })
       }
+      if (seat !== null) views.push(view)
     }
+    return views
   }
 
   const act = (actor: Actor, action: A, source: Source): boolean => {
@@ -86,8 +91,8 @@ export function runContract<G extends TableState, A, E, V extends TableView>(
     game = result.game
     run.actions++
     module.checkInvariants(game)
-    checkViews()
-    contract.check?.(game, result.events, { actor, action, source })
+    const views = checkViews()
+    contract.check?.(game, result.events, { actor, action, source }, views)
     // The host applies each computer's answer, with its own reactions, before asking the next.
     for (const ask of module.reactions(game, result.events)) {
       const step = ask(game)
@@ -291,6 +296,13 @@ function describe(value: unknown): string {
  * refused; and every action type, valid and then with one field at a time wrong or missing; from
  * every seat, a seat outside the table, a spectator and the system. Throws on a breach; returns
  * the states, action types and field paths it covered.
+ *
+ * `apply` is pure: a message it refuses from an actor without reading anything of the game but its
+ * player count, or anything of the clock or the random draws, it refuses alike in every game with
+ * that many players. Most malformed messages are refused so, since the engines screen a message
+ * before reading the game. The first game of each player count is watched for these refusals, and
+ * they are not sent again. A wrapped `apply` that reads the game or the context before the engine
+ * does (`ctx.now`, say) makes every refusal look read, and so sends every message in every state.
  */
 export function checkMalformed<G extends TableState, A, E, V extends TableView>(
   module: GameModule<G, A, E, V>,
@@ -303,21 +315,52 @@ export function checkMalformed<G extends TableState, A, E, V extends TableView>(
     throw new Error(`${module.id}: ${message}`)
   }
   const malformed = malformedActions(module.actionSchema)
+  const messages = [...NOT_ACTIONS, ...malformed.actions]
   const states: string[] = []
+
+  /** Whether `apply` read the watched game beyond its player count, or the watched context, since it was cleared. */
+  let read = false
+  /** `game`, frozen, with every field but its player count behind a getter that notes the read. */
+  const watched = (game: G): G => {
+    const fields: PropertyDescriptorMap = {}
+    for (const key of Object.keys(game) as (keyof G & string)[]) {
+      fields[key] = key === 'playerCount' ? { value: game.playerCount, enumerable: true } : { get: () => ((read = true), game[key]), enumerable: true }
+    }
+    return Object.freeze(Object.defineProperties({}, fields)) as G
+  }
+  const watchedCtx = (): Ctx => ({
+    get now() {
+      read = true
+      return now
+    },
+    get rng() {
+      read = true
+      return rng
+    },
+  })
+  /** For each player count, by each actor's place in the list, the messages refused unread in its first game. */
+  const refusedUnread = new Map<number, Set<unknown>[]>()
 
   const tryAll = (game: G, label: string) => {
     deepFreeze(game)
     const actors: Actor[] = [...allSeats(game.playerCount), game.playerCount, -1, 1.5, null, 'system']
-    for (const actor of actors) {
-      for (const message of [...NOT_ACTIONS, ...malformed.actions]) {
+    const first = !refusedUnread.has(game.playerCount)
+    if (first) refusedUnread.set(game.playerCount, actors.map(() => new Set()))
+    const unread = refusedUnread.get(game.playerCount)!
+    const sent = first ? watched(game) : game
+    for (const [a, actor] of actors.entries()) {
+      for (const message of messages) {
+        if (!first && unread[a].has(message)) continue
         let result: ReturnType<typeof module.apply>
+        read = false
         try {
-          result = module.apply(game, actor, message as A, ctx())
+          result = module.apply(sent, actor, message as A, first ? watchedCtx() : ctx())
         } catch (error) {
           return fail(`${describe(message)} by ${actor} in ${label} threw ${error}`)
         }
         if (NOT_ACTIONS.includes(message) && !('rejected' in result)) fail(`${describe(message)} by ${actor} in ${label} was applied`)
         if (!('rejected' in result) && !('game' in result)) fail(`${describe(message)} by ${actor} in ${label} returned ${describe(result)}`)
+        if (first && !read && 'rejected' in result) unread[a].add(message)
       }
     }
     states.push(label)
