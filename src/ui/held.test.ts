@@ -1,9 +1,11 @@
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { HeldPresentations } from './held'
 
 describe('presentations held back by after', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
   test('one without after shows at once; one with after shows when it passes', () => {
-    vi.useFakeTimers()
     const shown: string[] = []
     const held = new HeldPresentations((p) => p.toast && shown.push(p.toast))
     held.take({ toast: 'now' }, 'gameOver')
@@ -13,11 +15,9 @@ describe('presentations held back by after', () => {
     expect(shown).toEqual(['now'])
     vi.advanceTimersByTime(1)
     expect(shown).toEqual(['now', 'later'])
-    vi.useRealTimers()
   })
 
   test('a held one is dropped, with its sound, when the table moves to another phase first; a same-phase event keeps it', () => {
-    vi.useFakeTimers()
     const shown: string[] = []
     const cancel = vi.fn()
     const held = new HeldPresentations((p) => p.toast && shown.push(p.toast))
@@ -29,11 +29,9 @@ describe('presentations held back by after', () => {
     expect(cancel).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(5000)
     expect(shown).toEqual(['dealt'])
-    vi.useRealTimers()
   })
 
   test('a phase seen without an event, as after a reconnect, drops what was held for the old one', () => {
-    vi.useFakeTimers()
     const shown: string[] = []
     const cancel = vi.fn()
     const held = new HeldPresentations((p) => p.toast && shown.push(p.toast))
@@ -44,11 +42,9 @@ describe('presentations held back by after', () => {
     expect(cancel).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(5000)
     expect(shown).toEqual([])
-    vi.useRealTimers()
   })
 
   test('clearing drops everything held and takes back the sounds', () => {
-    vi.useFakeTimers()
     const shown: string[] = []
     const cancel = vi.fn()
     const held = new HeldPresentations((p) => p.toast && shown.push(p.toast))
@@ -57,6 +53,5 @@ describe('presentations held back by after', () => {
     vi.advanceTimersByTime(1000)
     expect(shown).toEqual([])
     expect(cancel).toHaveBeenCalledTimes(1)
-    vi.useRealTimers()
   })
 })

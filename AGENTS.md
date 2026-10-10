@@ -9,7 +9,9 @@ pnpm install        # install dependencies
 pnpm dev            # the whole app, pages and rooms, in one Vite server (localhost:5173)
 pnpm check          # type check the app (tsconfig.json) and the Worker (worker/tsconfig.json)
 pnpm test           # unit, contract, room and simulation tests for both games (Vitest)
+pnpm test:quick     # the same without its slowest files, the whole-game simulations among them: a quarter of the work
 pnpm test:soak      # 400 simulated games per configuration, Thunee's and Hearts'
+pnpm test:slots     # who holds the machine's test slots now
 pnpm e2e            # the browser scripts: Thunee for four and for two, hand controls, a practice round, Hearts rooms and practice, every drill (needs dev running, and Chromium)
 pnpm e2e:sockets    # a whole Thunee game over real sockets, and a Hearts lobby (needs dev running)
 pnpm build          # type check, then the production build: dist/client (the pages) and dist/tricks (the Worker)
@@ -18,6 +20,12 @@ pnpm build          # type check, then the production build: dist/client (the pa
 The browser scripts are `scripts/e2e.ts`, `e2e-two.ts`, `e2e-controls.ts`, `e2e-practice.ts`, `e2e-hearts.ts` and `e2e-drills.ts`; `scripts/play.ts` is `e2e:sockets`. They look for the app at `http://localhost:5173` and Chromium at `/usr/bin/chromium`; set `APP_URL` or `CHROMIUM` to point them elsewhere. Run them against the production build with `pnpm build && pnpm preview`, which serves the built Worker on port 4173.
 
 The search player's gate for Hearts is not part of `pnpm test`: `pnpm exec tsx src/games/hearts/ai/gate/run.ts` runs a short version that only prints, and `GATE=full` runs the recorded sizes (about an hour) and writes `src/games/hearts/ai/gate/results/`. Its header lists the parts and sizes.
+
+Every Vitest run on the machine, `pnpm test` or `npx vitest`, from any worktree, shares one budget of test slots (`scripts/test-slots.ts`), at a lower priority: a test file runs only while it holds a slot, so several runs at once take turns file by file rather than starving the machine (a run of one file waits for a file of a whole suite, not the suite; a run of one worker, `VITEST_MAX_WORKERS=1`, is sent all its files at once and holds its slot for them all), and a run waiting on others' slots says so. A run alone uses every slot. `TEST_SLOTS` sets the budget, half the hardware threads by default. CI runs without a budget; so does a run that cannot write the slots (in a sandbox, say), and it says so. `--pool=forks` leaves the budget, to profile a file.
+
+While working, run less than the whole suite: `pnpm test <files>` runs those files (`npx vitest run` costs more to start than most test files take), `pnpm test --changed` the files that import anything changed since the last commit (`--changed origin/main` since main, `vitest related <sources>` for named sources), and `pnpm test:quick` all but the slowest files. A change to a screen, the coach, practice or a room reaches a handful of files; one to an engine or the kit reaches most of the suite, simulations included. Run `pnpm test` before calling a change done. The slowest files are `SLOW` in `vitest.config.ts`, longest first: they start first in any run with a file that has no timings of its own yet (a new worktree has none), and `test:quick` leaves them out, so a new file that takes seconds belongs there.
+
+Test files share their worker's modules (`isolate: false` in `vitest.config.ts`), which spares each one importing the games again; the config finds any file that calls `vi.mock` and runs it in a worker of its own. It looks once, as it loads, so watch mode isolates every file. So a test leaves nothing behind in the modules it imports: it turns fake timers off in `afterEach`, not on its last line, which a failing test never reaches, and restores any other module state it changes. Transformed modules are kept between runs in `node_modules/.vitest-cache`; `npx vitest --clearCache` empties it.
 
 To try a game alone: open it from the Tricks home, create a game, sit down, and use "Add computer" on the other seats. To learn a game, use "Learn to play" on its home: a practice game against computers with a coach, run entirely in the browser (no room needed). Its "Drills" list one moment each, such as calling a Jodhi or giving away the queen of spades, at `/<game>/practice?drill=<id>`.
 
@@ -59,7 +67,7 @@ src/client/         Socket wrapper, paced playback, the store the UI reads, and 
 src/ui/             The shell, for any game: the Tricks home, a game's home, the house rules screen (RulesScreen.tsx), the lobby, the practice screen and the frame around a table, all driven by the game's GameClient (contract.ts). games.ts is the browser's static list of games with one dynamic import each; routes.ts maps /, /<game>, /<game>/<CODE>, /<game>/practice and /<game>/rules. Shared parts: the bar on top of both homes with the Tricks link and "Look" (TopBar.tsx), Link (an address opened in place), and the strip of other games on a game's home (GameStrip.tsx). Shared parts for games' screens: Card, Hand (hands.ts lays out a hand and keeps the cards picked from it), Sheet, Moments, Timer, GameMenu, ThemePicker, the seat badge (Seat.tsx), the trick area and last trick (Trick.tsx), the accuse sheet (Accuse.tsx), the rules sheet and the rule controls (Rules.tsx), seat placement by direction (seats.ts), sound, the session hooks (session.tsx), and the coach's strip, sheets, review and hooks (coach/).
 src/presets/        Rule books (book.ts), presets saved per game, the preset last chosen per game (both in storage.ts), and share links. Presets are made, changed, shared and taken from links only on /<game>/rules; the lobby's host picks one and the table size, and the next room they create starts on both (the preset under `tricks-<game>-preset`, which the rules screen also sets, the size under `tricks-<game>-players`). The home only creates and joins. A share link opens the game's home, which hands it to the rules screen.
 src/themes/         Theme tokens and the theme list.
-scripts/            End-to-end scripts.
+scripts/            End-to-end scripts, and the machine's test slots (test-slots.ts).
 wrangler.jsonc      The Worker: assets, the Room Durable Object and its migrations, the custom domain, logs.
 .node-version       The Node major the Cloudflare build uses.
 ```
@@ -137,7 +145,7 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 
 None for the app. The pages and the rooms are served by the same Worker, so they always share an origin.
 
-The deploy needs none in the repository: Workers Builds deploys with the build token set on the Worker's build settings. Scripts and tests read a few of their own: `APP_URL` and `CHROMIUM` (the end-to-end scripts), `SIM_GAMES` (simulation sizes, as in `test:soak`), and `GATE` and `GATE_*` (the search player's gate).
+The deploy needs none in the repository: Workers Builds deploys with the build token set on the Worker's build settings. Scripts and tests read a few of their own: `APP_URL` and `CHROMIUM` (the end-to-end scripts), `SIM_GAMES` (simulation sizes, as in `test:soak`), `TEST_SLOTS` (how many test files may run at once on the machine, across all worktrees; half the hardware threads by default), `VITEST_MAX_WORKERS` (Vitest's workers for one run: as many as there are test slots, three in CI or without slots), and `GATE` and `GATE_*` (the search player's gate).
 
 ## Deployment
 
