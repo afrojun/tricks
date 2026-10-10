@@ -1,5 +1,6 @@
 /** Spades as a game module: what the room, practice and tests need. */
 import type { GameModule } from '../../kit/module'
+import { banter } from './ai/banter'
 import { dueStep, reactions } from './ai/drive'
 import {
   type Action,
@@ -32,6 +33,7 @@ export const spades: GameModule<Game, Action, GameEvent, View> = {
   actionSchema,
   dueStep,
   reactions,
+  banter,
 }
 
 export * from './engine'

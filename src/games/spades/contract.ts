@@ -42,7 +42,11 @@ export function contractRules(playerCount: number): RuleOverrides {
   return { renege: 'bidPlusThree', nil: false }
 }
 
-export function spadesContract(overrides: RuleOverrides, playerCount: 2 | 3 | 4): { contract: Contract<Game, Action, GameEvent, View>; tally: SpadesTally } {
+export function spadesContract(
+  overrides: RuleOverrides,
+  playerCount: 2 | 3 | 4,
+  personas: readonly (Persona | 'surprise')[] = PERSONAS,
+): { contract: Contract<Game, Action, GameEvent, View>; tally: SpadesTally } {
   const tally: SpadesTally = { reasons: new Set(), phases: new Set(), cheats: 0, caught: 0, hunches: 0, accusations: 0, blindNils: 0, nils: 0 }
   const fail = (message: string): never => {
     throw new Error(message)
@@ -60,7 +64,7 @@ export function spadesContract(overrides: RuleOverrides, playerCount: 2 | 3 | 4)
       }
       run(null, { type: 'sit', seat: 0, name: 'You' })
       if (playerCount !== 4) run(0, { type: 'setPlayerCount', playerCount })
-      for (const seat of allSeats(playerCount).slice(1)) run(0, { type: 'addAi', seat, persona: PERSONAS[(seat - 1) % PERSONAS.length] })
+      for (const seat of allSeats(playerCount).slice(1)) run(0, { type: 'addAi', seat, persona: personas[(seat - 1) % personas.length] })
       run(0, { type: 'setRules', overrides })
       run(0, { type: 'start' })
       return game
@@ -69,7 +73,7 @@ export function spadesContract(overrides: RuleOverrides, playerCount: 2 | 3 | 4)
     legal(game, seat, rng) {
       const can = availableActions(viewFor(game, seat))
       if (can.draw) return { type: 'draw', keep: rng() < 0.5 }
-      if (can.blindNil && rng() < 0.5) return { type: 'callBlindNil' }
+      if (can.blindNil && rng() < 0.2) return { type: 'callBlindNil' }
       if (can.look) return { type: 'lookAtHand' }
       if (can.calls.length > 0) {
         // Near what a hand takes on average, so games end; now and then Nil.
@@ -91,7 +95,8 @@ export function spadesContract(overrides: RuleOverrides, playerCount: 2 | 3 | 4)
         // Any card from the hand, whatever the rules say: refused at a forced opening, and whenever cheating is off.
         return { actor: phase.turn, action: { type: 'playCard', card: pick(phase.play.hands[phase.turn], rng) } }
       }
-      if (r > 0.995) {
+      // Under "Bid plus three" a wrong accusation raises the accuser's contract and play goes on, so they come rarer.
+      if (r > (game.rules.renege === 'set' ? 0.995 : 0.999)) {
         const seat = Math.floor(rng() * game.playerCount)
         const can = availableActions(viewFor(game, seat))
         const targets = can.challengePlay.length > 0 ? can.challengePlay : allSeats(game.playerCount).filter((s) => s !== seat)

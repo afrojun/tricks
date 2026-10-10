@@ -5,7 +5,8 @@ import { againComplete, allSeats, isAiControlled } from '../../../kit/table'
 import { seatsToAct } from '../engine/apply'
 import type { Action, Game, GameEvent } from '../engine/types'
 import { viewFor } from '../engine/view'
-import { chooseAction, chooseChallenge, fallbackAction } from './choose'
+import { chooseChallenge } from './catch'
+import { chooseAction, fallbackAction } from './choose'
 
 /** A passed phase deadline, or a computer turn whose time has come. Null when nothing is due. */
 export function dueStep(game: Game, now: number): Step<Action> | null {

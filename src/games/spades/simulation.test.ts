@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { runContract } from '../../kit/contract'
+import type { Persona } from '../../kit/mind'
 import { contractRules, spadesContract } from './contract'
 import { JOKERS_OVERRIDES, type RuleOverrides } from './engine/rules'
 
@@ -9,18 +10,20 @@ const GAMES = Number(process.env.SIM_GAMES ?? 6)
 const FIRST_SEED = 4
 
 describe('the module contract', () => {
-  const configs: [string, 2 | 3 | 4, RuleOverrides][] = [
+  const configs: [string, 2 | 3 | 4, RuleOverrides, (Persona | 'surprise')[]?][] = [
     ['four, Standard', 4, {}],
-    ['four, Blind nil and "Bid plus three"', 4, { blindNil: true, renege: 'bidPlusThree' }],
+    ['four, as the shared tests play it', 4, contractRules(4)],
+    // A caught Wild raises its side's contract again and again, and with a random partner neither side may ever reach the end.
+    ['four, "Bid plus three", no Wild, short game', 4, { renege: 'bidPlusThree', gameEndsAt: 300 }, ['sly', 'sharp', 'straight']],
     ['four, Jokers, lowest club leads, cheating off', 4, { ...JOKERS_OVERRIDES, firstLead: 'lowestClub', allowCheating: false }],
     ['three, as the shared tests play it', 3, contractRules(3)],
     ['three, Standard, short game', 3, { gameEndsAt: 200 }],
     ['two, Standard', 2, {}],
     ['two, Jokers, no bag penalty, cheating off', 2, { ...JOKERS_OVERRIDES, bagPenalty: false, allowCheating: false }],
   ]
-  for (const [name, players, overrides] of configs) {
+  for (const [name, players, overrides, personas] of configs) {
     test(`${GAMES} seeded games keep the contract: ${name}`, () => {
-      const { contract, tally } = spadesContract(overrides, players)
+      const { contract, tally } = spadesContract(overrides, players, personas)
       let actions = 0
       let refused = 0
       for (let seed = FIRST_SEED; seed < FIRST_SEED + GAMES; seed++) {
@@ -35,6 +38,7 @@ describe('the module contract', () => {
       )
       expect(tally.reasons).toContain('normal')
       if (players === 2) expect(tally.phases).toContain('drawing')
+      if (overrides.blindNil) expect(tally.blindNils).toBeGreaterThan(0)
       if (overrides.blindNil && players === 4) expect(tally.phases).toContain('exchanging')
       if (overrides.allowCheating === false) {
         expect(tally.cheats).toBe(0)

@@ -26,6 +26,7 @@ const SLOW = [
   'src/games/hearts/ai/search-games.test.ts',
   'src/games/hearts/simulation.test.ts',
   'src/games/spades/simulation.test.ts',
+  'src/games/spades/ai/strength.test.ts',
   'src/games/thunee/ai/simulation.test.ts',
   'src/games/hearts/ai/simulation.test.ts',
   'src/kit/search/step.test.ts',
