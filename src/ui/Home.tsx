@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { SHARE_PARAM } from '../presets/share'
-import { listPresets, presetsKey, readChoice, writeChoice } from '../presets/storage'
+import { listPresets, readChoice } from '../presets/storage'
 import { GameStrip } from './GameStrip'
 import { Link } from './Link'
 import { CODE_LENGTH, cleanCode, drillPath, drillsQuery, gamePath, practicePath, roomPath, rulesPath } from './routes'
-import { countWord, playersLabel, teamsAt } from './seats'
+import { countWord } from './seats'
 import { navigate, replaceAddress, useGameClient } from './session'
 import { Sheet } from './Sheet'
 import { playSound } from './sound'
@@ -25,6 +25,21 @@ export interface GameSetup {
 
 export function setupKey(game: string, code: string): string {
   return `tricks-${game}-setup-${code}`
+}
+
+/** The table size a host last chose in a lobby, which the next room they create starts with. */
+export function playersKey(game: string): string {
+  return `tricks-${game}-players`
+}
+
+function readPlayers(game: string, counts: readonly number[]): number {
+  try {
+    const n = Number(localStorage.getItem(playersKey(game)))
+    if (counts.includes(n)) return n
+  } catch {
+    // Storage is off: the largest table.
+  }
+  return bySize(counts)[0]
 }
 
 /**
@@ -139,37 +154,27 @@ function DrillsSheet({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** `/<game>`: a game's home. Practice, create, join, a preset to create with, and the way to Tricks, the house rules and the other games. */
+/**
+ * `/<game>`: a game's home. Practice, create and join, and the way to Tricks, the house rules and the other games.
+ * A new room starts on the table size and rules its creator last chose in a lobby, where they are chosen.
+ */
 export function Home() {
   const game = useGameClient()
-  const [playerCount, setPlayerCount] = useState(() => bySize(game.seatCounts)[0])
-  const [presets, setPresets] = useState(() => listPresets(game))
-  const [presetId, setPresetId] = useState(() => readChoice(game))
   const [joinCode, setJoinCode] = useState('')
-  // A preset that is gone, here or in another tab, falls back to the first.
-  const preset = presets.find((p) => p.id === presetId) ?? presets[0]
 
   // A share link (`/<game>?rules=<code>`) is the rules screen's to show.
   useLayoutEffect(() => {
     const shared = new URLSearchParams(location.search).get(SHARE_PARAM)
     if (shared !== null) replaceAddress(rulesPath(game.id, { shared }))
   }, [game])
-  // Another tab may change the presets.
-  useEffect(() => {
-    const reread = (e: StorageEvent) => e.key === presetsKey(game.id) && setPresets(listPresets(game))
-    addEventListener('storage', reread)
-    return () => removeEventListener('storage', reread)
-  }, [game])
 
-  const choose = (id: string) => {
-    setPresetId(id)
-    writeChoice(game.id, id)
-  }
   const create = () => {
     playSound('tap')
-    // The preset as saved now, which the lobby applies once, for its creator.
-    const now = listPresets(game)
-    const overrides = (now.find((p) => p.id === presetId) ?? now[0]).overrides
+    // The preset and size as saved now, which the lobby applies once, for its creator.
+    const presets = listPresets(game)
+    const choice = readChoice(game)
+    const overrides = (presets.find((p) => p.id === choice) ?? presets[0]).overrides
+    const playerCount = readPlayers(game.id, game.seatCounts)
     const code = newGameCode()
     sessionStorage.setItem(setupKey(game.id, code), JSON.stringify({ playerCount, overrides } satisfies GameSetup))
     navigate(roomPath(game.id, code))
@@ -194,34 +199,7 @@ export function Home() {
       <div className="home-width grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
       <section className="panel p-4 grid gap-3">
         <h2 className="display text-xl">Play with friends</h2>
-        {game.seatCounts.length > 1 && (
-          <div className="grid gap-1">
-            <span>Players</span>
-            <div className="flex gap-2">
-              {bySize(game.seatCounts).map((n) => (
-                <button key={n} className="btn btn-small flex-1" aria-pressed={playerCount === n} onClick={() => setPlayerCount(n)}>
-                  {playersLabel(teamsAt((seat, count) => game.lobbyTeams(seat, count), n))}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="grid gap-1">
-          {/* "Edit…" on the label's line, so the presets keep a row of their own and the page one screen. */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span>Rules</span>
-            <Link href={rulesPath(game.id, { preset: preset.id })} className="font-semibold underline underline-offset-2">
-              Edit…
-            </Link>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {presets.map((p) => (
-              <button key={p.id} className="btn btn-small" aria-pressed={p.id === preset.id} onClick={() => choose(p.id)}>
-                {p.name}
-              </button>
-            ))}
-          </div>
-        </div>
+        <p>Create a table, then invite friends or add computers. Choose the players and the rules there.</p>
         <button className="btn btn-primary" onClick={create}>
           Create game
         </button>

@@ -24,15 +24,15 @@ const check = (ok: boolean, what: string) => {
 const a = await open('A')
 const b = await open('B')
 
-// A creates a two-player game with short timers.
+// A creates a game, sits, and makes it a two-player table in the lobby.
 await a.page.goto(`${base}/thunee`)
-await a.page.getByRole('button', { name: 'Two', exact: true }).click()
 await a.page.getByRole('button', { name: 'Create game' }).click()
 await a.page.getByPlaceholder('Name').fill('Asha')
 await a.page.getByRole('button', { name: 'Sit here' }).first().click()
+await a.page.getByRole('button', { name: 'Two', exact: true }).click()
 await a.page.getByText('Waiting for 1 more').waitFor()
 const code = a.page.url().split('/').pop()!
-check((await a.page.locator('li').count()) === 2, 'two-player choice from the home screen reached the lobby')
+check((await a.page.locator('li').count()) === 2, 'the lobby makes a two-player table')
 
 // B joins by typing the code in lower case.
 await b.page.goto(`${base}/thunee`)

@@ -3,20 +3,29 @@ import { diff } from '../kit/rules'
 import { canStart, cleanName } from '../kit/table'
 import { sameOverrides } from '../presets/book'
 import { encodeShare } from '../presets/share'
-import { listPresets } from '../presets/storage'
+import { listPresets, writeChoice } from '../presets/storage'
 import type { ShellView } from './contract'
-import { type GameSetup, setupKey } from './Home'
+import { type GameSetup, playersKey, setupKey } from './Home'
 import { Link } from './Link'
 import { RulesList, rulesSummary } from './Rules'
 import { gamePath, roomPath, rulesPath } from './routes'
 import { PERSONA_CHOICES, lobbyPersonaLabel } from './personas'
-import { partnersLine, seatLabel, teamsAt } from './seats'
+import { partnersLine, playersLabel, seatLabel, teamsAt } from './seats'
 import { Sheet } from './Sheet'
 import { navigate, useGameClient, useSession } from './session'
 import { copyText } from './text'
 import { playSound } from './sound'
 
 const NAME_KEY = 'tricks-name'
+
+/** Kept for next time if storage allows; a full or blocked store forgets. */
+function remember(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // Nothing to keep it in.
+  }
+}
 
 function readSetup(game: string, room: string): GameSetup | null {
   try {
@@ -156,7 +165,16 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
         {isHost && (
           <div className="flex flex-wrap gap-2">
             {presets.map((preset) => (
-              <button key={preset.id} className="btn btn-small" aria-pressed={preset.id === active?.id} onClick={() => send({ type: 'setRules', overrides: preset.overrides })}>
+              <button
+                key={preset.id}
+                className="btn btn-small"
+                aria-pressed={preset.id === active?.id}
+                onClick={() => {
+                  send({ type: 'setRules', overrides: preset.overrides })
+                  // The next room this host creates starts on it.
+                  writeChoice(game.id, preset.id)
+                }}
+              >
                 {preset.name}
               </button>
             ))}
@@ -178,8 +196,17 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
             {[...game.seatCounts]
               .sort((a, b) => b - a)
               .map((n) => (
-                <button key={n} className="btn btn-small flex-1" aria-pressed={view.playerCount === n} disabled={!fits(n)} onClick={() => send({ type: 'setPlayerCount', playerCount: n })}>
-                  {n} players
+                <button
+                  key={n}
+                  className="btn btn-small flex-1"
+                  aria-pressed={view.playerCount === n}
+                  disabled={!fits(n)}
+                  onClick={() => {
+                    send({ type: 'setPlayerCount', playerCount: n })
+                    remember(playersKey(game.id), String(n))
+                  }}
+                >
+                  {playersLabel(teamsAt((seat, count) => game.lobbyTeams(seat, count), n))}
                 </button>
               ))}
           </div>

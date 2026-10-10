@@ -258,7 +258,7 @@ const ruleChanges: string[] = []
 a.on('websocket', (ws) => ws.on('framesent', (f) => typeof f.payload === 'string' && f.payload.includes('"setRules"') && ruleChanges.push(f.payload)))
 // Typed and then stepped at once, before the preset is saved: one change, from what was typed.
 await a.goto(`${base}/hearts`)
-await a.getByRole('link', { name: 'Edit…' }).click()
+await a.getByRole('link', { name: 'House rules' }).click()
 await a.getByRole('button', { name: '+ New' }).click()
 await a.keyboard.type('To 25')
 await a.keyboard.press('Enter')
@@ -275,7 +275,7 @@ check(a.url().split('/').pop() !== code, 'A opens a new room for a whole game')
 await a.getByPlaceholder('Name').fill('Asha')
 await a.getByRole('button', { name: 'Sit here' }).first().click()
 await addComputers(a, 3)
-check(ruleChanges.length === 1 && ruleChanges[0].includes('"gameEndsAt":25'), `the home's chosen preset reaches the room as one change (${ruleChanges.join(' ')})`)
+check(ruleChanges.length === 1 && ruleChanges[0].includes('"gameEndsAt":25'), `the chosen preset reaches the new room as one change (${ruleChanges.join(' ')})`)
 await a.getByRole('button', { name: 'Start game' }).click()
 check(await seen(a, 'Ends at 25', 10_000), 'the whole game plays to 25')
 

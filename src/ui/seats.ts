@@ -62,7 +62,7 @@ export function tableSizes(seatCounts: readonly number[]): string {
   return `${list[0].toUpperCase()}${list.slice(1)} players.`
 }
 
-/** A table size as the home screen offers it: "Four, in pairs", "Two". */
+/** A table size as the lobby offers it: "Four, in pairs", "Two". */
 export function playersLabel(teams: readonly (number | null)[]): string {
   const word = countWord(teams.length)
   return teams.every((_, seat) => partnersOf(seat, teams).length === 2) ? `${word}, in pairs` : word
