@@ -11,7 +11,7 @@ const shots = process.argv[3] ?? '/tmp/shots'
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
-// Turning rays cost headless Chromium, which draws WebGL on the CPU, two cores a page: MOTION=1 plays them.
+// Reduced motion, as every browser script asks, unless MOTION=1.
 const reduced = process.env.MOTION !== '1'
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },

@@ -76,9 +76,14 @@ function origin(canvas: HTMLCanvasElement, remembered: { table: [number, number]
   return [0.5, 0.22]
 }
 
-/** Starts drawing the felt on `canvas`; returns a stop function. Does nothing where WebGL is missing. */
+/**
+ * Starts drawing the felt on `canvas`; returns a stop function. Does nothing where WebGL is missing, or would be
+ * drawn on the CPU (a machine without a usable GPU, or headless Chromium), where the turning felt costs two cores:
+ * the still rays behind it show instead.
+ */
 export function startFelt(canvas: HTMLCanvasElement): () => void {
-  const gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' })
+  if (drawnOnTheCpu()) return () => {}
+  const gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power', failIfMajorPerformanceCaveat: true })
   if (!gl) return () => {}
   const program = gl.createProgram()
   for (const [type, src] of [
@@ -158,4 +163,14 @@ export function startFelt(canvas: HTMLCanvasElement): () => void {
   }
   frame = requestAnimationFrame(draw)
   return () => cancelAnimationFrame(frame)
+}
+
+/** Whether WebGL here is a software renderer, asked of a canvas of its own so the felt's is left untouched. */
+function drawnOnTheCpu(): boolean {
+  const gl = document.createElement('canvas').getContext('webgl')
+  if (!gl) return false
+  const info = gl.getExtension('WEBGL_debug_renderer_info')
+  const renderer = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER))
+  gl.getExtension('WEBGL_lose_context')?.loseContext()
+  return /swiftshader|llvmpipe|softpipe|software/i.test(renderer)
 }
