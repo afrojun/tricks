@@ -34,12 +34,15 @@ const PERSONAS: (Persona | 'surprise')[] = ['surprise', 'sharp', 'wild']
 
 /**
  * The rules each table size plays in the shared contract tests, so between them every rule's other value is
- * reached: Blind nil and its exchange with four, "Bid plus three" and the jokers with three, and drawing with two.
+ * reached: Blind nil and its exchange with four, the jokers with three, and drawing and "Bid plus three" with two,
+ * whose games are the shortest ("Bid plus three" lets a caught cheat's side fall behind for many rounds). Games end
+ * at 200: a game to 500 is three or four times as long as Hearts', and the rounds after the first few check nothing new.
  */
 export function contractRules(playerCount: number): RuleOverrides {
-  if (playerCount === 4) return { blindNil: true, firstLead: 'lowestClub' }
-  if (playerCount === 3) return { blindNil: true, renege: 'bidPlusThree', jokers: true }
-  return { renege: 'bidPlusThree', nil: false }
+  const short = { gameEndsAt: 200 }
+  if (playerCount === 4) return { ...short, blindNil: true, firstLead: 'lowestClub' }
+  if (playerCount === 3) return { ...short, blindNil: true, jokers: true }
+  return { ...short, renege: 'bidPlusThree', nil: false }
 }
 
 export function spadesContract(

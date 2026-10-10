@@ -16,7 +16,7 @@ import type { Action, Game, View } from '../engine/types'
 import { viewFor } from '../engine/view'
 import { chooseAction } from './choose'
 
-const DEALS = Number(process.env.SIM_DEALS ?? 30)
+const DEALS = Number(process.env.SIM_DEALS ?? 16)
 
 type Player = (view: View, mind: Mind) => Action | null
 

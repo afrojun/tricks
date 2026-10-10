@@ -69,11 +69,17 @@ function followTheCoach<G extends TableState, A extends { type: string }, E, V e
   return { advised, over: p.game.phase.kind === 'gameOver' }
 }
 
+const shortSpades: typeof spadesPractice = {
+  ...spadesPractice,
+  setup: (n) => [...spadesPractice.setup(n), { type: 'setRules', overrides: { gameEndsAt: 200 } }],
+}
+
 /** Every game with a practice, the table sizes it is practised at, and how the player moves on between rounds. */
 const COACHED: Record<string, { counts: number[]; play: (playerCount: number, seed: number) => Seen }> = {
   thunee: { counts: [2, 4], play: (n, seed) => followTheCoach(thuneePractice, { type: 'nextRound' }, n, seed, 3000) },
   hearts: { counts: [4], play: (n, seed) => followTheCoach(heartsPractice, { type: 'nextRound' }, n, seed, 20_000) },
-  spades: { counts: [2, 3, 4], play: (n, seed) => followTheCoach(spadesPractice, { type: 'nextRound' }, n, seed, 20_000) },
+  // Spades' games end at 200 here: to 500 they are several times as long, and the later rounds check nothing new.
+  spades: { counts: [2, 3, 4], play: (n, seed) => followTheCoach(shortSpades, { type: 'nextRound' }, n, seed, 20_000) },
 }
 
 describe('every game’s coach', () => {

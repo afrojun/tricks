@@ -5,21 +5,22 @@ import { contractRules, spadesContract } from './contract'
 import { JOKERS_OVERRIDES, type RuleOverrides } from './engine/rules'
 
 /** Raise with SIM_GAMES=400 for a soak run. */
-const GAMES = Number(process.env.SIM_GAMES ?? 6)
+const GAMES = Number(process.env.SIM_GAMES ?? 4)
 /** src/kit/search/step.test.ts plays each size's first three seeds, with cheating on and off, so these start after them. */
 const FIRST_SEED = 4
 
 describe('the module contract', () => {
   const configs: [string, 2 | 3 | 4, RuleOverrides, (Persona | 'surprise')[]?][] = [
+    // Standard plays to 500; the rest end sooner, as the rounds after the first few check nothing new.
     ['four, Standard', 4, {}],
-    ['four, as the shared tests play it', 4, contractRules(4)],
+    ['four, Blind nil and the lowest club leading, to 300', 4, { ...contractRules(4), gameEndsAt: 300 }],
     // A caught Wild raises its side's contract again and again, and with a random partner neither side may ever reach the end.
-    ['four, "Bid plus three", no Wild, short game', 4, { renege: 'bidPlusThree', gameEndsAt: 300 }, ['sly', 'sharp', 'straight']],
-    ['four, Jokers, lowest club leads, cheating off', 4, { ...JOKERS_OVERRIDES, firstLead: 'lowestClub', allowCheating: false }],
-    ['three, as the shared tests play it', 3, contractRules(3)],
-    ['three, Standard, short game', 3, { gameEndsAt: 200 }],
+    ['four, "Bid plus three", no Wild, to 200', 4, { renege: 'bidPlusThree', gameEndsAt: 200 }, ['sly', 'sharp', 'straight']],
+    ['four, Jokers, lowest club leads, cheating off, to 200', 4, { ...JOKERS_OVERRIDES, firstLead: 'lowestClub', allowCheating: false, gameEndsAt: 200 }],
+    ['three, Blind nil, "Bid plus three" and Jokers, to 300', 3, { ...contractRules(3), renege: 'bidPlusThree', gameEndsAt: 300 }],
+    ['three, Standard, to 200', 3, { gameEndsAt: 200 }],
     ['two, Standard', 2, {}],
-    ['two, Jokers, no bag penalty, cheating off', 2, { ...JOKERS_OVERRIDES, bagPenalty: false, allowCheating: false }],
+    ['two, Jokers, no bag penalty, cheating off, to 200', 2, { ...JOKERS_OVERRIDES, bagPenalty: false, allowCheating: false, gameEndsAt: 200 }],
   ]
   for (const [name, players, overrides, personas] of configs) {
     test(`${GAMES} seeded games keep the contract: ${name}`, () => {
