@@ -1080,6 +1080,32 @@ button.menu-row:active {
   }
 }
 
+/* A seat's call against its tricks, "2 of 4": on its side's colour with four, once it has called. */
+.tally {
+  display: inline-block;
+  width: fit-content;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.tally-plate {
+  border: 1.5px solid var(--line);
+}
+.tally[data-broken='true'] {
+  background: var(--danger) !important;
+  color: var(--on-danger) !important;
+}
+/* A side's tricks against its contract: yellow once made, red when its Nil is broken. */
+.trick-pile[data-made='true'] {
+  color: var(--yellow);
+}
+.trick-pile[data-broken='true'] {
+  color: var(--danger);
+}
+
 /* A fact about the round, on a paper tag. */
 .fact {
   display: inline-flex;

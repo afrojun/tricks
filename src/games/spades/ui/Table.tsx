@@ -221,14 +221,14 @@ function StatusStrip({ view, onMenu, onTricks }: { view: View; onMenu: () => voi
               </b>
               <span className="ticket-who">
                 <span className="ticket-name">{sideName(view, side)}</span>
-                {view.rules.bagPenalty ? (
+                {view.rules.bagPenalty && !three ? (
                   <span className="pip-track" style={{ gridTemplateColumns: 'repeat(5, 0.45rem)' }} aria-label={`${(view.bags[side] ?? 0) % 10} bags`}>
                     {Array.from({ length: 10 }, (_, i) => (
                       <i key={i} data-on={i < (view.bags[side] ?? 0) % 10} />
                     ))}
                   </span>
                 ) : (
-                  <span className="text-xs">{view.bags[side] ?? 0} bags</span>
+                  <span className="text-xs whitespace-nowrap">{(view.bags[side] ?? 0) % (view.rules.bagPenalty ? 10 : Number.POSITIVE_INFINITY)} bags</span>
                 )}
               </span>
             </div>
@@ -259,7 +259,8 @@ function TallyLine({ view, seat }: { view: View; seat: Seat }) {
   const phase = view.phase
   if (!('calls' in phase)) return null
   const t = tally({ calls: phase.calls, taken: 'taken' in phase ? phase.taken : undefined, nilFailed: 'nilFailed' in phase ? phase.nilFailed : undefined }, seat)
-  const pair = view.playerCount === 4
+  // Before its call a seat shows a plain dash; after, with four, its call on its side's colour.
+  const pair = view.playerCount === 4 && phase.calls[seat] !== null
   const style = pair ? ({ background: sideColour(sideOf(seat, 4)), color: `var(--on-team${sideOf(seat, 4)})` } as React.CSSProperties) : undefined
   return (
     <span className={`tally ${pair ? 'tally-plate' : ''}`} data-broken={t.broken} style={style}>
@@ -359,7 +360,6 @@ function DrawPanel({ view, phase, can }: { view: View; phase: ViewDrawing; can: 
 /** Calling: whose call it is, the partner's, and on the viewer's turn the numbers and Nil. */
 function CallPanel({ view, phase, can }: { view: View; phase: ViewCalling; can: Available }) {
   const { send } = useSession()
-  const coached = useCoach()
   const me = view.seat
   const commit = (action: Parameters<typeof send>[0]) => {
     playSound('tap')
@@ -383,7 +383,6 @@ function CallPanel({ view, phase, can }: { view: View; phase: ViewCalling; can: 
           {partnerCall ? `${seatName(view, partner)} called ${callText(partnerCall)}.` : `${seatName(view, partner)} calls after you.`}
         </p>
       )}
-      {coached && myTurn && coached.state.advice?.note && <p className="panel-note text-center text-sm">{coached.state.advice.note.body}</p>}
       {!looked && (
         <div className="grid gap-2">
           <p className="text-center text-sm">Your side is far enough behind to call Blind nil: no tricks, before you look, for 200.</p>

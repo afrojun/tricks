@@ -28,7 +28,7 @@ export function CallGrid({ numbers, onCall, label, spelled = false, inline = [],
   const size = spelled ? '' : 'btn-small !px-1'
   return (
     <div className="grid gap-2">
-      <div className={spelled ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-1.5'}>
+      <div className={spelled ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-[repeat(auto-fill,minmax(2.6rem,1fr))] gap-1.5'}>
         {numbers.map((n) =>
           spelled ? (
             <button key={n} className="btn btn-primary" onClick={() => onCall(n)}>
