@@ -13,6 +13,7 @@ function ruleOverrides(bounded: boolean) {
     .object({
       allowCheating: z.boolean(),
       gameEndsAt: bounded ? z.number().int().min(100).max(1000) : z.number(),
+      losingScore: z.boolean(),
       nil: z.boolean(),
       blindNil: z.boolean(),
       bagPenalty: z.boolean(),

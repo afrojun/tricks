@@ -141,7 +141,7 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 - Each player calls once, from the dealer's left: a number of tricks, or Nil. A side's contract is its calls added up. Made: 10 a trick called and 1 a bag (a trick over); missed: minus 10 a trick called. Nil is plus or minus 100; ten bags cost 100. First to 500 wins.
 - Must follow suit; no spade led until one has been played, unless the hand holds nothing else. With three, and with four under a house rule, the lowest club leads.
 - Cheating is on by default: a caught renege sets the cheat's side, and a wrong accuser's side is set instead; under the house rule "Bid plus three" the side must take three more tricks and play goes on.
-- House rules (Standard is the default; the Jokers preset makes two jokers and the twos of diamonds and spades the top trumps), Blind nil among them: `src/games/spades/engine/rules.ts` and section 3 of the Spades spec.
+- House rules (Standard is the default; the Jokers preset makes two jokers and the twos of diamonds and spades the top trumps), Blind nil and a losing score of −200 among them: `src/games/spades/engine/rules.ts` and section 3 of the Spades spec.
 
 ## Conventions
 

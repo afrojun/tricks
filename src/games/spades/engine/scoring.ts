@@ -4,6 +4,7 @@ import {
   BAG_PENALTY,
   BAGS_PER_PENALTY,
   BLIND_NIL_POINTS,
+  LOSING_SCORE,
   NIL_POINTS,
   RENEGE_TRICKS,
   type SpadesRules,
@@ -101,9 +102,13 @@ export function scoreChallenged(side: number, play: RoundPlay, setSide: number, 
   }
 }
 
-/** Once any side reaches the end, the single highest score wins; while the highest is shared, play goes on. */
-export function gameWinner(scores: readonly number[], rules: Pick<SpadesRules, 'gameEndsAt'>): number | null {
-  if (!scores.some((s) => s >= rules.gameEndsAt)) return null
+/**
+ * Once any side reaches the end, or under `losingScore` any side falls to the losing score, the single highest
+ * score wins; while the highest is shared, play goes on.
+ */
+export function gameWinner(scores: readonly number[], rules: Pick<SpadesRules, 'gameEndsAt' | 'losingScore'>): number | null {
+  const lost = rules.losingScore && scores.some((s) => s <= LOSING_SCORE)
+  if (!lost && !scores.some((s) => s >= rules.gameEndsAt)) return null
   const high = Math.max(...scores)
   const highest = scores.flatMap((score, side) => (score === high ? [side] : []))
   return highest.length === 1 ? highest[0] : null

@@ -16,6 +16,8 @@ describe('the module contract', () => {
     ['four, Blind nil and the lowest club leading, to 300', 4, { ...contractRules(4), gameEndsAt: 300 }],
     // A caught Wild raises its side's contract again and again, and with a random partner neither side may ever reach the end.
     ['four, "Bid plus three", no Wild, to 200', 4, { renege: 'bidPlusThree', gameEndsAt: 200 }, ['sly', 'sharp', 'straight']],
+    // With Wild too, only the losing score ends some games.
+    ['four, "Bid plus three", a side at −200 loses', 4, { renege: 'bidPlusThree', losingScore: true }],
     ['four, Jokers, lowest club leads, cheating off, to 200', 4, { ...JOKERS_OVERRIDES, firstLead: 'lowestClub', allowCheating: false, gameEndsAt: 200 }],
     ['three, Blind nil, "Bid plus three" and Jokers, to 300', 3, { ...contractRules(3), renege: 'bidPlusThree', gameEndsAt: 300 }],
     ['three, Standard, to 200', 3, { gameEndsAt: 200 }],

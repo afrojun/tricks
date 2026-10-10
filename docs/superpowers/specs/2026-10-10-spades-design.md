@@ -23,7 +23,7 @@ Success: two, three or four people, or one person and computers, can play a full
 
 ### Out of scope
 
-Six players, the bidding variants (10 for 200, Moon, Blind 6, Bemo, Double nil bonuses, No trump), team minimum calls, losing at minus 200, and timers on calling.
+Six players, the bidding variants (10 for 200, Moon, Blind 6, Bemo, Double nil bonuses, No trump), team minimum calls, and timers on calling.
 
 ## 2. The game
 
@@ -66,6 +66,7 @@ With four players, only one partner may call Blind nil. After calling ends and b
 export interface SpadesRules extends CommonRules {
   allowCheating: boolean               // true
   gameEndsAt: number                   // 500; 100 to 1000, in steps of 50
+  losingScore: boolean                 // false; a side at −200 or below ends the game, section 3.2
   nil: boolean                         // true
   blindNil: boolean                    // false; section 2.1
   bagPenalty: boolean                  // true; 10 bags cost 100
@@ -76,6 +77,10 @@ export interface SpadesRules extends CommonRules {
 ```
 
 Standard is the default. One preset is built in: Jokers (`jokers: true`).
+
+### 3.2 The losing score
+
+A common house rule, off by default because Pagat's rules have no such limit. When it is on, a round that leaves any side at −200 or below ends the game as reaching `gameEndsAt` does: the highest score wins, and while the highest is shared, play goes on. Without it nothing ends a game in which every side keeps falling, which a 40-game soak under "Bid plus three" found.
 
 ### 3.1 Jokers
 

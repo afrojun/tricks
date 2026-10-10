@@ -10,6 +10,7 @@ const onOff = (on: string, off: string) => [
 /** Every setting, in the order the rules sheet and editor show them. */
 const RULE_INFO: RuleInfo<SpadesRules>[] = [
   { key: 'gameEndsAt', label: 'The game ends at', range: { min: 100, max: 1000, unit: 'points', step: 50 } },
+  { key: 'losingScore', label: 'A side at −200', choices: onOff('Loses, and the game ends', 'Plays on') },
   { key: 'nil', label: 'Nil', choices: onOff('Allowed, for 100', 'Not allowed') },
   { key: 'blindNil', label: 'Blind nil', choices: onOff('Allowed, for 200, when 100 behind', 'Not allowed') },
   { key: 'bagPenalty', label: 'Bags', choices: onOff('Ten cost 100', 'No penalty') },

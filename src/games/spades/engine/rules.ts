@@ -4,6 +4,8 @@ import type { Seat } from '../../../kit/table'
 export interface SpadesRules extends CommonRules {
   /** A round that ends with any side at this or more ends the game; 100 to 1000. */
   gameEndsAt: number
+  /** A round that leaves any side at `LOSING_SCORE` or below also ends the game, so sides far behind cannot play on for ever. */
+  losingScore: boolean
   /** A player may call Nil: to take no tricks, for 100. */
   nil: boolean
   /** A player whose side trails every other by 100 may call Nil before looking at the hand, for 200. Needs `nil`, and three or four players. */
@@ -23,6 +25,7 @@ export type RuleOverrides = Partial<SpadesRules>
 export const STANDARD: SpadesRules = {
   allowCheating: true,
   gameEndsAt: 500,
+  losingScore: false,
   nil: true,
   blindNil: false,
   bagPenalty: true,
@@ -60,6 +63,8 @@ export const BLIND_NIL_BEHIND = 100
 /** What Nil and Blind nil win or lose. */
 export const NIL_POINTS = 100
 export const BLIND_NIL_POINTS = 200
+/** The score at or below which a side loses, under `losingScore`. */
+export const LOSING_SCORE = -200
 /** Tricks a "Bid plus three" penalty adds to a contract. */
 export const RENEGE_TRICKS = 3
 /** Bags that cost a side `BAG_PENALTY` each time its count reaches a multiple. */

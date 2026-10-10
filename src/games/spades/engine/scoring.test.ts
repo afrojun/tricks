@@ -99,4 +99,12 @@ describe('the end', () => {
     expect(gameWinner([300, 510, 510], rules())).toBeNull()
     expect(gameWinner([100, 60, 40], rules({ gameEndsAt: 100 }))).toBe(0)
   })
+
+  test('with the losing score, a side at −200 or below ends the game, and the highest score wins', () => {
+    expect(gameWinner([-200, 150], rules())).toBeNull()
+    expect(gameWinner([-200, 150], rules({ losingScore: true }))).toBe(1)
+    expect(gameWinner([-250, -210], rules({ losingScore: true }))).toBe(1)
+    expect(gameWinner([-190, 150], rules({ losingScore: true }))).toBeNull()
+    expect(gameWinner([-220, 100, 100], rules({ losingScore: true }))).toBeNull()
+  })
 })
