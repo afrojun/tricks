@@ -1,5 +1,5 @@
 /** Reading the round from a seat's view. Computer players get the `full` view. */
-import { type Card, type Seat, type Suit, type View, type ViewPlay, type ViewPlaying, allSeats, createDeck, hasCard, pointsOf, rankStrength, teamOf, trickWinner } from '../engine'
+import { type Card, type Rank, type Seat, type Suit, type View, type ViewPlay, type ViewPlaying, RANKS, SUITS, allSeats, createDeck, pointsOf, rankStrength, teamOf, trickWinner } from '../engine'
 
 export interface TrickRecord {
   index: number
@@ -16,10 +16,19 @@ export function history(phase: ViewPlaying): TrickRecord[] {
   return [...done, current].filter((t) => t.plays.length > 0)
 }
 
+/** Where each card comes in `createDeck`'s order, by suit and then rank. */
+const PLACES = Object.fromEntries(SUITS.map((suit, s) => [suit, Object.fromEntries(RANKS.map((rank, r) => [rank, s * RANKS.length + r]))])) as Record<Suit, Record<Rank, number>>
+
+/** Where a card comes in `createDeck`'s order. */
+export const place = (c: Card) => PLACES[c.suit][c.rank]
+
 /** Cards the seat has not seen: neither in its hand nor played in a trick it remembers. They may be in any other hand, or not dealt yet. */
 export function unseen(phase: ViewPlaying): Card[] {
-  const seen = [...phase.hand, ...history(phase).flatMap((t) => t.plays.map((p) => p.card))]
-  return createDeck().filter((c) => !hasCard(seen, c))
+  const seen: boolean[] = []
+  for (const c of phase.hand) seen[place(c)] = true
+  for (const t of phase.tricks) for (const p of t.plays) seen[place(p.card)] = true
+  for (const p of phase.current) seen[place(p.card)] = true
+  return createDeck().filter((_, i) => !seen[i])
 }
 
 /** The suits each seat has shown it holds none of this half, by not following them. Hands are dealt afresh each half. */

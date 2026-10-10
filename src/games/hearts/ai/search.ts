@@ -44,8 +44,7 @@ export function knowledge(view: View): Knowledge<Card> {
   }
   const play = fullPlay(view)
   const seen = seenPlays(view)
-  const played = seen.map((p) => p.card)
-  const hidden = createDeck().filter((c) => !hasCard(play.hand, c) && !hasCard(played, c))
+  const hidden = unseen(play)
   const hard: Constraint<Card>[] = []
   // Before the first card, the seat to lead is the one holding the two of clubs.
   if (hasCard(hidden, TWO_OF_CLUBS) && play.turn !== null) hard.push({ kind: 'holds', place: places.indexOf(play.turn), card: TWO_OF_CLUBS, why: 'leads 2-clubs' })

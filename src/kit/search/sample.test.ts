@@ -193,6 +193,24 @@ describe('the sampler', () => {
     }
   })
 
+  test('counts deals exactly however many "at least one" constraints there are', () => {
+    // Thirty of them, over four places of thirteen: more ways of the room left than a number keys exactly.
+    const deck = SUITS.flatMap((suit) => ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'].map((rank) => ({ suit, rank })))
+    const sizes = [13, 13, 13, 13]
+    const hard: Constraint<Card>[] = deck.slice(0, 30).flatMap((card, i): Constraint<Card>[] => [
+      { kind: 'holds', place: i % 4, card, why: `holds ${i}` },
+      { kind: 'some', places: [i % 4], of: (x) => sameCard(x, card), why: `some ${i}` },
+    ])
+    for (let p = 0; p < 4; p++) hard.push({ kind: 'none', place: p, of: (x) => sameCard(x, deck[30 + p]), why: `none ${p}` })
+    const sampler = prepare({ hidden: deck, sizes, hard, soft: [] })
+    const rng = seededRng(1)
+    for (let i = 0; i < 40; i++) {
+      const world = sampler.sample(rng)
+      expect(world.map((place) => place.length)).toEqual(sizes)
+      expect(keeps(world, hard)).toBe(true)
+    }
+  })
+
   test('the same stream gives the same world', () => {
     const knowledge: Knowledge<Card> = { hidden: cards('Jh 9h Ah 10h Js 9s As 10s'), sizes: [3, 3, 2], hard: [], soft: [] }
     const one = prepare(knowledge).sample(seed(5, 2, 'id'))

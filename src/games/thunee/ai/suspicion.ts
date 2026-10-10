@@ -2,7 +2,7 @@
 import { type Proof, type SeenPlay, chanceOfVoid, noticed, playProofs } from '../../../kit/integrity'
 import { type Mind, TRAITS, roll } from '../../../kit/mind'
 import { type Action, type Card, type Seat, type Suit, type View, type ViewPlaying, RANKS, SUITS, availableActions, cardId, pointsOf, sameCard, seenPlays, teamOf } from '../engine'
-import { type TrickRecord, history, mood } from './read'
+import { type TrickRecord, history, mood, place } from './read'
 
 export const inPlay = (view: View): ViewPlaying | null =>
   view.phase.kind === 'playing' || view.phase.kind === 'trickPause' ? view.phase : null
@@ -94,7 +94,7 @@ export function findSignals(view: View): Signal[] {
   for (const t of tricks) {
     const led = t.plays[0].card.suit
     t.plays.forEach((p, i) => {
-      if (i === 0 || !opponent(p.seat) || p.card.suit === led) return
+      if (i === 0 || p.card.suit === led || !opponent(p.seat)) return
       if (t.winner === p.seat && pointsOf(t.plays.map((q) => q.card)) >= 30) out.push({ id: `cut:${t.index}`, accused: p.seat, claim: null, at: t.index })
       // Dated during its trick (claim t-0.5 < void t-0.25 < cut t), so its mood never counts the trick's own points,
       // whether or not the trick has finished.
@@ -115,15 +115,15 @@ export const VOID_DOUBT = 0.21
  * Uses only what was known then: the observer's own cards for that half, earlier tricks, and trick `t` up to play `i`.
  */
 function voidOdds(phase: ViewPlaying, tricks: TrickRecord[], me: Seat, t: TrickRecord, i: number): number {
-  const known = new Set<string>()
-  if (phase.half === t.half) for (const c of phase.hand) known.add(cardId(c))
+  const known = new Set<number>()
+  if (phase.half === t.half) for (const c of phase.hand) known.add(place(c))
   for (const r of tricks) {
     r.plays.forEach((p, j) => {
-      if ((p.seat === me && r.half === t.half) || r.index < t.index || (r.index === t.index && j <= i)) known.add(cardId(p.card))
+      if ((p.seat === me && r.half === t.half) || r.index < t.index || (r.index === t.index && j <= i)) known.add(place(p.card))
     })
   }
   const led = t.plays[0].card.suit
-  const unseen = RANKS.filter((rank) => !known.has(cardId({ suit: led, rank }))).length
+  const unseen = RANKS.filter((rank) => !known.has(place({ suit: led, rank }))).length
   const done = tricks.filter((r) => r.half === t.half && r.index < t.index).length
   return chanceOfVoid(24 - known.size, unseen, 6 - done - 1)
 }
@@ -154,6 +154,8 @@ export function chooseChallenge(view: View, mind: Mind): Action | null {
   const me = view.seat
   if (me === null || inPlay(view) === null) return null
   const can = availableActions(view)
+  // With nobody to accuse, as when cheating is off, nothing it finds can come to anything.
+  if (can.challengePlay.length === 0 && can.challengeJodhi.length === 0 && !can.challengeThunee) return null
   const accuse = (accused: Seat, claim: number | null, id = ''): Action | null => {
     if (id.startsWith('thunee:')) return can.challengeThunee ? { type: 'challengeThunee' } : null
     if (claim !== null) return can.challengeJodhi.includes(claim) ? { type: 'challengeJodhi', claim } : null

@@ -58,13 +58,15 @@ export function rebuild(view: View, world: World<Card>): Game {
   } else {
     const play = fullPlay(view)
     const seen = seenPlays(view)
-    // Each play's hand: what the seat holds now, and every card it played from then on.
-    const held = hands.map((h) => [...h])
+    // Each play's hand: what the seat holds now, and every card it played from then on, built on the hand of the
+    // seat's next play, which nothing changes.
+    const held = [...hands]
     const records: PlayRecord[] = []
     for (let i = seen.length - 1; i >= 0; i--) {
       const { seat, card, excuses } = seen[i]
-      held[seat] = [card, ...held[seat]]
-      records[i] = { seat, card, handBefore: [...held[seat]], broke: brokenRules(held[seat], excuses) }
+      const handBefore = [card, ...held[seat]]
+      held[seat] = handBefore
+      records[i] = { seat, card, handBefore, broke: brokenRules(handBefore, excuses) }
     }
     const tricks = play.tricks.map((t, i) => ({ plays: records.slice(i * PLAYERS, (i + 1) * PLAYERS), winner: t.winner }))
     const current = records.slice(play.tricks.length * PLAYERS)

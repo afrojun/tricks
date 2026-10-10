@@ -1,6 +1,7 @@
 /** AI players. They see only a seat's view; whether they cheat depends on their persona. */
 import {
   type Action,
+  type Available,
   type Card,
   type Suit,
   type TrumpChoice,
@@ -121,9 +122,8 @@ function thuneeLead(view: View, phase: ViewPlaying, legal: readonly Card[]): Car
 }
 
 /** A special call the view proves will succeed: only when playing last to the final trick. */
-function sureSpecialCall(view: View, phase: ViewPlaying, card: Card): Decision | null {
+function sureSpecialCall(view: View, phase: ViewPlaying, can: Available, card: Card): Decision | null {
   const me = view.seat!
-  const can = availableActions(view)
   if (phase.current.length !== view.playerCount - 1 || !wouldWin(phase, me, card)) return null
   // These sums need every card played; a view that has forgotten earlier tricks cannot make them.
   const remembersAll = phase.tricks.every((t) => t.plays.length > 0)
@@ -184,7 +184,7 @@ export function decide(view: View, mind: Mind): Decision {
       // Never a cheat that could take a trick from a partner's Thunee.
       const cheat = honest.reason.code === 'keepOffThunee' ? null : chooseCheat(view, phase, honest.card, mind)
       const choice: CardChoice = cheat ? { card: cheat, reason: { code: 'fallback' } } : honest
-      return sureSpecialCall(view, phase, choice.card) ?? { action: { type: 'playCard', card: choice.card }, reason: choice.reason, alternatives: choice.alternatives }
+      return sureSpecialCall(view, phase, can, choice.card) ?? { action: { type: 'playCard', card: choice.card }, reason: choice.reason, alternatives: choice.alternatives }
     }
     default:
       return { action: fallbackAction(view), reason: { code: 'fallback' } }
@@ -195,10 +195,11 @@ export function decide(view: View, mind: Mind): Decision {
 export function chooseJodhi(view: View, mind: Mind): Action | null {
   const phase = view.phase
   if (view.seat === null || (phase.kind !== 'playing' && phase.kind !== 'trickPause')) return null
+  const open = availableActions(view).claimJodhi
+  if (open.length === 0) return null
   const me = view.seat
   const ownPlays = phase.tricks.filter((t) => t.half === phase.half).flatMap((t) => t.plays).filter((p) => p.seat === me)
   const cards = view.rules.jodhiCards === 'inHand' ? phase.hand : [...phase.hand, ...ownPlays.map((p) => p.card)]
-  const open = availableActions(view).claimJodhi
   for (const suit of open) {
     if (holdsJodhi(cards, suit, false)) return { type: 'claimJodhi', suit, withJack: holdsJodhi(cards, suit, true) }
   }

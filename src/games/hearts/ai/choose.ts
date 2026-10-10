@@ -21,15 +21,18 @@ const isQueen = (c: Card) => sameCard(c, QUEEN_OF_SPADES)
 const isTopSpade = (c: Card) => c.suit === 'spades' && strength(c) > strength(QUEEN_OF_SPADES)
 const isLowSpade = (c: Card) => c.suit === 'spades' && strength(c) < strength(QUEEN_OF_SPADES)
 
+/** What sorting `cards` by `order` would put first, without sorting them: the earliest of equals. */
+const first = (cards: readonly Card[], order: (a: Card, b: Card) => number) => cards.reduce((a, b) => (order(b, a) < 0 ? b : a))
+
 /** Low to high. A full order, so a choice never depends on the order of the hand. */
 const byStrength = (a: Card, b: Card) => strength(a) - strength(b) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)
-const lowest = (cards: readonly Card[]) => [...cards].sort(byStrength)[0]
-const highest = (cards: readonly Card[]) => [...cards].sort(byStrength)[cards.length - 1]
+const lowest = (cards: readonly Card[]) => first(cards, byStrength)
+const highest = (cards: readonly Card[]) => first(cards, (a, b) => byStrength(b, a))
 
 /** The highest card; between equals, the one from the shorter suit in `hand`, towards a void. */
 function highestTowardsVoid(cards: readonly Card[], hand: readonly Card[]): Card {
   const length = (suit: Suit) => hand.filter((c) => c.suit === suit).length
-  return [...cards].sort((a, b) => strength(b) - strength(a) || length(a.suit) - length(b.suit) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit))[0]
+  return first(cards, (a, b) => strength(b) - strength(a) || length(a.suit) - length(b.suit) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit))
 }
 
 // ── Passing ──────────────────────────────────────────────────────────────
@@ -116,7 +119,7 @@ function chooseLead(phase: ViewPlaying, legal: readonly Card[]): CardChoice {
   const out = unseen(phase)
   const above = (c: Card) => out.filter((o) => o.suit === c.suit && strength(o) > strength(c)).length
   const below = (c: Card) => out.filter((o) => o.suit === c.suit && strength(o) < strength(c)).length
-  const queen = queenOut(phase)
+  const queen = out.some(isQueen)
   // Draw the queen out with spades that cannot win against her.
   if (queen) {
     const fish = legal.filter(isLowSpade)
@@ -127,14 +130,16 @@ function chooseLead(phase: ViewPlaying, legal: readonly Card[]): CardChoice {
   const safe = legal.filter((c) => !risky(c))
   if (safe.length === 0) {
     const order = (c: Card) => (c.suit === 'hearts' ? 0 : isQueen(c) ? 2 : 1)
-    return as('leadLeastBad', [...legal].sort((a, b) => order(a) - order(b) || byStrength(a, b))[0])
+    return as('leadLeastBad', first(legal, (a, b) => order(a) - order(b) || byStrength(a, b)))
   }
   // The card least likely to win: the largest share of its suit still out is above it.
-  const share = (c: Card) => {
-    const total = above(c) + below(c)
-    return total === 0 ? 0 : above(c) / total
-  }
-  const card = [...safe].sort((a, b) => share(b) - share(a) || byStrength(a, b))[0]
+  const share = new Map(
+    safe.map((c) => {
+      const total = above(c) + below(c)
+      return [c, total === 0 ? 0 : above(c) / total]
+    }),
+  )
+  const card = first(safe, (a, b) => share.get(b)! - share.get(a)! || byStrength(a, b))
   return { card, reason: { code: 'leadLow', card, higher: above(card) } }
 }
 

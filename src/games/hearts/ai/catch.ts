@@ -2,8 +2,8 @@
  * How a computer catches a cheat: from a proof, with the same cards a person
  * at the table has seen, or, for the personas that have them, on a hunch.
  */
-import { cardId, sameCard } from '../../../kit/cards'
-import { type Proof, type SeenPlay, chanceOfVoid, noticed, playProofs } from '../../../kit/integrity'
+import { type Suit, sameCard } from '../../../kit/cards'
+import { type Proof, type SeenPlay, chanceOfVoid, noticed, proofsOf } from '../../../kit/integrity'
 import { type Mind, TRAITS, roll } from '../../../kit/mind'
 import type { Seat } from '../../../kit/table'
 import { availableActions } from '../engine/available'
@@ -11,7 +11,7 @@ import { type Card, QUEEN_OF_SPADES, RANKS, penaltyPoints } from '../engine/card
 import { seenPlays } from '../engine/excuses'
 import { HAND_SIZE, PASS_SIZE, PLAYERS, passTarget } from '../engine/rules'
 import type { Action, View, ViewPlay, ViewPlaying } from '../engine/types'
-import { type TrickRecord, history, inPlay, mood, winningPlay } from './read'
+import { history, inPlay, mood, place, winningPlay } from './read'
 
 /** How much more a cheat stands out when it dodged the queen of spades. */
 export const QUEEN_DODGE = 1.5
@@ -24,7 +24,7 @@ export const GIVEN = 1.5
 
 /**
  * Every proof this observer has that another seat cheated: an excuse shown
- * false by a later card of the same seat (the kit's `playProofs`), or by a
+ * false by a later card of the same seat (the kit's `proofsOf`), or by a
  * card the observer passed that seat and had not yet seen it play. Needs a
  * `full` view.
  */
@@ -38,17 +38,15 @@ export function findProofs(view: View): Proof[] {
     if (cheat.seat === me || cheat.excuses.length === 0) continue
     const done = cheat.trick < phase.tricks.length ? phase.tricks[cheat.trick] : null
     // A later card comes in a later trick, so the cheat's trick is over and how much it stands out is settled.
-    if (done) {
-      const later = plays.filter((p) => p.seat === cheat.seat && p.trick > cheat.trick).map((p) => ({ ...p, excuses: [] }))
-      const salience = standsOut(done.plays, done.winner, cheat.seat, me)
-      for (const proof of playProofs([cheat, ...later], () => true)) out.push({ ...proof, salience })
-    }
+    if (done) out.push(...proofsOf(cheat, plays, () => standsOut(done.plays, done.winner, cheat.seat, me)))
+    const given = givenProofs(view, phase, plays, cheat)
+    if (given.length === 0) continue
     // A passed card proves the cheat as it is played. It is judged on the trick as it stood then, and on later
     // calls on that same prefix, so cards played after it never change its one look.
     const trick = done ? done.plays : phase.current
     const then = trick.slice(0, trick.findIndex((p) => p.seat === cheat.seat) + 1)
     const salience = standsOut(then, winningPlay(then).seat, cheat.seat, null) * GIVEN
-    for (const proof of givenProofs(view, phase, plays, cheat)) out.push({ ...proof, salience })
+    for (const proof of given) out.push({ ...proof, salience })
   }
   return out
 }
@@ -103,51 +101,43 @@ export function findSignals(view: View): Signal[] {
   const me = view.seat
   if (phase === null || me === null) return []
   const tricks = history(phase)
+  // What the observer knows as play goes on: its own hand since the exchange and its own plays, the cards it
+  // passed, which stay with the seat it passed them to until played, and each card as it is played.
+  const known = new Set([...phase.hand, ...phase.gave].map(place))
+  for (const t of tricks) for (const p of t.plays) if (p.seat === me) known.add(place(p.card))
+  const given = new Set(phase.gave.map(place))
+  let stillGiven = given.size
   const shown = new Set<string>()
   const out: Signal[] = []
   for (const t of tricks) {
     const led = t.plays[0].card.suit
     t.plays.forEach((p, i) => {
+      const at = place(p.card)
+      known.add(at)
+      if (given.has(at)) stillGiven--
       if (i === 0 || p.card.suit === led) return
       const first = !shown.has(`${p.seat}:${led}`)
       shown.add(`${p.seat}:${led}`)
       if (p.seat === me) return
       if (t.plays.slice(0, i).some((q) => sameCard(q.card, QUEEN_OF_SPADES))) out.push({ id: `queen:${t.index}:${p.seat}`, accused: p.seat, at: t.index })
-      if (first && voidOdds(view, phase, tricks, t, i) < VOID_DOUBT) out.push({ id: `void:${t.index}:${p.seat}`, accused: p.seat, at: t.index })
+      if (first && voidOdds(view, t.index, p.seat, led, known, stillGiven) < VOID_DOUBT) out.push({ id: `void:${t.index}:${p.seat}`, accused: p.seat, at: t.index })
     })
   }
   return out
 }
 
 /**
- * The chance, as the observer saw it just after play `i` of trick `t`, that
- * its player truly held none of the suit led. Uses only what was known then:
- * the observer's own hand since the exchange, the cards played so far, and the
- * cards the observer passed, which stay with the seat it passed them to until
- * played. After a pass a hand is not a random draw: its owner chose three
- * cards to give away, and may have emptied the suit with them.
+ * The chance, as the observer saw it just after `seat` showed out of `led` in
+ * trick `trick`, that it truly held none of the suit. Uses only what was known
+ * then: the cards in `known`, by place, and how many of the cards the observer
+ * passed that seat were still unplayed. After a pass a hand is not a random
+ * draw: its owner chose three cards to give away, and may have emptied the
+ * suit with them.
  */
-function voidOdds(view: View, phase: ViewPlaying, tricks: readonly TrickRecord[], t: TrickRecord, i: number): number {
-  const me = view.seat!
-  const seat = t.plays[i].seat
-  const known = new Set(phase.hand.map(cardId))
-  const playedThen = new Set<string>()
-  for (const r of tricks) {
-    r.plays.forEach((p, j) => {
-      if (p.seat === me) known.add(cardId(p.card))
-      if (r.index < t.index || (r.index === t.index && j <= i)) playedThen.add(cardId(p.card))
-    })
-  }
-  playedThen.forEach((id) => known.add(id))
+function voidOdds(view: View, trick: number, seat: Seat, led: Suit, known: ReadonlySet<number>, stillGiven: number): number {
   const direction = view.direction
-  let held = HAND_SIZE - t.index - 1
-  for (const card of phase.gave) {
-    if (playedThen.has(cardId(card))) continue
-    known.add(cardId(card))
-    if (direction !== 'none' && passTarget(me, direction) === seat) held--
-  }
-  const led = t.plays[0].card.suit
-  const unseen = RANKS.filter((rank) => !known.has(cardId({ suit: led, rank }))).length
+  const held = HAND_SIZE - trick - 1 - (direction !== 'none' && passTarget(view.seat!, direction) === seat ? stillGiven : 0)
+  const unseen = RANKS.filter((rank) => !known.has(place({ suit: led, rank }))).length
   const hidden = HAND_SIZE * PLAYERS - known.size
   if (direction === 'none') return chanceOfVoid(hidden, unseen, held)
   return chanceOfFew(hidden, unseen, held + PASS_SIZE, PASS_SIZE)

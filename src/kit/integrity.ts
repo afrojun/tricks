@@ -28,16 +28,19 @@ export interface PlayRecord<C> {
   broke: string[]
 }
 
+/** Whether `hand` shows `excuse` to be false: it holds a card the excuse says it had none of. */
+const shownFalse = <C>(excuse: Excuse<C>, hand: readonly C[]) => hand.some((c) => excuse.without(c))
+
 /** The rules whose excuses `handBefore` shows to be false. */
 export function brokenRules<C>(handBefore: readonly C[], excuses: readonly Excuse<C>[]): string[] {
   const broke: string[] = []
-  for (const e of excuses) if (handBefore.some(e.without)) broke.push(e.rule)
+  for (const e of excuses) if (shownFalse(e, handBefore)) broke.push(e.rule)
   return broke
 }
 
 /** The cards of `hand` whose excuses all hold. */
 export function legalCards<C>(hand: readonly C[], excusesFor: (card: C) => Excuse<C>[]): C[] {
-  return hand.filter((card) => brokenRules(hand, excusesFor(card)).length === 0)
+  return hand.filter((card) => !excusesFor(card).some((e) => shownFalse(e, hand)))
 }
 
 /** The record of `card` played from `hand`, judged against the excuses the play needs. */
@@ -90,21 +93,29 @@ export function playProofs<C>(
   salience: (cheat: SeenPlay<C>, reveal: SeenPlay<C>) => number = () => 1,
 ): Proof[] {
   const out: Proof[] = []
-  for (const cheat of plays) {
-    if (!suspect(cheat.seat)) continue
-    for (const excuse of cheat.excuses) {
-      for (const reveal of plays) {
-        if (reveal.seat !== cheat.seat || reveal.deal !== cheat.deal || reveal.trick <= cheat.trick) continue
-        if (!excuse.without(reveal.card)) continue
-        out.push({
-          id: `${excuse.rule}:${cheat.seat}:${cheat.trick}:${reveal.trick}`,
-          accused: cheat.seat,
-          rule: excuse.rule,
-          claim: null,
-          gap: reveal.trick - cheat.trick - 1,
-          salience: salience(cheat, reveal),
-        })
-      }
+  for (const cheat of plays) if (cheat.excuses.length > 0 && suspect(cheat.seat)) out.push(...proofsOf(cheat, plays, salience))
+  return out
+}
+
+/** The proofs against one play of `plays`, as `playProofs` finds them for a suspect. */
+export function proofsOf<C>(
+  cheat: SeenPlay<C>,
+  plays: readonly SeenPlay<C>[],
+  salience: (cheat: SeenPlay<C>, reveal: SeenPlay<C>) => number = () => 1,
+): Proof[] {
+  const out: Proof[] = []
+  for (const excuse of cheat.excuses) {
+    for (const reveal of plays) {
+      if (reveal.seat !== cheat.seat || reveal.deal !== cheat.deal || reveal.trick <= cheat.trick) continue
+      if (!excuse.without(reveal.card)) continue
+      out.push({
+        id: `${excuse.rule}:${cheat.seat}:${cheat.trick}:${reveal.trick}`,
+        accused: cheat.seat,
+        rule: excuse.rule,
+        claim: null,
+        gap: reveal.trick - cheat.trick - 1,
+        salience: salience(cheat, reveal),
+      })
     }
   }
   return out

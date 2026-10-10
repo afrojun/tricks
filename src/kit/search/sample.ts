@@ -3,7 +3,7 @@
  * while it can hold. Every deal that keeps the constraints is equally likely: cards that may go to the same places
  * are grouped, deals are counted exactly, and each group's share of every place is drawn by those counts.
  */
-import { type Card, cardId, shuffle } from '../cards'
+import { type Card, sameCard, shuffle } from '../cards'
 import type { Constraint, Knowledge, World } from './types'
 
 export interface Sampler<C extends Card> {
@@ -63,22 +63,26 @@ class Deals<C extends Card> {
   private groups: Group[] = []
   /** For each "at least one" constraint, the places it names. */
   private some: number[] = []
-  private memo = new Map<string, Share>()
+  private memo = new Map<number | string, Share>()
   private factorial: number[] = [1]
+  /** One more than any place can hold: the base the memo's keys write the room left in. */
+  private radix: number
+  /** Whether every memo key fits in a number exactly; if not, as with many "at least one" constraints, keys are strings. */
+  private exact = false
 
   constructor(
     private hidden: readonly C[],
     private sizes: readonly number[],
     constraints: readonly Constraint<C>[],
   ) {
+    this.radix = hidden.length + 1
     const all = (1 << sizes.length) - 1
     const allowed = hidden.map(() => all)
     const counts = hidden.map(() => 0)
-    const index = new Map(hidden.map((c, i) => [cardId(c), i]))
     for (const c of constraints) {
       if (c.kind === 'holds') {
-        const i = index.get(cardId(c.card))
-        if (i === undefined) throw new Error(`sample: ${c.why} names a card that is not hidden`)
+        const i = hidden.findIndex((h) => sameCard(h, c.card))
+        if (i === -1) throw new Error(`sample: ${c.why} names a card that is not hidden`)
         allowed[i] &= 1 << c.place
       } else if (c.kind === 'none') {
         hidden.forEach((card, i) => {
@@ -92,14 +96,15 @@ class Deals<C extends Card> {
         })
       }
     }
-    const byKey = new Map<string, Group>()
+    const byKey = new Map<number, Group>()
     hidden.forEach((_, i) => {
-      const key = `${allowed[i]}:${counts[i]}`
+      const key = counts[i] * (all + 1) + allowed[i]
       const group = byKey.get(key) ?? { places: allowed[i], counts: counts[i], cards: [] }
       group.cards.push(i)
       byKey.set(key, group)
     })
     this.groups = [...byKey.values()]
+    this.exact = 2 ** this.some.length * this.groups.length * this.radix ** sizes.length <= Number.MAX_SAFE_INTEGER
     for (let n = 1; n <= hidden.length; n++) this.factorial[n] = this.factorial[n - 1] * n
   }
 
@@ -131,7 +136,7 @@ class Deals<C extends Card> {
 
   /** How group `g` may be split, with the deals that follow each split; worked out once and kept for every world. */
   private share(g: number, room: number[], met: number): Share {
-    const key = `${g}:${room}:${met}`
+    const key = this.key(g, room, met)
     const known = this.memo.get(key)
     if (known !== undefined) return known
     const group = this.groups[g]
@@ -141,6 +146,14 @@ class Deals<C extends Card> {
     const share = { total: options.reduce((sum, o) => sum + o.ways, 0), options }
     this.memo.set(key, share)
     return share
+  }
+
+  /** The memo's key for a share: a number, written in base `radix`, while that is exact. */
+  private key(g: number, room: readonly number[], met: number): number | string {
+    if (!this.exact) return `${met} ${g} ${room.join(' ')}`
+    let key = met * this.groups.length + g
+    for (const r of room) key = key * this.radix + r
+    return key
   }
 
   /** Deals in which group `g` is split as `split`, with the groups after it dealt every way they can be. */

@@ -1,8 +1,8 @@
 /** Reading the round from a seat's view. Computer players get the `full` view. */
-import { cardId, sameCard } from '../../../kit/cards'
+import { SUITS, type Suit, sameCard } from '../../../kit/cards'
 import type { Seat } from '../../../kit/table'
 import { trickWinner } from '../../../kit/tricks'
-import { type Card, QUEEN_OF_SPADES, createDeck, penaltyPoints, strength } from '../engine/cards'
+import { type Card, QUEEN_OF_SPADES, RANKS, type Rank, createDeck, penaltyPoints, strength } from '../engine/cards'
 import { MOON_POINTS, PLAYERS } from '../engine/rules'
 import type { View, ViewPlay, ViewPlaying } from '../engine/types'
 
@@ -22,10 +22,19 @@ export function history(phase: ViewPlaying): TrickRecord[] {
   return [...done, { index: phase.tricks.length, plays: phase.current, winner: null }].filter((t) => t.plays.length > 0)
 }
 
+/** Where each card comes in `createDeck`'s order, by suit and then rank. */
+const PLACES = Object.fromEntries(SUITS.map((suit, s) => [suit, Object.fromEntries(RANKS.map((rank, r) => [rank, s * RANKS.length + r]))])) as Record<Suit, Record<Rank, number>>
+
+/** Where a card comes in `createDeck`'s order. */
+export const place = (c: Card) => PLACES[c.suit][c.rank]
+
 /** Cards neither in the viewer's hand nor seen played: what the other seats may hold. Needs a `full` view. */
 export function unseen(phase: ViewPlaying): Card[] {
-  const known = new Set([...phase.hand, ...history(phase).flatMap((t) => t.plays.map((p) => p.card))].map(cardId))
-  return createDeck().filter((c) => !known.has(cardId(c)))
+  const known: boolean[] = []
+  for (const c of phase.hand) known[place(c)] = true
+  for (const t of phase.tricks) for (const p of t.plays) known[place(p.card)] = true
+  for (const p of phase.current) known[place(p.card)] = true
+  return createDeck().filter((_, i) => !known[i])
 }
 
 /** The play winning the trick so far. */
