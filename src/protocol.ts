@@ -45,6 +45,8 @@ export type ServerMessage<V, E> =
       version: number
       /** Server clock when this was sent, for countdowns. */
       now: number
+      /** How many times faster than real time that clock runs, for a development table at a pace; absent, real time. */
+      rate?: number
       seat: Seat | null
       view: V
       events: NumberedEvent<E>[]

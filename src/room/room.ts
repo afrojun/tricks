@@ -462,6 +462,8 @@ class Table {
     this.saved = { ...this.saved, clock: { rate, real: this.deps.now(), table: this.now() } }
     await this.host.storage.put(STORAGE_KEY, this.saved)
     await this.armAlarm()
+    // Everyone's countdowns follow the clock, so everyone is told its new rate.
+    for (const conn of this.host.connections()) this.send(conn, [])
   }
 
   private parse(message: string | ArrayBuffer | ArrayBufferView): ClientMessage<unknown> | null {
@@ -494,6 +496,7 @@ class Table {
         type: 'sync',
         version: this.saved.version,
         now: this.now(),
+        ...(this.saved.clock && this.saved.clock.rate !== 1 && { rate: this.saved.clock.rate }),
         seat,
         view: this.module.viewFor(this.saved.game, seat),
         events,

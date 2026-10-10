@@ -764,10 +764,14 @@ describe('pace', () => {
     await w.fireAlarm()
     expect(me.sync.version).toBeGreaterThan(version) // a computer acted a quarter of its delay in
     expect(me.sync.now).toBe(start + (w.now - start) * 4)
+    expect(me.sync.rate).toBe(4)
 
     await w.wake()
     w.now += 1000
-    const watcher = await w.connect('w'.repeat(20))
+    me.take()
+    const watcher = await w.connect('w'.repeat(20), null, '&pace=2')
+    // A new pace carries on from the table's time, and everyone is told of it at once.
+    expect(me.sync).toMatchObject({ now: start + (w.now - start) * 4, rate: 2 })
     expect(watcher.sync.now).toBe(start + (w.now - start) * 4)
     expect(me.inbox.filter((m) => m.type === 'error' || m.type === 'rejected')).toEqual([])
   })
@@ -783,6 +787,7 @@ describe('pace', () => {
     w.now += 1000
     const watcher = await w.connect('w'.repeat(20), null, '&pace=4')
     expect(watcher.sync.now).toBe(reached + 1000)
+    expect(watcher.sync.rate).toBeUndefined()
     expect(w.alarm === null || w.alarm >= w.now).toBe(true)
   })
 
@@ -792,6 +797,7 @@ describe('pace', () => {
     expect(w.alarm).toBe(Math.max(due(w), w.now + 1))
     await w.fireAlarm()
     expect(me.sync.now).toBe(w.now)
+    expect(me.sync.rate).toBeUndefined()
   })
 
   test('a pace is a number from 1 to 20, and anything else is real time', () => {

@@ -6,8 +6,8 @@ export const PACE_KEY = 'tricks-pace'
 /**
  * How many times faster than real time this page's tables run: rooms (which the development server's alone
  * honour), practice, and how long the screen holds each move. The browser scripts set it, so they do not wait
- * out the computers; only the development server's pages read it, and 1 everywhere else. A countdown on the table
- * still runs at real time, so under a pace it ends early: nothing but the scripts sets one.
+ * out the computers; only the development server's pages read it, and 1 everywhere else. The table's countdowns
+ * follow the rate each sync carries.
  */
 export function pace(): number {
   if (!import.meta.env.DEV) return 1

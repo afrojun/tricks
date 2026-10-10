@@ -45,7 +45,8 @@ export class GameStore<V extends TableView, E> {
   /** After a (re)connect the next sync is taken as-is, whatever its version. */
   private awaitingFirstSync = true
   /** Server clock minus local clock, measured at the last sync. */
-  private clockOffset = 0
+  /** The server's clock as the last sync gave it: `now` at this device's `at`, running `rate` times real time. */
+  private clock = { now: 0, at: 0, rate: 1 }
 
   getState = (): ClientState<V> => this.state
 
@@ -83,7 +84,7 @@ export class GameStore<V extends TableView, E> {
       return
     }
     if (!this.awaitingFirstSync && message.version < this.state.version) return // stale
-    this.clockOffset = message.now - localNow
+    this.clock = { now: message.now, at: localNow, rate: message.rate ?? 1 }
 
     const numbers = message.events.map((e) => e.n)
     // The first sync after connecting only sets the baseline, for events as for the view: nothing is
@@ -105,7 +106,12 @@ export class GameStore<V extends TableView, E> {
 
   /** The server's clock, for countdowns that must not depend on this device's clock. */
   serverNow(localNow: number): number {
-    return localNow + this.clockOffset
+    return this.clock.now + (localNow - this.clock.at) * this.clock.rate
+  }
+
+  /** How many times faster than real time the server's clock runs: 1, unless a development table runs at a pace. */
+  get clockRate(): number {
+    return this.clock.rate
   }
 
   clearRejection(): void {

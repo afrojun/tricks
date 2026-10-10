@@ -270,7 +270,7 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     version++
     pending.set(version, snap ?? { said: [], newRound: false, rest: {} })
     const numbered: NumberedEvent<E>[] = events.map((e) => ({ ...e, n: ++eventN }))
-    playback.push({ type: 'sync', version, now: game.virtualNow, seat: game.you, view: game.view(), events: numbered, ...(said.length > 0 ? { said } : {}) })
+    playback.push({ type: 'sync', version, now: game.virtualNow, ...(speed > 1 && { rate: speed }), seat: game.you, view: game.view(), events: numbered, ...(said.length > 0 ? { said } : {}) })
   }
 
   /** After anything that changes what holds the clock: restart its display if it resumed, and re-arm it. */

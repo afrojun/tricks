@@ -5,10 +5,11 @@ import { GameStore } from './store'
 
 const view = viewFor(createGame(), null)
 const event = (n: number): NumberedEvent<GameEvent> => ({ type: 'passed', seat: n % 4, n })
-const sync = (version: number, events: NumberedEvent<GameEvent>[] = [], now = 5000): ServerMessage<View, GameEvent> => ({
+const sync = (version: number, events: NumberedEvent<GameEvent>[] = [], now = 5000, rate?: number): ServerMessage<View, GameEvent> => ({
   type: 'sync',
   version,
   now,
+  ...(rate !== undefined && { rate }),
   seat: null,
   view: { ...view, roundNumber: version },
   events,
@@ -122,6 +123,16 @@ describe('game store', () => {
     const deadline = serverTime + 10_000
     expect(deadline - store.serverNow(deviceTime)).toBe(10_000)
     expect(deadline - store.serverNow(deviceTime + 4000)).toBe(6000)
+  })
+
+  test('countdowns follow a development table that runs at a pace', () => {
+    const store = new GameStore()
+    store.setConnection('open')
+    store.receive(sync(1, [], 1_000_000, 4), 5000)
+    expect(store.serverNow(6000)).toBe(1_004_000)
+    expect(store.clockRate).toBe(4)
+    store.receive(sync(2, [], 1_004_000), 6000) // a sync without a rate is real time again
+    expect(store.serverNow(7000)).toBe(1_005_000)
   })
 
   test('each rejection surfaces once and can be cleared; listeners are notified', () => {
