@@ -22,6 +22,8 @@ export async function gate(request: Request, limiter: Limiter): Promise<GateVerd
   const ip = request.headers.get('CF-Connecting-IP')
   if (ip === null || LOOPBACK.has(ip)) return 'open'
   const { success } = await limiter.limit({ key: ip })
+  // Temporary: whether the edge's limiter ever refuses, while its limit is checked live. No address.
+  console.log(JSON.stringify({ connectLimit: success }))
   return success ? 'open' : 'tooFast'
 }
 
