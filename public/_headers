@@ -1,0 +1,8 @@
+# Headers for the pages, applied by Cloudflare's static assets (not by `pnpm dev`).
+# No other site may frame the app; nothing is sniffed as another type; no camera, microphone or location.
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

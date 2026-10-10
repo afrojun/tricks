@@ -18,6 +18,10 @@
   // Applied in order, once each. v1 is the first in production. A change to the room classes
   // needs a new entry with a new tag; never edit or remove one that has been deployed.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  // Sockets one address may open to rooms in a minute, counted at each Cloudflare location. A
+  // household of four on one connection, each reconnecting now and then, stays well under it; a
+  // script probing for codes or filling rooms does not. Its namespace is this account's, and unique.
+  "ratelimits": [{ "name": "CONNECTS", "namespace_id": "4291", "simple": { "limit": 60, "period": 60 } }],
   "observability": {
     "enabled": true,
     // A socket's URL carries the device token, which owns a seat (?token=...). Logs and traces

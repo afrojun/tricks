@@ -198,10 +198,19 @@ export function againComplete(game: Pick<TableState, 'seats'>, again: readonly S
   return electorate.length > 0 && electorate.every((seat) => again.includes(seat))
 }
 
-/** Trims, collapses whitespace and caps the length; null if nothing is left. */
+/**
+ * What a name may not hold: controls, the marks that reorder the text around them, and the
+ * characters that show nothing. The joiners stay, for emoji and for scripts that need them.
+ */
+const UNSEEN = /[\p{Cc}\u061C\u200B\u200E\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/gu
+/** Combining marks past the third on one letter, which pile a name up over the table. */
+const STACKED = /(\p{M}{3})\p{M}+/gu
+
+/** Trims, collapses whitespace, drops what does not show, and caps the length; null if nothing is left. */
 export function cleanName(raw: string): string | null {
   if (typeof raw !== 'string') return null
-  const name = [...raw.replace(/\s+/g, ' ').trim()].slice(0, MAX_NAME_LENGTH).join('').trim()
+  const shown = raw.replace(/\s+/g, ' ').replace(UNSEEN, '').replace(STACKED, '$1').trim()
+  const name = [...shown].slice(0, MAX_NAME_LENGTH).join('').trim()
   return name.length > 0 ? name : null
 }
 

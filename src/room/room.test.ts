@@ -9,21 +9,38 @@ import { Table, card, seededRng } from '../games/thunee/engine/testing'
 import { gameOf, isRoomName } from '../games'
 import { type View as HeartsView, availableActions as heartsAvailable, createGame as createHearts, FORMAT_VERSION as HEARTS_FORMAT } from '../games/hearts'
 import { GameStore } from '../client/store'
-import { type ServerMessage as GenericServerMessage, UNKNOWN_ROOM_CLOSE_CODE, roomName } from '../protocol'
-import { type RoomConnection, type RoomHost, TableRoom } from './room'
+import {
+  type ServerMessage as GenericServerMessage,
+  REPLACED_CLOSE_CODE,
+  ROOM_FULL_CLOSE_CODE,
+  TOO_MANY_MESSAGES_CLOSE_CODE,
+  UNKNOWN_ROOM_CLOSE_CODE,
+  roomName,
+} from '../protocol'
+import {
+  type ConnState,
+  MAX_SOCKETS_PER_DEVICE,
+  MAX_WATCHERS,
+  MAX_WATCHERS_PER_ADDRESS,
+  MESSAGE_BURST,
+  MESSAGES_PER_SECOND,
+  type RoomConnection,
+  type RoomHost,
+  TableRoom,
+} from './room'
 
 type ServerMessage = GenericServerMessage<View, GameEvent>
 type Sync = Extract<ServerMessage, { type: 'sync' }>
 
 class FakeConn implements RoomConnection {
-  state: { token: string } | null = null
+  state: ConnState | null = null
   inbox: ServerMessage[] = []
   closed: { code: number; reason: string } | null = null
   constructor(
     readonly id: string,
     readonly token: string,
   ) {}
-  setState(s: { token: string }) {
+  setState(s: ConnState) {
     this.state = s
     return s
   }
@@ -66,6 +83,7 @@ class World {
       },
       setAlarm: async (at: number) => void (this.alarm = at),
       deleteAlarm: async () => void (this.alarm = null),
+      deleteAll: async () => void this.data.clear(),
     },
     connections: () => this.conns,
   }
@@ -88,15 +106,21 @@ class World {
     this.conns = this.conns.filter((c) => c !== conn)
   }
 
-  async connect(token: string) {
+  async connect(token: string, ip: string | null = null) {
     const conn = new FakeConn(`c${this.nextId++}`, token)
     const original = conn.send.bind(conn)
     conn.send = (raw: string) => {
       this.writes.push('send')
       original(raw)
     }
+    // A socket the room closes is no longer among its connections, as with partyserver's.
+    const close = conn.close.bind(conn)
+    conn.close = (code: number, reason: string) => {
+      close(code, reason)
+      this.conns = this.conns.filter((c) => c !== conn)
+    }
     this.conns.push(conn)
-    await this.server.onConnect(conn, `https://x/parties/room/${this.host.name}?token=${token}`)
+    await this.server.onConnect(conn, `https://x/parties/room/${this.host.name}?token=${token}`, ip)
     return conn
   }
 
@@ -737,6 +761,7 @@ describe('abandoned rooms', () => {
     expect(w.alarm).toBe(leftAt + DAY)
     await w.fireAlarm()
     expect(w.alarm).toBeNull()
+    expect(w.data.size).toBe(0) // nobody was there to tell: the room keeps nothing
 
     const back = await w.connect(TOKENS[0])
     expect(back.sync.seat).toBeNull()
@@ -792,6 +817,97 @@ describe('abandoned rooms', () => {
     await w.fireAlarm()
     expect(w.alarm).toBeNull()
     expect((await w.connect(TOKENS[0])).sync.seat).toBeNull()
+  })
+
+  test('a lobby whose last person stood up is dropped after a day too', async () => {
+    const w = await new World().boot()
+    const me = await w.connect(TOKENS[0])
+    await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
+    await w.send(me, { type: 'leaveSeat' })
+    await w.close(me)
+    expect(w.data.size).toBe(1)
+    expect(w.alarm).toBe(w.now + DAY)
+    await w.fireAlarm()
+    expect(w.data.size).toBe(0)
+    expect(w.alarm).toBeNull()
+  })
+})
+
+describe('limits', () => {
+  test("a device's socket past the limit closes its oldest, and keeps its seat", async () => {
+    const w = await new World().boot()
+    const first = await w.connect(TOKENS[0])
+    await w.send(first, { type: 'sit', seat: 0, name: 'Me' })
+    const rest = []
+    for (let i = 1; i < MAX_SOCKETS_PER_DEVICE; i++) {
+      w.now += 1000
+      rest.push(await w.connect(TOKENS[0]))
+    }
+    expect(w.conns).toHaveLength(MAX_SOCKETS_PER_DEVICE)
+    w.now += 1000
+    const newest = await w.connect(TOKENS[0])
+    expect(first.closed?.code).toBe(REPLACED_CLOSE_CODE)
+    expect(rest.every((c) => c.closed === null)).toBe(true)
+    expect(newest.sync.seat).toBe(0)
+    await w.server.onClose(first) // the old socket's close arrives later
+    expect(newest.view.seats[0].connected).toBe(true)
+  })
+
+  test('watchers are refused past the limit, and from one address sooner, but a seated device always gets in', async () => {
+    const w = await new World().boot()
+    const host = await w.connect(TOKENS[0], '1.1.1.1')
+    await w.send(host, { type: 'sit', seat: 0, name: 'Host' })
+    for (let i = 0; i < MAX_WATCHERS_PER_ADDRESS; i++) await w.connect(`w${i}`.padEnd(20, 'x'), '2.2.2.2')
+    const extra = await w.connect('extra'.padEnd(20, 'x'), '2.2.2.2')
+    expect(extra.closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
+    expect(extra.inbox).toHaveLength(0)
+    for (let i = MAX_WATCHERS_PER_ADDRESS; i < MAX_WATCHERS; i++) expect((await w.connect(`w${i}`.padEnd(20, 'x'), `3.3.3.${i}`)).closed).toBeNull()
+    const friend = await w.connect(TOKENS[1], '4.4.4.4')
+    expect(friend.closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
+    const again = await w.connect(TOKENS[0], '1.1.1.1')
+    expect(again.closed).toBeNull()
+    expect(again.sync.seat).toBe(0)
+  })
+
+  test('without an address only the total limits watchers', async () => {
+    const w = await new World().boot()
+    for (let i = 0; i < MAX_WATCHERS; i++) expect((await w.connect(`w${i}`.padEnd(20, 'x'))).closed).toBeNull()
+    expect((await w.connect('extra'.padEnd(20, 'x'))).closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
+  })
+
+  test('a socket that sends too fast is ignored past its allowance, then closed', async () => {
+    const w = await new World().boot()
+    const me = await w.connect(TOKENS[0])
+    const other = await w.connect(TOKENS[1])
+    await w.send(me, { type: 'sit', seat: 0, name: 'Me' })
+    await w.send(other, { type: 'sit', seat: 1, name: 'Other' })
+    other.take()
+    const lift = () => w.server.onMessage(JSON.stringify({ lift: true }), me)
+    // Sitting spent one of the allowance.
+    for (let i = 2; i < MESSAGE_BURST; i++) await lift()
+    expect(other.take()).toHaveLength(MESSAGE_BURST - 2)
+    await lift()
+    await lift()
+    expect(other.take()).toHaveLength(1) // the second is over the allowance, and dropped
+    expect(me.closed).toBeNull()
+
+    // Time refills it.
+    w.now += 1000
+    for (let i = 0; i < MESSAGES_PER_SECOND; i++) await lift()
+    expect(other.take()).toHaveLength(MESSAGES_PER_SECOND - 1)
+
+    for (let i = 0; i < MESSAGE_BURST; i++) await lift()
+    expect(me.closed?.code).toBe(TOO_MANY_MESSAGES_CLOSE_CODE)
+    expect(other.take()).toHaveLength(0)
+  })
+
+  test('a ping costs nothing', async () => {
+    const w = await new World().boot()
+    const me = await w.connect(TOKENS[0])
+    for (let i = 0; i < MESSAGE_BURST * 3; i++) await w.server.onMessage('ping', me)
+    expect(me.closed).toBeNull()
+    await w.send(me, { type: 'sit', seat: 0, name: 'Me' })
+    expect(me.view.seats[0].kind).toBe('human')
   })
 })
 

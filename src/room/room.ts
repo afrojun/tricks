@@ -11,16 +11,27 @@ import {
   MIN_TOKEN_LENGTH,
   PING,
   PONG,
+  REPLACED_CLOSE_CODE,
+  ROOM_FULL_CLOSE_CODE,
   TOKEN_PARAM,
+  TOO_MANY_MESSAGES_CLOSE_CODE,
   UNKNOWN_ROOM_CLOSE_CODE,
   clientMessageSchema,
 } from '../protocol'
 
-/** One socket to the room. Its state holds the device token and must survive the host sleeping. */
+/** What a socket keeps through the host sleeping: its device token, the address it came from, and when it opened. */
+export interface ConnState {
+  token: string
+  /** The client's address as the edge saw it; null where there is no edge, as in development. */
+  ip: string | null
+  at: number
+}
+
+/** One socket to the room. */
 export interface RoomConnection {
   readonly id: string
-  state: { token: string } | null
-  setState(state: { token: string }): void
+  state: ConnState | null
+  setState(state: ConnState): void
   send(text: string): void
   close(code: number, reason: string): void
 }
@@ -34,6 +45,8 @@ export interface RoomHost {
     put(key: string, value: unknown): Promise<void>
     setAlarm(at: number): Promise<void>
     deleteAlarm(): Promise<void>
+    /** Forgets everything the room saved. */
+    deleteAll(): Promise<void>
   }
   connections(): Iterable<RoomConnection>
 }
@@ -67,6 +80,14 @@ const STORAGE_KEY = 'state'
 /** A room no seated human has been connected to for this long is reset to an empty lobby. */
 export const ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000
 const MAX_MESSAGE_LENGTH = 2000
+/** A device's sockets to one room: a new one past this closes its oldest, which may be a dead one a phone left behind. */
+export const MAX_SOCKETS_PER_DEVICE = 4
+/** Sockets that hold no seat (watchers, and people yet to sit), in all and from one address. A seated device is always let in. */
+export const MAX_WATCHERS = 16
+export const MAX_WATCHERS_PER_ADDRESS = 8
+/** Each socket may send this many messages at once, and this many a second after that; past twice the burst it is closed. */
+export const MESSAGE_BURST = 30
+export const MESSAGES_PER_SECOND = 5
 
 /**
  * A room: the game its name holds, found again on every wake, and that game's table. The game
@@ -87,12 +108,12 @@ export class TableRoom {
     await this.table?.start()
   }
 
-  onConnect(conn: RoomConnection, url: string): Promise<void> {
+  onConnect(conn: RoomConnection, url: string, ip: string | null = null): Promise<void> {
     if (this.table === null) {
       conn.close(UNKNOWN_ROOM_CLOSE_CODE, 'Unknown room')
       return Promise.resolve()
     }
-    return this.table.onConnect(conn, url)
+    return this.table.onConnect(conn, url, ip)
   }
 
   onClose(conn: RoomConnection): Promise<void> {
@@ -126,6 +147,8 @@ class Table {
    */
   private readonly talked = new Map<Seat, number>()
   private readonly nudged = new Map<string, number>()
+  /** What each socket may still send, refilled with time. In memory too: a wake starts every socket afresh. */
+  private readonly allowance = new Map<string, { left: number; at: number }>()
 
   constructor(
     private readonly module: AnyGameModule,
@@ -166,12 +189,13 @@ class Table {
     for (const conn of this.host.connections()) this.send(conn, [])
   }
 
-  onConnect(conn: RoomConnection, url: string): Promise<void> {
+  onConnect(conn: RoomConnection, url: string, ip: string | null): Promise<void> {
     const given = new URL(url).searchParams.get(TOKEN_PARAM) ?? ''
     const valid = given.length >= MIN_TOKEN_LENGTH && given.length <= MAX_TOKEN_LENGTH
     // A connection without a usable token is an anonymous spectator.
-    conn.setState({ token: valid ? given : `anon-${conn.id}` })
+    conn.setState({ token: valid ? given : `anon-${conn.id}`, ip, at: this.deps.now() })
     return this.enqueue(async () => {
+      if (!this.admit(conn)) return
       this.send(conn, []) // the current view, with no events to replay
       const seat = this.seatOf(conn)
       if (seat !== null && !this.saved.game.seats[seat].connected) await this.setConnected(seat, true)
@@ -180,6 +204,7 @@ class Table {
   }
 
   onClose(conn: RoomConnection): Promise<void> {
+    this.allowance.delete(conn.id)
     return this.enqueue(async () => {
       const seat = this.seatOf(conn)
       // A close that woke the room may already have been settled by `matchConnections`.
@@ -193,6 +218,7 @@ class Table {
   }
 
   onMessage(message: string | ArrayBuffer | ArrayBufferView, sender: RoomConnection): Promise<void> {
+    if (!this.allow(sender)) return Promise.resolve()
     const parsed = this.parse(message)
     // Talk changes nothing and is saved nowhere, so it is never queued behind the game.
     if (parsed !== null && 'say' in parsed) return Promise.resolve(this.talk(sender, parsed.say))
@@ -202,6 +228,47 @@ class Table {
       await this.act(this.seatOf(sender), parsed.action, sender)
       await this.drive()
     })
+  }
+
+  /**
+   * Makes room for a new socket, or refuses it. A device keeps its newest few sockets. A seated one
+   * is then always let in; anyone else only while the room, and their address, have watchers to spare.
+   */
+  private admit(conn: RoomConnection): boolean {
+    const others = [...this.host.connections()].filter((c) => c.id !== conn.id)
+    const mine = others.filter((c) => c.state?.token === conn.state?.token).sort((a, b) => (a.state?.at ?? 0) - (b.state?.at ?? 0))
+    const replaced = mine.slice(0, Math.max(0, mine.length - (MAX_SOCKETS_PER_DEVICE - 1)))
+    for (const old of replaced) this.close(old, REPLACED_CLOSE_CODE, 'Opened again elsewhere')
+    if (this.seatOf(conn) !== null) return true
+    const watchers = others.filter((c) => !replaced.includes(c) && this.seatOf(c) === null)
+    const ip = conn.state?.ip ?? null
+    const fromHere = ip === null ? 0 : watchers.filter((c) => c.state?.ip === ip).length
+    if (watchers.length < MAX_WATCHERS && fromHere < MAX_WATCHERS_PER_ADDRESS) return true
+    this.close(conn, ROOM_FULL_CLOSE_CODE, 'Room is full')
+    return false
+  }
+
+  /**
+   * Spends one of a socket's messages. Past its allowance a message is dropped unread, and a socket
+   * that keeps sending regardless is closed.
+   */
+  private allow(conn: RoomConnection): boolean {
+    const now = this.deps.now()
+    const given = this.allowance.get(conn.id) ?? { left: MESSAGE_BURST, at: now }
+    const left = Math.min(MESSAGE_BURST, given.left + ((now - given.at) / 1000) * MESSAGES_PER_SECOND) - 1
+    this.allowance.set(conn.id, { left, at: now })
+    if (left >= 0) return true
+    if (left < -MESSAGE_BURST) this.close(conn, TOO_MANY_MESSAGES_CLOSE_CODE, 'Too many messages')
+    return false
+  }
+
+  private close(conn: RoomConnection, code: number, reason: string): void {
+    this.allowance.delete(conn.id)
+    try {
+      conn.close(code, reason)
+    } catch (error) {
+      console.error(`room close of ${conn.id} failed`, error)
+    }
   }
 
   /** Relays what a seated person says to everyone, within the limits; anything else is dropped without a word. */
@@ -311,8 +378,16 @@ class Table {
     await this.armAlarm()
   }
 
-  /** Throws away an abandoned game. Versions keep rising so connected clients accept the new view. */
+  /**
+   * Throws away an abandoned game. With nobody connected the room keeps nothing at all; otherwise
+   * versions keep rising so connected clients accept the new view.
+   */
   private async reset(): Promise<void> {
+    if ([...this.host.connections()].length === 0) {
+      this.saved = fresh(this.module)
+      await this.host.storage.deleteAll()
+      return
+    }
     this.saved = { ...fresh(this.module), version: this.saved.version + 1, eventCount: this.saved.eventCount }
     await this.host.storage.put(STORAGE_KEY, this.saved)
     for (const conn of this.host.connections()) this.send(conn, [])
@@ -389,10 +464,11 @@ function fresh(module: AnyGameModule): Saved {
   return { game: module.createGame(), tokens: {}, version: 0, eventCount: 0, emptySince: null }
 }
 
-/** Starts, keeps or clears the abandonment clock for the game as it now stands. */
+/**
+ * Starts, keeps or clears the abandonment clock for the game as it now stands. It runs whenever no
+ * seated person is connected, a lobby nobody sits in included, so every saved room is dropped in time.
+ */
 function emptySince(game: TableState, previous: number | null, now: number): number | null {
-  const unused = game.phase.kind === 'lobby' && game.seats.every((s) => s.kind === 'empty')
-  const humanPresent = game.seats.some((s) => s.kind === 'human' && s.connected)
-  if (unused || humanPresent) return null
+  if (game.seats.some((s) => s.kind === 'human' && s.connected)) return null
   return previous ?? now
 }

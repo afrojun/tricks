@@ -141,6 +141,15 @@ describe('lobby', () => {
     expect(cleanName(undefined as never)).toBeNull()
   })
 
+  test('a name loses what does not show, and marks piled on one letter', () => {
+    expect(cleanName('\u202Eevil\u202C')).toBe('evil')
+    expect(cleanName('\u200B\u2060\uFEFF')).toBeNull()
+    expect(cleanName('a\u0000b')).toBe('ab')
+    expect(cleanName(`Z${'\u0301'.repeat(40)}`)).toBe('Z\u0301\u0301\u0301')
+    expect(cleanName('नमस्ते')).toBe('नमस्ते')
+    expect(cleanName('👩‍👩‍👧')).toBe('👩‍👩‍👧')
+  })
+
   test('only the host may add a computer, clear a seat, set rules, set the player count or start', () => {
     const t = new Harness().do(null, { type: 'sit', seat: 0, name: 'Host' }).do(null, { type: 'sit', seat: 1, name: 'Guest' })
     const hostOnly: ToyAction[] = [

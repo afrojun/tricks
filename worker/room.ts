@@ -1,8 +1,6 @@
 import { type Connection, type ConnectionContext, Server, type WSMessage } from 'partyserver'
 import { PING, PONG } from '../src/protocol'
-import { TableRoom } from '../src/room/room'
-
-type ConnState = { token: string }
+import { type ConnState, TableRoom } from '../src/room/room'
 
 /**
  * A room as a Durable Object: adapts partyserver to `TableRoom` and holds no game logic. With
@@ -27,6 +25,7 @@ export class Room extends Server<Env> {
         put: (key, value) => ctx.storage.put(key, value),
         setAlarm: (at) => ctx.storage.setAlarm(at),
         deleteAlarm: () => ctx.storage.deleteAlarm(),
+        deleteAll: () => ctx.storage.deleteAll(),
       },
       connections: () => this.getConnections<ConnState>(),
     })
@@ -37,7 +36,8 @@ export class Room extends Server<Env> {
   }
 
   onConnect(connection: Connection<ConnState>, ctx: ConnectionContext) {
-    return this.table.onConnect(connection, ctx.request.url)
+    // Set by Cloudflare's edge, which overwrites any a client sends.
+    return this.table.onConnect(connection, ctx.request.url, ctx.request.headers.get('CF-Connecting-IP'))
   }
 
   onClose(connection: Connection<ConnState>) {

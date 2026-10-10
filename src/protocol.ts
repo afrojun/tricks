@@ -18,6 +18,12 @@ export function splitRoomName(name: string): { game: string; code: string } | nu
 
 /** The close code for a socket opened to a name that is not a game and a code. */
 export const UNKNOWN_ROOM_CLOSE_CODE = 4404
+/** The close code for a socket the room has no room for: too many watchers, or too many from one address. */
+export const ROOM_FULL_CLOSE_CODE = 4429
+/** The close code for a socket that sent more than the room will read. */
+export const TOO_MANY_MESSAGES_CLOSE_CODE = 4430
+/** The close code for a device's oldest socket to a room, closed when it opens one too many. */
+export const REPLACED_CLOSE_CODE = 4409
 
 /**
  * An action for the game; something said at the table; or a card lifted in the sender's hand, or put
