@@ -213,9 +213,9 @@ export function checkLobbyHost(game: TableState, actor: Actor): TableReject | nu
   return actingHost(game) === actor ? null : 'notHost'
 }
 
-/** For a rematch: a surprise persona revealed at game over stays revealed. */
-export function revealPersonas(game: TableState): void {
-  for (const s of game.seats) s.personaHidden = false
+/** For a rematch: each surprise seat draws a new persona, hidden until that game is over too. */
+export function redrawSurprises(game: TableState, ctx: Ctx): void {
+  for (const s of game.seats) if (s.kind === 'ai' && s.personaHidden) Object.assign(s, personaOf('surprise', ctx))
 }
 
 // ── Table actions ────────────────────────────────────────────────────────

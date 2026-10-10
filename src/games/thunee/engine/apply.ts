@@ -1,4 +1,4 @@
-import { type Actor, type Ctx, againComplete, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
+import { type Actor, type Ctx, againComplete, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, redrawSurprises, settle, tableAction } from '../../../kit/table'
 import { hasCard } from './cards'
 import { availableActions } from './available'
 import { actionShape } from './schema'
@@ -251,7 +251,7 @@ function rematch(game: Game, ctx: Ctx, events: GameEvent[]): void {
   game.lastRoundWinner = null
   game.roundNumber = 1
   game.dealer = Math.floor(ctx.rng() * game.playerCount)
-  revealPersonas(game)
+  redrawSurprises(game, ctx)
   round.beginRound(game, ctx, events)
 }
 

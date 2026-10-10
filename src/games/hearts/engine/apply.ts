@@ -1,5 +1,5 @@
 import { hasCard, sameCard } from '../../../kit/cards'
-import { type Actor, type Ctx, type Seat, againComplete, allSeats, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, revealPersonas, settle, tableAction } from '../../../kit/table'
+import { type Actor, type Ctx, type Seat, againComplete, allSeats, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, redrawSurprises, settle, tableAction } from '../../../kit/table'
 import { availableActions } from './available'
 import { PASS_SIZE, PLAYERS, SEAT_COUNTS, STANDARD, resolveRules } from './rules'
 import * as round from './round'
@@ -167,7 +167,7 @@ function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: G
 function rematch(game: Game, ctx: Ctx, events: GameEvent[]): void {
   game.scores = [0, 0, 0, 0]
   game.roundNumber = 1
-  revealPersonas(game)
+  redrawSurprises(game, ctx)
   round.beginRound(game, ctx, events)
 }
 

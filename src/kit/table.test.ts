@@ -24,7 +24,7 @@ import {
   isTableAction,
   nextSeat,
   replaceableSeats,
-  revealPersonas,
+  redrawSurprises,
   seatsFrom,
   settle,
   tableAction,
@@ -69,7 +69,7 @@ function apply(game: Toy, actor: Actor, action: ToyAction, ctx: Ctx): { game: To
   } else if (action.type === 'end') {
     draft.phase = { kind: 'gameOver' }
   } else {
-    revealPersonas(draft)
+    redrawSurprises(draft, ctx)
     draft.phase = { kind: 'playing', toAct: [] }
   }
   const toAct = draft.phase.kind === 'playing' ? draft.phase.toAct : []
@@ -313,13 +313,21 @@ describe('computer personas', () => {
     expect(t.do(0, { type: 'addAi', seat: count - 1 }).game.seats[count - 1].name).toBe(`Bot ${count}`)
   })
 
-  test('a surprise persona revealed at game over stays revealed after a rematch', () => {
-    const t = hosted().do(0, { type: 'addAi', seat: 1, persona: 'surprise' })
-    for (const seat of [2, 3]) t.do(0, { type: 'addAi', seat })
-    t.do(0, { type: 'start' }).do(0, { type: 'end' }).do(0, { type: 'rematch' })
-    expect(t.game.phase.kind).toBe('playing')
-    expect(t.game.seats[1].personaHidden).toBe(false)
-    for (const seat of [0, 1, null]) expect(t.view(seat).seats[1].persona).toBe(t.game.seats[1].persona)
+  test('a rematch draws each surprise seat a new persona, hidden until that game is over', () => {
+    const t = hosted().do(0, { type: 'addAi', seat: 1, persona: 'surprise' }).do(0, { type: 'addAi', seat: 2, persona: 'sly' }).do(0, { type: 'addAi', seat: 3 })
+    t.do(0, { type: 'start' })
+    const drawn = new Set<string>()
+    for (let game = 0; game < 30; game++) {
+      t.do(0, { type: 'end' })
+      expect(t.view(0).seats[1].persona).toBe(t.game.seats[1].persona)
+      t.do(0, { type: 'rematch' })
+      expect(t.game.phase.kind).toBe('playing')
+      expect(t.game.seats[1].personaHidden).toBe(true)
+      for (const seat of [0, 1, null]) expect(t.view(seat).seats[1].persona).toBeNull()
+      expect(t.view(0).seats[2].persona).toBe('sly')
+      drawn.add(t.game.seats[1].persona)
+    }
+    expect(drawn.size).toBeGreaterThan(1)
   })
 })
 
