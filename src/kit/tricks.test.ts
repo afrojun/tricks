@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import type { Card, Suit } from './cards'
 import { type Excuse, legalCards } from './integrity'
-import { followSuit, ledSuit, trickWinner } from './tricks'
+import { followSuit, ledSuit, trickWinner, unbrokenLead } from './tricks'
 
 // Thunee's cards, to pin the kit to today's behaviour.
 const RANKS = ['J', '9', 'A', '10', 'K', 'Q']
@@ -76,5 +76,36 @@ describe('following suit', () => {
     expect(isLegal(card('9c'), cards('Qs 9c'), trick, 'spades')).toBe(true)
     // Overtrumping is always fine.
     expect(isLegal(card('Js'), cards('Js 9c'), cards('Ah Qs'), 'spades')).toBe(true)
+  })
+})
+
+describe('a suit played as another', () => {
+  // Spades' Jokers deck: the two of diamonds is a spade.
+  const suitOf = (c: Card): Suit => (c.suit === 'diamonds' && c.rank === '2' ? 'spades' : c.suit)
+  const order = (c: Card) => (c.suit === 'diamonds' && c.rank === '2' ? 20 : RANKS.length - RANKS.indexOf(c.rank))
+
+  test('it leads, follows and wins as the suit it is played as', () => {
+    expect(ledSuit([{ card: card('2d') }], suitOf)).toBe('spades')
+    expect(followSuit(card('2d'), 'diamonds', suitOf)).toHaveLength(1)
+    expect(followSuit(card('2d'), 'spades', suitOf)).toEqual([])
+    expect(followSuit(card('Qd'), 'diamonds', suitOf)[0]?.without(card('2d')) ?? false).toBe(false)
+    expect(trickWinner(plays('Jd 2d Ad Qd'), { trump: 'spades', strength: order, suitOf })).toBe(1)
+    expect(trickWinner(plays('Js 2d Ad Qs'), { trump: 'spades', strength: order, suitOf })).toBe(1)
+  })
+})
+
+describe('a suit led only once broken', () => {
+  test('leading it unbroken needs a hand of nothing else', () => {
+    expect(unbrokenLead(card('Jh'), null, 'hearts', false, 'heartsLead')).toHaveLength(1)
+    const [excuse] = unbrokenLead(card('Jh'), null, 'hearts', false, 'heartsLead')
+    expect(excuse.rule).toBe('heartsLead')
+    expect(excuse.without(card('Qs'))).toBe(true)
+    expect(excuse.without(card('Qh'))).toBe(false)
+  })
+
+  test('following with it, leading it once broken, or leading another suit needs nothing', () => {
+    expect(unbrokenLead(card('Jh'), 'clubs', 'hearts', false, 'heartsLead')).toEqual([])
+    expect(unbrokenLead(card('Jh'), null, 'hearts', true, 'heartsLead')).toEqual([])
+    expect(unbrokenLead(card('Js'), null, 'hearts', false, 'heartsLead')).toEqual([])
   })
 })

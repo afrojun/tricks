@@ -63,6 +63,11 @@ export interface SeenPlay<C> {
   trick: number
   deal: number
   excuses: Excuse<C>[]
+  /**
+   * Already judged by an accusation, in a game where play goes on after one (Spades' "Bid plus three"): never
+   * the cheat a proof or a careful cheat looks for, though still a card that shows up a later one.
+   */
+  settled?: boolean
 }
 
 /** A certain sign of cheating. */
@@ -93,7 +98,7 @@ export function playProofs<C>(
   salience: (cheat: SeenPlay<C>, reveal: SeenPlay<C>) => number = () => 1,
 ): Proof[] {
   const out: Proof[] = []
-  for (const cheat of plays) if (cheat.excuses.length > 0 && suspect(cheat.seat)) out.push(...proofsOf(cheat, plays, salience))
+  for (const cheat of plays) if (cheat.excuses.length > 0 && !cheat.settled && suspect(cheat.seat)) out.push(...proofsOf(cheat, plays, salience))
   return out
 }
 
@@ -126,7 +131,7 @@ export function proofsOf<C>(
  * `own` is one's own plays from the current deal. A careful cheat holds such a card back.
  */
 export function exposes<C>(card: C, own: readonly SeenPlay<C>[]): boolean {
-  return own.some((p) => p.excuses.some((e) => e.without(card)))
+  return own.some((p) => !p.settled && p.excuses.some((e) => e.without(card)))
 }
 
 /** The chance of noticing: attention, fading with the tricks in between, raised by salience. */

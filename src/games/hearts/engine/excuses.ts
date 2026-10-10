@@ -5,7 +5,7 @@
  */
 import { type Suit, sameCard } from '../../../kit/cards'
 import type { Excuse, SeenPlay } from '../../../kit/integrity'
-import { followSuit, ledSuit } from '../../../kit/tricks'
+import { followSuit, ledSuit, unbrokenLead } from '../../../kit/tricks'
 import { type Card, QUEEN_OF_SPADES, TWO_OF_CLUBS, isPointCard } from './cards'
 import type { HeartsRules } from './rules'
 import type { View } from './types'
@@ -44,9 +44,7 @@ export function excusesFor(card: Card, at: Situation, rules: HeartsRules): Excus
   if (at.firstTrick && !rules.pointsOnFirstTrick && isPointCard(card)) {
     out.push({ rule: 'firstTrickPoints', without: (c) => !isPointCard(c) })
   }
-  if (at.led === null && card.suit === 'hearts' && !at.heartsBroken) {
-    out.push({ rule: 'heartsLead', without: (c) => c.suit !== 'hearts' })
-  }
+  out.push(...unbrokenLead(card, at.led, 'hearts', at.heartsBroken, 'heartsLead'))
   return out
 }
 

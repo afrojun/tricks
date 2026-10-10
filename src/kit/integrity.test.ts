@@ -179,6 +179,14 @@ describe('proofs', () => {
     expect(exposes(card('Kd'), own)).toBe(false)
     expect(exposes(card('Ac'), [])).toBe(false)
   })
+
+  test('a settled play is never the cheat, but still shows up a later one', () => {
+    // Seat 1 trumps a club trick, is judged for it, then discards on another club trick and leads a club.
+    const plays = seen(['Kc Qh 10c Js', 'Ac Kd 9c Jc', 'Qc'], [2, 0, 1]).map((p) => (p.trick === 0 ? { ...p, settled: true } : p))
+    expect(playProofs(plays, () => true).map((p) => p.id)).toEqual(['followSuit:1:1:2'])
+    expect(exposes(card('Ac'), plays.filter((p) => p.seat === 1 && p.trick === 0))).toBe(false)
+    expect(exposes(card('Ac'), plays.filter((p) => p.seat === 1 && p.trick === 1))).toBe(true)
+  })
 })
 
 describe('noticing', () => {
