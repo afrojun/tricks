@@ -135,7 +135,7 @@ const onB = await trickOf(b)
 check(onA.length > 0 && JSON.stringify(onA) === JSON.stringify(onB), 'both players see the same trick')
 await shot(a, '3-play')
 check(await playRound([a, b]), 'both players reach the round’s result')
-check(await seen(a, /Called \d+/), 'the result breaks each side’s points down')
+check((await a.locator('.result-table tbody').count()) === 2 && (await seen(a, /^Made$|^Set$/)), 'the result lines each side up, made or set')
 await shot(a, '4-result')
 await b.context().close()
 

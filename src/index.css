@@ -856,6 +856,107 @@ html:has(main.home) {
   color: var(--on-team1);
 }
 
+/*
+ * A round's result by side (Spades): a row of numbers each, called, took, the round's points and the
+ * total in columns, with what else happened under it. The name takes what the numbers leave.
+ */
+.result-table {
+  border-collapse: collapse;
+}
+.result-table th,
+.result-table td {
+  padding: 0.2rem 0 0 0.7rem;
+  text-align: right;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+/* What else happened may run long, a partner's Blind nil lost to a renege: it wraps. */
+.result-table td.result-extras {
+  white-space: normal;
+}
+.result-table th:first-child,
+.result-table td:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+.result-table thead th {
+  padding-bottom: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-surface-muted);
+}
+/* A pair's name may take a second line; past that it ends in an ellipsis. */
+.result-name {
+  font-weight: 600;
+  white-space: normal;
+  line-height: 1.25;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+[data-mine] .result-name {
+  font-weight: 800;
+}
+.result-num {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-stretch: 85%;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.result-num[data-tone='danger'] {
+  color: var(--danger);
+}
+/* The total, as the strip's ticket shows it: the side's colour behind its numeral. */
+.result-total {
+  display: inline-block;
+  min-width: 2.6rem;
+  padding: 0.1rem 0.4rem;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  background: var(--team);
+  color: var(--on-team);
+  font-size: 1.15rem;
+  font-weight: 900;
+  font-stretch: 70%;
+  line-height: 1.2;
+  text-align: center;
+}
+.result-total-lg {
+  min-width: 3.4rem;
+  font-size: 1.4rem;
+}
+.result-extras {
+  padding-top: 0.15rem;
+  padding-bottom: 0.55rem;
+}
+.result-extras [data-tone='danger'] {
+  color: var(--danger);
+  font-weight: 600;
+}
+/* Made or set, in a word. */
+.result-tag {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border: 1.5px solid var(--line);
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: var(--on-surface);
+}
+.result-tag[data-tone='danger'] {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-danger);
+}
+
 /* The coach's review under a round's score: a row that opens onto the notes. */
 .review-row {
   display: flex;
