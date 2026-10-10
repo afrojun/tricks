@@ -69,10 +69,10 @@ describe('playback', () => {
 
   test('dwell is the largest among a message’s events, and a message without events holds nothing', () => {
     const h = harness()
-    h.playback.push(sync(1, passed, thunee)) // 1800
+    h.playback.push(sync(1, passed, thunee)) // the Thunee's dwell, the longer
     h.playback.push(sync(2))
     h.playback.push(sync(3, played))
-    h.advance(1799)
+    h.advance(dwell(thunee) - 1)
     expect(h.versions()).toEqual([1])
     h.advance(1)
     expect(h.versions()).toEqual([1, 2, 3]) // 2 has no dwell, so 3 follows immediately
@@ -92,7 +92,7 @@ describe('playback', () => {
     h.advance(200)
     h.playback.push(sync(2))
     h.advance(5000)
-    expect(h.delivered[1]).toMatchObject({ version: 2, receivedAt: 1200, at: 2800 })
+    expect(h.delivered[1]).toMatchObject({ version: 2, receivedAt: 1200, at: 1000 + dwell(thunee) })
   })
 
   test('rejections and errors bypass the queue', () => {
