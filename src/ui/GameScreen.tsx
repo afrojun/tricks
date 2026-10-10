@@ -10,10 +10,16 @@ import { Sheet } from './Sheet'
 import { SuitText } from './SuitText'
 import { rejectionText } from './text'
 
+/** Why the room closed this table, for the two closes that wait for the player, and how to come back. */
+const CLOSED = {
+  replaced: { text: 'This table is open somewhere else on this device.', retry: 'Play here' },
+  full: { text: 'Too many people are watching this table.', retry: 'Try again' },
+} as const
+
 /** The frame around any game's table: the connection, the lobby or the game's own table, what its events show, and the table's talk. */
 export function Screen({ room }: { room: string }) {
   const game = useGameClient()
-  const { store } = useSession()
+  const { store, reconnect } = useSession()
   const client = useClient()
   const [toast, setToast] = useState<{ text: string; id: number } | null>(null)
   const [celebrate, setCelebrate] = useState<{ colour: string; id: number } | null>(null)
@@ -61,6 +67,7 @@ export function Screen({ room }: { room: string }) {
     store.clearRejection()
   }, [client.rejection, store, game])
 
+  const closed = client.connection === 'replaced' || client.connection === 'full' ? CLOSED[client.connection] : null
   if (!client.view) {
     return (
       <main className="h-full flex flex-col items-center p-4">
@@ -69,15 +76,33 @@ export function Screen({ room }: { room: string }) {
             Leave
           </button>
         </header>
-        <p className="display text-xl turn-marker my-auto text-center">Connecting to game {room}</p>
+        {closed ? (
+          <div className="my-auto flex flex-col items-center gap-4 text-center">
+            <p>{closed.text}</p>
+            <button className="btn" onClick={reconnect}>
+              {closed.retry}
+            </button>
+          </div>
+        ) : (
+          <p className="display text-xl turn-marker my-auto text-center">Connecting to game {room}</p>
+        )}
       </main>
     )
   }
   return (
     <>
       {client.connection !== 'open' && (
-        <p className="fixed top-[var(--update-h,0px)] inset-x-0 z-50 bg-danger text-center py-1" style={{ color: 'var(--on-danger)' }} role="status">
-          Connection lost: reconnecting
+        <p
+          className="fixed top-[var(--update-h,0px)] inset-x-0 z-50 bg-danger flex items-center justify-center gap-3 text-center py-1 px-2"
+          style={{ color: 'var(--on-danger)' }}
+          role="status"
+        >
+          {closed ? closed.text : 'Connection lost: reconnecting'}
+          {closed && (
+            <button className="btn btn-small shrink-0 whitespace-nowrap" onClick={reconnect}>
+              {closed.retry}
+            </button>
+          )}
         </p>
       )}
       {client.error && (

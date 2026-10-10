@@ -1,7 +1,11 @@
 import type { Seat, TableView } from '../kit/table'
 import type { NumberedEvent, ServerMessage } from '../protocol'
 
-export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting'
+/**
+ * `replaced`: this device opened the table somewhere else, and the room closed this one. `full`:
+ * the room needed this watcher's place. Neither reconnects until the player asks.
+ */
+export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'full'
 
 export interface ClientState<V> {
   connection: ConnectionStatus

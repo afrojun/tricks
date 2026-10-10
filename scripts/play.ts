@@ -85,8 +85,8 @@ for (const name of ['SIM123', 'thunee-abcdef', 'rummy-ABCDEF']) {
 }
 console.log(`sockets to unknown room names closed with ${UNKNOWN_ROOM_CLOSE_CODE}`)
 
-// Rooms are reached only by socket. A plain request to a room's address is refused: an unknown
-// name at the edge, a room by the room itself, which logs nothing (its URL may carry a token).
+// Rooms are reached only by socket. A plain request to a room's address is refused at the edge,
+// which logs nothing of it (its URL may carry a token), and no room wakes for it.
 async function plainRequest(name: string): Promise<string> {
   const response = await fetch(`${app.origin}/parties/room/${name}?token=script-token-plainrequest`)
   return `${response.status} ${await response.text()}`

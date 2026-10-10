@@ -454,6 +454,8 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     say,
     // The only person at a practice table is the player, so nobody else sees what they lift.
     lift() {},
+    // Nothing closes a practice table but the player.
+    reconnect() {},
     close() {
       closed = true
       clearTimeout(timer)

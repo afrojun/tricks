@@ -200,18 +200,21 @@ export function againComplete(game: Pick<TableState, 'seats'>, again: readonly S
 
 /**
  * What a name may not hold: controls, the marks that reorder the text around them, and the
- * characters that show nothing. The joiners stay, for emoji and for scripts that need them.
+ * characters that show nothing (Unicode's default ignorables, and the blank braille cell). The
+ * joiners, variation selectors and tags stay, for emoji and for scripts that need them.
  */
-const UNSEEN = /[\p{Cc}\u061C\u200B\u200E\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/gu
+const UNSEEN = /(?![\u200C\u200D\uFE00-\uFE0F\u{E0020}-\u{E007F}])[\p{Cc}\p{Default_Ignorable_Code_Point}\u2800]/gu
 /** Combining marks past the third on one letter, which pile a name up over the table. */
 const STACKED = /(\p{M}{3})\p{M}+/gu
+/** Something that shows: not a space, a mark, or one of the joiners kept above. */
+const SHOWN = /[^\s\p{M}\p{Default_Ignorable_Code_Point}]/u
 
-/** Trims, collapses whitespace, drops what does not show, and caps the length; null if nothing is left. */
+/** Trims, collapses whitespace, drops what does not show, and caps the length; null if nothing shows. */
 export function cleanName(raw: string): string | null {
   if (typeof raw !== 'string') return null
   const shown = raw.replace(/\s+/g, ' ').replace(UNSEEN, '').replace(STACKED, '$1').trim()
   const name = [...shown].slice(0, MAX_NAME_LENGTH).join('').trim()
-  return name.length > 0 ? name : null
+  return SHOWN.test(name) ? name : null
 }
 
 // ── The host ─────────────────────────────────────────────────────────────

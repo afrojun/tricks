@@ -82,7 +82,10 @@ export const ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000
 const MAX_MESSAGE_LENGTH = 2000
 /** A device's sockets to one room: a new one past this closes its oldest, which may be a dead one a phone left behind. */
 export const MAX_SOCKETS_PER_DEVICE = 4
-/** Sockets that hold no seat (watchers, and people yet to sit), in all and from one address. A seated device is always let in. */
+/**
+ * Sockets that hold no seat (watchers, and people yet to sit), in all and from one address. A new
+ * socket always gets in: past either limit the oldest watcher goes, so a crowd cannot keep a friend from a seat.
+ */
 export const MAX_WATCHERS = 16
 export const MAX_WATCHERS_PER_ADDRESS = 8
 /** Each socket may send this many messages at once, and this many a second after that; past twice the burst it is closed. */
@@ -164,6 +167,10 @@ class Table {
     if (stored && stored.game?.formatVersion === this.module.formatVersion) {
       this.saved = stored
       await this.matchConnections()
+    } else {
+      // A room that has saved nothing may still hold what its host keeps (partyserver keeps its
+      // name), so it too is cleared once nobody has sat in it for a day.
+      this.saved.emptySince = this.deps.now()
     }
     // Who is here may have changed while the room slept, which may be all an Again vote waited for.
     await this.enqueue(() => this.drive())
@@ -195,7 +202,7 @@ class Table {
     // A connection without a usable token is an anonymous spectator.
     conn.setState({ token: valid ? given : `anon-${conn.id}`, ip, at: this.deps.now() })
     return this.enqueue(async () => {
-      if (!this.admit(conn)) return
+      this.admit(conn)
       this.send(conn, []) // the current view, with no events to replay
       const seat = this.seatOf(conn)
       if (seat !== null && !this.saved.game.seats[seat].connected) await this.setConnected(seat, true)
@@ -231,21 +238,22 @@ class Table {
   }
 
   /**
-   * Makes room for a new socket, or refuses it. A device keeps its newest few sockets. A seated one
-   * is then always let in; anyone else only while the room, and their address, have watchers to spare.
+   * Makes room for a new socket by closing old ones: a device keeps its newest few sockets, and
+   * past the watchers' limits, the room's or their address's, the oldest watcher goes. Connection
+   * ids are the Worker's own, so no two sockets share one.
    */
-  private admit(conn: RoomConnection): boolean {
-    const others = [...this.host.connections()].filter((c) => c.id !== conn.id)
-    const mine = others.filter((c) => c.state?.token === conn.state?.token).sort((a, b) => (a.state?.at ?? 0) - (b.state?.at ?? 0))
+  private admit(conn: RoomConnection): void {
+    const oldestFirst = [...this.host.connections()].filter((c) => c.id !== conn.id).sort((a, b) => (a.state?.at ?? 0) - (b.state?.at ?? 0))
+    const mine = oldestFirst.filter((c) => c.state?.token === conn.state?.token)
     const replaced = mine.slice(0, Math.max(0, mine.length - (MAX_SOCKETS_PER_DEVICE - 1)))
     for (const old of replaced) this.close(old, REPLACED_CLOSE_CODE, 'Opened again elsewhere')
-    if (this.seatOf(conn) !== null) return true
-    const watchers = others.filter((c) => !replaced.includes(c) && this.seatOf(c) === null)
+    if (this.seatOf(conn) !== null) return
+
+    const watchers = oldestFirst.filter((c) => !replaced.includes(c) && this.seatOf(c) === null)
     const ip = conn.state?.ip ?? null
-    const fromHere = ip === null ? 0 : watchers.filter((c) => c.state?.ip === ip).length
-    if (watchers.length < MAX_WATCHERS && fromHere < MAX_WATCHERS_PER_ADDRESS) return true
-    this.close(conn, ROOM_FULL_CLOSE_CODE, 'Room is full')
-    return false
+    const fromHere = ip === null ? [] : watchers.filter((c) => c.state?.ip === ip)
+    const crowded = fromHere.length >= MAX_WATCHERS_PER_ADDRESS ? fromHere : watchers.length >= MAX_WATCHERS ? watchers : []
+    if (crowded.length > 0) this.close(crowded[0], ROOM_FULL_CLOSE_CODE, 'Room is full')
   }
 
   /**
@@ -388,7 +396,8 @@ class Table {
       await this.host.storage.deleteAll()
       return
     }
-    this.saved = { ...fresh(this.module), version: this.saved.version + 1, eventCount: this.saved.eventCount }
+    // The clock runs on, so the room is cleared once the watchers go too.
+    this.saved = { ...fresh(this.module), version: this.saved.version + 1, eventCount: this.saved.eventCount, emptySince: this.deps.now() }
     await this.host.storage.put(STORAGE_KEY, this.saved)
     for (const conn of this.host.connections()) this.send(conn, [])
   }

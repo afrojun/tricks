@@ -144,6 +144,10 @@ describe('lobby', () => {
   test('a name loses what does not show, and marks piled on one letter', () => {
     expect(cleanName('\u202Eevil\u202C')).toBe('evil')
     expect(cleanName('\u200B\u2060\uFEFF')).toBeNull()
+    for (const blank of ['\u200D\u200D', '\u00AD', '\u034F', '\u3164', '\u115F', '\u2800', '\uFE0F', '\u0301']) expect(cleanName(blank)).toBeNull()
+    expect(cleanName('Ann\u00ADe')).toBe('Anne')
+    expect(cleanName('🏴󠁧󠁢󠁳󠁣󠁴󠁿')).toBe('🏴󠁧󠁢󠁳󠁣󠁴󠁿')
+    expect(cleanName('❤️')).toBe('❤️')
     expect(cleanName('a\u0000b')).toBe('ab')
     expect(cleanName(`Z${'\u0301'.repeat(40)}`)).toBe('Z\u0301\u0301\u0301')
     expect(cleanName('नमस्ते')).toBe('नमस्ते')

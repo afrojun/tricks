@@ -25,6 +25,22 @@ export async function gate(request: Request, limiter: Limiter): Promise<GateVerd
   return success ? 'open' : 'tooFast'
 }
 
+/**
+ * The socket's request as a room should see it. partyserver takes a connection's id from the
+ * client's `_pk`, props from its `x-partykit-props` and, failing all else, its name from
+ * `x-partykit-room`. The room counts sockets by id, so the Worker chooses every id itself, and
+ * passes neither header on.
+ */
+export function asRoomSees(request: Request): Request {
+  const url = new URL(request.url)
+  url.searchParams.set('_pk', crypto.randomUUID())
+  const seen = new Request(url, request)
+  seen.headers.delete('x-partykit-props')
+  // The room's name is its Durable Object's; one a client names must never stand in for it.
+  seen.headers.delete('x-partykit-room')
+  return seen
+}
+
 function hostOf(origin: string): string | null {
   try {
     return new URL(origin).host

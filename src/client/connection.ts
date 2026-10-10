@@ -1,14 +1,16 @@
 import PartySocket from 'partysocket'
 import type { TableAction, TableView } from '../kit/table'
-import { PING, PONG, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
+import { PING, PONG, REPLACED_CLOSE_CODE, ROOM_FULL_CLOSE_CODE, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
 import { deviceToken } from './identity'
 import type { Say } from '../kit/talk'
 import { Playback } from './playback'
-import { GameStore } from './store'
+import { type ConnectionStatus, GameStore } from './store'
 import { TalkStore } from './talk'
 
 const PING_EVERY_MS = 5000
 const MAX_UNANSWERED_PINGS = 2
+/** Closes after which the socket waits for the player: reconnecting by itself would only close another. */
+const HELD: Partial<Record<number, ConnectionStatus>> = { [REPLACED_CLOSE_CODE]: 'replaced', [ROOM_FULL_CLOSE_CODE]: 'full' }
 
 /** A table as the screens see it, online or in practice: the game supplies the view, action and event types. */
 export interface Session<V extends TableView, A, E> {
@@ -20,6 +22,8 @@ export interface Session<V extends TableView, A, E> {
   say: (say: Say) => void
   /** Tells the other players a card is lifted in this player's hand, or no longer is. */
   lift: (up: boolean) => void
+  /** Opens the table again after the room closed it (`replaced` or `full`). */
+  reconnect: () => void
   close: () => void
 }
 
@@ -53,6 +57,7 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     party: 'room',
     room: roomName(game.id, code),
     query: { [TOKEN_PARAM]: deviceToken() },
+    shouldReconnectOnClose: (e) => HELD[e.code] === undefined,
   })
   /** Any game's actions include the table's, such as taking a seat back. */
   const post = (action: A | TableAction) => {
@@ -67,6 +72,7 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
   }
   let everOpened = false
   let justOpened = false
+  let held = false
 
   socket.addEventListener('open', () => {
     everOpened = true
@@ -74,9 +80,11 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     playback.reset()
     store.setConnection('open')
   })
-  socket.addEventListener('close', () => {
+  socket.addEventListener('close', (e) => {
     playback.reset() // nothing from the old connection may arrive after the store starts waiting for a fresh view
-    store.setConnection(everOpened ? 'reconnecting' : 'connecting')
+    const status = HELD[e.code]
+    held = status !== undefined
+    store.setConnection(status ?? (everOpened ? 'reconnecting' : 'connecting'))
   })
   // A phone that sleeps or changes network can leave a socket that looks open
   // but is dead. Ping the room and reconnect if it goes quiet.
@@ -95,11 +103,19 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     socket.send(PING)
   }, PING_EVERY_MS)
   const onOffline = () => {
+    if (held) return
     playback.reset()
     store.setConnection('reconnecting')
     socket.close()
   }
-  const onOnline = () => socket.reconnect()
+  const onOnline = () => {
+    if (!held) socket.reconnect()
+  }
+  const reconnect = () => {
+    held = false
+    store.setConnection(everOpened ? 'reconnecting' : 'connecting')
+    socket.reconnect()
+  }
   addEventListener('offline', onOffline)
   addEventListener('online', onOnline)
 
@@ -123,5 +139,5 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     talk.close()
     socket.close()
   }
-  return { store, talk, send, say, lift, close }
+  return { store, talk, send, say, lift, reconnect, close }
 }

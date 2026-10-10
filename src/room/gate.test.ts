@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest'
-import { type Limiter, gate } from './gate'
+import { type Limiter, asRoomSees, gate } from './gate'
 
-const URL = 'https://tricks.afrojun.dev/parties/room/hearts-ABCDEF?token=x'
+const ADDRESS = 'https://tricks.afrojun.dev/parties/room/hearts-ABCDEF?token=x'
 
 function socket(headers: Record<string, string>) {
-  return new Request(URL, { headers: { Upgrade: 'websocket', ...headers } })
+  return new Request(ADDRESS, { headers: { Upgrade: 'websocket', ...headers } })
 }
 
 /** Lets `allowed` through for each address, then refuses it; remembers whom it was asked about. */
@@ -52,5 +52,17 @@ describe('the gate before a room', () => {
     const l = limiter(1)
     expect(await gate(socket({ Origin: 'https://evil.example', 'CF-Connecting-IP': '203.0.113.7' }), l)).toBe('foreign')
     expect(l.asked).toEqual([])
+  })
+
+  test('a room sees an id the Worker chose, and none of the headers partyserver would take from a client', () => {
+    const sent = new Request(`${ADDRESS}&_pk=same`, { headers: { Upgrade: 'websocket', 'x-partykit-props': 'e30=', 'x-partykit-room': 'thunee-ZZZZZZ', Origin: 'https://tricks.afrojun.dev' } })
+    const ids = new Set([asRoomSees(sent), asRoomSees(sent)].map((r) => new URL(r.url).searchParams.get('_pk')))
+    expect(ids.size).toBe(2)
+    expect(ids.has('same')).toBe(false)
+    const seen = asRoomSees(sent)
+    expect(new URL(seen.url).searchParams.get('token')).toBe('x')
+    expect(seen.headers.get('x-partykit-props')).toBeNull()
+    expect(seen.headers.get('x-partykit-room')).toBeNull()
+    expect(seen.headers.get('Upgrade')).toBe('websocket')
   })
 })

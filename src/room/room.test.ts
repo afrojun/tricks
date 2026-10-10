@@ -804,12 +804,34 @@ describe('abandoned rooms', () => {
     expect(watcher.sync.version).toBeGreaterThan(before) // clients ignore lower versions
   })
 
-  test('a lobby everyone left is reset too, but an untouched room never sets an alarm', async () => {
-    const w = await new World().boot()
+  test('a room nobody sat in is cleared after a day, with whatever its host kept', async () => {
+    const w = new World()
+    w.data.set('__ps_name', w.host.name) // partyserver's own record of the name
+    await w.boot()
     const visitor = await w.connect(TOKENS[0])
     await w.close(visitor)
+    expect(w.alarm).toBe(w.now + DAY)
+    await w.fireAlarm()
+    expect(w.data.size).toBe(0)
     expect(w.alarm).toBeNull()
+  })
 
+  test('a room reset while someone watches is cleared a day after they go', async () => {
+    const { w } = await abandoned()
+    const watcher = await w.connect('s'.repeat(20))
+    await settle(w)
+    await w.fireAlarm()
+    expect(watcher.view.phase.kind).toBe('lobby')
+    expect(w.data.size).toBe(1)
+    const resetAt = w.now
+    await w.close(watcher)
+    expect(w.alarm).toBe(resetAt + DAY)
+    await w.fireAlarm()
+    expect(w.data.size).toBe(0)
+  })
+
+  test('a lobby everyone left is reset too', async () => {
+    const w = await new World().boot()
     const me = await w.connect(TOKENS[0])
     await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
     await w.close(me)
@@ -853,26 +875,41 @@ describe('limits', () => {
     expect(newest.view.seats[0].connected).toBe(true)
   })
 
-  test('watchers are refused past the limit, and from one address sooner, but a seated device always gets in', async () => {
+  test('past the limits the oldest watcher goes, from the crowded address first, and nobody seated', async () => {
     const w = await new World().boot()
+    const watcher = (name: string, ip: string) => {
+      w.now += 1000
+      return w.connect(name.padEnd(20, 'x'), ip)
+    }
     const host = await w.connect(TOKENS[0], '1.1.1.1')
     await w.send(host, { type: 'sit', seat: 0, name: 'Host' })
-    for (let i = 0; i < MAX_WATCHERS_PER_ADDRESS; i++) await w.connect(`w${i}`.padEnd(20, 'x'), '2.2.2.2')
-    const extra = await w.connect('extra'.padEnd(20, 'x'), '2.2.2.2')
-    expect(extra.closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
-    expect(extra.inbox).toHaveLength(0)
-    for (let i = MAX_WATCHERS_PER_ADDRESS; i < MAX_WATCHERS; i++) expect((await w.connect(`w${i}`.padEnd(20, 'x'), `3.3.3.${i}`)).closed).toBeNull()
-    const friend = await w.connect(TOKENS[1], '4.4.4.4')
-    expect(friend.closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
-    const again = await w.connect(TOKENS[0], '1.1.1.1')
-    expect(again.closed).toBeNull()
-    expect(again.sync.seat).toBe(0)
+    const early = await watcher('early', '3.3.3.3')
+    const crowd = []
+    for (let i = 0; i < MAX_WATCHERS_PER_ADDRESS; i++) crowd.push(await watcher(`crowd${i}`, '2.2.2.2'))
+    const more = await watcher('more', '2.2.2.2')
+    expect(crowd[0].closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
+    expect(early.closed).toBeNull()
+    expect(more.sync.view.phase.kind).toBe('lobby')
+
+    for (let i = MAX_WATCHERS_PER_ADDRESS + 1; i < MAX_WATCHERS; i++) await watcher(`other${i}`, `4.4.4.${i}`)
+    expect(w.conns.filter((c) => c.sync.seat === null)).toHaveLength(MAX_WATCHERS)
+    // A friend still gets in, and sits.
+    const friend = await watcher(TOKENS[1], '5.5.5.5')
+    expect(early.closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
+    await w.send(friend, { type: 'sit', seat: 1, name: 'Friend' })
+    expect(friend.sync.seat).toBe(1)
+    expect(host.closed).toBeNull()
+    expect(w.conns.filter((c) => c.sync.seat === null)).toHaveLength(MAX_WATCHERS - 1)
   })
 
   test('without an address only the total limits watchers', async () => {
     const w = await new World().boot()
-    for (let i = 0; i < MAX_WATCHERS; i++) expect((await w.connect(`w${i}`.padEnd(20, 'x'))).closed).toBeNull()
-    expect((await w.connect('extra'.padEnd(20, 'x'))).closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
+    const watchers = []
+    for (let i = 0; i <= MAX_WATCHERS; i++) {
+      w.now += 1000
+      watchers.push(await w.connect(`w${i}`.padEnd(20, 'x')))
+    }
+    expect(watchers.map((c) => c.closed?.code ?? null)).toEqual([ROOM_FULL_CLOSE_CODE, ...Array(MAX_WATCHERS).fill(null)])
   })
 
   test('a socket that sends too fast is ignored past its allowance, then closed', async () => {
