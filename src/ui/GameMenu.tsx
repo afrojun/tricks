@@ -2,12 +2,12 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { replaceableSeats } from '../kit/table'
 import { useCoach } from './coach/context'
 import type { ShellView } from './contract'
-import { gamePath } from './routes'
-import { navigate, useGameClient, useSession } from './session'
+import { useSession } from './session'
 import { setShowsPlayable, setTalksOn, useShowsPlayable, useTalksOn } from './prefs'
 import { isMuted, setMuted } from './sound'
 import { seatName } from './text'
 import { ThemePicker } from './ThemePicker'
+import { LeaveQuestion } from './Leave'
 
 /** A line of the menu that opens something or does something: "Rules in this game", "Last trick". */
 export interface MenuRow {
@@ -22,7 +22,6 @@ export interface MenuRow {
  */
 export function GameMenu({ view, summary, rows }: { view: ShellView; summary: string; rows: MenuRow[] }) {
   const { send, store } = useSession()
-  const game = useGameClient()
   const [muted, setMutedState] = useState(isMuted)
   const marksPlayable = useShowsPlayable()
   const reactions = useTalksOn()
@@ -80,23 +79,9 @@ export function GameMenu({ view, summary, rows }: { view: ShellView; summary: st
       )}
       <hr className="menu-rule" />
       {leaving ? (
-        <div className="panel panel-danger p-3 grid gap-3" role="group" aria-label="Leave this game?">
-          <div>
-            <b>Leave this game?</b>
-            <p className="text-on-surface-muted">
-              {coached
-                ? 'Your practice game is saved on this device, so you can carry on later.'
-                : 'Your seat is kept: open this game’s link again to sit back down. While you are away, the host can let a computer play for you.'}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button className="btn btn-danger" onClick={() => navigate(gamePath(game.id))}>
-              Leave
-            </button>
-            <button className="btn" onClick={() => setLeaving(false)} autoFocus>
-              Stay
-            </button>
-          </div>
+        <div className="panel panel-danger p-3 grid gap-2" role="group" aria-label="Leave this game?">
+          <b>Leave this game?</b>
+          <LeaveQuestion onStay={() => setLeaving(false)} />
         </div>
       ) : (
         <button ref={leave} className="btn btn-quiet menu-leave" onClick={() => setLeaving(true)}>

@@ -1,10 +1,12 @@
 import { Component, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { HeldPresentations } from './held'
+import { LeaveQuestion, useBackGuard } from './Leave'
 import { Lobby } from './Lobby'
 import { CELEBRATION_MS, Celebration, MomentOverlay, useMoments } from './Moments'
 import { gamePath } from './routes'
 import { SessionProvider, navigate, useClient, useGameClient, useSession } from './session'
 import { TalkLayer } from './talk/TalkLayer'
+import { Sheet } from './Sheet'
 import { rejectionText } from './text'
 
 /** The frame around any game's table: the connection, the lobby or the game's own table, what its events show, and the table's talk. */
@@ -48,6 +50,10 @@ export function Screen({ room }: { room: string }) {
     const timer = setTimeout(() => setCelebrate(null), CELEBRATION_MS)
     return () => clearTimeout(timer)
   }, [celebrate])
+  // At the table, in play and seated, back asks before leaving, as the menu's Leave game does.
+  const [askLeave, setAskLeave] = useState(false)
+  const seated = client.view?.seat != null
+  useBackGuard(seated && phase !== undefined && phase !== 'lobby' && phase !== 'gameOver', () => setAskLeave(true))
   useEffect(() => {
     if (!client.rejection) return
     setToast({ text: rejectionText(client.rejection.reason, game.rejections), id: -client.rejection.id })
@@ -80,6 +86,11 @@ export function Screen({ room }: { room: string }) {
       )}
       {client.view.phase.kind === 'lobby' ? <Lobby view={client.view} room={room} /> : <game.Table view={client.view} room={room} />}
       <TalkLayer seat={client.view.seat} />
+      {askLeave && (
+        <Sheet title="Leave this game?" onClose={() => setAskLeave(false)}>
+          <LeaveQuestion onStay={() => setAskLeave(false)} />
+        </Sheet>
+      )}
       <MomentOverlay moment={moments.current} />
       {celebrate && <Celebration key={celebrate.id} colour={celebrate.colour} />}
       {toast && (
