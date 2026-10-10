@@ -918,21 +918,24 @@ describe('limits', () => {
 
   test('standing up makes watchers, who are held to the limits too', async () => {
     const w = await new World().boot()
-    const ip = '6.6.6.6'
-    let next = 0
-    for (let round = 0; round < 6; round++) {
-      const token = `seat${round}`.padEnd(20, 'x')
-      const socks = []
-      for (let i = 0; i < MAX_SOCKETS_PER_DEVICE; i++) {
+    /** Sits, opens the rest of a device's sockets while seated, so admission lets them all in, then stands up. */
+    const squat = async (name: string, ip: string) => {
+      const token = name.padEnd(20, 'x')
+      w.now += 1000
+      const first = await w.connect(token, ip)
+      await w.send(first, { type: 'sit', seat: 0, name: 'Squat' })
+      for (let i = 1; i < MAX_SOCKETS_PER_DEVICE; i++) {
         w.now += 1000
-        socks.push(await w.connect(token, ip))
+        await w.connect(token, ip)
       }
-      await w.send(socks[0], { type: 'sit', seat: next % 4, name: 'Squat' })
-      await w.send(socks[0], { type: 'leaveSeat' })
-      next++
+      await w.send(first, { type: 'leaveSeat' })
     }
-    const open = w.conns.filter((c) => c.closed === null)
-    expect(open.length).toBeLessThanOrEqual(MAX_WATCHERS_PER_ADDRESS)
+    const watching = (ip?: string) => w.conns.filter((c) => c.sync.seat === null && (ip === undefined || c.state?.ip === ip)).length
+
+    for (let i = 0; i < 3; i++) await squat(`one${i}`, '6.6.6.6')
+    expect(watching('6.6.6.6')).toBe(MAX_WATCHERS_PER_ADDRESS)
+    for (let i = 0; i < 6; i++) await squat(`many${i}`, `7.7.7.${i}`)
+    expect(watching()).toBe(MAX_WATCHERS)
   })
 
   test('without an address only the total limits watchers', async () => {
