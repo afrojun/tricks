@@ -16,7 +16,7 @@ Success: two, three or four people, or one person and computers, can play a full
 |---|---|
 | Players | Two, three or four. Four play in two partnerships, partners opposite; two and three play each for themselves (three is "cutthroat"). |
 | The rules | Pagat's standard rules (pagat.com/auctionwhist/spades.html), which most apps and rule books follow: call once each, Nil, bags, spades broken before they are led, game to 500. |
-| Cheating | On by default, as in the other games. A caught renege sets the cheat's side, the traditional penalty; "Bid plus three" is the house-rule alternative. |
+| Cheating | On by default, as in the other games. A caught renege sets the cheat's side, the traditional penalty; "Call plus three" is the house-rule alternative. |
 | Built-in variant | Jokers: the big and little joker and the twos of diamonds and spades are the top four trumps. The best-known variant; built last (section 12). |
 | Signals between partners | Out. `2026-10-09-signals-design.md` stays a draft. |
 | The search player | Out. Spades plays a hand-written player; a search adapter and its gate may follow, as for Hearts. |
@@ -86,7 +86,7 @@ A joker is a card of the rank `BJ` or `LJ` and the suit `spades`, so every card 
 
 ### 3.2 The losing score
 
-A common house rule, off by default because Pagat's rules have no such limit. When it is on, a round that leaves any side at −200 or below ends the game as reaching `gameEndsAt` does: the highest score wins, and while the highest is shared, play goes on. Without it nothing ends a game in which every side keeps falling, which a 40-game soak under "Bid plus three" found.
+A common house rule, off by default because Pagat's rules have no such limit. When it is on, a round that leaves any side at −200 or below ends the game as reaching `gameEndsAt` does: the highest score wins, and while the highest is shared, play goes on. Without it nothing ends a game in which every side keeps falling, which a 40-game soak under "Call plus three" found.
 
 ## 4. State, actions and events
 
@@ -103,7 +103,7 @@ A common house rule, off by default because Pagat's rules have no such limit. Wh
 | `roundResult` | `summary` | any human sends `nextRound` |
 | `gameOver` | `winner`, `summary`, `again` | everyone says Again (the kit's `againComplete`) |
 
-`Call` is `{ tricks: number; blind: boolean }`: 0 tricks is Nil, and only Nil may be blind. `out` holds the cards out of play for the whole round, so every card is accounted for in every phase: `setAside` (the leftover card with three players, else null) and `discards` (by seat, with two players, else empty). `looked` starts true for every seat that may not call Blind nil this round (it needs `blindNil` on, three or four players, and a side trailing by 100 at the deal), so only a seat with the choice sees its cards face down. `play` holds `hands`, `out`, `calls`, `tricks`, `current`, `spadesBroken`, `raised` (by side, the "Bid plus three" penalties on it; a contract is the side's calls plus three for each), `settled` (by seat, how many of its plays an accusation has already judged), `nilFailed` (by seat, a Nil lost to a `bidPlusThree` penalty) and, after a Blind nil, `exchange: { blind, gave, returned }`. Every play is a kit `PlayRecord`.
+`Call` is `{ tricks: number; blind: boolean }`: 0 tricks is Nil, and only Nil may be blind. `out` holds the cards out of play for the whole round, so every card is accounted for in every phase: `setAside` (the leftover card with three players, else null) and `discards` (by seat, with two players, else empty). `looked` starts true for every seat that may not call Blind nil this round (it needs `blindNil` on, three or four players, and a side trailing by 100 at the deal), so only a seat with the choice sees its cards face down. `play` holds `hands`, `out`, `calls`, `tricks`, `current`, `spadesBroken`, `raised` (by side, the "Call plus three" penalties on it; a contract is the side's calls plus three for each), `settled` (by seat, how many of its plays an accusation has already judged), `nilFailed` (by seat, a Nil lost to a `bidPlusThree` penalty) and, after a Blind nil, `exchange: { blind, gave, returned }`. Every play is a kit `PlayRecord`.
 
 Actions, beside the table's: `draw { keep: boolean }`, `lookAtHand`, `call { tricks }` (0 for Nil), `callBlindNil`, `giveCards { cards }` (exactly two, held; from the Blind nil player first, then from its partner), `playCard { card }`, `challengePlay { seat }`, `setRules`, `nextRound`, `rematch`.
 

@@ -44,7 +44,7 @@ In development the Cloudflare Vite plugin runs the Worker, rooms included, insid
 
 ## Architecture
 
-The designs are in `docs/superpowers/specs/`. Start with `2026-10-05-tricks-overview-design.md` (the platform and its sub-projects). Thunee: `2026-10-04-thunee-rebuild-design.md` (every rule and setting). Practice and the coach: `2026-10-04-practice-and-coach-design.md` and `2026-10-05-coach-tiers-design.md`. Games as modules: `2026-10-05-game-modules-design.md`. Hearts: `2026-10-05-hearts-design.md`. Hosting: `2026-10-05-cloudflare-and-rename-design.md` and `2026-10-05-deploy-design.md`. The search player: `2026-10-06-search-player-design.md`. Table talk (lines, emotes, throws, Again): `2026-10-09-table-talk-design.md`. Spades: `2026-10-10-spades-design.md`. Drills: `2026-10-09-drills-design.md`.
+The designs are in `docs/superpowers/specs/`. Start with `2026-10-05-tricks-overview-design.md` (the platform and its sub-projects). Thunee: `2026-10-04-thunee-rebuild-design.md` (every rule and setting). Practice and the coach: `2026-10-04-practice-and-coach-design.md` and `2026-10-05-coach-tiers-design.md`. Games as modules: `2026-10-05-game-modules-design.md`. Hearts: `2026-10-05-hearts-design.md`. Hosting: `2026-10-05-cloudflare-and-rename-design.md` and `2026-10-05-deploy-design.md`. The search player: `2026-10-06-search-player-design.md`. Table talk (lines, emotes, throws, Again): `2026-10-09-table-talk-design.md`. Spades: `2026-10-10-spades-design.md`. Drills: `2026-10-09-drills-design.md`. Every word a player reads: `2026-10-10-copy-style-design.md`.
 
 ```
 src/kit/            Pure and shared by every game: cards, the 52-card deck (deck.ts), partners at a table of four (partners.ts), the table (seats, lobby, host, stand-ins), tricks, integrity (excuses, proofs), minds, rule helpers, the module contract (GameModule) and the contract runner, the coach contract (GameCoach) with the tier-1 baselineCoach (coach.ts), and table talk (talk.ts: what may be said, and the computers' banter from a game's moments). Imports nothing from the app, and no React.
@@ -141,14 +141,13 @@ Dependency direction: `kit` imports nothing from the app, and anything may impor
 - Four play thirteen each; three play seventeen, the card left over set aside unseen; two draw thirteen each from the stock, each turn keeping the top card or the next.
 - Each player calls once, from the dealer's left: a number of tricks, or Nil. A side's contract is its calls added up. Made: 10 a trick called and 1 a bag (a trick over); missed: minus 10 a trick called. Nil is plus or minus 100; ten bags cost 100. First to 500 wins.
 - Must follow suit; no spade led until one has been played, unless the hand holds nothing else. With three, and with four under a house rule, the lowest club leads.
-- Cheating is on by default: a caught renege sets the cheat's side, and a wrong accuser's side is set instead; under the house rule "Bid plus three" the side must take three more tricks and play goes on.
+- Cheating is on by default: a cheat caught by a challenge sets their side, and a wrong challenger's side is set instead; under the house rule "Call plus three" the side must take three more tricks and play goes on.
 - House rules (Standard is the default; the Jokers preset makes two jokers and the twos of diamonds and spades the top trumps), Blind nil and a losing score of −200 among them: `src/games/spades/engine/rules.ts` and section 3 of the Spades spec.
 
 ## Conventions
 
 - Mobile-first layout; check screens at 390x844
-- Game terminology: "call" not "bid" (Spades too: a player calls tricks); in Thunee "balls" for game points
-- UI copy in sentence case and plain language
+- Copy follows `docs/superpowers/specs/2026-10-10-copy-style-design.md`: its voice, rules and words (section 3) for every string a player reads, aria-labels included. In short: sentence case and plain language; "call" not "bid" (Spades too: a player calls tricks), "side" not "team", "computer" not "AI" or "bot", "challenge" not "accuse"; in Thunee "balls" for game points
 - Timers use the Durable Object alarm, never `setTimeout`, on the server
 
 ## Environment Variables
