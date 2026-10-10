@@ -175,7 +175,7 @@ export function baselineCoach<V extends TableView, A, R extends Reason>(basis: C
           }
         })
       if (broken.length === 0 && moments.length === 0 && decisions.some((d) => d.advised !== null))
-        return [{ tone: 'info', title: 'As the coach would have', body: 'Every choice this round was the hint’s, or one just as good.' }]
+        return [{ tone: 'info', title: 'You followed the hint', body: 'Every choice this round was the hint’s, or one just as good.' }]
       return [...broken, ...moments]
     },
   }

@@ -181,7 +181,7 @@ describe('the baseline coach', () => {
       { view: you(FOLLOW), advised: play('2c'), taken: play('3c') },
       { view: you(FOLLOW), advised: play('2c'), taken: { type: 'tick' } },
     ])
-    expect(notes).toEqual([{ tone: 'info', title: 'As the coach would have', body: 'Every choice this round was the hint’s, or one just as good.' }])
+    expect(notes).toEqual([{ tone: 'info', title: 'You followed the hint', body: 'Every choice this round was the hint’s, or one just as good.' }])
     expect(review([{ view: you(WAIT), advised: null, taken: { type: 'tick' } }])).toEqual([])
     // Without the game's hooks every other action is a moment, of equal weight.
     const bare = { ...toy, hinted: undefined, asGood: undefined, stake: undefined }
