@@ -58,10 +58,11 @@ describe('passing', () => {
     const t = new Table().deal(HANDS)
     const before = named(t, 1)
     expect(hint(before, 0)).toEqual({ text: 'Pick three for Chan', mine: true })
-    expect(hint(before, 2)).toEqual({ text: '1 more for Chan', mine: true })
+    expect(hint(before, 1)).toEqual({ text: 'Two more for Chan', mine: true })
+    expect(hint(before, 2)).toEqual({ text: 'One more for Chan', mine: true })
     expect(hint(before, 3)).toEqual({ text: 'Ready for Chan', mine: true })
     t.do(1, { type: 'choosePass', cards: cards('8h 7h 6h') })
-    expect(hint(named(t, 1), 0)).toEqual({ text: 'Waiting for Asha, Chan and Devi to choose', mine: false })
+    expect(hint(named(t, 1), 0)).toEqual({ text: 'Asha, Chan and Devi to pass', mine: false })
   })
 
   test('cards passed to the viewer are new until the viewer plays a card', () => {
@@ -124,13 +125,13 @@ describe('the round result', () => {
     expect(headline(off, summary({ reason: 'moon', moon: 1 }))).toBe('You shot the moon and take off 26.')
   })
 
-  test('an accusation names who, the rule and the card, and who takes 26', () => {
+  test('a challenge names who, the rule and the card, and who takes 26', () => {
     const challenge = (challenger: number, accused: number, guilty: boolean, rule: string | null, c: string) =>
       headline(view, summary({ reason: 'challenge', challenge: { challenger, accused, guilty, rule, card: card(c) } }))
     expect(challenge(1, 0, true, 'followSuit', '5d')).toBe('You caught Asha not following suit with 5♦. Asha takes 26; nobody else scores.')
     expect(challenge(2, 1, true, 'heartsLead', '3h')).toBe('Chan caught you leading a heart before hearts were broken with 3♥. You take 26; nobody else scores.')
     expect(challenge(3, 2, true, 'firstTrickPoints', 'Qs')).toBe('Devi caught Chan playing points on the first trick with Q♠. Chan takes 26; nobody else scores.')
-    expect(challenge(0, 3, false, null, '9c')).toBe('Asha accused Devi, but Devi played by the rules. Asha takes 26; nobody else scores.')
-    expect(challenge(1, 3, false, null, '9c')).toBe('You accused Devi, but Devi played by the rules. You take 26; nobody else scores.')
+    expect(challenge(0, 3, false, null, '9c')).toBe('Asha challenged Devi, but Devi played by the rules. Asha takes 26; nobody else scores.')
+    expect(challenge(1, 3, false, null, '9c')).toBe('You challenged Devi, but Devi played by the rules. You take 26; nobody else scores.')
   })
 })

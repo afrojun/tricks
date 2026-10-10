@@ -20,11 +20,13 @@ function giverTo(view: View, seat: Seat): Seat | null {
 /** Turns one game event into a sound and, where it helps, a toast or a moment in the middle of the table. */
 export function present(event: GameEvent, view: View, seat: Seat | null): Presentation {
   const name = (s: Seat) => (s === seat ? 'You' : seatName(view, s))
+  /** The seat named mid-sentence. */
+  const them = (s: Seat) => (s === seat ? 'you' : seatName(view, s))
   switch (event.type) {
     case 'dealt':
       playSound('deal')
       if (event.direction === 'none') return { toast: 'No passing this round.' }
-      return { toast: `Pass three cards ${event.direction === 'across' ? 'across' : `to the ${event.direction}`}.` }
+      return { toast: `Pick three cards to pass ${event.direction}.` }
     case 'passChosen':
       playSound('card')
       return {}
@@ -46,7 +48,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
     case 'challengeResolved':
       playSound('challenge')
       return {
-        moments: [{ title: 'Challenge', detail: `${name(event.challenger)} ${event.challenger === seat ? 'challenge' : 'challenges'} ${seatName(view, event.accused)}`, tone: 'danger', ms: CHALLENGE_BEAT_MS }],
+        moments: [{ title: 'Challenge', detail: `${name(event.challenger)} ${event.challenger === seat ? 'challenge' : 'challenges'} ${them(event.accused)}`, tone: 'danger', ms: CHALLENGE_BEAT_MS }],
       }
     case 'roundScored': {
       const { moon, challenge } = event.summary
@@ -54,7 +56,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       if (!challenge) return {}
       // The verdict comes in the same message as the challenge, and its moment shows after the challenge's.
       playSound(challenge.guilty ? 'caught' : 'fair', CHALLENGE_BEAT_MS)
-      const accused = seatName(view, challenge.accused)
+      const accused = name(challenge.accused)
       return {
         moments: [
           challenge.guilty
@@ -69,7 +71,7 @@ export function present(event: GameEvent, view: View, seat: Seat | null): Presen
       playSound(mine ? 'gameWon' : 'gameLost')
       // The winner sees "You win" over a golden table under confetti; the others see who did, quietly; a spectator sees the gold without the confetti.
       return {
-        moments: [{ title: mine ? 'You win' : `${seatName(view, event.winner)} wins`, detail: `On ${pointsWord(view.scores[event.winner])}`, tone: mine || seat === null ? 'win' : 'good', ms: WIN_BEAT_MS, colour }],
+        moments: [{ title: mine ? 'You win' : `${seatName(view, event.winner)} wins`, detail: `With ${pointsWord(view.scores[event.winner])}`, tone: mine || seat === null ? 'win' : 'good', ms: WIN_BEAT_MS, colour }],
         celebrate: mine ? colour : undefined,
       }
     }

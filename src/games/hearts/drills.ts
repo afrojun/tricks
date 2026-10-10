@@ -78,7 +78,7 @@ const firstTrick: HeartsDrill = {
   brief: {
     tone: 'info',
     title: 'Nothing to follow with',
-    body: 'Whoever holds the 2♣ leads it, and everyone must follow with a club if they can. With no club you may play any other card, except that on the first trick nobody may play a heart or the Q♠, unless they hold nothing else.',
+    body: 'Whoever holds the two of clubs leads it, and everyone must follow with a club if they can. With no club you may play any other card. But nobody may play a heart or the queen of spades to the first trick, unless they hold nothing else.',
     cards: cards('2c'),
     topic: 'firstTrick',
   },
@@ -86,18 +86,18 @@ const firstTrick: HeartsDrill = {
     if (!myTurn(view)) return null
     return {
       tone: 'info',
-      title: 'You have no clubs',
-      body: 'Play any card but a heart or the Q♠. A high spade or diamond is a good one to be rid of: it could win you a trick full of points later.',
+      title: 'You hold no clubs',
+      body: 'Play any card but a heart or the queen of spades. A high spade or diamond is a good one to be rid of: it could win you a trick full of points later.',
     }
   },
   verdict(_view, decisions) {
     const play = firstPlay(decisions)
     if (!play) return null
     if (hasCard(availableActions(play.view).legal, play.card))
-      return passed({ title: 'A clean first trick', body: `${cardText(play.card)} breaks no rule. Hearts and the Q♠ must wait for the second trick.`, cards: [play.card] })
+      return passed({ title: 'A clean first trick', body: `${cardText(play.card)} breaks no rule. Hearts and the queen of spades must wait for the second trick.`, cards: [play.card] })
     return missed({
       title: 'Not on the first trick',
-      body: `${cardText(play.card)} ${isPoints(play.card) ? 'carries points, and points may not be played to the first trick' : 'breaks a rule'} while you hold other cards. An opponent who notices can accuse you, and you take 26.`,
+      body: `${cardText(play.card)} ${isPoints(play.card) ? 'carries points, and points may not be played to the first trick' : 'breaks a rule'} while you hold other cards. Anyone who notices can challenge you, and you take 26.`,
       cards: [play.card],
     })
   },
@@ -118,7 +118,7 @@ const leadingHearts: HeartsDrill = {
   brief: {
     tone: 'info',
     title: 'Hearts are not broken yet',
-    body: 'Nobody may lead a heart until a heart has been played on another suit, which "breaks" hearts, unless their hand holds nothing but hearts. You won the first trick, so you lead the next.',
+    body: 'Nobody may lead a heart until one has been played to another suit: that “breaks” hearts. The one exception is a hand of nothing but hearts. You won the first trick, so you lead the next.',
     topic: 'heartsBroken',
   },
   guide(view) {
@@ -129,15 +129,15 @@ const leadingHearts: HeartsDrill = {
     const play = firstPlay(decisions)
     if (!play) return null
     if (play.card.suit !== 'hearts') return passed({ title: 'Hearts kept back', body: `Leading ${cardText(play.card)} breaks no rule. Once someone plays a heart on another suit, you may lead hearts too.`, cards: [play.card] })
-    return missed({ title: 'Hearts were not broken', body: 'No heart had been played yet, and you held other suits, so a heart could not be led. An opponent who notices can accuse you, and you take 26.', cards: [play.card] })
+    return missed({ title: 'Hearts were not broken', body: 'No heart had been played yet, and you held other suits, so a heart could not be led. Anyone who notices can challenge you, and you take 26.', cards: [play.card] })
   },
 }
 
-/** Clubs led again, after you showed you have none, and you hold the queen of spades. */
+/** Clubs led again, after you showed you hold none, and you hold the queen of spades. */
 const dumpQueen: HeartsDrill = {
   id: 'dumpQueen',
   title: 'Give away the queen',
-  summary: 'With none of the suit led, pass the Q♠ to someone else.',
+  summary: 'With none of the suit led, give the queen of spades to someone else.',
   playerCount: 4,
   lobby: NO_PASSING,
   arrange(t) {
@@ -147,7 +147,7 @@ const dumpQueen: HeartsDrill = {
   brief: {
     tone: 'info',
     title: 'The queen is 13 points',
-    body: 'The Q♠ costs whoever takes it 13 points, half of everything in the round. When a suit you do not hold is led, you may play any card, so that is the moment to give the queen to someone else.',
+    body: 'The queen of spades costs whoever takes her 13 points, half of everything in the round. When a suit you do not hold is led, you may play any card, so that is the moment to give the queen to someone else.',
     cards: cards('Qs'),
     topic: 'queen',
   },
@@ -155,15 +155,15 @@ const dumpQueen: HeartsDrill = {
     if (!myTurn(view) || view.phase.kind !== 'playing') return null
     const led = view.phase.current[0]?.card
     if (!led || view.phase.hand.some((c) => c.suit === led.suit)) return null
-    return { tone: 'suggest', title: 'You have no clubs', body: 'You may play anything. Play the Q♠: someone else takes the trick, and the 13 points with it.', cards: cards('Qs') }
+    return { tone: 'suggest', title: 'You hold no clubs', body: 'You may play anything. Play the queen of spades: someone else takes the trick and her 13 points.', cards: cards('Qs') }
   },
   verdict(_view, decisions) {
     const play = firstPlay(decisions)
     if (!play) return null
-    if (sameCard(play.card, QUEEN_OF_SPADES)) return passed({ title: 'Queen given away', body: 'You could not win a trick of clubs, so the 13 points go to whoever takes it.', cards: [play.card] })
+    if (sameCard(play.card, QUEEN_OF_SPADES)) return passed({ title: 'Queen given away', body: 'With no clubs you could not win the trick, so her 13 points go to whoever does.', cards: [play.card] })
     return missed({
       title: 'The queen is still yours',
-      body: `With no clubs, the Q♠ could have gone on this trick. Kept, it may be you who takes it later.${play.card.suit === 'hearts' ? ` And the ${cardText(play.card)} you played gives the trick's winner a point.` : ''}`,
+      body: `With no clubs, the queen of spades could have gone on this trick. Kept, she may still cost you 13 points.${play.card.suit === 'hearts' ? ` And the ${cardText(play.card)} you played gives the trick’s winner a point.` : ''}`,
       cards: cards('Qs'),
     })
   },

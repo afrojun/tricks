@@ -93,13 +93,13 @@ describe('Hearts’ narration', () => {
 
   test('a challenge names who takes the 26', () => {
     const t = new Table({ passing: 'none' }).deal(NO_PASS)
-    expect(text(heartsCoach.narrate({ type: 'challengeResolved', challenger: 1, accused: 0, guilty: true }, you(t.game)))).toBe('P1 challenges. You broke a rule, so you take 26.')
-    expect(text(heartsCoach.narrate({ type: 'challengeResolved', challenger: 0, accused: 1, guilty: false }, you(t.game)))).toBe('You challenge. P1 played by the rules, so you take 26.')
+    expect(text(heartsCoach.narrate({ type: 'challengeResolved', challenger: 1, accused: 0, guilty: true }, you(t.game)))).toBe('P1 challenges you. You broke a rule, so you take 26.')
+    expect(text(heartsCoach.narrate({ type: 'challengeResolved', challenger: 0, accused: 1, guilty: false }, you(t.game)))).toBe('You challenge P1. P1 played by the rules, so you take 26.')
   })
 
   test('the cards passed to you, and from where', () => {
     const t = new Table().deal(NO_PASS).pass(['2c 9c Kc', '3c 4c 5c', '8c 10c Jc', 'Kh Qh 9s'])
-    expect(text(heartsCoach.narrate({ type: 'passesExchanged' }, you(t.game)))).toBe('Cards passed. You were given K♥, Q♥ and 9♠ from the right.')
+    expect(text(heartsCoach.narrate({ type: 'passesExchanged' }, you(t.game)))).toBe('Cards passed. P3, on your right, gave you K♥, Q♥ and 9♠.')
   })
 
   test('hearts broken links to its lesson', () => {

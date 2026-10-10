@@ -24,8 +24,8 @@ export const TOPICS = {
     title: 'Passing',
     paragraphs: [
       'Before play, everyone gives three cards away: to the left in the first round, to the right in the second, across the table in the third, and none in the fourth. Then it starts again.',
-      'Pass the cards you least want: the queen of spades, unless you have plenty of spades to hide her among; the ace and king of spades, which could win the trick she falls on; and high hearts. Passing the last cards of a suit helps too: when that suit is led, you can throw away any card you like.',
-      'You choose before you see the three you are given.',
+      'Pass the cards you least want: high hearts, and the queen of spades unless you hold plenty of spades to hide her among. The ace and king of spades can go as well, since they could win the trick she falls on. Passing the last cards of a suit helps too: when that suit is led, you can throw away any card you like.',
+      'You pick yours before you see the three you are given.',
     ],
   },
   tricks: {

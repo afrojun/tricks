@@ -5,8 +5,9 @@ import { CoachReview } from '../../../ui/coach/CoachReview'
 import { useCoach } from '../../../ui/coach/context'
 import { useSession } from './session'
 import { playSound } from '../../../ui/sound'
+import { SuitText } from '../../../ui/SuitText'
 import { plural } from '../../../ui/text'
-import { headline, nameFor, points, pointsWord, sortHand } from './text'
+import { headline, nameFor, points, sortHand } from './text'
 
 /** This round's points by seat and the totals after it, the reason when it ended unusually, and what comes next. */
 export function RoundResult({ view, summary, winner, can }: { view: View; summary: RoundSummary; winner: Seat | null; can: Available }) {
@@ -19,7 +20,9 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
   return (
     <section className="panel p-4 w-full max-w-sm grid gap-3">
       <h2 className="display text-xl">{`Round ${summary.roundNumber} is over`}</h2>
-      <p>{headline(view, summary)}</p>
+      <p>
+        <SuitText text={headline(view, summary)} />
+      </p>
 
       <table className="w-full">
         <thead>
@@ -52,7 +55,7 @@ export function RoundResult({ view, summary, winner, can }: { view: View; summar
           Next round
         </button>
       ) : (
-        <p className="text-on-surface-muted">Waiting for a player to start the next round.</p>
+        <p className="text-on-surface-muted">Waiting for someone to press Next round.</p>
       )}
     </section>
   )
@@ -70,7 +73,7 @@ function GameOver({ view, summary, winner, can }: { view: View; summary: RoundSu
         <h2 className="display text-2xl">{mine ? 'You win' : `${nameFor(view, winner)} wins`}</h2>
       </div>
       <p>
-        {mine ? 'Well played: the' : 'The'} fewest points after {plural(summary.roundNumber, 'round')}, with {pointsWord(summary.scoresAfter[winner])}.
+        {mine ? 'Well played: the' : 'The'} fewest points after {plural(summary.roundNumber, 'round')}, {points(summary.scoresAfter[winner])}.
       </p>
 
       <table className="w-full">
@@ -84,7 +87,12 @@ function GameOver({ view, summary, winner, can }: { view: View; summary: RoundSu
           ))}
         </tbody>
       </table>
-      <p className="text-on-surface-muted">Last round: {headline(view, summary)}</p>
+      <div>
+        <p className="eyebrow">Last round</p>
+        <p className="text-on-surface-muted">
+          <SuitText text={headline(view, summary)} />
+        </p>
+      </div>
 
       <CoachReview view={view} shown={{ sort: sortHand }} />
 

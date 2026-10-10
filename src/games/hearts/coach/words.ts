@@ -1,13 +1,35 @@
 /** Small pieces of wording Hearts' coach shares. A suit's name is already its plural: "clubs". */
 import { cardText } from '../../../kit/cards'
 import type { Seat } from '../../../kit/table'
-import type { Card, View } from '../engine'
+import { type Card, type View, passTarget } from '../engine'
 
 export const card = cardText
 
 /** "You", or the seat's name. */
 export function who(view: View, seat: Seat): string {
   return seat === view.seat ? 'You' : view.seats[seat]?.name || `Seat ${seat + 1}`
+}
+
+/** Where a seat sits from the player's: play runs clockwise, so the next seat is on the left. */
+const WHERE = ['', 'on your left', 'across the table', 'on your right'] as const
+
+/** "Asha, on your left": another seat by name and place, for a sentence's middle or start. */
+export function seated(view: View, seat: Seat): string {
+  return `${who(view, seat)}, ${WHERE[(seat - (view.seat ?? 0) + 4) % 4]}`
+}
+
+const FROM_WAY = { left: 'right', right: 'left', across: 'across' } as const
+
+/** Who passes the player their three cards this round: passing left, the seat on the right. */
+export function passedBy(view: View): Seat | null {
+  if (view.direction === 'none' || view.seat === null) return null
+  return passTarget(view.seat, FROM_WAY[view.direction])
+}
+
+/** "first" to "thirteenth": a trick's place in the round. */
+export function ordinal(n: number): string {
+  const words = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth']
+  return words[n - 1] ?? `${n}th`
 }
 
 /** "2♣", "2♣ and 3♣", "2♣, 3♣ and 4♣". */

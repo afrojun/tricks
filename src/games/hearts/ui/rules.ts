@@ -27,7 +27,7 @@ const RULE_INFO: RuleInfo<HeartsRules>[] = [
       { value: 'shooterSubtracts', label: 'The shooter takes off 26' },
     ],
   },
-  { key: 'jackOfDiamonds', label: 'The jack of diamonds', choices: onOff('Worth minus 10', 'Worth nothing') },
+  { key: 'jackOfDiamonds', label: 'The jack of diamonds', choices: onOff('Worth −10', 'Worth nothing') },
   { key: 'queenBreaksHearts', label: 'The queen of spades breaks hearts', choices: onOff('Yes', 'No') },
   { key: 'pointsOnFirstTrick', label: 'Points on the first trick', choices: onOff('Allowed', 'Not allowed') },
   { key: 'allowCheating', label: 'Cheating', choices: onOff('Allowed, and can be challenged', 'Not allowed') },

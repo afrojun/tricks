@@ -25,7 +25,7 @@ import { heartsBasis, heartsCoach } from '.'
 
 const you = (game: Game, seat = 0): View => viewFor(game, seat, 'full')
 const play = (c: string): Action => ({ type: 'playCard', card: card(c) })
-const RISK = 'If anyone notices, they can accuse you: the round ends at once, and you take 26 points.'
+const RISK = 'If anyone notices, they can challenge you: the round ends at once, and you take 26 points.'
 
 /** A card as the advice may name it: by its face, or for the two cards with a name of their own, in words. */
 const named = (body: string, c: Card) =>
@@ -46,9 +46,9 @@ function carried(reason: Reason, view: View): string[] {
     case 'dumpHighSpade':
     case 'dumpHeart':
     case 'dumpHigh':
-      return [`You have no ${led}`]
+      return [`You hold no ${led}`]
     case 'leadLow':
-      return reason.higher === 0 ? ['Nothing still out'] : ['still out']
+      return reason.higher === 0 ? ['nothing higher in its suit is still out'] : ['still out']
     default:
       return []
   }
@@ -64,7 +64,7 @@ function checkClaims(reason: Reason, view: View, body: string): void {
   const phase = view.phase
   switch (reason.code) {
     case 'firstTrickHigh': {
-      // "No heart and no queen of spades has been played to this trick so far", and the first-trick rule is in force.
+      // Safe to win: no heart and no queen of spades on this trick so far, and the first-trick rule is in force.
       if (phase.kind !== 'playing') throw new Error(phase.kind)
       expect(phase.current.some((p) => isPointCard(p.card)), body).toBe(false)
       expect(phase.tricks.length === 0 && !view.rules.pointsOnFirstTrick, body).toBe(true)
@@ -86,9 +86,9 @@ function checkClaims(reason: Reason, view: View, body: string): void {
       const highest = reason.picks.filter((p) => p.why === 'highCard').map((p) => p.card)
       const plain = highest.filter((c) => !isLowSpade(c))
       if (plain.length > 0) {
-        // "The highest cards you have left" only when nothing kept outranks them; otherwise each card kept above them has its reason given.
+        // "The highest cards left in your hand" only when nothing kept outranks them; otherwise each card kept above them has its reason given.
         const above = kept.filter((c) => strength(c) > Math.min(...plain.map(strength)))
-        if (body.includes('you have left')) expect(above.map(cardText), body).toEqual([])
+        if (body.includes('left in your hand')) expect(above.map(cardText), body).toEqual([])
         for (const c of above) {
           const why = isLowSpade(c)
             ? 'Spades below the queen are passed last'
@@ -187,7 +187,7 @@ describe('Hearts’ situation', () => {
     expect(heartsCoach.situation(you(t.game))).toEqual({
       tone: 'info',
       title: 'Your move',
-      body: 'Choose three cards to pass to the left. You will be passed three from the right.',
+      body: 'Pick three cards to pass to P1, on your left. P3, on your right, will pass you three cards.',
     })
     t.do(0, { type: 'choosePass', cards: availableActions(you(t.game)).pass.slice(0, 3) })
     expect(heartsCoach.situation(you(t.game))).toBeNull()
@@ -198,14 +198,14 @@ describe('Hearts’ situation', () => {
     const t = new Table({ passing: 'none' }).deal(NO_PASS)
     expect(heartsCoach.situation(you(t.game))?.body).toBe('You hold the two of clubs, so you lead it to the first trick.')
     t.play('2c')
-    expect(heartsCoach.situation(you(t.game, 1))?.body).toBe('Clubs were led and you have some, so you must follow suit. P0 is winning with 2♣. This trick holds no points so far.')
+    expect(heartsCoach.situation(you(t.game, 1))?.body).toBe('Clubs were led and you hold some, so you must follow suit. P0 is winning with 2♣. This trick holds no points so far.')
     t.play('3c 8c')
     expect(heartsCoach.situation(you(t.game, 3))?.body).toBe(
-      'You have no clubs, so you may play any card except a heart or the queen of spades, which may not be played to the first trick. P2 is winning with 8♣. This trick holds no points so far.',
+      'You hold no clubs, so you may play any card except a heart or the queen of spades, which may not be played to the first trick. P2 is winning with 8♣. This trick holds no points so far.',
     )
     t.play('4d')
     // Seat 2 took the trick with the 8♣ and leads, with hearts not broken.
-    expect(heartsCoach.situation(you(t.endPause().game, 2))?.body).toBe('You lead trick 2. Hearts are not broken yet, so you may not lead one.')
+    expect(heartsCoach.situation(you(t.endPause().game, 2))?.body).toBe('You lead the second trick. Hearts are not broken yet, so you may not lead one.')
   })
 
   test('nothing to decide: no situation, no hint', () => {
@@ -315,7 +315,7 @@ describe('Hearts’ phrases claim only what the decision establishes', () => {
     const { reason, body } = advised(t, 1)
     expect(reason).toEqual({ code: 'firstTrickHigh', card: card('Ac') })
     expect(body).toBe(
-      'No heart and no queen of spades has been played to this trick so far, and on the first trick they may be played only by someone who holds nothing else. That makes it a good time to get rid of your highest club, A♣, though it could still take one of them.',
+      'Nobody may play a heart or the queen of spades to the first trick unless they hold nothing else, so it is almost always safe to win. Get rid of your highest club, A♣.',
     )
     t.play('Ac Ad')
     // The exception the phrase states: a hand of nothing but hearts may play one, and the ace takes it.
@@ -336,7 +336,7 @@ describe('Hearts’ phrases claim only what the decision establishes', () => {
     t.play('2c 3c 4c Ac  As 2s Qs 3s  2d Ad 3d 4d  2h')
     const { reason, body } = advised(t, 1)
     expect(reason).toEqual({ code: 'stopMoon', card: card('3h'), shooter: 3 })
-    expect(body).toBe("P3 has taken every point so far and could shoot the moon. 3♥ beats the cards played so far: if it holds, you take this trick's points yourself, and they can no longer take all 26.")
+    expect(body).toBe('P3 has taken every point so far and could shoot the moon. 3♥ beats what is on the table: if it holds, you take this trick’s points, and they can no longer take all 26.')
     // The shooter, still to play, overtakes it.
     t.play('3h 4h 6h')
     expect(lastTrick(t).winner).toBe(3)
@@ -370,6 +370,6 @@ describe('Hearts’ phrases claim only what the decision establishes', () => {
     const t = new Table().deal(fill(['Qs Ks 3s 2c 3c 4c 5c 6d 7d 8d 9d 10d 2h', null, null, null]))
     const { reason, body } = advised(t, 0)
     expect(reason.code === 'pass' && reason.picks.map((p) => p.why)).toEqual(['queenOfSpades', 'highSpade', 'highCard'])
-    expect(body).toBe('With fewer than five spades the queen of spades is hard to hide, and she is 13 points. K♠ could win a trick with the queen of spades in it. 10♦ is the highest card you have left, the likeliest to win tricks you do not want.')
+    expect(body).toBe('With fewer than five spades the queen of spades is hard to hide, and she is 13 points. K♠ could win a trick with the queen of spades in it. 10♦ is the highest card left in your hand, the likeliest to win tricks you do not want.')
   })
 })

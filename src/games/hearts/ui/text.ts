@@ -65,10 +65,10 @@ export function hint(view: View, picked: number): { text: string; mine: boolean 
     if (me !== null && phase.choice === null && view.direction !== 'none') {
       const to = seatName(view, passTarget(me, view.direction))
       if (picked === 0) return { text: `Pick three for ${to}`, mine: true }
-      if (picked < 3) return { text: `${3 - picked} more for ${to}`, mine: true }
+      if (picked < 3) return { text: `${picked === 1 ? 'Two' : 'One'} more for ${to}`, mine: true }
       return { text: `Ready for ${to}`, mine: true }
     }
-    return { text: `Waiting for ${listNames(view, stillChoosing(view, phase))} to choose`, mine: false }
+    return { text: `${capital(listNames(view, stillChoosing(view, phase)))} to pass`, mine: false }
   }
   if (phase.kind === 'playing') {
     if (phase.turn !== me) return { text: `${seatName(view, phase.turn!)} to play`, mine: false }
@@ -101,7 +101,7 @@ export const BROKE: Record<string, string> = {
   firstTrickPoints: 'played points on the first trick',
 }
 
-/** One or two sentences saying how the round ended: the accusation or the moon, or who leads. */
+/** One or two sentences saying how the round ended: the challenge or the moon, or who leads. */
 export function headline(view: View, s: RoundSummary): string {
   const name = (seat: Seat) => nameFor(view, seat)
   const object = (seat: Seat) => (seat === view.seat ? 'you' : seatName(view, seat))
@@ -112,7 +112,7 @@ export function headline(view: View, s: RoundSummary): string {
     const penalty = `${name(penalised)} ${verb(penalised, 'take', 'takes')} 26; nobody else scores.`
     return guilty
       ? `${name(challenger)} caught ${object(accused)} ${CAUGHT[rule ?? ''] ?? 'breaking a rule'} with ${cardText(card)}. ${penalty}`
-      : `${name(challenger)} accused ${object(accused)}, but ${object(accused)} played by the rules. ${penalty}`
+      : `${name(challenger)} challenged ${object(accused)}, but ${object(accused)} played by the rules. ${penalty}`
   }
   if (s.moon !== null) {
     return view.rules.moon === 'othersAdd'
@@ -127,7 +127,7 @@ export function headline(view: View, s: RoundSummary): string {
 
 /** Hearts' own reasons for refusing an action; the shell words the table's. */
 export const REJECTIONS: Record<Exclude<RejectReason, TableReject>, string> = {
-  notYourTurn: "It isn't your turn.",
-  cardNotInHand: "That card isn't in your hand.",
-  illegalCard: "That card isn't allowed here.",
+  notYourTurn: 'It isn’t your turn.',
+  cardNotInHand: 'That card isn’t in your hand.',
+  illegalCard: 'That card isn’t allowed here.',
 }

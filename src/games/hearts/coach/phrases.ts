@@ -14,10 +14,10 @@ type Pick = { card: Card; why: PassWhy }
 const isQueen = (c: Card) => sameCard(c, QUEEN_OF_SPADES)
 const isLowSpade = (c: Card) => c.suit === 'spades' && strength(c) < strength(QUEEN_OF_SPADES)
 
-/** "You have no clubs": a card is thrown away when the player cannot follow the suit led. */
+/** "You hold no clubs": a card is thrown away when the player cannot follow the suit led. */
 function noneOfLed(view: View): string {
   const suit = view.phase.kind === 'playing' ? ledSuit(view.phase.current) : null
-  return suit === null ? 'You cannot follow suit' : `You have no ${suit}`
+  return suit === null ? 'You cannot follow suit' : `You hold no ${suit}`
 }
 
 /** Each card passed for what it is, in a sentence. */
@@ -51,7 +51,7 @@ function highest(cards: Card[], picks: readonly Pick[], view: View): string[] {
     out.push(
       above.length > 0
         ? `Of the rest, ${list(plain)} ${one ? 'is' : 'are'} the highest, the likeliest to win tricks you do not want.`
-        : `${list(plain)} ${one ? 'is the highest card' : 'are the highest cards'} you have left, the likeliest to win tricks you do not want.`,
+        : `${list(plain)} ${one ? 'is the highest card' : 'are the highest cards'} left in your hand, the likeliest to win tricks you do not want.`,
     )
   }
   if (low.length > 0) out.push(`With nothing else to spare, ${list(low)} ${low.length === 1 ? 'goes' : 'go'} too.`)
@@ -80,22 +80,22 @@ export const PHRASES: Phrases<View, Reason> = {
   openingLead: () => 'Whoever holds the two of clubs must lead it to the first trick.',
   onlyCard: (r) => `${card(r.card)} is the only card the rules let you play.`,
   firstTrickHigh: (r) =>
-    `No heart and no queen of spades has been played to this trick so far, and on the first trick they may be played only by someone who holds nothing else. That makes it a good time to get rid of your highest club, ${card(r.card)}, though it could still take one of them.`,
+    `Nobody may play a heart or the queen of spades to the first trick unless they hold nothing else, so it is almost always safe to win. Get rid of your highest club, ${card(r.card)}.`,
   fishForQueen: (r) =>
     `Someone else still holds the queen of spades. Leading ${card(r.card)}, a spade below her, makes anyone with spades follow suit, and if she comes out, ${card(r.card)} is not the card that takes her.`,
   leadLow: (r) =>
     r.higher === 0
-      ? `Nothing still out can beat any card you may safely lead, so lead the lowest, ${card(r.card)}.`
+      ? `Any card you may safely lead would win this trick: nothing higher in its suit is still out. So lead the lowest, ${card(r.card)}.`
       : `${card(r.card)} is your lead least likely to win this trick: ${count(r.higher, `higher ${r.card.suit.slice(0, -1)}`)} ${r.higher === 1 ? 'is' : 'are'} still out.`,
   leadLeastBad: (r) =>
     r.card.suit === 'hearts'
       ? `Every card you could lead is risky. ${card(r.card)} will win the trick, but a trick of hearts usually costs less than one with the queen of spades in it.`
       : `Every card you could lead is risky, and ${card(r.card)} is the least risky of them.`,
-  duck: (r) => `${card(r.card)} stays under ${card(r.under)}, so you will not take this trick, and it is the highest card you have that does: a high card is safer gone.`,
+  duck: (r) => `${card(r.card)} stays under ${card(r.under)}, so you will not take this trick. It is the highest card you hold that stays under, and a high card is safer gone.`,
   winClean: (r) => `You play last and this trick holds no points, so take it with ${card(r.card)} while that is safe: a high card is better gone now than later.`,
   playLow: (r) => `Every card you can follow with would win this trick as it stands, so play ${card(r.card)}, the lowest you can spare.`,
   stopMoon: (r, view) =>
-    `${who(view, r.shooter)} has taken every point so far and could shoot the moon. ${card(r.card)} beats the cards played so far: if it holds, you take this trick's points yourself, and they can no longer take all 26.`,
+    `${who(view, r.shooter)} has taken every point so far and could shoot the moon. ${card(r.card)} beats what is on the table: if it holds, you take this trick’s points, and they can no longer take all 26.`,
   takeJack: (r) =>
     sameCard(r.card, JACK_OF_DIAMONDS)
       ? `The jack of diamonds is worth −10 to whoever takes it, and your ${card(r.card)} can win this trick.`
@@ -104,5 +104,5 @@ export const PHRASES: Phrases<View, Reason> = {
   dumpHighSpade: (r, view) => `${noneOfLed(view)}. Get rid of ${card(r.card)} while the queen of spades is still out: kept, it could win the trick she falls on.`,
   dumpHeart: (r, view) => `${noneOfLed(view)}, so give your highest heart, ${card(r.card)}, to whoever takes this trick.`,
   dumpHigh: (r, view) => `${noneOfLed(view)}, so get rid of a high card, ${card(r.card)}, before it wins a trick you do not want.`,
-  renege: (r) => `${card(r.card)} breaks the rules, so as not to take ${r.dodges} points with ${card(r.honest)}.`,
+  renege: (r) => `${card(r.card)} breaks the rules: following suit with ${card(r.honest)} would take ${r.dodges} points.`,
 }

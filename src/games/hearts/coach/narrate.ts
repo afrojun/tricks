@@ -3,9 +3,7 @@ import type { Note } from '../../../kit/coach'
 import type { Seat } from '../../../kit/table'
 import { CHALLENGE_POINTS, type GameEvent, type View } from '../engine'
 import type { TopicId } from './topics'
-import { list, points, who } from './words'
-
-const FROM = { left: 'from the right', right: 'from the left', across: 'from across the table' } as const
+import { list, passedBy, points, seated, who } from './words'
 
 export function narrate(event: GameEvent, view: View): Note | null {
   const note = (title: string, body: string, topic: TopicId, seats: Seat[] = []): Note => ({ tone: 'info', title, body, topic, ...(seats.length > 0 ? { seats } : {}) })
@@ -16,8 +14,9 @@ export function narrate(event: GameEvent, view: View): Note | null {
   switch (event.type) {
     case 'passesExchanged': {
       const phase = view.phase
-      if ((phase.kind !== 'playing' && phase.kind !== 'trickPause') || view.direction === 'none' || phase.received.length === 0) return null
-      return { ...note('Cards passed', `You were given ${list(phase.received)} ${FROM[view.direction]}.`, 'passing'), cards: phase.received }
+      const giver = passedBy(view)
+      if ((phase.kind !== 'playing' && phase.kind !== 'trickPause') || giver === null || phase.received.length === 0) return null
+      return { ...note('Cards passed', `${seated(view, giver)}, gave you ${list(phase.received)}.`, 'passing'), cards: phase.received }
     }
     case 'heartsBroken':
       return note('Hearts are broken', 'A heart has been played, so from now on anyone may lead hearts.', 'heartsBroken')
@@ -32,7 +31,7 @@ export function narrate(event: GameEvent, view: View): Note | null {
       const penalised = event.guilty ? event.accused : event.challenger
       const verdict = event.guilty ? `${who(view, event.accused)} broke a rule` : `${who(view, event.accused)} played by the rules`
       return note(
-        `${who(view, event.challenger)} ${verb(event.challenger, 'challenge', 'challenges')}`,
+        `${who(view, event.challenger)} ${verb(event.challenger, 'challenge', 'challenges')} ${them(event.accused)}`,
         `${verdict}, so ${them(penalised)} ${verb(penalised, 'take', 'takes')} ${CHALLENGE_POINTS}.`,
         'challenge',
         [event.challenger, event.accused],

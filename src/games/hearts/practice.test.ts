@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { cardId, cardText } from '../../kit/cards'
 import type { Note } from '../../kit/coach'
+import { AI_NAMES } from '../../kit/table'
 import { PracticeGame, practiceKey } from '../../practice/game'
 import { openPracticeSession, seenKey } from '../../practice/session'
 import { playPractice } from '../../practice/testing'
@@ -34,9 +35,12 @@ class MemoryStorage {
 }
 
 describe('Hearts practice', () => {
-  test('you, and three honest computers named by where they sit, under Standard rules', () => {
+  test('you, and three honest computers with names of their own, under Standard rules', () => {
     const p = PracticeGame.start(heartsPractice, 4, 1, 'You')
-    expect(p.game.seats.map((s) => s.name)).toEqual(['You', 'Left', 'Across', 'Right'])
+    const names = p.game.seats.map((s) => s.name)
+    expect(names[0]).toBe('You')
+    expect(names.slice(1).every((n) => AI_NAMES.includes(n))).toBe(true)
+    expect(new Set(names).size).toBe(4)
     expect(p.game.seats.slice(1).every((s) => s.kind === 'ai' && s.persona === 'straight')).toBe(true)
     expect(p.game.rules).toEqual(STANDARD)
     expect(p.game.phase.kind).toBe('passing')
@@ -148,7 +152,7 @@ describe('Hearts practice', () => {
       s.coach.dismissTopic()
       expect(coach().topic).toBeNull()
       expect(coach().waiting).toBe(true)
-      expect(coach().situation?.body).toMatch(/^Choose three cards to pass to the left\./)
+      expect(coach().situation?.body).toMatch(/^Pick three cards to pass to \S+, on your left\. \S+, on your right, will pass you three cards\.$/)
       expect(coach().advice?.action.type).toBe('choosePass')
       expect(coach().advice?.note.title).toMatch(/^Pass /)
       s.send(coach().advice!.action)

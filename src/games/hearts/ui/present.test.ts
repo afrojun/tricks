@@ -65,7 +65,7 @@ describe('Hearts on the client', () => {
     const view = { ...seated(), scores: [101, 43, 60, 77] }
     vi.mocked(playSound).mockClear()
     const won = present({ type: 'gameOver', winner: 1 }, view, 1)
-    expect(won.moments).toEqual([{ title: 'You win', detail: 'On 43 points', tone: 'win', ms: WIN_BEAT_MS, colour: 'var(--accent)' }])
+    expect(won.moments).toEqual([{ title: 'You win', detail: 'With 43 points', tone: 'win', ms: WIN_BEAT_MS, colour: 'var(--accent)' }])
     expect(won.celebrate).toBe('var(--accent)')
     expect(vi.mocked(playSound).mock.calls).toEqual([['gameWon']])
     vi.mocked(playSound).mockClear()
@@ -81,8 +81,8 @@ describe('Hearts on the client', () => {
 
   test('a deal says which way to pass', () => {
     const view = seated()
-    expect(present({ type: 'dealt', roundNumber: 1, direction: 'left' }, view, 1)).toEqual({ toast: 'Pass three cards to the left.' })
-    expect(present({ type: 'dealt', roundNumber: 3, direction: 'across' }, view, 1)).toEqual({ toast: 'Pass three cards across.' })
+    expect(present({ type: 'dealt', roundNumber: 1, direction: 'left' }, view, 1)).toEqual({ toast: 'Pick three cards to pass left.' })
+    expect(present({ type: 'dealt', roundNumber: 3, direction: 'across' }, view, 1)).toEqual({ toast: 'Pick three cards to pass across.' })
     expect(present({ type: 'dealt', roundNumber: 4, direction: 'none' }, view, 1)).toEqual({ toast: 'No passing this round.' })
   })
 
@@ -120,6 +120,12 @@ describe('Hearts on the client', () => {
     expect(verdict('heartsLead', true)).toMatchObject({ detail: 'Asha led a heart before hearts were broken' })
     expect(verdict('firstTrickPoints', true)).toMatchObject({ detail: 'Asha played points on the first trick' })
     expect(verdict(null, false)).toMatchObject({ title: 'Fair play', detail: 'Asha played by the rules', tone: 'good' })
+    // The viewer, challenged, reads "you".
+    const mine = (guilty: boolean) =>
+      present({ type: 'roundScored', summary: summary({ reason: 'challenge', challenge: { challenger: 0, accused: 1, guilty, rule: guilty ? 'followSuit' : null, card } }) }, view, 1).moments?.[0]
+    expect(mine(true)).toMatchObject({ detail: 'You did not follow suit' })
+    expect(mine(false)).toMatchObject({ detail: 'You played by the rules' })
+    expect(present({ type: 'challengeResolved', challenger: 0, accused: 1, guilty: true }, view, 1).moments).toEqual([expect.objectContaining({ title: 'Challenge', detail: 'Asha challenges you' })])
   })
 
 })

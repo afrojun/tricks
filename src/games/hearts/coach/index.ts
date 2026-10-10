@@ -10,14 +10,12 @@ import { ledSuit, touching } from '../../../kit/tricks'
 import { decide } from '../ai/choose'
 import { inPlay, unseen, winningPlay, wouldWin } from '../ai/read'
 import type { Reason } from '../ai/reasons'
-import { type Action, type Card, type GameEvent, type View, type ViewPlaying, availableActions, excusesFor, isOpeningLead, isPointCard, situation, strength, trickPoints } from '../engine'
+import { type Action, type Card, type GameEvent, type View, type ViewPlaying, availableActions, excusesFor, isOpeningLead, isPointCard, passTarget, situation, strength, trickPoints } from '../engine'
 import { narrate } from './narrate'
 import { PHRASES } from './phrases'
 import { topicsFor } from './topics'
-import { card, list, points, sentence, who } from './words'
+import { card, list, ordinal, passedBy, points, seated, sentence, who } from './words'
 
-const PASS_TO = { left: 'to the left', right: 'to the right', across: 'across' } as const
-const PASSED_FROM = { left: 'from the right', right: 'from the left', across: 'from across the table' } as const
 
 /** Each rule a card can break, by the name Hearts' excuses give it: said before the play and in the review. */
 const RULES: Record<'followSuit' | 'firstTrickPoints' | 'heartsLead', (played: Card, phase: ViewPlaying) => string> = {
@@ -40,7 +38,7 @@ export const heartsBasis: CoachBasis<View, Action, Reason> = {
 
   asked(view) {
     const phase = view.phase
-    if (phase.kind === 'passing') return view.direction === 'none' ? '' : `Choose three cards to pass ${PASS_TO[view.direction]}.`
+    if (phase.kind === 'passing') return view.direction === 'none' || view.seat === null ? '' : `Pick three cards to pass to ${seated(view, passTarget(view.seat, view.direction))}.`
     const turn = myTurn(view)
     if (turn === null) return ''
     if (isOpeningLead(turn)) return 'You hold the two of clubs, so you lead it to the first trick.'
@@ -48,19 +46,22 @@ export const heartsBasis: CoachBasis<View, Action, Reason> = {
     if (suit === null) {
       const hearts = turn.hand.filter((c) => c.suit === 'hearts').length
       const blocked = !turn.heartsBroken && hearts > 0 && hearts < turn.hand.length
-      return `You lead trick ${turn.tricks.length + 1}.${blocked ? ' Hearts are not broken yet, so you may not lead one.' : ''}`
+      return `You lead the ${ordinal(turn.tricks.length + 1)} trick.${blocked ? ' Hearts are not broken yet, so you may not lead one.' : ''}`
     }
-    if (turn.hand.some((c) => c.suit === suit)) return `${sentence(suit)} were led and you have some, so you must follow suit.`
+    if (turn.hand.some((c) => c.suit === suit)) return `${sentence(suit)} were led and you hold some, so you must follow suit.`
     const firstTrick = turn.tricks.length === 0 && !view.rules.pointsOnFirstTrick && turn.hand.some((c) => !isPointCard(c))
-    return `You have no ${suit}, so you may play any card${firstTrick ? ' except a heart or the queen of spades, which may not be played to the first trick' : ''}.`
+    return `You hold no ${suit}, so you may play any card${firstTrick ? ' except a heart or the queen of spades, which may not be played to the first trick' : ''}.`
   },
 
   line(view) {
-    if (view.phase.kind === 'passing' && view.direction !== 'none') return `You will be passed three ${PASSED_FROM[view.direction]}.`
+    const giver = passedBy(view)
+    if (view.phase.kind === 'passing' && giver !== null) {
+      return view.direction === 'across' ? `${who(view, giver)} will pass you three cards in return.` : `${seated(view, giver)}, will pass you three cards.`
+    }
     const turn = myTurn(view)
     if (turn === null || turn.current.length === 0) return null
     const winning = winningPlay(turn.current)
-    return `${who(view, winning.seat)} is winning with ${card(winning.card)}. This trick holds ${points(trickPoints(turn.current.map((p) => p.card), view.rules))} so far.`
+    return `${who(view, winning.seat)} ${winning.seat === view.seat ? 'are' : 'is'} winning with ${card(winning.card)}. This trick holds ${points(trickPoints(turn.current.map((p) => p.card), view.rules))} so far.`
   },
 
   name(action) {
@@ -84,7 +85,7 @@ export const heartsBasis: CoachBasis<View, Action, Reason> = {
     return RULES[rule as keyof typeof RULES](action.card, turn)
   },
 
-  risk: 'If anyone notices, they can accuse you: the round ends at once, and you take 26 points.',
+  risk: 'If anyone notices, they can challenge you: the round ends at once, and you take 26 points.',
 
   when(view) {
     const play = inPlay(view)
