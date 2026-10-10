@@ -23,16 +23,16 @@ const MOCKING = globSync(TESTS, { cwd: import.meta.dirname }).filter((file) =>
 // new worktree or CI has none), Vitest would start the largest files first and leave some of these to run
 // alone at the end; they start first instead. `pnpm test:quick` leaves them out.
 const SLOW = [
-  'src/games/hearts/ai/search.test.ts',
+  'src/games/hearts/ai/search-games.test.ts',
   'src/games/hearts/simulation.test.ts',
+  'src/games/thunee/ai/simulation.test.ts',
   'src/games/hearts/ai/simulation.test.ts',
   'src/kit/search/step.test.ts',
-  'src/games/thunee/ai/simulation.test.ts',
-  'src/games/index.test.ts',
+  'src/games/hearts/ai/search.test.ts',
+  'src/games/hearts/ai/gate/gate.test.ts',
   'src/games/thunee/ai/personas.test.ts',
-  'src/games/hearts/ai/personas.test.ts',
   'src/games/thunee/engine/step.test.ts',
-  'src/games/hearts/coach/phrases.test.ts',
+  'src/games/hearts/ai/personas.test.ts',
 ]
 
 class SlowFirst extends BaseSequencer {
