@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Note } from '../../practice/contract'
 import type { ShellView } from '../contract'
 import { sessionHooks } from '../session'
+import { SuitText } from '../SuitText'
 import { AdviceSheet, type Lessons, LogSheet, TopicSheet, WarningSheet } from './CoachSheets'
 import { useCoach } from './context'
 import { DrillBrief, DrillVerdict } from './DrillSheets'
@@ -40,7 +41,7 @@ export function CoachStrip({ lessons, over = false }: { lessons: Lessons; over?:
           <button className="coach-line" onClick={() => setLogOpen(true)} aria-label="Show this round so far">
             {line ? (
               <>
-                <strong>{line.title}.</strong> {line.body}
+                <strong><SuitText text={line.title} />.</strong> <SuitText text={line.body} />
               </>
             ) : (
               'The coach explains each move here.'

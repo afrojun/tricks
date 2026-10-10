@@ -89,7 +89,7 @@ describe.each(GAMES)('$practice.module.id drills', ({ practice, mistakes, topics
   test('every drill has its own id and a mistake to test', () => {
     expect(new Set(drills.map((d) => d.id)).size).toBe(drills.length)
     expect(Object.keys(mistakes).sort()).toEqual(drills.map((d) => d.id).sort())
-    // A brief's "Learn about" link opens one of the game's lessons.
+    // A brief's lesson link opens one of the game's lessons.
     for (const d of drills) if (d.brief.topic !== undefined) expect(Object.keys(topics), d.id).toContain(d.brief.topic)
   })
 

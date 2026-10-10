@@ -7,6 +7,7 @@ import { gamePath } from './routes'
 import { SessionProvider, navigate, useClient, useGameClient, useSession } from './session'
 import { TalkLayer } from './talk/TalkLayer'
 import { Sheet } from './Sheet'
+import { SuitText } from './SuitText'
 import { rejectionText } from './text'
 
 /** The frame around any game's table: the connection, the lobby or the game's own table, what its events show, and the table's talk. */
@@ -76,12 +77,12 @@ export function Screen({ room }: { room: string }) {
     <>
       {client.connection !== 'open' && (
         <p className="fixed top-[var(--update-h,0px)] inset-x-0 z-50 bg-danger text-center py-1" style={{ color: 'var(--on-danger)' }} role="status">
-          Connection lost. Reconnecting.
+          Connection lost: reconnecting
         </p>
       )}
       {client.error && (
         <p className="fixed bottom-0 inset-x-0 z-50 bg-danger text-center py-1" style={{ color: 'var(--on-danger)' }} role="alert">
-          {client.error}
+          <SuitText text={client.error} />
         </p>
       )}
       {client.view.phase.kind === 'lobby' ? <Lobby view={client.view} room={room} /> : <game.Table view={client.view} room={room} />}
@@ -95,7 +96,7 @@ export function Screen({ room }: { room: string }) {
       {celebrate && <Celebration key={celebrate.id} colour={celebrate.colour} />}
       {toast && (
         <p key={toast.id} className="panel toast" role="status">
-          {toast.text}
+          <SuitText text={toast.text} />
         </p>
       )}
     </>
@@ -124,8 +125,8 @@ export class ErrorBoundary extends Component<BoundaryProps, { failed: boolean }>
     if (!this.state.failed) return this.props.children
     const {
       home,
-      title = 'The table stopped drawing',
-      body = 'Your seat and cards are safe on the server. Reload to pick up where you left off.',
+      title = 'The table has stopped',
+      body = 'Your seat and cards are safe. Reload to pick up where you left off.',
       leave = 'Leave game',
     } = this.props
     return (

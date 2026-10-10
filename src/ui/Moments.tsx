@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import type { Card } from '../kit/cards'
 import { PlayingCard } from './Card'
+import { SuitText } from './SuitText'
 
 /** A call, challenge, verdict or won game that deserves the middle of the screen for a moment. */
 export interface Moment {
@@ -51,10 +52,14 @@ export function MomentOverlay({ moment }: { moment: (Moment & { id: number }) | 
         {moment && (
           <motion.div key={moment.id} className="moment" data-tone={moment.tone} initial={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.08 }}>
             <p className="moment-title" style={{ '--chars': moment.title.length } as React.CSSProperties}>
-              {moment.title}
+              <SuitText text={moment.title} />
             </p>
             {moment.card && <PlayingCard card={moment.card} size="trick" />}
-            {moment.detail && <p className="moment-detail">{moment.detail}</p>}
+            {moment.detail && (
+              <p className="moment-detail">
+                <SuitText text={moment.detail} />
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

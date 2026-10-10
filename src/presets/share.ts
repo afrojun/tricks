@@ -24,7 +24,7 @@ export function encodeShare(name: string, overrides: object): string {
 
 /** Read with the game's own schema. Never throws: anything unreadable comes back as an error to show the user. */
 export function decodeShare<R extends object>(game: RulesOf<R>, code: string): Decoded<R> {
-  const unreadable: Decoded<R> = { ok: false, error: "This rules link can't be read. Ask for it to be sent again." }
+  const unreadable: Decoded<R> = { ok: false, error: 'This rules link can’t be read. Ask for it to be sent again.' }
   let data: unknown
   try {
     data = JSON.parse(fromBase64Url(code.trim()))

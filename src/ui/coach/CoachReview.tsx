@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Card } from '../../kit/cards'
 import type { ShellView } from '../contract'
 import { type DealShown, HandsSheet } from './CoachSheets'
+import { SuitText } from '../SuitText'
 import { useCoach } from './context'
 
 /**
@@ -33,7 +34,7 @@ export function CoachReview<C extends Card>({ view, shown }: { view: ShellView; 
             <ul className="grid gap-2">
               {notes.map((n, i) => (
                 <li key={`${i}-${n.title}`} className={n.tone === 'warn' ? 'text-danger' : ''}>
-                  <strong>{n.title}.</strong> {n.body}
+                  <strong><SuitText text={n.title} />.</strong> <SuitText text={n.body} />
                 </li>
               ))}
             </ul>

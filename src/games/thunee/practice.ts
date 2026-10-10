@@ -7,9 +7,6 @@ import type { GamePractice } from '../../practice/contract'
 import type { PracticeSession } from '../../practice/session'
 import { thunee } from '.'
 
-/** Computer seats are named by where they sit, as seen from seat 0. */
-const NAMES: Record<2 | 4, string[]> = { 2: ['Opponent'], 4: ['Right', 'Partner', 'Left'] }
-
 /** One half's dealt hands, by seat: a round keeps one for each half dealt so far. */
 type Deal = Card[][]
 
@@ -18,8 +15,6 @@ export type ThuneePracticeSession = PracticeSession<View, Action, GameEvent, Not
 
 export const thuneePractice: GamePractice<Game, Action, GameEvent, View, Note, Deal, RoundSummary> = {
   module: thunee,
-
-  seatNames: (playerCount) => NAMES[playerCount as 2 | 4],
 
   /** Honest computers in every other seat, and Traditional rules. */
   setup: (playerCount) => [

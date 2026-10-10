@@ -1,4 +1,4 @@
-import { type Card, JOKER_NAME, type Suit } from '../kit/cards'
+import { type Card, JOKER_NAME, type Suit, cardName } from '../kit/cards'
 import { useTheme } from './session'
 import { SUIT_NAME, isRed } from './text'
 
@@ -61,7 +61,7 @@ function Star() {
 export function PlayingCard({ card, size = 'hand', onClick, playable, dim, selected, tag, className = '', style }: PlayingCardProps) {
   // A joker has a suit to play as, but shows a star: the big one red, the little one black.
   const joker = JOKER_NAME[card.rank]
-  const label = `${joker ?? `${card.rank} of ${SUIT_NAME[card.suit]}`}${tag ? `, ${tag.toLowerCase()}` : ''}`
+  const label = `${cardName(card)}${tag ? `, ${tag.toLowerCase()}` : ''}`
   const face = (
     <>
       <span className="ix" aria-hidden>

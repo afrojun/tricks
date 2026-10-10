@@ -50,7 +50,7 @@ function readPlayers(game: string, counts: readonly number[]): number {
 export function practiceLabel(players: number, several: boolean, saved: boolean): string {
   const size = countWord(players).toLowerCase()
   if (!several) return saved ? 'Start over' : 'Practice'
-  return saved ? `New: ${size}` : `${countWord(players)} players`
+  return saved ? `Start ${size}` : `${countWord(players)} players`
 }
 
 /** Larger tables first. */
@@ -199,7 +199,7 @@ export function Home() {
       <div className="home-width grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
       <section className="panel p-4 grid gap-3">
         <h2 className="display text-xl">Play with friends</h2>
-        <p>Create a table, then invite friends or add computers. Choose the players and the rules there.</p>
+        <p>Create a game, then invite friends or add computers. Choose the table size and the rules in the lobby.</p>
         <button className="btn btn-primary" onClick={create}>
           Create game
         </button>

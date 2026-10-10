@@ -18,8 +18,6 @@ export interface RoundLog<V, A, D> {
 
 export interface GamePractice<G extends TableState, A extends { type: string }, E, V extends TableView, N extends Note, D, S> {
   module: GameModule<G, A, E, V>
-  /** The computer seats' names, by where they sit as seen from the player at seat 0: the first is seat 1's. */
-  seatNames(playerCount: number): string[]
   /** The host's lobby actions between sitting down at seat 0 and the start: the table's size, the computers, the rules. */
   setup(playerCount: number): A[]
   /** Identifies a pause the player must continue past, so continuing it is remembered across a reload; null when none. */

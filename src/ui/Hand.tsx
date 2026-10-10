@@ -5,7 +5,7 @@ import { CardBack, PlayingCard } from './Card'
 import { TIER_AT, fanTilt, splitTiers } from './hands'
 import { useShowsPlayable } from './prefs'
 import { useSession } from './session'
-import { cardText } from './text'
+import { cardText, plural } from './text'
 
 /** Shared between a card in the hand and the same card on the table, so it travels between them. */
 export function cardLayoutId(card: Card): string {
@@ -172,7 +172,7 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
 export function HandDown({ count, most }: { count: number; most?: number }) {
   const many = most !== undefined && most > 6
   return (
-    <div className="hand" data-many={many || undefined} style={{ '--count': Math.max(2, count) } as React.CSSProperties} aria-label={`${count} cards, face down`}>
+    <div className="hand" data-many={many || undefined} style={{ '--count': Math.max(2, count) } as React.CSSProperties} aria-label={`${plural(count, 'card')}, face down`}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="hand-slot">
           <span className="hand-back" style={{ '--tilt': `${fanTilt(i, count)}deg` } as React.CSSProperties}>

@@ -17,8 +17,8 @@ describe('the browser’s list of games', () => {
   })
 
   test('the home says how many can play', () => {
-    expect(tableSizes([2, 4])).toBe('Two or four players.')
-    expect(tableSizes([4])).toBe('Four players.')
-    expect(tableSizes([3, 4, 5])).toBe('Three, four or five players.')
+    expect(tableSizes([2, 4])).toBe('Two or four players')
+    expect(tableSizes([4])).toBe('Four players')
+    expect(tableSizes([3, 4, 5])).toBe('Three, four or five players')
   })
 })

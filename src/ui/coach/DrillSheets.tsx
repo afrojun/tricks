@@ -4,6 +4,7 @@ import type { DrillState } from '../../practice/session'
 import { drillsPath } from '../routes'
 import { navigate, useGameClient } from '../session'
 import { Sheet } from '../Sheet'
+import { SuitText } from '../SuitText'
 import { CardRow, type Lessons, TopicLink, TopicSheet } from './CoachSheets'
 
 /** What a drill teaches, before it starts. Closing it starts the drill too: the table behind it is the drill. */
@@ -14,9 +15,9 @@ export function DrillBrief({ lessons, drill, onStart }: { lessons: Lessons; dril
   return (
     <Sheet title={drill.title} onClose={onStart}>
       <div className="grid gap-3">
-        <h3 className="display text-lg text-accent">{brief.title}</h3>
+        <h3 className="display text-lg text-accent"><SuitText text={brief.title} /></h3>
         {brief.cards && <CardRow cards={brief.cards} />}
-        <p>{brief.body}</p>
+        <p><SuitText text={brief.body} /></p>
         <TopicLink lessons={lessons} id={brief.topic} onOpen={setTopic} />
         <button className="btn btn-primary" onClick={onStart}>
           Start
@@ -33,9 +34,11 @@ export function DrillVerdict({ drill, onAgain, onNext, onClose }: { drill: Drill
   return (
     <Sheet title={passed ? 'Well played' : 'Not quite'} onClose={onClose}>
       <div className="grid gap-3">
-        <h3 className={`display text-lg ${passed ? 'text-accent' : 'text-danger'}`}>{note.title}</h3>
+        <h3 className={`display text-lg ${passed ? 'text-accent' : 'text-danger'}`}>
+          <SuitText text={note.title} />
+        </h3>
         {note.cards && <CardRow cards={note.cards} />}
-        <p>{note.body}</p>
+        <p><SuitText text={note.body} /></p>
         <div className="flex gap-2">
           <button className={`btn flex-1 ${passed ? '' : 'btn-primary'}`} onClick={onAgain}>
             Try again

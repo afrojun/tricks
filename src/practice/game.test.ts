@@ -4,6 +4,7 @@ import { TRADITIONAL, TRICK_PAUSE_MS, availableActions, checkInvariants } from '
 import { seededRng } from '../games/thunee/engine/testing'
 import { thuneePractice } from '../games/thunee/practice'
 import { type ThuneePracticeGame, playPractice } from '../games/thunee/testing'
+import { AI_NAMES } from '../kit/table'
 import { PRACTICE_FORMAT, PracticeGame, practiceKey } from './game'
 import { rng } from './rng'
 
@@ -18,18 +19,26 @@ describe('rng', () => {
 })
 
 describe('starting', () => {
-  test('four players: you, and three honest computers named by where they sit', () => {
+  test('four players: you, and three honest computers named as in a room', () => {
     const p = PracticeGame.start(thuneePractice, 4, 1, 'Ann')
     const seats = p.game.seats
-    expect(seats.map((s) => s.name)).toEqual(['Ann', 'Right', 'Partner', 'Left'])
+    expect(seats[0].name).toBe('Ann')
+    for (const s of seats.slice(1)) expect(AI_NAMES).toContain(s.name)
+    expect(new Set(seats.map((s) => s.name)).size).toBe(4)
     expect(seats.slice(1).every((s) => s.kind === 'ai' && s.persona === 'straight')).toBe(true)
     expect(p.game.rules).toEqual(TRADITIONAL)
     expect(p.game.phase.kind).toBe('calling')
   })
 
-  test('two players: you and an opponent', () => {
+  test('two players: you and a computer, never named as you are', () => {
     const p = PracticeGame.start(thuneePractice, 2, 1, 'Ann')
-    expect(p.game.seats.map((s) => s.name)).toEqual(['Ann', 'Opponent'])
+    expect(p.game.seats[0].name).toBe('Ann')
+    expect(AI_NAMES).toContain(p.game.seats[1].name)
+    // A player named as a computer might be keeps their name to themselves.
+    for (const name of AI_NAMES.slice(0, 4)) {
+      const named = PracticeGame.start(thuneePractice, 4, 1, name)
+      expect(named.game.seats.filter((s) => s.name === name)).toHaveLength(1)
+    }
   })
 })
 

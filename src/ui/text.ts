@@ -14,17 +14,17 @@ export function seatName(view: TableView, seat: Seat): string {
 
 /** The table's reasons, which every game shares, the room's own for a message it could not read, and practice's for a finished drill. */
 const TABLE_REJECTIONS: Record<TableReject | 'malformed' | typeof DRILL_OVER, string> = {
-  notAllowed: "You can't do that right now.",
+  notAllowed: 'You can’t do that right now.',
   wrongPhase: 'The game has moved on.',
   notHost: 'Only the host can do that.',
   seatTaken: 'That seat is taken.',
   alreadySeated: 'You already have a seat.',
   notSeated: 'Take a seat first.',
   badName: 'Enter a name to sit down.',
-  badSeat: "That seat isn't available.",
+  badSeat: 'That seat isn’t available.',
   seatsNotFilled: 'Fill every seat before starting.',
-  badChoice: "You can't choose that.",
-  malformed: "The server didn't understand that. Reload and try again.",
+  badChoice: 'You can’t choose that.',
+  malformed: 'That didn’t get through. Reload and try again.',
   [DRILL_OVER]: 'This drill is over. Try again, or choose another.',
 }
 

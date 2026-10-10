@@ -12,7 +12,7 @@ import { TopBar } from './TopBar'
 
 type Rules = ShellView['rules']
 
-const NOT_SAVED = "Not saved. This device's storage is full or off."
+const NOT_SAVED = 'Not saved. This device’s storage is full or off.'
 
 /** A saved preset's name, renamed on blur or Enter. A blank name, or one storage refuses, shows the old name again. */
 function PresetName({ name, focus, onRename }: { name: string; focus: boolean; onRename: (name: string) => boolean }) {
@@ -153,7 +153,7 @@ export function RulesScreen() {
       <div className="home-width grid gap-3 md:max-w-xl">
         <section className="panel p-4 grid gap-3">
           <h1 className="display text-2xl">House rules</h1>
-          <p>Presets for {game.name}. Pick one on the home or in a lobby.</p>
+          <p>Presets for {game.name}. Your next game starts on the one you pick, here or in a lobby.</p>
           <div ref={chips} className="flex flex-wrap gap-2">
             {presets.map((preset) => (
               <button key={preset.id} className="btn btn-small" aria-pressed={preset.id === current?.id} onClick={() => select(preset.id)}>
@@ -166,7 +166,7 @@ export function RulesScreen() {
               </button>
             )}
             <button className="btn btn-small btn-quiet" onClick={() => create('New preset', overrides)}>
-              + New
+              Add preset
             </button>
           </div>
         </section>

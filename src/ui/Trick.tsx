@@ -7,6 +7,7 @@ import type { ShellView } from './contract'
 import { cardLayoutId } from './Hand'
 import { usePosition } from './Seat'
 import { TOWARD, type Where } from './seats'
+import { SuitText } from './SuitText'
 import { seatName } from './text'
 
 /** A card on the table, as every game's view shows it. */
@@ -131,7 +132,9 @@ export function TrickArea({ view, phase, wins }: { view: ShellView; phase: Trick
       </AnimatePresence>
       <p className="trick-cue" aria-live="polite">
         {winner !== null && (wins === undefined || wins(winner) !== null) && (
-          <span className="cue">{wins ? wins(winner) : winner === view.seat ? 'You win it' : `${seatName(view, winner)} wins`}</span>
+          <span className="cue">
+            <SuitText text={wins ? wins(winner)! : winner === view.seat ? 'You win it' : `${seatName(view, winner)} wins`} />
+          </span>
         )}
       </p>
     </div>
@@ -141,7 +144,7 @@ export function TrickArea({ view, phase, wins }: { view: ShellView; phase: Trick
 /** The most recent completed trick only: what a player at the table could still picture. */
 export function LastTrick({ view, playing }: { view: ShellView; playing: TrickRound | null }) {
   const trick = playing?.tricks[playing.tricks.length - 1]
-  if (!trick) return <p>No trick has been completed this round.</p>
+  if (!trick) return <p>The last trick shows here once one is won.</p>
   return (
     <div className="grid gap-2">
       <p>

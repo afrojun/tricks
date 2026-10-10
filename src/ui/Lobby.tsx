@@ -129,7 +129,7 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
                         lobbyPersonaLabel(seat.persona)
                       ))}
                     {view.host === i && ', host'}
-                    {seat.kind === 'human' && !seat.connected && ', disconnected'}
+                    {seat.kind === 'human' && !seat.connected && ', away'}
                   </p>
                 </div>
                 {seat.kind === 'empty' && me === null && (
@@ -160,7 +160,7 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
       </section>
 
       <section className="panel p-4 w-full max-w-sm grid gap-3">
-        <h2 className="display text-lg">Rules</h2>
+        <h2 className="display text-lg">House rules</h2>
         <p>{rulesSummary(game, view.rules)}</p>
         {isHost && (
           <div className="flex flex-wrap gap-2">
@@ -187,7 +187,7 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
           {/* The room's rules arrive on the rules screen as a shared preset, to be saved, changed, and picked here. */}
           {isHost && (
             <Link href={rulesPath(game.id, { shared: encodeShare(`Game ${room}`, overrides), from: room })} className="btn btn-small btn-quiet">
-              Make your own
+              Change the rules
             </Link>
           )}
         </div>
@@ -226,12 +226,12 @@ export function Lobby({ view, room }: { view: ShellView; room: string }) {
             {empty > 0 ? `Waiting for ${empty} more` : 'Start game'}
           </button>
         ) : (
-          <p className="text-center text-muted">{me === null ? 'Enter your name and pick a seat.' : 'Waiting for the host to start.'}</p>
+          <p className="text-center text-muted">{me === null ? 'Enter your name and take a seat.' : 'Waiting for the host to start.'}</p>
         )}
       </div>
 
       {sheet && (
-        <Sheet title="Rules" onClose={() => setSheet(false)}>
+        <Sheet title="House rules" onClose={() => setSheet(false)}>
           <RulesList game={game} rules={view.rules} />
         </Sheet>
       )}

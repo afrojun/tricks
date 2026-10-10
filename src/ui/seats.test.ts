@@ -41,9 +41,9 @@ describe('teams in the lobby', () => {
   })
 
   test('a seat with a partner shows its team; a team of one, or no team, is a player', () => {
-    expect([0, 1, 2, 3].map((seat) => seatLabel(seat, pairs))).toEqual(['Team 1', 'Team 2', 'Team 1', 'Team 2'])
-    expect([0, 1].map((seat) => seatLabel(seat, alone))).toEqual(['Player 1', 'Player 2'])
-    expect([0, 1, 2, 3].map((seat) => seatLabel(seat, none))).toEqual(['Player 1', 'Player 2', 'Player 3', 'Player 4'])
+    expect([0, 1, 2, 3].map((seat) => seatLabel(seat, pairs))).toEqual(['Side 1', 'Side 2', 'Side 1', 'Side 2'])
+    expect([0, 1].map((seat) => seatLabel(seat, alone))).toEqual(['Seat 1', 'Seat 2'])
+    expect([0, 1, 2, 3].map((seat) => seatLabel(seat, none))).toEqual(['Seat 1', 'Seat 2', 'Seat 3', 'Seat 4'])
   })
 
   test('partners are named only where there are partners', () => {

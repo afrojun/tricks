@@ -36,10 +36,10 @@ export function teamsAt(lobbyTeams: (seat: Seat, playerCount: number) => number 
 const partnersOf = (seat: Seat, teams: readonly (number | null)[]): Seat[] =>
   teams.flatMap((team, other) => (team !== null && team === teams[seat] ? [other] : []))
 
-/** "Team 1" for a seat with a partner; a team of one, or no team, is "Player 1". */
+/** "Side 1" for a seat with a partner; a side of one, or none, is its place at the table, "Seat 1". */
 export function seatLabel(seat: Seat, teams: readonly (number | null)[]): string {
   const team = teams[seat]
-  return team !== null && partnersOf(seat, teams).length > 1 ? `Team ${team + 1}` : `Player ${seat + 1}`
+  return team !== null && partnersOf(seat, teams).length > 1 ? `Side ${team + 1}` : `Seat ${seat + 1}`
 }
 
 /** Who plays with whom, when two teams of two share the table; null otherwise. */
@@ -58,11 +58,11 @@ export function countWord(n: number): string {
   return COUNT_WORDS[n] ?? String(n)
 }
 
-/** How many can play, as the Tricks home says it: "Two or four players." */
+/** How many can play, as the Tricks home labels a game: "Two or four players". */
 export function tableSizes(seatCounts: readonly number[]): string {
   const words = [...seatCounts].sort((a, b) => a - b).map((n) => countWord(n).toLowerCase())
   const list = words.length > 1 ? `${words.slice(0, -1).join(', ')} or ${words[words.length - 1]}` : words[0]
-  return `${list[0].toUpperCase()}${list.slice(1)} players.`
+  return `${list[0].toUpperCase()}${list.slice(1)} players`
 }
 
 /** A table size as the lobby offers it: "Four, in pairs", "Two". */

@@ -64,12 +64,13 @@ export function SeatBadge({ view, seat, side, turn, choosing = false, count, tag
       </div>
       <div className="seat-body">
         <div className="seat-tags">
-          {persona && <span className="text-xs text-muted">{persona}</span>}
+          {/* A computer is named as a person is: this says what it is, with its persona when the game shows one (“Sharp computer”). */}
+          {info.kind === 'ai' && <span className="text-xs text-muted">{persona ? `${persona} computer` : 'Computer'}</span>}
           {tags}
           <MutedTag seat={seat} />
         </div>
         {children}
-        {(away || info.standIn) && <p className="text-xs text-muted">{info.standIn ? 'computer playing' : 'disconnected'}</p>}
+        {(away || info.standIn) && <p className="text-xs text-muted">{info.standIn ? 'Computer playing' : 'Away'}</p>}
         <Fan seat={seat} count={count} turn={turn} lifted={lifted} />
       </div>
     </div>
@@ -140,7 +141,7 @@ export function TakeOver() {
     <div className="flex items-center justify-center gap-2 px-3 pb-1" role="status">
       <span>The computer is playing for you.</span>
       <button className="btn btn-primary btn-small" onClick={() => send({ type: 'reclaimSeat' })}>
-        Take over
+        Sit back down
       </button>
     </div>
   )

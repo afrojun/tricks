@@ -3,13 +3,17 @@ import { diff } from '../kit/rules'
 import { type RuleInfo, type RulesOf, defaultsName, differenceCount, isDefault, sameOverrides, typedNumber, valueLabel, withRule } from '../presets/book'
 import { listPresets } from '../presets/storage'
 import { Sheet } from './Sheet'
+import { SuitText } from './SuitText'
+import { plural } from './text'
+
+/** The name of the preset on this device that holds these rules, if any. */
+function presetName<R extends object>(game: RulesOf<R>, rules: R): string | null {
+  return listPresets(game).find((p) => sameOverrides(game.rules, p.overrides, diff(game.rules.defaults, rules)))?.name ?? null
+}
 
 /** One line saying which rules are in force. */
 export function rulesSummary<R extends object>(game: RulesOf<R>, rules: R): string {
-  const preset = listPresets(game).find((p) => sameOverrides(game.rules, p.overrides, diff(game.rules.defaults, rules)))
-  if (preset) return preset.name
-  const n = differenceCount(game.rules, rules)
-  return `${defaultsName(game.rules)} with ${n} house rule${n === 1 ? '' : 's'}`
+  return presetName(game, rules) ?? `${defaultsName(game.rules)} with ${plural(differenceCount(game.rules, rules), 'house rule')}`
 }
 
 /** Read-only list of every rule. A house rule's value is in the accent, with the default under it. */
@@ -21,11 +25,15 @@ export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>;
         const house = !isDefault(book, info.key, rules)
         return (
           <div key={String(info.key)} className="grid grid-cols-[1fr_auto] gap-x-3 items-baseline border-b border-line/40 pb-2">
-            <dt>{info.label}</dt>
-            <dd className={`text-right font-semibold ${house ? 'text-accent' : ''}`}>{valueLabel(info, rules[info.key])}</dd>
+            <dt>
+              <SuitText text={info.label} />
+            </dt>
+            <dd className={`text-right font-semibold ${house ? 'text-accent' : ''}`}>
+              <SuitText text={valueLabel(info, rules[info.key])} />
+            </dd>
             {house && (
               <p className="col-span-2 text-sm text-on-surface-muted">
-                {defaultsName(book)}: {valueLabel(info, book.defaults[info.key])}
+                {defaultsName(book)}: <SuitText text={valueLabel(info, book.defaults[info.key])} />
               </p>
             )}
           </div>
@@ -38,9 +46,9 @@ export function RulesList<R extends object>({ game, rules }: { game: RulesOf<R>;
 /** The sheet's first line: which rules these are, and how many are house rules. */
 export function sheetSummary<R extends object>(game: RulesOf<R>, rules: R, name?: string): string {
   const n = differenceCount(game.rules, rules)
-  const who = name ?? (n === 0 ? defaultsName(game.rules) : rulesSummary(game, rules))
+  const who = name ?? (n === 0 ? null : presetName(game, rules)) ?? defaultsName(game.rules)
   if (n === 0) return `${who}: no house rules.`
-  return `${who}: ${n} house rule${n === 1 ? '' : 's'}, marked below.`
+  return `${who}: ${plural(n, 'house rule')}, marked below.`
 }
 
 /**
@@ -80,7 +88,7 @@ function RuleControl<R extends object>({ info, rules, onChange }: { info: RuleIn
             aria-pressed={choice.value === value}
             onClick={() => onChange({ [info.key]: choice.value } as Partial<R>)}
           >
-            {choice.label}
+            <SuitText text={choice.label} />
           </button>
         ))}
       </div>
@@ -135,7 +143,7 @@ function NumberRule<R extends object>({ info, value, onChange }: { info: RuleInf
   const keepFocus = (e: React.MouseEvent) => e.preventDefault()
   return (
     <div className="flex items-center gap-2">
-      <button className="btn btn-small" onMouseDown={keepFocus} onClick={() => take(stepField(range, value, draft, -1))} aria-label={`Less ${info.label}`}>
+      <button className="btn btn-small" onMouseDown={keepFocus} onClick={() => take(stepField(range, value, draft, -1))} aria-label={`${info.label}: less`}>
         −
       </button>
       <span className="w-24 shrink-0">
@@ -154,7 +162,7 @@ function NumberRule<R extends object>({ info, value, onChange }: { info: RuleInf
         />
       </span>
       <span>{range.unit}</span>
-      <button className="btn btn-small" onMouseDown={keepFocus} onClick={() => take(stepField(range, value, draft, 1))} aria-label={`More ${info.label}`}>
+      <button className="btn btn-small" onMouseDown={keepFocus} onClick={() => take(stepField(range, value, draft, 1))} aria-label={`${info.label}: more`}>
         +
       </button>
     </div>
@@ -169,7 +177,7 @@ export function RuleControls<R extends object>({ game, rules, onChange }: { game
       {book.info.map((info) => (
         <div key={String(info.key)} className="grid gap-1 border-b border-line/40 pb-3">
           <p>
-            {info.label}
+            <SuitText text={info.label} />
             {!isDefault(book, info.key, rules) && <span className="text-on-surface-muted"> (house rule)</span>}
           </p>
           <RuleControl info={info} rules={rules} onChange={(patch) => onChange(withRule(book, rules, patch))} />

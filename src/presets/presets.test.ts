@@ -193,7 +193,7 @@ describe('share links', () => {
     for (const code of bad) {
       const decoded = decodeShare(THUNEE, code)
       expect(decoded.ok).toBe(false)
-      if (!decoded.ok) expect(decoded.error).toMatch(/can't be read/)
+      if (!decoded.ok) expect(decoded.error).toMatch(/can’t be read/)
     }
   })
 

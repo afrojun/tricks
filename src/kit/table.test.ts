@@ -276,7 +276,7 @@ describe('computer personas', () => {
   test('a computer’s name is drawn at random from the list, and is one nobody at the table has', () => {
     expect(AI_NAMES).toHaveLength(24)
     expect(new Set(AI_NAMES).size).toBe(24)
-    for (const name of AI_NAMES) expect(name).toMatch(/^Bot [A-Z][a-z]+$/)
+    for (const name of AI_NAMES) expect(name).toMatch(/^[A-Z][a-z]+$/)
     const names = new Set<string>()
     for (let seed = 1; seed <= 30; seed++) {
       const t = hosted()
@@ -310,7 +310,7 @@ describe('computer personas', () => {
       playerCount: count,
       seats: [t.game.seats[0], ...AI_NAMES.map((name) => ({ ...t.game.seats[0], name, kind: 'ai' as const })), { ...t.game.seats[1] }],
     }
-    expect(t.do(0, { type: 'addAi', seat: count - 1 }).game.seats[count - 1].name).toBe(`Bot ${count}`)
+    expect(t.do(0, { type: 'addAi', seat: count - 1 }).game.seats[count - 1].name).toBe(`Computer ${count}`)
   })
 
   test('a rematch draws each surprise seat a new persona, hidden until that game is over', () => {

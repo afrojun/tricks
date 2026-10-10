@@ -39,7 +39,7 @@ function Routes() {
   const at = route(usePath())
   if (at.screen === 'tricks') return <TricksHome />
   return (
-    <ErrorBoundary key={at.game} home="/" title="The game did not open" body="Check your connection, then reload." leave="Back to Tricks">
+    <ErrorBoundary key={at.game} home="/" title="The game didn’t open" body="Check your connection, then reload." leave="Back to Tricks">
       <Suspense fallback={<Loading at={at} />}>
         <GameRoutes at={at} />
       </Suspense>

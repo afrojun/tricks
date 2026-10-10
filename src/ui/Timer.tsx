@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useCoach } from './coach/context'
 import { useCountdown, useSession } from './session'
+import { plural } from './text'
 
 /** Seconds left until a deadline on the room's clock, over a bar that drains. */
 export function Timer({ deadline, totalSeconds }: { deadline: number; totalSeconds: number }) {
@@ -17,7 +18,7 @@ export function Timer({ deadline, totalSeconds }: { deadline: number; totalSecon
   if (coached?.state.waiting) return <p className="text-center text-on-surface-muted">No rush: the table waits for you.</p>
   return (
     <div className="grid gap-1">
-      <p className={`display text-3xl text-center ${seconds <= 3 ? 'text-danger' : ''}`} aria-label={`${seconds} seconds left`}>
+      <p className={`display text-3xl text-center ${seconds <= 3 ? 'text-danger' : ''}`} aria-label={`${plural(seconds, 'second')} left`}>
         {seconds}
       </p>
       <div className="timer-bar" data-urgent={seconds <= 3}>

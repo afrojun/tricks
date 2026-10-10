@@ -19,7 +19,6 @@ const silent: GameCoach<View, Action, GameEvent, Note, Card[][], RoundSummary> =
 /** Hearts, which has no practice of its own yet, set up for one here. */
 const heartsPractice: GamePractice<Game, Action, GameEvent, View, Note, Card[][], RoundSummary> = {
   module: hearts,
-  seatNames: () => ['Left', 'Across', 'Right'],
   setup: () => [1, 2, 3].map((seat) => ({ type: 'addAi', seat })),
   pauseId: (game) => (game.phase.kind === 'trickPause' ? `${game.roundNumber}:${game.phase.play.tricks.length}` : null),
   isDecision: (action) => action.type === 'choosePass' || action.type === 'playCard',
@@ -42,7 +41,8 @@ function learner(p: PracticeGame<Game, Action, GameEvent, View, Note, Card[][], 
 describe('practice for any game', () => {
   test('a game with only a module and a silent coach is set up, played to its end, and logged', () => {
     const p = PracticeGame.start(heartsPractice, 4, 5, 'You')
-    expect(p.game.seats.map((s) => s.name)).toEqual(['You', 'Left', 'Across', 'Right'])
+    expect(p.game.seats[0].name).toBe('You')
+    expect(new Set(p.game.seats.map((s) => s.name)).size).toBe(4)
     expect(p.game.seats.slice(1).every((s) => s.kind === 'ai')).toBe(true)
     expect(p.game.phase.kind).toBe('passing')
     expect(p.round.dealt[0]).toHaveLength(4)

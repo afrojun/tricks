@@ -153,11 +153,11 @@ export function screen<A>(
 // ── Seats ────────────────────────────────────────────────────────────────
 
 export const MAX_NAME_LENGTH = 16
-/** A computer's name says what it is. `addAi` draws one nobody at the table has. */
+/** A computer's name, a person's name: the seat's tag, not the name, says it is a computer. `addAi` draws one nobody at the table has. */
 export const AI_NAMES: readonly string[] = [
   'Asha', 'Bheki', 'Chan', 'Devi', 'Fatima', 'Gugu', 'Hema', 'Jabu', 'Kiran', 'Lindiwe', 'Mohan', 'Naledi',
   'Priya', 'Rajesh', 'Sipho', 'Thandi', 'Vikram', 'Yusuf', 'Zanele', 'Anil', 'Busi', 'Dineo', 'Farouk', 'Kesh',
-].map((name) => `Bot ${name}`)
+]
 
 export const EMPTY_SEAT: SeatInfo = { name: '', kind: 'empty', connected: false, standIn: false, persona: 'straight', personaHidden: false }
 
@@ -327,7 +327,7 @@ function lobbyAction(
       if (game.seats[action.seat].kind !== 'empty') return 'seatTaken'
       const used = new Set(game.seats.map((s) => s.name))
       const unused = AI_NAMES.filter((n) => !used.has(n))
-      const name = unused.length > 0 ? unused[Math.floor(ctx.rng() * unused.length)] : `Bot ${action.seat + 1}`
+      const name = unused.length > 0 ? unused[Math.floor(ctx.rng() * unused.length)] : `Computer ${action.seat + 1}`
       game.seats[action.seat] = { name, kind: 'ai', connected: true, standIn: false, ...personaOf(action.persona ?? 'straight', ctx) }
       break
     }

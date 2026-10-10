@@ -46,6 +46,15 @@ export const SUIT_NAME: Record<Suit, string> = { hearts: 'Hearts', diamonds: 'Di
 /** The two jokers some games add, by rank: Spades' Jokers deck. */
 export const JOKER_NAME: Readonly<Record<string, string>> = { BJ: 'Big joker', LJ: 'Little joker' }
 
+const RANK_NAME: Readonly<Record<string, string>> = { J: 'jack', Q: 'queen', K: 'king', A: 'ace' }
+
+/** A card in words, as a screen reader says it: `queen of spades`, `10 of hearts`, `big joker`. */
+export function cardName(card: Card): string {
+  const joker = JOKER_NAME[card.rank]
+  if (joker) return joker.toLowerCase()
+  return `${RANK_NAME[card.rank] ?? card.rank} of ${card.suit}`
+}
+
 /** `J♥`, `10♠`, `Big joker`. */
 export function cardText(card: Card): string {
   return JOKER_NAME[card.rank] ?? `${card.rank}${SUIT_SYMBOL[card.suit]}`

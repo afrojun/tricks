@@ -45,7 +45,7 @@ export function Again({ view, again, canAgain, canStart, onAgain, onStart }: Aga
                 onAgain()
               }}
             >
-              {mine ? "You're in" : 'Again'}
+              {mine ? 'You’re in' : 'Again'}
             </button>
           )}
           {canStart && (

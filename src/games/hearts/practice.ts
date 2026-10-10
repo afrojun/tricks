@@ -12,9 +12,6 @@ type Deal = Card[][]
 export const heartsPractice: GamePractice<Game, Action, GameEvent, View, Note, Deal, RoundSummary> = {
   module: hearts,
 
-  /** Play runs clockwise, so seat 1 sits on the player's left. */
-  seatNames: () => ['Left', 'Across', 'Right'],
-
   /** Honest computers in the other three seats, and Standard rules. */
   setup: () => [...[1, 2, 3].map((seat) => ({ type: 'addAi', seat, persona: 'straight' }) as const), { type: 'setRules', overrides: {} }],
 

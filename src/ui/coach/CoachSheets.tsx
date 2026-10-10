@@ -4,6 +4,7 @@ import type { Note } from '../../practice/contract'
 import { PlayingCard } from '../Card'
 import type { ShellView } from '../contract'
 import { Sheet } from '../Sheet'
+import { SuitText } from '../SuitText'
 import { seatName } from '../text'
 
 /** A short written lesson the coach can open. */
@@ -30,7 +31,9 @@ function TopicBody({ lesson }: { lesson: Lesson }) {
   return (
     <div className="grid gap-3">
       {lesson.paragraphs.map((p) => (
-        <p key={p}>{p}</p>
+        <p key={p}>
+          <SuitText text={p} />
+        </p>
       ))}
       {lesson.example && <CardRow cards={lesson.example} />}
     </div>
@@ -42,7 +45,7 @@ export function TopicLink({ lessons, id, onOpen }: { lessons: Lessons; id: strin
   if (id === undefined || !lessons[id]) return null
   return (
     <button className="btn btn-quiet btn-small justify-self-start" onClick={() => onOpen(id)}>
-      Learn about {lessons[id].title.toLowerCase()}
+      Lesson: <SuitText text={lessons[id].title} />
     </button>
   )
 }
@@ -69,13 +72,13 @@ export function AdviceSheet({ lessons, advice, onDo, onClose }: { lessons: Lesso
   return (
     <Sheet title="Hint" onClose={onClose}>
       <div className="grid gap-3">
-        <h3 className="display text-lg text-accent">{note.title}</h3>
+        <h3 className="display text-lg text-accent"><SuitText text={note.title} /></h3>
         {note.cards && <CardRow cards={note.cards} />}
-        <p>{note.body}</p>
+        <p><SuitText text={note.body} /></p>
         <TopicLink lessons={lessons} id={note.topic} onOpen={setTopic} />
         <div className="flex gap-2">
           <button className="btn btn-primary flex-1" onClick={onDo}>
-            {note.title}
+            <SuitText text={note.title} />
           </button>
           <button className="btn flex-1" onClick={onClose}>
             I’ll choose
@@ -92,7 +95,7 @@ export function WarningSheet({ lessons, note, onAnyway, onBack }: { lessons: Les
   return (
     <Sheet title={note.title} onClose={onBack}>
       <div className="grid gap-3">
-        <p>{note.body}</p>
+        <p><SuitText text={note.body} /></p>
         <TopicLink lessons={lessons} id={note.topic} onOpen={setTopic} />
         <div className="flex gap-2">
           <button className="btn btn-primary flex-1" onClick={onBack}>
@@ -116,7 +119,7 @@ export function LogSheet({ log, onClose }: { log: readonly Note[]; onClose: () =
         <ol className="grid gap-3">
           {log.map((n, i) => (
             <li key={`${i}-${n.title}`} className="border-b border-line/40 pb-2">
-              <strong>{n.title}.</strong> {n.body}
+              <strong><SuitText text={n.title} />.</strong> <SuitText text={n.body} />
             </li>
           ))}
         </ol>

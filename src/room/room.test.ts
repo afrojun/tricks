@@ -804,7 +804,7 @@ describe('computer personas', () => {
     const game: Game = {
       ...t.game,
       host: 1,
-      seats: t.game.seats.map((s, i) => (i % 2 === 0 ? { ...s, kind: 'ai' as const, name: `Bot ${i}` } : s)),
+      seats: t.game.seats.map((s, i) => (i % 2 === 0 ? { ...s, kind: 'ai' as const, name: `Computer ${i}` } : s)),
     }
     const w = new World()
     w.data.set('state', { game, tokens: { [TOKENS[1]]: 1, [TOKENS[3]]: 3 }, version: 1, eventCount: 0, emptySince: null })

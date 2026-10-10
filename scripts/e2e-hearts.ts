@@ -88,13 +88,13 @@ check(b.url().endsWith(`/hearts/${code}`), 'the second browser joined the same r
 await a.getByText('Bheki').first().waitFor()
 await addComputers(a, 2)
 check(!(await a.getByRole('button', { name: /players$/ }).first().isVisible()), 'Hearts offers no other table size')
-check(!(await seen(a, /^Team /, 500)), 'Hearts has no teams in the lobby')
+check(!(await seen(a, /^Side /, 500)), 'Hearts has no sides in the lobby')
 await a.getByRole('button', { name: 'See every rule' }).click()
 check(await seen(a, 'Shooting the moon'), 'the rules sheet describes Hearts’ rules')
 await a.getByRole('button', { name: 'Close' }).click()
 // The host makes their own rules from the room's: on the rules screen, where the end score moves
 // by 25 with − and +, and any whole number between can be typed. Back in the room they pick it.
-await a.getByRole('link', { name: 'Make your own' }).click()
+await a.getByRole('link', { name: 'Change the rules' }).click()
 await a.getByRole('heading', { name: 'House rules' }).waitFor()
 await a.getByRole('button', { name: 'Save', exact: true }).click()
 const endsAt = a.getByRole('spinbutton', { name: 'The game ends at' })
@@ -177,7 +177,8 @@ for (let i = 0; i < 600 && !accused; i++) {
     await challenge.click()
     await a.getByRole('dialog', { name: 'Challenge for 26 points' }).waitFor()
     await shot(a, '5-accuse')
-    const accuse = a.getByRole('button', { name: /^Bot .* broke a rule$/ }).first()
+    // A challenges a computer: B is the only other person.
+    const accuse = a.getByRole('button', { name: /broke a rule$/ }).filter({ hasNotText: 'Bheki' }).first()
     const target = (await accuse.textContent())!.replace(' broke a rule', '')
     await accuse.click()
     accused = true
@@ -237,19 +238,19 @@ check(anyway, 'A played a card after a second tap')
 
 const bContext = b.context()
 await b.close()
-check(await seen(a, 'disconnected', 20_000), 'A sees B go away')
+check(await seen(a, /^Away$/, 20_000), 'A sees B go away')
 await a.getByRole('button', { name: 'Open menu' }).click()
 const standIn = a.getByRole('button', { name: 'Computer plays for Bheki' })
 check(await standIn.isVisible(), 'the menu offers the computer for a player who is away')
 await standIn.click()
 await a.getByRole('button', { name: 'Close' }).click()
-check(await seen(a, 'computer playing'), 'the computer plays for B')
+check(await seen(a, 'Computer playing'), 'the computer plays for B')
 await shot(a, '9-stand-in')
 b = await bContext.newPage()
 watch(b, 'B again')
 await b.goto(`${base}/hearts/${code}`)
 check(await seen(b, 'Round 2', 10_000), 'B comes back to the table')
-check(await a.getByText('computer playing').waitFor({ state: 'hidden', timeout: 10_000 }).then(() => true, () => false), 'B takes the seat back')
+check(await a.getByText('Computer playing').waitFor({ state: 'hidden', timeout: 10_000 }).then(() => true, () => false), 'B takes the seat back')
 
 // ── A whole game: every round to its result, game over and a rematch ─────
 
@@ -259,12 +260,12 @@ a.on('websocket', (ws) => ws.on('framesent', (f) => typeof f.payload === 'string
 // Typed and then stepped at once, before the preset is saved: one change, from what was typed.
 await a.goto(`${base}/hearts`)
 await a.getByRole('link', { name: 'House rules' }).click()
-await a.getByRole('button', { name: '+ New' }).click()
+await a.getByRole('button', { name: 'Add preset' }).click()
 await a.keyboard.type('To 25')
 await a.keyboard.press('Enter')
 const gameEnds = a.getByRole('spinbutton', { name: 'The game ends at' })
 await gameEnds.fill('50')
-await a.getByRole('button', { name: 'Less The game ends at' }).click()
+await a.getByRole('button', { name: 'The game ends at: less' }).click()
 await a.waitForTimeout(500)
 const savedTo = await a.evaluate(() => JSON.parse(localStorage.getItem('tricks-hearts-presets') ?? '[]').find((p: { name: string }) => p.name === 'To 25')?.overrides.gameEndsAt)
 check((await gameEnds.inputValue()) === '25' && savedTo === 25, `typing 50 then − saves an end score of 25 (${await gameEnds.inputValue()}, ${savedTo})`)

@@ -14,7 +14,7 @@ export const LINE_TEXT: Record<Line, string> = {
 
 export const STICKER_NAME: Record<Emote | Throw, string> = {
   clap: 'Clap',
-  howl: 'Crying laughing',
+  howl: 'Howling',
   facepalm: 'Facepalm',
   fire: 'Fire',
   eyes: 'Eyes',

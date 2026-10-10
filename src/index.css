@@ -1243,6 +1243,38 @@ button.menu-row:active {
   background: var(--accent);
   color: var(--on-accent);
 }
+/*
+ * A card named in copy (`SuitText`): one unbroken piece. On the felt, whatever its colour or mood, it is
+ * a small chip of card stock in the card's own ink. On paper (a panel, a sheet, a toast) and on ink (a
+ * moment's detail) it is plain text, hearts and diamonds red. On a yellow cue or pill, a button, a red
+ * banner and a moment's lettering, where red would not read, it keeps the text's colour.
+ */
+.suit-text {
+  white-space: nowrap;
+  padding: 0 0.2em;
+  border-radius: 3px;
+  background: var(--card-face);
+  color: var(--card-ink);
+  font-weight: 700;
+}
+.suit-text[data-red] {
+  color: var(--card-red);
+}
+:is(.panel, .moment-detail) .suit-text {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
+}
+:is(.panel, .moment-detail) .suit-text[data-red] {
+  color: var(--card-red);
+}
+.suit-text:is(:is(.cue, .btn, .bg-danger, .fact[data-on='true'], .coach-line strong, .moment-title) *) {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
+}
 .suit-chip {
   display: inline-block;
   min-width: 1.3em;

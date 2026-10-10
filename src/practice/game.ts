@@ -64,10 +64,8 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
   ): PracticeGame<G, A, E, V, N, D, S> {
     const p = new PracticeGame(practice, practice.module.createGame(), seed, 0, 0, { dealt: [], decisions: [] }, null)
     p.must(null, p.table({ type: 'sit', seat: 0, name }))
+    // The computers are named as in a room: `addAi` draws each a name nobody at the table has.
     for (const action of [...practice.setup(playerCount), ...lobby]) p.must(0, action)
-    // The lobby has no action to rename another seat; this is the starting state, before anything is played.
-    const names = practice.seatNames(playerCount)
-    p.game = { ...p.game, seats: p.game.seats.map((s, i) => (i === 0 ? s : { ...s, name: names[i - 1] })) }
     p.must(0, p.table({ type: 'start' }))
     return p
   }

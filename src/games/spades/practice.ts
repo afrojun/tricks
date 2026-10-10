@@ -10,13 +10,8 @@ import { spades } from '.'
 /** Each seat's cards as dealt, or with two as drawn. */
 type Deal = Card[][]
 
-/** Play runs clockwise, so seat 1 sits on the player's left. */
-const NAMES: Record<number, string[]> = { 2: ['Opponent'], 3: ['Left', 'Right'], 4: ['Left', 'Partner', 'Right'] }
-
 export const spadesPractice: GamePractice<Game, Action, GameEvent, View, Note, Deal, RoundSummary> = {
   module: spades,
-
-  seatNames: (playerCount) => NAMES[playerCount],
 
   /** Honest computers in every other seat, and Standard rules. */
   setup: (playerCount) => [
