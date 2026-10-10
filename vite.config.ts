@@ -33,7 +33,7 @@ const pwa = VitePWA({
   manifest: {
     name: 'Tricks',
     short_name: 'Tricks',
-    description: 'Trick-taking card games with friends: Thunee and Hearts.',
+    description: 'Trick-taking card games with friends: Thunee, Hearts and Spades.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

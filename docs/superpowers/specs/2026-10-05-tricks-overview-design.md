@@ -1,7 +1,7 @@
 # Tricks — Overview
 
 Date: 2026-10-05
-Status: built on `tricks`. Sub-projects A, C, D1 to D3, E1 to E3 and F are merged; B, the throwaway spike, was run and reviewed and never merged; G deployed Tricks on 2026-10-06 (section 2)
+Status: built on `tricks`. Sub-projects A, C, D1 to D3, E1 to E3 and F are merged; B, the throwaway spike, was run and reviewed and never merged; G deployed Tricks on 2026-10-06 (section 2). Spades, the third game, was added on 2026-10-10 (H)
 Builds on: `2026-10-04-thunee-rebuild-design.md`, `2026-10-04-ai-personas-design.md`, `2026-10-04-practice-and-coach-design.md`
 
 ## 1. Purpose
@@ -9,6 +9,8 @@ Builds on: `2026-10-04-thunee-rebuild-design.md`, `2026-10-04-ai-personas-design
 The Thunee app becomes **Tricks**: one place to play trick-taking card games. Every game in it is a full game with the same baseline: online multiplayer, computer players, practice, house rules, and optional cheating with detection. Thunee is the first game. Hearts is the second, chosen because it breaks the most assumptions in today's code (teams, deck, direction, trump, one seat acting at a time).
 
 Success: Thunee plays at `tricks.afrojun.dev/thunee` exactly as it does today, Hearts plays at `/hearts` with the same baseline features, and adding a third game means writing that game and nothing in the platform.
+
+Spades (`2026-10-10-spades-design.md`) tested that: the room, the Worker, the protocol and practice were untouched. What it needed from the rest was shared parts it was the first to use (three seats on screen, a hand of seventeen, jokers, a play suit and settled plays in the kit), each moved out of the game it came from so nothing is kept twice (Spades spec, section 10).
 
 ### Decisions
 
@@ -51,6 +53,7 @@ Accounts, matchmaking, chat, games beyond Hearts, Hearts for three or five playe
 | E3 | Hearts' screens, practice and presets | `2026-10-05-hearts-design.md` sections 8 and 9 | D3, E1 | **Merged.** Hearts has its own table, round result and game over. |
 | F | Coach in two tiers | `2026-10-05-coach-tiers-design.md` | D2, E1 | **Merged.** Thunee's coach is written by hand; Hearts' is the kit's tier 1. |
 | G | Deploy configuration | `2026-10-05-deploy-design.md` | everything | **Deployed 2026-10-06** at `tricks.afrojun.dev`, by Cloudflare Workers Builds on every push to `main` (deploy spec, section 7). |
+| H | Spades, the third game, for two, three or four | `2026-10-10-spades-design.md` | everything | **Deployed 2026-10-10** at `/spades`. Hand-written computer players and a tier-1 coach; the search player was not tried. |
 
 A, B and C touched different files and ran in parallel. D is split in three so each part can be reviewed well; it is the work that moves Thunee's files, so only work in other folders runs beside it.
 
@@ -59,13 +62,14 @@ A, B and C touched different files and ran in parallel. D is split in three so e
 As built (`AGENTS.md` describes each folder in more detail):
 
 ```
-src/kit/            Shared and pure: cards, the table (seats, lobby, host, stand-ins), tricks,
+src/kit/            Shared and pure: cards, the 52-card deck, partners, the table (seats, lobby, host, stand-ins), tricks,
                     integrity (excuses, proofs), minds and personas, rule helpers, the module
                     contract and its runner, the coach contract and the tier-1 coach (coach.ts).
   search/           The search player, for any game. No game plays with it yet (E2).
 src/games/thunee/   engine/  ai/  coach/  ui/  index.ts (module)  client.ts (screens)
                     practice.ts  contract.ts (test fixture)
 src/games/hearts/   the same; ai/ also holds the search adapter and its gate (gate/)
+src/games/spades/   the same
 src/games/index.ts  The list of games the server holds.
 src/protocol.ts     Wire messages, generic over a game's types, and room names.
 src/room/           The room: identity, persistence, the alarm, driving computers. Any game, any host.
