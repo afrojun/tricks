@@ -45,7 +45,7 @@ class Player {
         this.events += msg.events.length
       } else if (msg.type === 'rejected') this.rejections.push(msg.reason)
       else if (msg.type === 'said') this.said.push(msg)
-      else this.errors.push(msg.message)
+      else if (msg.type === 'error') this.errors.push(msg.message)
     })
   }
   send(action: Action) {

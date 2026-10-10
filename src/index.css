@@ -929,23 +929,65 @@ html:has(main.home) {
   min-height: calc(0.75rem * 1.4 + 0.25rem + 1.3rem);
 }
 /*
- * Each card overlaps the one before it. The margin sits on the later card, never on all but the
- * last, so taking the last card away leaves the others where they were.
+ * Another player's hand, fanned toward the middle of the table: each card turns about a point
+ * beyond the holder's edge of the fan, so the cards' far ends spread the most. The fan is drawn
+ * hanging down from the top seat and turned to face the middle at the sides. Its box is the same
+ * size whatever it holds, so nothing moves as cards come and go.
  */
-.seat-stack {
+.seat-fan {
+  --fw: 1.6rem;
+  --fh: calc(var(--fw) * 1.4);
+  /* From the turning point to a card's near end. */
+  --r: 2.4rem;
+  --fan-w: 6.2rem;
+  --fan-h: calc(var(--fh) + 0.5rem);
+  position: relative;
+  width: var(--fan-w);
+  height: var(--fan-h);
+}
+.seat-fan .playing-card {
+  --w: var(--fw);
+}
+.fan {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--fan-w);
+  height: var(--fan-h);
+  translate: -50% -50%;
+  /* Closer together as the hand fills, so Hearts' thirteen span no wider than Thunee's six. */
+  --step: min(9deg, calc(56deg / max(var(--n) - 1, 1)));
+}
+.seat[data-side] .seat-fan {
+  width: var(--fan-h);
+  height: var(--fan-w);
+}
+.seat[data-side='left'] .fan {
+  rotate: -90deg;
+}
+.seat[data-side='right'] .fan {
+  rotate: 90deg;
+}
+.fan-card {
+  --rise: 0rem;
+  --grow: 1;
+  position: absolute;
+  left: calc(50% - var(--fw) / 2);
+  top: 0.4rem;
   display: flex;
-  min-height: 2.1rem;
+  transform-origin: 50% calc(-1 * var(--r));
+  transform: rotate(calc((var(--n) - 1) / 2 * var(--step) - var(--i) * var(--step))) translateY(var(--rise)) scale(var(--grow));
+  transition: transform 220ms cubic-bezier(0.3, 1.3, 0.5, 1);
 }
-.seat-stack > * + * {
-  margin-left: -0.75rem;
+/* On its holder's turn the hand comes forward a little. */
+.fan[data-turn='true'] .fan-card {
+  --rise: 0.2rem;
 }
-.seat[data-side] .seat-stack {
-  flex-direction: column;
-}
-/* Each card shows a strip, a little narrower on a short screen, so Hearts' thirteen fit under the name. */
-.seat[data-side] .seat-stack > * + * {
-  margin-left: 0;
-  margin-top: calc(min(0.35rem, 0.45dvh) - 2.1rem);
+/* The card its holder has lifted: out of the fan, toward the table, over the others. */
+.fan .fan-card[data-lifted='true'] {
+  --rise: 1rem;
+  --grow: 1.25;
+  z-index: 1;
 }
 /*
  * What a seat says sits beside its name, never over the seat's own lines: to the right of the top

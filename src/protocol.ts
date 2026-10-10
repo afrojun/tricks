@@ -19,12 +19,15 @@ export function splitRoomName(name: string): { game: string; code: string } | nu
 /** The close code for a socket opened to a name that is not a game and a code. */
 export const UNKNOWN_ROOM_CLOSE_CODE = 4404
 
-/** An action for the game, or something said at the table, which the room relays and never saves. */
-export type ClientMessage<A> = { action: A } | { say: Say }
+/**
+ * An action for the game; something said at the table; or a card lifted in the sender's hand, or put
+ * back. The last two are not part of the game: the room relays them and never saves them.
+ */
+export type ClientMessage<A> = { action: A } | { say: Say } | { lift: boolean }
 
 /** What a client may send to a room whose game admits `action`. */
 export function clientMessageSchema<A>(action: z.ZodType<A>): z.ZodType<ClientMessage<A>> {
-  return z.union([z.object({ action }), z.object({ say: saySchema })]) as z.ZodType<ClientMessage<A>>
+  return z.union([z.object({ action }), z.object({ say: saySchema }), z.object({ lift: z.boolean() })]) as z.ZodType<ClientMessage<A>>
 }
 
 export type NumberedEvent<E> = E & { n: number }
@@ -47,6 +50,8 @@ export type ServerMessage<V, E> =
   /** The game's own reason for refusing an action, or `malformed` for a message it could not read. */
   | { type: 'rejected'; reason: string }
   | { type: 'error'; message: string }
+  /** A player at the table lifted a card in their hand (`up`), or put it back or played it. Never saved, never paced. */
+  | { type: 'lift'; seat: Seat; up: boolean }
 
 /** The connection query parameter carrying the device's secret token. */
 export const TOKEN_PARAM = 'token'

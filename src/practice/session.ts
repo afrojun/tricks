@@ -107,7 +107,7 @@ interface Snapshot<A, N extends Note, D> {
   rest: Partial<CoachState<A, N, D>>
 }
 
-export interface PracticeSession<V, A, E, N extends Note, D> extends Session<V, A, E> {
+export interface PracticeSession<V extends TableView, A, E, N extends Note, D> extends Session<V, A, E> {
   coach: Coach<A, N, D>
 }
 
@@ -452,6 +452,8 @@ export function openPracticeSession<G extends TableState, A extends { type: stri
     talk,
     send,
     say,
+    // The only person at a practice table is the player, so nobody else sees what they lift.
+    lift() {},
     close() {
       closed = true
       clearTimeout(timer)

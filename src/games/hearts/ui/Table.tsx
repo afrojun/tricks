@@ -13,7 +13,7 @@ import { SeatBadge, TakeOver, usePosition } from '../../../ui/Seat'
 import { Sheet } from '../../../ui/Sheet'
 import { TalkMine } from '../../../ui/talk/Said'
 import { TalkButton } from '../../../ui/talk/Tray'
-import { LastTrick, NO_TRICK, TrickArea } from '../../../ui/Trick'
+import { LastTrick, NO_TRICK, TrickArea, useGathering } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
 import { seatName } from '../../../ui/text'
@@ -69,6 +69,8 @@ export function Table({ view, room }: { view: View; room: string }) {
     return seat === undefined ? null : <HeartsSeat view={view} seat={seat} side={side} />
   }
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
+  // The round's result takes the table once its last trick has been gathered in.
+  const gathering = useGathering(phase.kind === 'roundResult' || phase.kind === 'gameOver', phase.kind === 'trickPause')
   const hand = 'hand' in phase ? sortHand(phase.hand) : []
   const line = hint(view, picked.length)
   // Cards passed to the viewer arrive from the player who gave them; a new deal from across the table.
@@ -86,7 +88,7 @@ export function Table({ view, room }: { view: View; room: string }) {
         <p className="text-muted text-right">Ends at {view.rules.gameEndsAt}</p>
       </header>
 
-      {phase.kind === 'roundResult' || phase.kind === 'gameOver' ? (
+      {(phase.kind === 'roundResult' || phase.kind === 'gameOver') && !gathering ? (
         // The result needs the width; the seats' points are in its table.
         <div className="flex-1 min-h-0 overflow-y-auto grid justify-items-center items-start px-3 py-2">
           <RoundResult view={view} summary={phase.summary} winner={phase.kind === 'gameOver' ? phase.winner : null} can={can} />
@@ -115,7 +117,7 @@ export function Table({ view, room }: { view: View; room: string }) {
 
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {coached && <CoachStrip lessons={TOPICS} />}
-        {!watching && phase.kind !== 'roundResult' && phase.kind !== 'gameOver' && <Mine view={view} turn={myTurn} />}
+        {!watching && ((phase.kind !== 'roundResult' && phase.kind !== 'gameOver') || gathering) && <Mine view={view} turn={myTurn} />}
         {/* Outside practice the hint can run to two lines: their room is kept, so the table does not move when it does. The talk button keeps the row's right end. */}
         <div className={`hint-row flex items-center justify-center gap-2 px-3 ${coached ? 'min-h-7' : 'min-h-[2.8rem]'}`} aria-live="polite">
           <TalkMine />
@@ -129,7 +131,7 @@ export function Table({ view, room }: { view: View; room: string }) {
           <div className="flex justify-center pb-3">
             <HeartsSeat view={view} seat={0} />
           </div>
-        ) : phase.kind === 'roundResult' || phase.kind === 'gameOver' ? null : (
+        ) : (phase.kind === 'roundResult' || phase.kind === 'gameOver') && !gathering ? null : (
           // A round's result has the room: the hand, empty by then, keeps a card's height in play.
           <>
             <Hand
@@ -214,12 +216,15 @@ function Points({ view, seat, row = false }: { view: View; seat: Seat; row?: boo
 function HeartsSeat({ view, seat, side }: { view: View; seat: Seat; side?: 'left' | 'right' }) {
   const phase = view.phase
   const count = 'handCounts' in phase ? phase.handCounts[seat] : 0
+  const turn = phase.kind === 'playing' && phase.turn === seat
   return (
     <SeatBadge
       view={view}
       seat={seat}
       side={side}
-      turn={phase.kind === 'playing' && phase.turn === seat}
+      turn={turn}
+      // Picking three to pass is choosing too.
+      choosing={turn || (phase.kind === 'passing' && !phase.chosen.includes(seat))}
       count={count}
       tags={phase.kind === 'passing' && phase.chosen.includes(seat) && <span className="role-badge">Ready</span>}
     >

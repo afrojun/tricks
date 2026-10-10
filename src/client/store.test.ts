@@ -32,6 +32,35 @@ describe('game store', () => {
     expect(played).toEqual([1, 2, 3])
   })
 
+  test('a lift is kept per seat until put back, and forgotten when the connection drops', () => {
+    const { store, played } = connected()
+    store.receive({ type: 'lift', seat: 1, up: true }, 5000)
+    store.receive({ type: 'lift', seat: 3, up: true }, 5000)
+    store.receive({ type: 'lift', seat: 1, up: true }, 5000)
+    expect(store.getState().lifted).toEqual([3, 1])
+    store.receive({ type: 'lift', seat: 3, up: false }, 5000)
+    expect(store.getState()).toMatchObject({ lifted: [1], version: 1 })
+    store.setConnection('reconnecting')
+    expect(store.getState().lifted).toEqual([])
+    expect(played).toEqual([])
+  })
+
+  test('a lift is dropped when its seat is no longer a person connected at the table', () => {
+    const { store } = connected()
+    const seats = view.seats.map((s) => ({ ...s, kind: 'human' as const, connected: true }))
+    const at = (version: number, change: (s: (typeof seats)[number], i: number) => object) => ({
+      ...sync(version),
+      view: { ...view, seats: seats.map((s, i) => ({ ...s, ...change(s, i) })) },
+    })
+    store.receive(at(2, () => ({})), 5000)
+    for (const seat of [1, 2, 3]) store.receive({ type: 'lift', seat, up: true }, 5000)
+    store.receive(at(3, (_, i) => (i === 1 ? { connected: false } : i === 2 ? { standIn: true } : {})), 5000)
+    expect(store.getState().lifted).toEqual([3])
+    // Back again, the seat has nothing lifted until its player lifts a card anew.
+    store.receive(at(4, () => ({})), 5000)
+    expect(store.getState().lifted).toEqual([3])
+  })
+
   test('a stale version is ignored', () => {
     const { store, played } = connected()
     store.receive(sync(5, [event(1)]), 5000)

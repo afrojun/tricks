@@ -104,13 +104,47 @@ describe('playback', () => {
     expect(h.versions()).toEqual([1, 'rejected', 'error'])
   })
 
+  test('a lift waits behind the views still to be shown, and holds nothing itself', () => {
+    const { playback, delivered, advance } = harness()
+    playback.push({ type: 'lift', seat: 1, up: true })
+    expect(delivered.map((d) => d.version)).toEqual(['lift'])
+    playback.push(sync(1, played))
+    playback.push(sync(2, played))
+    playback.push({ type: 'lift', seat: 1, up: false })
+    playback.push(sync(3))
+    expect(delivered.map((d) => d.version)).toEqual(['lift', 1])
+    advance(dwell(played))
+    expect(delivered.map((d) => d.version)).toEqual(['lift', 1, 2])
+    advance(dwell(played))
+    expect(delivered.map((d) => d.version)).toEqual(['lift', 1, 2, 'lift', 3])
+  })
+
+  test('a skipped backlog puts down every lifted card, since the views that would have said who left are gone', () => {
+    const shown: ServerMessage<View, GameEvent>[] = []
+    const playback = new Playback<View, GameEvent>((m) => shown.push(m), dwell)
+    playback.push(sync(1, thunee))
+    playback.push({ type: 'lift', seat: 2, up: true })
+    for (let v = 2; v <= MAX_WAITING + 2; v++) playback.push(sync(v, thunee))
+    playback.push({ type: 'lift', seat: 3, up: true })
+    // Seat 2's lift came with nothing waiting, so at once; seat 3's comes after the jump, and stands.
+    expect(shown.map((m) => (m.type === 'sync' ? m.version : m.type === 'lift' ? `${m.seat}${m.up ? 'up' : 'down'}` : m.type))).toEqual([
+      1,
+      '2up',
+      ...view.seats.map((_, seat) => `${seat}down`),
+      MAX_WAITING + 2,
+      '3up',
+    ])
+    playback.reset()
+  })
+
   test('a backlog is skipped: only the newest message is delivered', () => {
     const h = harness()
     h.playback.push(sync(1, thunee))
     for (let v = 2; v <= MAX_WAITING + 2; v++) h.playback.push(sync(v, played))
-    expect(h.versions()).toEqual([1, MAX_WAITING + 2])
+    const views = () => h.versions().filter((v) => v !== 'lift')
+    expect(views()).toEqual([1, MAX_WAITING + 2])
     h.advance(10_000)
-    expect(h.versions()).toEqual([1, MAX_WAITING + 2])
+    expect(views()).toEqual([1, MAX_WAITING + 2])
   })
 
   test('release shows everything waiting at once, so the reply to the player’s own action is not held', () => {

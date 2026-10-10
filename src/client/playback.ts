@@ -1,3 +1,4 @@
+import type { TableView } from '../kit/table'
 import type { ServerMessage } from '../protocol'
 
 /** With more than this many messages waiting, skip to the newest instead of replaying. */
@@ -18,14 +19,14 @@ function browserClock(): Clock {
   }
 }
 
-type Deliver<V, E> = (message: ServerMessage<V, E>, receivedAt: number) => void
+type Deliver<V extends TableView, E> = (message: ServerMessage<V, E>, receivedAt: number) => void
 
 /**
  * Paces server messages so each move can be seen. A message is shown as soon
  * as nothing is being held; it then holds the next one back for its dwell:
  * the longest the game gives any of its events.
  */
-export class Playback<V, E> {
+export class Playback<V extends TableView, E> {
   private waiting: { message: ServerMessage<V, E>; receivedAt: number }[] = []
   private heldUntil = 0
 
@@ -38,11 +39,21 @@ export class Playback<V, E> {
 
   push(message: ServerMessage<V, E>): void {
     const receivedAt = this.clock.now()
-    if (message.type !== 'sync') return this.deliver(message, receivedAt)
+    // Rejections, errors and talk are shown at once; only views are paced.
+    if (message.type !== 'sync' && message.type !== 'lift') return this.deliver(message, receivedAt)
+    // A lifted card holds nothing, but waits behind any view still to be shown: an older view must not
+    // be shown after it, as if it were newer.
+    if (message.type === 'lift' && this.waiting.length === 0) return this.deliver(message, receivedAt)
     this.waiting.push({ message, receivedAt })
-    if (this.waiting.length > MAX_WAITING) {
-      // Too far behind to be worth replaying: jump to where the game is now.
-      this.waiting = this.waiting.slice(-1)
+    const syncs = this.waiting.filter((w) => w.message.type === 'sync')
+    if (syncs.length > MAX_WAITING) {
+      // Too far behind to be worth replaying: jump to where the game is now. What the skipped views
+      // said of who is still at the table is lost with them, so every card lifted before the jump is
+      // put down; only a lift after the newest view is shown.
+      const newest = this.waiting.lastIndexOf(syncs[syncs.length - 1])
+      const { message: latest, receivedAt: at } = this.waiting[newest]
+      const down = latest.type === 'sync' ? latest.view.seats.map((_, seat) => ({ message: { type: 'lift' as const, seat, up: false }, receivedAt: at })) : []
+      this.waiting = [...down, ...this.waiting.slice(newest)]
       this.heldUntil = 0
     }
     this.drain()

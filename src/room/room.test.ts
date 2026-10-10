@@ -452,6 +452,35 @@ describe('messages', () => {
     expect(conns[0].take()).toEqual(Array(5).fill({ type: 'rejected', reason: 'malformed' }))
   })
 
+  test('a lifted card is passed to everyone else at the table, and nothing is saved', async () => {
+    const { w, conns } = await startedGame()
+    const watcher = await w.connect('w'.repeat(20))
+    const version = conns[0].sync.version
+    ;[...conns, watcher].forEach((c) => c.take())
+    const writes = w.writes.length
+    await w.server.onMessage(JSON.stringify({ lift: true }), conns[2])
+    await w.server.onMessage(JSON.stringify({ lift: false }), conns[2])
+    for (const conn of [conns[0], conns[1], conns[3], watcher]) {
+      expect(conn.take()).toEqual([
+        { type: 'lift', seat: 2, up: true },
+        { type: 'lift', seat: 2, up: false },
+      ])
+    }
+    expect(conns[2].take()).toEqual([])
+    expect(w.writes.slice(writes).filter((x) => x === 'put')).toEqual([])
+    expect((await w.connect('p'.repeat(20))).sync.version).toBe(version)
+  })
+
+  test('a lift from someone without a seat goes nowhere, and a lift that is not yes or no is malformed', async () => {
+    const { w, conns } = await startedGame()
+    const watcher = await w.connect('w'.repeat(20))
+    ;[...conns, watcher].forEach((c) => c.take())
+    await w.server.onMessage(JSON.stringify({ lift: true }), watcher)
+    await w.server.onMessage(JSON.stringify({ lift: 'up' }), conns[1])
+    expect(conns[1].take()).toEqual([{ type: 'rejected', reason: 'malformed' }])
+    for (const conn of [conns[0], conns[2], conns[3], watcher]) expect(conn.take()).toEqual([])
+  })
+
   test('a ping is answered with a pong and changes nothing', async () => {
     const { w, conns } = await startedGame()
     const version = conns[0].sync.version

@@ -29,7 +29,7 @@ import { Sheet } from '../../../ui/Sheet'
 import { TalkMine } from '../../../ui/talk/Said'
 import { TalkButton } from '../../../ui/talk/Tray'
 import { Timer } from '../../../ui/Timer'
-import { LastTrick, NO_TRICK, TrickArea } from '../../../ui/Trick'
+import { LastTrick, NO_TRICK, TrickArea, useGathering } from '../../../ui/Trick'
 import { TOWARD, type Where } from '../../../ui/seats'
 import { useGameClient } from '../../../ui/session'
 import { playSound } from '../../../ui/sound'
@@ -105,7 +105,10 @@ export function Table({ view, room }: { view: View; room: string }) {
   const at = (where: Where) => others.find((seat) => position(seat) === where)
   const hand = 'hand' in phase ? sortHand(phase.hand) : []
   const playing = phase.kind === 'playing' || phase.kind === 'trickPause' ? phase : null
-  const over = phase.kind === 'roundResult' || phase.kind === 'gameOver'
+  const ended = phase.kind === 'roundResult' || phase.kind === 'gameOver'
+  // The round's result takes the table once its last trick has been gathered in.
+  const gathering = useGathering(ended, phase.kind === 'trickPause')
+  const over = ended && !gathering
 
   return (
     <div className="h-[calc(100dvh-var(--update-h,0px))] flex flex-col overflow-hidden" data-felt-table>
@@ -130,7 +133,7 @@ export function Table({ view, room }: { view: View; room: string }) {
             */}
             <div className="trick-stage relative h-full min-h-0 flex items-center justify-center py-1">
               <TrickArea view={view} phase={playing ?? NO_TRICK} />
-              {!playing && (
+              {!playing && !gathering && (
                 <div className="centre-box absolute inset-0 flex justify-center items-center-safe overflow-y-auto py-1">
                   <Centre view={view} can={can} />
                 </div>
@@ -355,8 +358,11 @@ function said(view: View, seat: Seat): string[] {
 function SeatBadge({ view, seat, side }: { view: View; seat: Seat; side?: 'left' | 'right' }) {
   const phase = view.phase
   const count = 'handCounts' in phase ? phase.handCounts[seat] : 0
-  const turn = (phase.kind === 'playing' && phase.turn === seat) || (phase.kind === 'trumpSelection' && phase.trumper === seat)
-  return <Badge view={view} seat={seat} side={side} turn={turn} count={count} tags={<RoleBadges view={view} seat={seat} />} said={said(view, seat)} />
+  const playing = phase.kind === 'playing' && phase.turn === seat
+  const turn = playing || (phase.kind === 'trumpSelection' && phase.trumper === seat)
+  return (
+    <Badge view={view} seat={seat} side={side} turn={turn} choosing={playing} count={count} tags={<RoleBadges view={view} seat={seat} />} said={said(view, seat)} />
+  )
 }
 
 // ── Centre of the table ──────────────────────────────────────────────────

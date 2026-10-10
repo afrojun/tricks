@@ -198,6 +198,7 @@ class Table {
     if (parsed !== null && 'say' in parsed) return Promise.resolve(this.talk(sender, parsed.say))
     return this.enqueue(async () => {
       if (parsed === null) return this.sendTo(sender, { type: 'rejected', reason: 'malformed' })
+      if ('lift' in parsed) return this.lift(sender, parsed.lift)
       await this.act(this.seatOf(sender), parsed.action, sender)
       await this.drive()
     })
@@ -280,6 +281,16 @@ class Table {
       if (step) await this.act(step.actor, step.action)
     }
     return true
+  }
+
+  /**
+   * A seated player lifted a card in their hand, or put it back: the others are told, and nothing is
+   * kept, so a room that sleeps forgets it. Their table shows it only while that seat is choosing a card.
+   */
+  private lift(sender: RoomConnection, up: boolean): void {
+    const seat = this.seatOf(sender)
+    if (seat === null) return
+    for (const conn of this.host.connections()) if (conn.id !== sender.id) this.sendTo(conn, { type: 'lift', seat, up })
   }
 
   /** Resolves every deadline and AI turn that is due. */

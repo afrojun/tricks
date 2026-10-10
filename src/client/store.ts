@@ -1,4 +1,4 @@
-import type { Seat } from '../kit/table'
+import type { Seat, TableView } from '../kit/table'
 import type { NumberedEvent, ServerMessage } from '../protocol'
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting'
@@ -12,6 +12,8 @@ export interface ClientState<V> {
   /** The most recent rejection, with a counter so repeats are distinguishable. */
   rejection: { reason: string; id: number } | null
   error: string | null
+  /** The other seats with a card lifted in their hand, as their players last said. Forgotten on a reconnect. */
+  lifted: readonly Seat[]
 }
 
 type EventListener<V, E> = (event: NumberedEvent<E>, view: V, seat: Seat | null) => void
@@ -22,7 +24,7 @@ type EventListener<V, E> = (event: NumberedEvent<E>, view: V, seat: Seat | null)
  * once, in order, and are never derived by comparing views. The game supplies
  * the view and event types.
  */
-export class GameStore<V, E> {
+export class GameStore<V extends TableView, E> {
   private state: ClientState<V> = {
     connection: 'connecting',
     seat: null,
@@ -30,6 +32,7 @@ export class GameStore<V, E> {
     version: 0,
     rejection: null,
     error: null,
+    lifted: [],
   }
   private listeners = new Set<() => void>()
   private eventListeners = new Set<EventListener<V, E>>()
@@ -55,7 +58,8 @@ export class GameStore<V, E> {
 
   setConnection(connection: ConnectionStatus): void {
     if (connection !== 'open') this.awaitingFirstSync = true
-    this.update({ connection })
+    // Whoever had a card lifted may have put it back while this client was away.
+    this.update(connection === 'open' ? { connection } : { connection, lifted: [] })
   }
 
   receive(message: ServerMessage<V, E>, localNow: number): void {
@@ -68,6 +72,11 @@ export class GameStore<V, E> {
       return
     }
     if (message.type === 'said') return // talk, which the session hands to its own store
+    if (message.type === 'lift') {
+      const others = this.state.lifted.filter((seat) => seat !== message.seat)
+      this.update({ lifted: message.up ? [...others, message.seat] : others })
+      return
+    }
     if (!this.awaitingFirstSync && message.version < this.state.version) return // stale
     this.clockOffset = message.now - localNow
 
@@ -79,7 +88,11 @@ export class GameStore<V, E> {
     this.lastEvent = Math.max(this.awaitingFirstSync ? 0 : this.lastEvent, ...numbers)
     this.awaitingFirstSync = false
 
-    this.update({ seat: message.seat, view: message.view, version: message.version, error: null })
+    // A seat that is no longer a person at the table, as when they lost their connection with a card
+    // lifted, has put it down: it must not rise again by itself when they come back.
+    const seats = message.view.seats
+    const lifted = this.state.lifted.filter((s) => seats[s]?.kind === 'human' && seats[s].connected && !seats[s].standIn)
+    this.update({ seat: message.seat, view: message.view, version: message.version, error: null, lifted })
     for (const event of toPlay) {
       for (const listener of this.eventListeners) listener(event, message.view, message.seat)
     }

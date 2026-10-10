@@ -11,7 +11,7 @@ export interface DrillInfo {
   summary: string
 }
 
-export interface PracticeClient<V, A, E> {
+export interface PracticeClient<V extends TableView, A, E> {
   /** A new game with `playerCount` players, the saved one when it is null, or a drill. */
   open(options: PracticeOptions): PracticeSession<V, A, E, Note, unknown>
   /** Whether this device holds a practice game of this game to continue. */

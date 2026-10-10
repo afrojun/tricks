@@ -4,6 +4,7 @@ import { type Card, cardId, hasCard, sameCard } from '../kit/cards'
 import { PlayingCard } from './Card'
 import { fanTilt } from './hands'
 import { useShowsPlayable } from './prefs'
+import { useSession } from './session'
 import { cardText } from './text'
 
 /** Shared between a card in the hand and the same card on the table, so it travels between them. */
@@ -54,10 +55,26 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
   const marksPlayable = useShowsPlayable()
   const handRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
+  // A finger on a card the player could play now.
+  const [pressed, setPressed] = useState(false)
   useEffect(() => {
     setPending(null)
+    setPressed(false)
     dragging.current = false // a drag cut short by the turn ending must not block later taps
   }, [playable, cards.length])
+  useEffect(() => {
+    if (!pressed) return
+    const lift = () => setPressed(false)
+    addEventListener('pointerup', lift)
+    addEventListener('pointercancel', lift)
+    return () => {
+      removeEventListener('pointerup', lift)
+      removeEventListener('pointercancel', lift)
+    }
+  }, [pressed])
+  // The other players see a card lifted while one is pressed, waits for "Play anyway", or is picked to pass.
+  const lifted = pressed || pending !== null || (choose !== undefined && choose.onPick !== null && choose.picked.length > 0)
+  useLift(lifted)
 
   /** Returns whether the card was sent to the table. */
   const attempt = (card: C): boolean => {
@@ -121,6 +138,7 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
             dealFrom={dealFrom}
             dragging={dragging}
             handTop={() => handRef.current?.getBoundingClientRect().top ?? 0}
+            onPress={() => playable && !choose && setPressed(true)}
             onAttempt={() => tap(card)}
             onConfirm={() => confirm(card)}
           />
@@ -128,6 +146,16 @@ export function Hand<C extends Card>({ cards, playable, legal, anyway, dealFrom,
       </AnimatePresence>
     </div>
   )
+}
+
+/** Tells the other players when a card in this hand goes up and comes down; down again if the hand goes. */
+function useLift(lifted: boolean) {
+  const { lift } = useSession()
+  useEffect(() => {
+    if (!lifted) return
+    lift(true)
+    return () => lift(false)
+  }, [lift, lifted])
 }
 
 /** The second tap for a rule-breaking card, and in practice why it is a problem. */
@@ -167,13 +195,15 @@ interface HandCardProps {
   dealFrom: { x: number; y: number }
   dragging: React.RefObject<boolean>
   handTop: () => number
+  /** A finger or pointer went down on the card. */
+  onPress: () => void
   onAttempt: () => boolean
   onConfirm: () => void
 }
 
 /** One card in the hand. It can be picked up and carried anywhere, and is played by letting go over the table. */
 function HandCard(props: HandCardProps) {
-  const { card, index, count, playable, choosing, legal, pending, picked, marked, suggested, explanation, ownAnyway, shake, dealFrom, dragging, handTop, onAttempt, onConfirm } = props
+  const { card, index, count, playable, choosing, legal, pending, picked, marked, suggested, explanation, ownAnyway, shake, dealFrom, dragging, handTop, onPress, onAttempt, onConfirm } = props
   const x = useMotionValue(0)
   const y = useMotionValue(0)
   // A carried card swings a little with the hand that moves it.
@@ -202,6 +232,7 @@ function HandCard(props: HandCardProps) {
       drag={playable && !choosing}
       dragMomentum={false}
       whileDrag={{ scale: 1.12, zIndex: 60 }}
+      onPointerDown={onPress}
       onDragStart={() => {
         dragging.current = true
         clearTimeout(returnTimer.current)

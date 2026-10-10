@@ -11,13 +11,15 @@ const PING_EVERY_MS = 5000
 const MAX_UNANSWERED_PINGS = 2
 
 /** A table as the screens see it, online or in practice: the game supplies the view, action and event types. */
-export interface Session<V, A, E> {
+export interface Session<V extends TableView, A, E> {
   store: GameStore<V, E>
   /** What is being said at the table. */
   talk: TalkStore
   send: (action: A) => void
   /** Says something at the table; a seat the room does not know is ignored there. */
   say: (say: Say) => void
+  /** Tells the other players a card is lifted in this player's hand, or no longer is. */
+  lift: (up: boolean) => void
   close: () => void
 }
 
@@ -59,6 +61,10 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
   }
   const send = (action: A) => post(action)
   const say = (said: Say) => socket.send(JSON.stringify({ say: said }))
+  // A lift is only worth telling as it happens: one queued while the socket was down would be stale when sent.
+  const lift = (up: boolean) => {
+    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ lift: up }))
+  }
   let everOpened = false
   let justOpened = false
 
@@ -117,5 +123,5 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     talk.close()
     socket.close()
   }
-  return { store, talk, send, say, close }
+  return { store, talk, send, say, lift, close }
 }
