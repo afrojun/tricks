@@ -132,6 +132,24 @@ export function isActor(game: Pick<TableState, 'playerCount'>, actor: unknown): 
   return actor === 'system' || actor === null || (Number.isInteger(actor) && (actor as number) >= 0 && (actor as number) < game.playerCount)
 }
 
+/**
+ * What a game checks before reading any field: an action, by an actor who can be at this table, of the
+ * game's shape. Only the system sends `tick` and `setConnected`, which are not parsed. `apply` checks this
+ * before it copies the game, so a malformed message costs no copy.
+ */
+export function screen<A>(
+  game: Pick<TableState, 'playerCount'>,
+  actor: unknown,
+  action: unknown,
+  shape: z.ZodType<A>,
+): { action: A } | { rejected: 'notAllowed' | 'notSeated' } {
+  if (!isAction(action)) return { rejected: 'notAllowed' }
+  if (!isActor(game, actor)) return { rejected: 'notSeated' }
+  if (action.type === 'tick' || action.type === 'setConnected') return { action: action as A }
+  const shaped = shape.safeParse(action)
+  return shaped.success ? { action: shaped.data } : { rejected: 'notAllowed' }
+}
+
 // ── Seats ────────────────────────────────────────────────────────────────
 
 export const MAX_NAME_LENGTH = 16
@@ -147,8 +165,11 @@ export function emptySeats(playerCount: number): SeatInfo[] {
   return allSeats(playerCount).map(() => ({ ...EMPTY_SEAT }))
 }
 
+/** Seats 0 to `playerCount - 1`, by a plain loop: `Array.from` with a function costs ten times as much, on every action. */
 export function allSeats(playerCount: number): Seat[] {
-  return Array.from({ length: playerCount }, (_, i) => i)
+  const seats: Seat[] = []
+  for (let seat = 0; seat < playerCount; seat++) seats.push(seat)
+  return seats
 }
 
 /** Seats in play order starting from `first`. */

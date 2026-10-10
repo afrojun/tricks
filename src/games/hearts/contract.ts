@@ -1,11 +1,12 @@
 /** Hearts' side of the module contract: its random legal player, its mischief, and what each seat may not see. For tests. */
+import { isDeepStrictEqual } from 'node:util'
 import { cardId, sameCard } from '../../kit/cards'
 import type { Contract } from '../../kit/contract'
 import { brokenRules } from '../../kit/integrity'
 import { type Persona, TRAITS, mindFor } from '../../kit/mind'
 import { type Seat, allSeats } from '../../kit/table'
 import { hearts } from '.'
-import { availableActions } from './engine/available'
+import { availableActions, seenBy } from './engine/available'
 import { seenPlays } from './engine/excuses'
 import { MOON_POINTS, PASS_SIZE, PLAYERS, type RuleOverrides } from './engine/rules'
 import type { Action, Game, GameEvent, View } from './engine/types'
@@ -105,6 +106,11 @@ export function heartsContract(overrides: RuleOverrides): { contract: Contract<G
           }
         }
         if (e.type === 'roundScored') checkSummary(game, e.summary)
+      }
+
+      // The engine checks round actions against `seenBy`, which must answer just as the view does.
+      for (const seat of allSeats(PLAYERS)) {
+        if (!isDeepStrictEqual(availableActions(seenBy(game, seat)), availableActions(viewFor(game, seat)))) fail(`seat ${seat} may do otherwise than its view says`)
       }
 
       if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return

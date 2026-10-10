@@ -1,4 +1,5 @@
-import { type Actor, type Ctx, againComplete, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, redrawSurprises, settle, tableAction } from '../../../kit/table'
+import { copy } from '../../../kit/copy'
+import { type Actor, type Ctx, againComplete, checkLobbyHost, emptySeats, isTableAction, redrawSurprises, screen, settle, tableAction } from '../../../kit/table'
 import { hasCard } from './cards'
 import { availableActions } from './available'
 import { actionShape } from './schema'
@@ -33,8 +34,10 @@ export function createGame(): Game {
  * player input.
  */
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
-  const draft = structuredClone(game)
-  const result = step(draft, actor, action, ctx)
+  const screened = screen(game, actor, action, actionShape)
+  if ('rejected' in screened) return screened
+  const draft = copy(game)
+  const result = run(draft, actor, screened.action, ctx)
   return 'rejected' in result ? result : { game: draft, events: result.events }
 }
 
@@ -43,15 +46,16 @@ export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): Apply
  * was. Every check comes before the first change. Never throws on player input.
  */
 export function step(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
-  // Checked before any field is read: a client could send anything at all. Only the system sends `tick` and `setConnected`.
-  if (!isAction(action)) return { rejected: 'notAllowed' }
-  if (!isActor(draft, actor)) return { rejected: 'notSeated' }
-  const system = action.type === 'tick' || action.type === 'setConnected'
-  const shaped = system ? { success: true as const, data: action } : actionShape.safeParse(action)
-  if (!shaped.success) return { rejected: 'notAllowed' }
+  // Checked before any field is read: a client could send anything at all.
+  const screened = screen(draft, actor, action, actionShape)
+  return 'rejected' in screened ? screened : run(draft, actor, screened.action, ctx)
+}
+
+/** `step` for an action that has passed `screen`. */
+function run(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
   const events: GameEvent[] = []
   const decision = decisionOf(draft)
-  const rejected = dispatch(draft, actor, shaped.data, ctx, events)
+  const rejected = dispatch(draft, actor, action, ctx, events)
   if (rejected !== null) return { rejected }
   // A new decision starts its wait afresh: a trumper slow to choose is not already stalled in the Thunee window.
   if (decisionOf(draft) !== decision) draft.waiting = []

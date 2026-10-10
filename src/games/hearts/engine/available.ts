@@ -1,7 +1,7 @@
-import { type Seat, allSeats } from '../../../kit/table'
+import { type Seat, type ViewSeat, actingHost, allSeats } from '../../../kit/table'
 import type { Card } from './cards'
 import { isOpeningLead, legalPlays } from './excuses'
-import type { View } from './types'
+import type { Game, View } from './types'
 
 /** Everything the viewer may do right now. The engine validates round actions against this. */
 export interface Available {
@@ -31,7 +31,45 @@ const NOTHING: Available = {
   reclaimSeat: false,
 }
 
-export function availableActions(view: View): Available {
+/** What `availableActions` reads of a view. A `View` is one; the engine builds one from the game with `seenBy`. */
+export interface Seen extends Pick<View, 'seat' | 'host' | 'playerCount' | 'rules'> {
+  seats: readonly Pick<ViewSeat, 'kind' | 'standIn'>[]
+  phase:
+    | { kind: 'lobby' | 'roundResult' }
+    | { kind: 'passing'; hand: Card[]; choice: readonly Card[] | null }
+    | {
+        kind: 'playing' | 'trickPause'
+        hand: Card[]
+        turn: Seat | null
+        tricks: readonly unknown[]
+        current: readonly { seat: Seat; card: Card }[]
+        heartsBroken: boolean
+      }
+    | { kind: 'gameOver'; again: readonly Seat[] }
+}
+
+/**
+ * What `viewFor(game, seat)` shows that `availableActions` reads, sharing the game's arrays rather than
+ * copying them: the engine checks every round action against it, and a whole view costs more than the step.
+ */
+export function seenBy(game: Game, seat: Seat): Seen {
+  const table = { seat, seats: game.seats, host: actingHost(game), playerCount: game.playerCount, rules: game.rules }
+  const phase = game.phase
+  switch (phase.kind) {
+    case 'passing':
+      return { ...table, phase: { kind: 'passing', hand: phase.hands[seat], choice: phase.chosen[seat] } }
+    case 'playing':
+    case 'trickPause': {
+      const { hands, tricks, current, heartsBroken } = phase.play
+      const turn = phase.kind === 'playing' ? phase.turn : null
+      return { ...table, phase: { kind: phase.kind, hand: hands[seat], turn, tricks, current, heartsBroken } }
+    }
+    default:
+      return { ...table, phase }
+  }
+}
+
+export function availableActions(view: Seen): Available {
   const me = view.seat
   if (me === null) return NOTHING
   const out: Available = { ...NOTHING, reclaimSeat: view.seats[me].standIn }

@@ -1,11 +1,11 @@
 import { hasCard, sameCard } from '../../../kit/cards'
-import { type Actor, type Ctx, type Seat, againComplete, allSeats, checkLobbyHost, emptySeats, isAction, isActor, isTableAction, redrawSurprises, settle, tableAction } from '../../../kit/table'
-import { availableActions } from './available'
+import { copy } from '../../../kit/copy'
+import { type Actor, type Ctx, type Seat, againComplete, allSeats, checkLobbyHost, emptySeats, isTableAction, redrawSurprises, screen, settle, tableAction } from '../../../kit/table'
+import { availableActions, seenBy } from './available'
 import { PASS_SIZE, PLAYERS, SEAT_COUNTS, STANDARD, resolveRules } from './rules'
 import * as round from './round'
 import { actionShape } from './schema'
 import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type RejectReason } from './types'
-import { viewFor } from './view'
 
 export function createGame(): Game {
   return {
@@ -28,8 +28,10 @@ export function createGame(): Game {
  * player input.
  */
 export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): ApplyResult {
-  const draft = structuredClone(game)
-  const result = step(draft, actor, action, ctx)
+  const screened = screen(game, actor, action, actionShape)
+  if ('rejected' in screened) return screened
+  const draft = copy(game)
+  const result = run(draft, actor, screened.action, ctx)
   return 'rejected' in result ? result : { game: draft, events: result.events }
 }
 
@@ -41,15 +43,16 @@ export function apply(game: Game, actor: Actor, action: Action, ctx: Ctx): Apply
  * player's; everything else goes through `apply`.
  */
 export function step(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
-  // Checked before any field is read: a client could send anything at all. Only the system sends `tick` and `setConnected`.
-  if (!isAction(action)) return { rejected: 'notAllowed' }
-  if (!isActor(draft, actor)) return { rejected: 'notSeated' }
-  const system = action.type === 'tick' || action.type === 'setConnected'
-  const shaped = system ? { success: true as const, data: action } : actionShape.safeParse(action)
-  if (!shaped.success) return { rejected: 'notAllowed' }
+  // Checked before any field is read: a client could send anything at all.
+  const screened = screen(draft, actor, action, actionShape)
+  return 'rejected' in screened ? screened : run(draft, actor, screened.action, ctx)
+}
+
+/** `step` for an action that has passed `screen`. */
+function run(draft: Game, actor: Actor, action: Action, ctx: Ctx): { events: GameEvent[] } | { rejected: RejectReason } {
   const kind = draft.phase.kind
   const events: GameEvent[] = []
-  const rejected = dispatch(draft, actor, shaped.data, ctx, events)
+  const rejected = dispatch(draft, actor, action, ctx, events)
   if (rejected !== null) return { rejected }
   // A new phase starts every wait afresh: whoever passes last may also hold the two of clubs.
   if (draft.phase.kind !== kind) draft.waiting = []
@@ -111,7 +114,7 @@ function dispatch(game: Game, actor: Actor, action: Action, ctx: Ctx, events: Ga
 }
 
 function roundAction(game: Game, seat: Seat, action: Action, ctx: Ctx, events: GameEvent[]): RejectReason | null {
-  const can = availableActions(viewFor(game, seat))
+  const can = availableActions(seenBy(game, seat))
   const phase = game.phase
 
   switch (action.type) {
