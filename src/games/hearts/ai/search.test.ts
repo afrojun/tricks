@@ -1,12 +1,10 @@
-import { isDeepStrictEqual } from 'node:util'
 import { describe, expect, test } from 'vitest'
 import { hasCard, sameCard } from '../../../kit/cards'
 import { type Mind, type Persona, mindFor } from '../../../kit/mind'
 import { explain } from '../../../kit/search/explain'
 import { prepare } from '../../../kit/search/sample'
 import { search } from '../../../kit/search/search'
-import type { SearchGame } from '../../../kit/search/types'
-import { seededRng } from '../../../kit/testing'
+import { same, seededRng } from '../../../kit/testing'
 import { seatsToAct } from '../engine/apply'
 import { availableActions } from '../engine/available'
 import { MOON, SPREAD, VOID } from '../engine/deals'
@@ -14,30 +12,14 @@ import { checkInvariants } from '../engine/invariants'
 import { PASS_SIZE, PLAYERS, type RuleOverrides } from '../engine/rules'
 import { Table, card, cards, playOf } from '../engine/testing'
 import { type Card, strength, trickPoints } from '../engine/cards'
-import type { Action, Game, View } from '../engine/types'
+import type { Game } from '../engine/types'
 import { viewFor } from '../engine/view'
-import { chooseChallenge } from './catch'
 import { chooseAction, decide, passOrder } from './choose'
 import { rebuild, value } from './imagine'
 import { unseen, wouldWin } from './read'
 import { candidates, decisionId, heartsSearch, knowledge, passCandidates, searchHearts } from './search'
+import { checking, full } from './testing'
 
-/** The adapter with every rebuilt world checked: the invariants hold, and the seat gets its own view back exactly. */
-function checking(tally = { worlds: 0 }, worlds = heartsSearch.worlds): SearchGame<Game, Action, View, Card> {
-  return {
-    ...heartsSearch,
-    worlds,
-    rebuild(view, world) {
-      const game = rebuild(view, world)
-      checkInvariants(game)
-      if (!isDeepStrictEqual(viewFor(game, view.seat, 'full'), view)) throw new Error('a rebuilt world gives another view')
-      tally.worlds++
-      return game
-    },
-  }
-}
-
-const full = (t: Table, seat: number) => viewFor(t.game, seat, 'full')
 const where = (k: ReturnType<typeof knowledge>) => ({
   hard: k.hard.map((c) => c.why).sort(),
   soft: k.soft.map((c) => c.why).sort(),
@@ -136,7 +118,7 @@ describe('a game rebuilt from a view and a sampled world', () => {
           for (let i = 0; i < 2; i++) {
             const game = rebuild(view, sampler.sample(rng))
             checkInvariants(game)
-            expect(isDeepStrictEqual(viewFor(game, seat, 'full'), view)).toBe(true)
+            if (!same(viewFor(game, seat, 'full'), view)) throw new Error(`seed ${seed}: seat ${seat} gets another view back`)
             worlds++
           }
         }
@@ -277,14 +259,14 @@ describe('the search player for Hearts', () => {
     const swapped = structuredClone(passing.game)
     if (swapped.phase.kind !== 'passing') throw new Error('expected passing')
     ;[swapped.phase.hands[1][0], swapped.phase.hands[2][0]] = [swapped.phase.hands[2][0], swapped.phase.hands[1][0]]
-    expect(isDeepStrictEqual(viewFor(swapped, 0, 'full'), full(passing, 0))).toBe(true)
+    expect(same(viewFor(swapped, 0, 'full'), full(passing, 0))).toBe(true)
     expect(search(checking(), viewFor(swapped, 0, 'full'), mind(5))).toEqual(search(checking(), full(passing, 0), mind(5)))
 
     const play = new Table({ passing: 'none' }).deal(SPREAD).play('2c 3c 4c 5c  Kc 6c 7c 8c').endPause().play('9c')
     const other = structuredClone(play.game)
     const hands = playOf(other).hands
     ;[hands[2][0], hands[3][0]] = [hands[3][0], hands[2][0]]
-    expect(isDeepStrictEqual(viewFor(other, 0, 'full'), full(play, 0))).toBe(true)
+    expect(same(viewFor(other, 0, 'full'), full(play, 0))).toBe(true)
     const seen = search(checking(), full(play, 0), mind(5))
     expect(seen?.worlds).toBe(heartsSearch.worlds)
     expect(search(checking(), viewFor(other, 0, 'full'), mind(5))).toEqual(seen)
@@ -323,65 +305,5 @@ describe('the search player for Hearts', () => {
     const result = searchHearts(full(t, 1), mind(1), { among, worlds: 4 })!
     expect(result.options.map((o) => (o.action as { card: Card }).card)).toEqual(expect.arrayContaining(among))
     expect(result.options).toHaveLength(2)
-  })
-})
-
-/** Raise with SIM_GAMES for a soak run. */
-const GAMES = Number(process.env.SIM_GAMES ?? 1)
-const SIM_WORLDS = 2
-
-describe('whole games with the search player (rule 5): it never has an action refused', () => {
-  const RULES: [string, RuleOverrides][] = [
-    ['Standard', {}],
-    ['always pass left', { passing: 'left' }],
-    ['no passing', { passing: 'none' }],
-    ['points on the first trick', { pointsOnFirstTrick: true }],
-    ['queen breaks hearts', { queenBreaksHearts: true }],
-    ['the jack of diamonds', { jackOfDiamonds: true }],
-    ['shooter subtracts', { moon: 'shooterSubtracts' }],
-  ]
-  const cases: [string, RuleOverrides, (Persona | 'search')[]][] = RULES.flatMap(([name, overrides]): [string, RuleOverrides, (Persona | 'search')[]][] => [
-    [`${name}, search at every seat`, overrides, ['search', 'search', 'search', 'search']],
-    [`${name}, cheating off`, { ...overrides, allowCheating: false }, ['search', 'search', 'search', 'search']],
-  ])
-  cases.push(['Standard, Sly and Wild cheating and accusing beside two search players', {}, ['search', 'sly', 'search', 'wild']])
-
-  test.each(cases)(`${GAMES} game: %s`, (_, overrides, players) => {
-    const tally = { worlds: 0 }
-    const game = { ...checking(tally, SIM_WORLDS), candidates: (v: View) => candidates(v) }
-    let searched = 0
-    for (let seed = 1; seed <= GAMES; seed++) {
-      const t = new Table(overrides, seed).do(0, { type: 'start' })
-      const seats = players.map((p) => ({ persona: p === 'search' ? ('straight' as const) : p, standIn: false }))
-      const mindOf = (seat: number) => mindFor({ seats, aiSalt: t.game.aiSalt, rules: t.game.rules }, seat)
-      for (let guard = 0; guard < 20_000 && t.game.phase.kind !== 'gameOver'; guard++) {
-        const phase = t.game.phase
-        if (phase.kind === 'roundResult') t.do(0, { type: 'nextRound' })
-        else if (phase.kind === 'trickPause') t.endPause()
-        else {
-          const seat = seatsToAct(t.game)[0]
-          const view = full(t, seat)
-          let action: Action
-          if (players[seat] === 'search') {
-            const result = search(game, view, mindOf(seat))!
-            action = result.action
-            searched++
-            const can = availableActions(view)
-            if (action.type === 'choosePass') expect(action.cards.every((c) => hasCard(can.pass, c)) && new Set(action.cards.map((c) => c.rank + c.suit)).size === 3).toBe(true)
-            else if (action.type === 'playCard') expect(hasCard(can.legal, action.card)).toBe(true)
-          } else action = chooseAction(view, mindOf(seat))!
-          const rejected = t.try(seat, action)
-          if (rejected !== null) throw new Error(`seed ${seed}: ${JSON.stringify(action)} by seat ${seat} (${players[seat]}) refused: ${rejected}`)
-          for (let s = 0; s < PLAYERS && (t.game.phase.kind === 'playing' || t.game.phase.kind === 'trickPause'); s++) {
-            if (players[s] === 'search') continue
-            const accusation = chooseChallenge(full(t, s), mindOf(s))
-            if (accusation) t.do(s, accusation)
-          }
-        }
-      }
-      expect(t.game.phase.kind).toBe('gameOver')
-    }
-    expect(searched).toBeGreaterThan(GAMES * 100)
-    expect(tally.worlds).toBeGreaterThan(0)
   })
 })

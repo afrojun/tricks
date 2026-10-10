@@ -215,8 +215,9 @@ describe('the computer players', () => {
       const code = readFileSync(new URL(file, dir), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
       // The search player's imagined games, rebuilt from a view, are a game it steps and scores (search-player spec, rule 2).
       // Banter decides nothing: it reads the seats and scores of the game the host hands it, to say something about them.
-      const touches = ['drive.ts', 'imagine.ts', 'banter.ts'].includes(file)
-      expect({ file, game: /\bGame\b/.test(code), views: /\bviewFor\b/.test(code) }).toEqual({ file, game: touches, views: file === 'drive.ts' })
+      // The tests' helpers (testing.ts) decide nothing either: they check each rebuilt game against the view it came from.
+      const touches = ['drive.ts', 'imagine.ts', 'banter.ts', 'testing.ts'].includes(file)
+      expect({ file, game: /\bGame\b/.test(code), views: /\bviewFor\b/.test(code) }).toEqual({ file, game: touches, views: ['drive.ts', 'testing.ts'].includes(file) })
     }
     // And they hold nothing else: the search decides in `search.ts`, from the view.
     const imagine = readFileSync(new URL('imagine.ts', dir), 'utf8')
