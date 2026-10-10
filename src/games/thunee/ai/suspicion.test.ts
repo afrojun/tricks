@@ -17,6 +17,10 @@ const patient = () => start().play('Kc Qh 10c Kd  Qd 10s 10h Jd  As Ah Kh Qs  9s
 /** Seat 1 trumps the first trick, then claims a diamond Jodhi; seat 0 holds the Qd. */
 const falseJodhi = () => start().play('Ah Qh 9h 10s').do(1, { type: 'claimJodhi', suit: 'diamonds', withJack: false })
 
+/** Seat 1 trumps trick 0 (a cut, and a void when seat 2 can place two diamonds), then loses a fair trick 1. */
+const SHARP = ['Qh 9h 10h Jc Qc 10s', 'Qs Ks Kc Js 9s As', 'Qd 9c Jh Ah Kh 10c', 'Jd 9d Ad 10d Kd Ac']
+const twoSignals = () => start(SHARP).play('Qd Jd Qh Qs').endPause().play('Kc 9c Ac Qc')
+
 const rate = (t: Table, seat: number, persona: Persona, salts = 2000) => {
   let caught = 0
   for (let salt = 1; salt <= salts; salt++) if (chooseChallenge(viewFor(t.game, seat, 'full'), { persona, salt })) caught++
@@ -168,15 +172,20 @@ describe('hunches', () => {
     expect(ids).toEqual(['cut:1', 'void:1:1', 'void:2:3'])
   })
 
-  test('Wild sometimes accuses on one signal, more often when behind; Sharp and Straight do not', () => {
+  test('Wild accuses on a hunch only from a second signal, and rarely; Sharp and Straight do not', () => {
     const t = trumped()
-    const wild = rate(t, 2, 'wild')
-    // 0.12 chance × mood 1.5 (behind 0–43 on points) = 0.18
-    expect(wild).toBeGreaterThan(0.14)
-    expect(wild).toBeLessThan(0.22)
-    expect(chooseChallengeFor(t, 2, 'wild')).toEqual({ type: 'challengePlay', seat: 1 })
-    expect(rate(t, 2, 'sharp')).toBe(0)
-    expect(rate(t, 2, 'straight')).toBe(0)
+    expect(rate(t, 2, 'wild')).toBe(0)
+    const two = twoSignals()
+    const wild = rate(two, 2, 'wild', 4000)
+    // 0.03 chance × mood 1.5 (behind 0–36 on points when seat 1 cut) = 0.045
+    expect(wild).toBeGreaterThan(0.03)
+    expect(wild).toBeLessThan(0.06)
+    for (let salt = 1; salt <= 200; salt++) {
+      const action = chooseChallenge(viewFor(two.game, 2, 'full'), { persona: 'wild', salt })
+      if (action) expect(action).toEqual({ type: 'challengePlay', seat: 1 })
+    }
+    expect(rate(two, 2, 'sharp')).toBe(0)
+    expect(rate(two, 2, 'straight')).toBe(0)
   })
 })
 
@@ -186,20 +195,18 @@ describe('hunch details', () => {
   const ids = (t: Table, seat: number) => findSignals(viewFor(t.game, seat, 'full')).map((s) => s.id)
 
   test('a hunch is judged in the mood of its moment: a later swing of points gives it no second look', () => {
-    // Trick 0 goes to seat 2's team (44-0), trick 1 is seat 1 trumping a 44-point heart trick (44-44, mood 1).
-    const afterSignal = () => start().play('Jc Qh 10c Qc').endPause().play('Ah Kh 9h 10s')
-    const before = afterSignal()
-    // Trick 2: seat 3 follows suit and wins 45 points, putting seat 2's team behind with no new signal.
-    const after = afterSignal().endPause().play('Kd 10h Jd Qd')
-    expect(ids(before, 2)).toEqual(['cut:1'])
-    expect(ids(after, 2)).toEqual(['cut:1'])
-    expect(mood(viewFor(before.game, 2, 'full'))).toBe(1)
-    expect(mood(viewFor(after.game, 2, 'full'))).toBe(1.5)
-    const was = decisions(before, 2, 'wild')
-    expect(decisions(after, 2, 'wild')).toEqual(was)
+    // Seat 1 cuts trick 0 for 36 points (a cut and a void: two signals, mood 1.5); seat 2 wins trick 1 for 36 (mood 1).
+    const before = start(SHARP).play('Qd Jd Qh Qs')
+    const after = twoSignals()
+    expect(ids(before, 2)).toEqual(['cut:0', 'void:0:1'])
+    expect(ids(after, 2)).toEqual(['cut:0', 'void:0:1'])
+    expect(mood(viewFor(before.game, 2, 'full'))).toBe(1.5)
+    expect(mood(viewFor(after.game, 2, 'full'))).toBe(1)
+    const was = decisions(before, 2, 'wild', 2000)
+    expect(decisions(after, 2, 'wild', 2000)).toEqual(was)
     const rate = was.filter(Boolean).length / was.length
-    expect(rate).toBeGreaterThan(0.06)
-    expect(rate).toBeLessThan(0.18)
+    expect(rate).toBeGreaterThan(0.03)
+    expect(rate).toBeLessThan(0.065)
   })
 
   test('an opponent who cannot follow a suit the observer can barely place is a void signal', () => {
@@ -211,17 +218,17 @@ describe('hunch details', () => {
     expect(ids(t, 3)).toEqual(['void:0:0'])
   })
 
-  test('a void hunch gets the same one look before and after its trick completes', () => {
+  test('a void signal is judged in the mood before its trick, whether or not the trick has completed', () => {
     const VOID = ['Qh Jc 9c Ac 10c Kc', 'Js Jd 9d Ad 10d Kd', 'Qd Jh 9h Ah 10h Kh', 'Qc 9s As 10s Ks Qs']
     const during = start(VOID).play('Qd Qc')
     // Seat 1 takes the trick with Jd, putting seat 2's team behind on points.
     const after = start(VOID).play('Qd Qc Qh Jd')
-    expect(ids(during, 2)).toEqual(['void:0:3'])
-    expect(ids(after, 2)).toEqual(['void:0:3'])
+    const signal = (t: Table) => findSignals(viewFor(t.game, 2, 'full'))
+    expect(signal(during)).toEqual(signal(after))
+    const [{ at }] = signal(after)
+    expect(mood(viewFor(during.game, 2, 'full'))).toBe(1)
     expect(mood(viewFor(after.game, 2, 'full'))).toBe(1.5)
-    const was = decisions(during, 2, 'wild')
-    expect(decisions(after, 2, 'wild')).toEqual(was)
-    expect(was.some(Boolean)).toBe(true)
+    expect(mood(viewFor(after.game, 2, 'full'), at)).toBe(mood(viewFor(during.game, 2, 'full'), at))
   })
 
   test('an opponent’s Jodhi worth 40 or more is a signal; a partner’s is not', () => {
@@ -235,13 +242,11 @@ describe('hunch details', () => {
   })
 
   test('Sharp acts on a hunch only from a third signal, at about its 0.3 chance', () => {
-    // Seat 1 trumps trick 0 (a cut, and a void when seat 2 can place two diamonds), takes a fair trick 1 lost,
-    // then trumps a 56-point heart trick: a second cut.
-    const SHARP = ['Qh 9h 10h Jc Qc 10s', 'Qs Ks Kc Js 9s As', 'Qd 9c Jh Ah Kh 10c', 'Jd 9d Ad 10d Kd Ac']
-    const two = start(SHARP).play('Qd Jd Qh Qs').endPause().play('Kc 9c Ac Qc')
+    // After the two signals, seat 1 trumps a 56-point heart trick: a second cut.
+    const two = twoSignals()
     expect(ids(two, 2)).toEqual(['cut:0', 'void:0:1'])
     expect(decisions(two, 2, 'sharp').some(Boolean)).toBe(false)
-    const three = start(SHARP).play('Qd Jd Qh Qs').endPause().play('Kc 9c Ac Qc').endPause().play('Jh Kd 9h Ks')
+    const three = twoSignals().endPause().play('Jh Kd 9h Ks')
     expect(ids(three, 2)).toEqual(['cut:0', 'void:0:1', 'cut:2'])
     const fired = decisions(three, 2, 'sharp', 2000).filter(Boolean).length / 2000
     expect(fired).toBeGreaterThan(0.26)
@@ -348,12 +353,3 @@ describe('void odds', () => {
     expect(was.some(Boolean)).toBe(true)
   })
 })
-
-/** The first challenge Wild makes across salts, for checking its shape. */
-function chooseChallengeFor(t: Table, seat: number, persona: Persona) {
-  for (let salt = 1; salt <= 2000; salt++) {
-    const action = chooseChallenge(viewFor(t.game, seat, 'full'), { persona, salt })
-    if (action) return action
-  }
-  return null
-}

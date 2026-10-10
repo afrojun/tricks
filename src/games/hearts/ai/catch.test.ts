@@ -236,25 +236,39 @@ describe('hunches', () => {
   // Seat 1 shows out of clubs on the first trick, as VOID deals it: one signal, and no proof.
   const shownOut = () => new Table({ passing: 'none' }).deal(VOID).play('2c 4d')
 
-  test('Wild sometimes accuses on one signal, more often when behind', () => {
-    const t = shownOut()
-    expect(findProofs(viewFor(t.game, 2, 'full'))).toEqual([])
-    const wild = rate(t, 2, 'wild')
-    expect(wild).toBeGreaterThan(0.1)
-    expect(wild).toBeLessThan(0.14)
-    t.game = { ...t.game, scores: [0, 10, 40, 0] }
-    const behind = rate(t, 2, 'wild')
-    expect(behind).toBeGreaterThan(0.16)
-    expect(behind).toBeLessThan(0.2)
+  test('Wild accuses on a hunch only from a second signal, and rarely; more often when behind', () => {
+    const one = shownOut()
+    expect(findProofs(viewFor(one.game, 2, 'full'))).toEqual([])
+    expect(rate(one, 2, 'wild')).toBe(0)
+    const t = new Table({ passing: 'none' }).deal(SUSPECT).play(SUSPECT_PLAY)
+    expect(findProofs(viewFor(t.game, 0, 'full'))).toEqual([])
+    // 0.03 a signal, then × 1.5 when behind on the scores
+    const wild = rate(t, 0, 'wild', 4000)
+    expect(wild).toBeGreaterThan(0.02)
+    expect(wild).toBeLessThan(0.04)
+    t.game = { ...t.game, scores: [40, 10, 0, 0] }
+    const behind = rate(t, 0, 'wild', 4000)
+    expect(behind).toBeGreaterThan(0.035)
+    expect(behind).toBeLessThan(0.055)
   })
 
   test('a hunch gets the same one look before and after its trick completes', () => {
-    const during = shownOut()
-    const after = shownOut().play('9c Ac')
-    for (let salt = 1; salt <= 300; salt++) {
+    // Seat 0 has shown out of a suit three times, the last in the trick still being played, which seat 3 watches.
+    const PLAYED = '2c 6s Jc Kc  Ks 2s Qs 8s  Js 3s 5s 9s  Qd 3d 7d 9d  Ac 6c 5h 10c  As 2d 7s 10s  Ad 2h 5d 10d  Kd 3h 6d 8d  Kh 3c'
+    const during = new Table({ passing: 'none' }).deal(VOID).play(PLAYED)
+    const after = new Table({ passing: 'none' }).deal(VOID).play(`${PLAYED} 4h 8h`)
+    // The signals, their ids (what the roll is keyed on) and their moments, unchanged by the trick completing.
+    const signals = findSignals(viewFor(during.game, 3, 'full'))
+    expect(signals.filter((s) => s.accused === 0).map((s) => s.id)).toEqual(['void:6:0', 'void:8:0'])
+    expect(findSignals(viewFor(after.game, 3, 'full'))).toEqual(signals)
+    let fired = 0
+    for (let salt = 1; salt <= 400; salt++) {
       const mind = { persona: 'wild' as const, salt }
-      expect(chooseChallenge(viewFor(after.game, 2, 'full'), mind)).toEqual(chooseChallenge(viewFor(during.game, 2, 'full'), mind))
+      const was = chooseChallenge(viewFor(during.game, 3, 'full'), mind)
+      expect(chooseChallenge(viewFor(after.game, 3, 'full'), mind)).toEqual(was)
+      if (was) fired++
     }
+    expect(fired).toBeGreaterThan(0)
   })
 
   test('Sharp acts on a hunch only from a third signal against one seat, at about its 0.3 chance', () => {

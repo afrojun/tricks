@@ -45,7 +45,7 @@ describe('minds', () => {
     expect(TRAITS.straight).toEqual({ attention: 0.6, cheats: 'never', hunchAt: null, hunchChance: 0, moody: false })
     expect(TRAITS.sharp).toEqual({ attention: 0.95, cheats: 'never', hunchAt: 3, hunchChance: 0.3, moody: false })
     expect(TRAITS.sly).toEqual({ attention: 0.6, cheats: 'careful', hunchAt: null, hunchChance: 0, moody: false })
-    expect(TRAITS.wild).toEqual({ attention: 0.35, cheats: 'reckless', hunchAt: 1, hunchChance: 0.12, moody: true })
+    expect(TRAITS.wild).toEqual({ attention: 0.35, cheats: 'reckless', hunchAt: 2, hunchChance: 0.03, moody: true })
     expect(HONEST).toEqual({ persona: 'straight', salt: 0 })
   })
 })

@@ -21,11 +21,11 @@ The rebuild spec said the AI "plays only legal cards; claims a Jodhi only when i
 | Straight (default) | Never | Medium | Never |
 | Sharp | Never | High | Rarely: only at a high suspicion threshold |
 | Sly | When it judges the risk low | Medium | Never |
-| Wild | When the prize is tempting, ignoring risk | Low | Often: at a low suspicion threshold |
+| Wild | When the prize is tempting and the risk modest; bolder when behind | Low | Sometimes: from a second signal, at a small chance |
 
 Personas change only cheating and challenging. Card choice, calling, trump and special calls are unchanged.
 
-"Surprise me" picks one of the four at random and hides it until the game ends.
+"Surprise me" picks one of the four at random and hides it until the game ends. A rematch draws it again, hidden until that game ends.
 
 A computer standing in for a human (`standIn`) plays as Straight whatever its seat says.
 
@@ -64,15 +64,15 @@ Sharp and Wild also challenge without proof when a suspicion score passes their 
 - that seat made a Jodhi claim of 40 or more;
 - that seat showed a void that looks unlikely: it trumped or discarded on a suit while most of that suit's cards are still unseen by the computer.
 
-A hunch also gets one look per triggering event, rolled the same way. Wild's threshold is low, so it is often wrong; Sharp's is high, so it rarely guesses. A wrong challenge costs 4 balls as the rules already say.
+A hunch also gets one look per triggering event, rolled the same way. Wild acts from a second signal against a seat, at 0.03 a signal (times its mood); Sharp from a third, at 0.3. A wrong challenge costs 4 balls as the rules already say.
 
 ## Cheating
 
 When it is the computer's turn, the normal card choice is made from `legal` as now. A cheating persona also considers each card in `play` that is not in `legal`, and that would win the trick when the normal choice would not.
 
-- **Sly** cheats when the trick is worth at least 20 points and its own estimated chance of being caught is below 0.25. The estimate applies the detection model with average attention (0.6) to when it will have to reveal: it counts how many tricks it can hold back its remaining cards of the reneged suit, given its hand. Holding a single card of that suit until late is the ideal case. Sly makes a false Jodhi claim only when no card the claim needs has been played or is visible to it, and at most once a round.
-- **Wild** cheats whenever the trick is worth at least 20 points, or holds a J or 9, or would decide the round. It ignores reveal timing. It makes a false Jodhi claim when its team has won a trick and it holds at least one card of the claim.
-- **Mood (Wild only).** Its thresholds drop by up to half when its team is behind in balls or behind in points this round. Mood is worked out from the view each time, not remembered.
+- **Sly** cheats when the trick is worth at least 20 points and its own estimated chance of being caught is below 0.25. The estimate applies the detection model with average attention (0.6) to when it will have to reveal: it counts how many tricks it can hold back its remaining cards of the reneged suit, given its hand. Holding a single card of that suit until late is the ideal case. Sly never makes a false Jodhi claim: every card comes out by the end of the round, so the card it lacks is always seen, by an opponent holding it at once or when its partner plays it.
+- **Wild** is tempted when the trick is worth at least 20 points or holds a J or 9, and cheats when Sly's estimate of being caught is below its nerve: 0.3, rising with its mood to at most 0.45. It gives in to a trick's temptation only 15% of the time (one roll per trick), so it cheats a few times as often as Sly without throwing games away. Like Sly, it then holds back the cards that would show the renege. It makes a false Jodhi claim, with four players only, at most once a round and half the time it could, when it holds one card of the pair and neither opponent can hold the other: both have shown out of the suit this half and neither has played it since, so the other is in its partner's hand. With two players there is no partner: the other card is in the opponent's hand or the stock, and is seen.
+- **Mood (Wild only).** Its prize threshold drops by up to half, and its nerve rises, when its team is behind in balls or behind in points this round. Mood is worked out from the view each time, not remembered.
 
 All cheating is limited by what the engine already allows: `play` is the whole hand, and a false Jodhi claim is any `claimJodhi` the seat may make.
 
@@ -109,7 +109,7 @@ The challenge lands at once. The client's paced playback keeps the card on scree
 
 - **Detection:** a renege revealed next trick by a high card after winning a big trick is noticed by Sharp; one from trick 1 revealed on trick 6 with a low card usually is not (checked over many salts). A false Jodhi contradicted by the computer's own hand is noticed at high rates.
 - **One look:** the same proof and salt always give the same decision.
-- **Cheating:** Sly declines a cheat it would have to reveal next trick and takes one it can hold to the end; Wild takes a tempting cheat regardless; Straight and Sharp never return an illegal card.
+- **Cheating:** Sly declines a cheat it would have to reveal next trick and takes one it can hold to the end; Wild takes one Sly declines about 15% of the time; Straight and Sharp never return an illegal card.
 - **Stand-in:** a stand-in in a Wild seat never cheats.
 - **Simulation:** the existing honest-AI test runs with Straight and Sharp only and still asserts every play is legal. A new simulation seats all four personas, finishes every game under both presets, and sees both guilty and innocent challenges.
 - **Secrecy:** the simulation's view check also rejects `aiSalt` and a hidden persona before game over.
@@ -126,9 +126,9 @@ The challenge lands at once. The client's paced playback keeps the card on scree
 
 Found during build and review; none blocks play.
 
-- **Tuning, to judge in play.** In 400 simulated four-player games, Sly made about 0.75 false Jodhis per game but only 0.02 reneges, and Wild about 0.8 reneges and 0.8 false Jodhis. In two-player games Wild still makes about 0.17 wrong accusations per game against an honest player, from its "big trick won off-suit" and "big Jodhi" hunches.
+- **Tuning (2026-10-09).** Before it, Sly bluffed a Jodhi in about half of all rounds and four in five were caught; Wild reneged in half of all rounds, bluffed in three in four, and made 15 to 39 wrong accusations per 100 rounds. Both won almost no games against honest computers. After it, per 100 four-player rounds against Straight: Sly about 1 renege and no bluffs, winning about 44% of games; Wild about 6 reneges (about 4.5 caught), no bluffs in practice and about 4 wrong accusations, winning about 27% (about 40% of two-player games). Wild's nerve alone moves in coarse steps: 0.2 gave 2 reneges and 0.3 gave 35, so the 15% chance of giving in sets how often it cheats. Sly's renege estimate counts one watcher and assumes the suit is not led again, so about half its reneges are still caught.
 - **Two-player coverage.** The persona simulation checks only that two-player games finish; it logs no tallies and asserts nothing about who challenged correctly.
-- **Untested branches.** Wild's "J or 9 on the table" and "last trick" cheat triggers; `holdBack` falling back when every legal card would show the renege; a challenge made from inside the server's Jodhi hook; a cheating persona end to end through the server.
+- **Untested branches.** Wild's "J or 9 on the table" cheat trigger; `holdBack` falling back when every legal card would show the renege; a challenge made from inside the server's Jodhi hook; a cheating persona end to end through the server.
 - **Hunch details.** When a hunch's latest signal is a Jodhi claim that can no longer be challenged, no play challenge is tried instead. A single play can raise both a `cut` and a `void` signal, which count twice toward Sharp's threshold.
 - **Certain voids as hunches.** In a two-player second half the computer can know its opponent holds the led suit, so a void there is certain cheating, but it is handled as a hunch (always signalled, still rolled) rather than as proof.
 - **Wording.** A hidden persona reads "secret" in the lobby and "?" at the table.

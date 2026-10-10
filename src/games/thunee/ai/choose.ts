@@ -14,9 +14,9 @@ import {
   teamOf,
   trickWinner,
 } from '../engine'
-import { chooseCheat, holdBack } from './cheat'
-import { type Mind, TRAITS, roll } from '../../../kit/mind'
-import { history, wouldWin } from './read'
+import { chooseBluff, chooseCheat, holdBack } from './cheat'
+import { type Mind, TRAITS } from '../../../kit/mind'
+import { wouldWin } from './read'
 import type { Decision, Reason } from './reasons'
 
 const HIGH = new Set<Card['rank']>(['J', '9', 'A'])
@@ -138,8 +138,8 @@ export function decide(view: View, mind: Mind): Decision {
       return { action: { type: 'pass' }, reason: { code: 'noJodhi' } }
     }
     case 'playing': {
-      const careful = TRAITS[mind.persona].cheats === 'careful'
-      const honest = chooseCard(view, phase, careful ? holdBack(view, phase, can.legal) : can.legal)
+      const cheats = TRAITS[mind.persona].cheats !== 'never'
+      const honest = chooseCard(view, phase, cheats ? holdBack(view, phase, can.legal) : can.legal)
       const cheat = chooseCheat(view, phase, honest.card, mind)
       const choice: CardChoice = cheat ? { card: cheat, reason: { code: 'fallback' } } : honest
       return sureSpecialCall(view, phase, choice.card) ?? { action: { type: 'playCard', card: choice.card }, reason: choice.reason }
@@ -148,8 +148,6 @@ export function decide(view: View, mind: Mind): Decision {
       return { action: fallbackAction(view), reason: { code: 'fallback' } }
   }
 }
-
-const BLUFF_CHANCE = 0.5
 
 /** A Jodhi the seat may claim now: a real one, or for cheating personas sometimes a bluff. */
 export function chooseJodhi(view: View, mind: Mind): Action | null {
@@ -162,20 +160,7 @@ export function chooseJodhi(view: View, mind: Mind): Action | null {
   for (const suit of open) {
     if (holdsJodhi(cards, suit, false)) return { type: 'claimJodhi', suit, withJack: holdsJodhi(cards, suit, true) }
   }
-
-  // A bluff needs one of the pair in hand. Sly also needs the other unseen and bluffs once a round;
-  // Wild ignores the risk.
-  const { cheats } = TRAITS[mind.persona]
-  if (cheats === 'never') return null
-  const careful = cheats === 'careful'
-  if (careful && phase.jodhiClaims.some((j) => j.seat === me)) return null
-  const played = history(phase).flatMap((t) => t.plays.map((p) => p.card))
-  for (const suit of open) {
-    const pair = (c: Card) => c.suit === suit && (c.rank === 'K' || c.rank === 'Q')
-    if (phase.hand.filter(pair).length !== 1 || (careful && played.some(pair))) continue
-    if (roll(mind.salt, me, `bluff:${phase.tricks.length}:${suit}`) < BLUFF_CHANCE) return { type: 'claimJodhi', suit, withJack: false }
-  }
-  return null
+  return chooseBluff(view, phase, open, mind)
 }
 
 /** Always valid for a seat that is to act; used if `chooseAction` is ever rejected. */

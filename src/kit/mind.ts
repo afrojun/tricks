@@ -30,7 +30,7 @@ export const TRAITS: Record<Persona, Traits> = {
   straight: { attention: 0.6, cheats: 'never', hunchAt: null, hunchChance: 0, moody: false },
   sharp: { attention: 0.95, cheats: 'never', hunchAt: 3, hunchChance: 0.3, moody: false },
   sly: { attention: 0.6, cheats: 'careful', hunchAt: null, hunchChance: 0, moody: false },
-  wild: { attention: 0.35, cheats: 'reckless', hunchAt: 1, hunchChance: 0.12, moody: true },
+  wild: { attention: 0.35, cheats: 'reckless', hunchAt: 2, hunchChance: 0.03, moody: true },
 }
 
 /** What `mindFor` reads from a game. */

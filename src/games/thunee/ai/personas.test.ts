@@ -88,14 +88,20 @@ describe.each(PRESETS)('personas under %s rules', (name, preset) => {
     console.log(`personas (${name}):`, JSON.stringify(Object.fromEntries(total)), `challenges: ${guilty} guilty, ${innocent} innocent`)
     expect(total.get('straight')).toEqual({ illegal: 0, bluffs: 0 })
     expect(total.get('sharp')).toEqual({ illegal: 0, bluffs: 0 })
-    expect(total.get('wild')!.illegal).toBeGreaterThan(total.get('sly')!.illegal)
-    expect(total.get('sly')!.illegal + total.get('sly')!.bluffs).toBeGreaterThan(0)
+    // Sly never bluffs a Jodhi: the other card always comes out.
+    expect(total.get('sly')!.bluffs).toBe(0)
+    expect(total.get('sly')!.illegal + total.get('wild')!.illegal).toBeGreaterThan(0)
     expect(guilty).toBeGreaterThan(0)
     expect(innocent).toBeGreaterThan(0)
   }, 600_000)
 
-  test('two-player games finish with any pair of personas', () => {
+  test('two-player games finish with any pair of personas, and nobody bluffs a Jodhi', () => {
     const pairs: Persona[][] = [['sly', 'wild'], ['sharp', 'straight'], ['wild', 'sharp']]
-    for (const pair of pairs) for (let seed = 1; seed <= 5; seed++) playGame(pair, seed, preset)
+    for (const pair of pairs) {
+      for (let seed = 1; seed <= 5; seed++) {
+        // With no partner to hold the other card, nobody bluffs a Jodhi.
+        for (const tally of playGame(pair, seed, preset).tally.values()) expect(tally.bluffs).toBe(0)
+      }
+    }
   })
 })

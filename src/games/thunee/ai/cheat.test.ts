@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { type Persona, viewFor } from '../engine'
+import { type Card, type Persona, sameCard, viewFor } from '../engine'
 import { Table, card } from '../engine/testing'
 import { chooseAction, chooseJodhi } from './choose'
 
@@ -17,19 +17,25 @@ describe('cheating', () => {
     for (const honest of ['straight', 'sharp'] as const) expect(playFor(t, 1, honest)).toEqual({ type: 'playCard', card: card('Qc') })
   })
 
-  test('Sly passes up a cheat it would have to show soon; Wild takes it', () => {
+  test('Sly and Wild pass up a cheat they would have to show soon', () => {
     const t = start(TWO_HEARTS).play('Ah 10h 9h')
     expect(playFor(t, 1, 'sly')).toEqual({ type: 'playCard', card: card('Qh') })
-    expect(playFor(t, 1, 'wild')).toEqual({ type: 'playCard', card: card('10s') })
+    for (let salt = 1; salt <= 200; salt++) expect(playFor(t, 1, 'wild', salt)).toEqual({ type: 'playCard', card: card('Qh') })
     expect(playFor(t, 1, 'straight')).toEqual({ type: 'playCard', card: card('Qh') })
   })
 
-  test('Sly declines a cheat whose giveaway would be a 9 (risk 0.281, not 0.234)', () => {
+  test('Sly declines a cheat whose giveaway would be a 9 (risk 0.281, not 0.234); Wild, with more nerve, gives in now and then', () => {
     // Seat 1 holds 9c as its only club; the opponents lead 10c and seat 0 trumps with Qs. As would win for 25.
     const NINE = ['Qs Jh 9h Ah 10h Kh', 'As 9c Kd Jd 10d Ad', '10c Jc Ac Kc Qc 9d', 'Js 9s 10s Ks Qh Qd']
     const t = start(NINE).play('10c Qh Qs')
-    expect(playFor(t, 1, 'sly')).toEqual({ type: 'playCard', card: card('9c') })
-    expect(playFor(t, 1, 'wild')).toEqual({ type: 'playCard', card: card('As') })
+    const plays = (persona: Persona) => Array.from({ length: 1000 }, (_, i) => playFor(t, 1, persona, i + 1))
+    expect(plays('sly').every((a) => sameCard((a as { card: Card }).card, card('9c')))).toBe(true)
+    // Wild's nerve is 0.3, above the risk; it gives in to a trick's temptation 15% of the time.
+    const wild = plays('wild')
+    for (const a of wild) expect(['9c', 'As'].map(card)).toContainEqual((a as { card: Card }).card)
+    const took = wild.filter((a) => sameCard((a as { card: Card }).card, card('As'))).length / wild.length
+    expect(took).toBeGreaterThan(0.11)
+    expect(took).toBeLessThan(0.19)
   })
 
   test('after a renege, Sly keeps the giveaway card back while it has anything else', () => {
@@ -40,57 +46,56 @@ describe('cheating', () => {
 })
 
 describe('false Jodhis', () => {
-  // Seat 1 trumps the first trick; it holds Kd and Qc, and neither partner card has been seen.
-  const won = () => start().play('Ah Qh 9h 10s')
-  const bluffs = (t: Table, persona: Persona) => {
+  const claims = (t: Table, persona: Persona) => {
     let count = 0
     for (let salt = 1; salt <= 400; salt++) {
       const claim = chooseJodhi(viewFor(t.game, 1, 'full'), { persona, salt })
       if (claim) {
-        expect(claim).toMatchObject({ type: 'claimJodhi', withJack: false })
-        expect(['diamonds', 'clubs']).toContain((claim as { suit: string }).suit)
+        expect(claim).toEqual({ type: 'claimJodhi', suit: 'diamonds', withJack: false })
         count++
       }
     }
     return count / 400
   }
+  // Seat 1 trumps the first trick, then leads 10d: both opponents show out, and seat 3 wins with Jd.
+  // Seat 1 holds Kd; the Qd can only be in its partner's hand.
+  const SHOWN_OUT = ['Ah 10h 10c Kc Qc Qs', 'Js 9s As 10s Kd 10d', 'Qh Kh Jc 9c Ac Ks', 'Jd 9d Ad Qd Jh 9h']
+  const shownOut = () =>
+    new Table(4, { redealIfNoTrumps: false, jodhiTiming: 'anyTrick' }).deal(SHOWN_OUT).toPlay('spades').play('Qh Jh Ah 10s  10d Jc Jd Kc')
 
-  test('Sly and Wild sometimes claim a Jodhi they half hold; honest personas never do', () => {
-    for (const persona of ['sly', 'wild'] as const) {
-      const r = bluffs(won(), persona)
-      expect(r).toBeGreaterThan(0.6)
-      expect(r).toBeLessThan(0.9)
-    }
-    expect(bluffs(won(), 'straight')).toBe(0)
-    expect(bluffs(won(), 'sharp')).toBe(0)
+  test('Wild sometimes bluffs a Jodhi when neither opponent can hold the other card; nobody else does', () => {
+    const r = claims(shownOut(), 'wild')
+    expect(r).toBeGreaterThan(0.35)
+    expect(r).toBeLessThan(0.65)
+    for (const persona of ['sly', 'straight', 'sharp'] as const) expect(claims(shownOut(), persona)).toBe(0)
   })
 
-  test('Wild bluffs a Jodhi whose other card has been seen; Sly never does', () => {
-    // Seat 1 trumps a heart trick in which seat 0, void in hearts, throws the Qd; seat 1 holds Kd and Qc.
-    const SEEN = ['Ks Qs 10c Qd Jd 9d', 'Js 9s As 10s Kd Qc', 'Jc 9c Ac Kc Ah 10h', 'Jh 9h Kh Qh Ad 10d']
-    const t = start(SEEN).play('Ah Qh Qd 10s')
-    const phase = t.game.phase
-    if (phase.kind !== 'trickPause') throw new Error(phase.kind)
-    expect(phase.play.tricks[0].plays.every((p) => p.broke.length === 0)).toBe(true)
-    const diamonds = (persona: Persona) => {
-      let count = 0
-      for (let salt = 1; salt <= 400; salt++) {
-        const claim = chooseJodhi(viewFor(t.game, 1, 'full'), { persona, salt })
-        if (claim?.type === 'claimJodhi' && claim.suit === 'diamonds') count++
-      }
-      return count
-    }
-    expect(diamonds('wild')).toBeGreaterThan(0)
-    expect(diamonds('sly')).toBe(0)
+  test('Wild does not trust a show-out the opponent has since contradicted', () => {
+    // As SHOWN_OUT, but seat 0 holds Ad: it reneges with Kc on the diamond lead, then shows Ad in trick 2,
+    // which seat 1 wins with a trump.
+    const CONTRADICTED = ['Ah 10h Ad Kc Qc Qs', 'Js 9s As 10s Kd 10d', 'Qh Kh Jc 9c Ac Ks', 'Jd 9d 10c Qd Jh 9h']
+    const t = new Table(4, { redealIfNoTrumps: false, jodhiTiming: 'anyTrick' })
+      .deal(CONTRADICTED)
+      .toPlay('spades')
+      .play('Qh Jh Ah 10s  10d Jc Jd Kc')
+    expect(claims(t, 'wild')).toBeGreaterThan(0)
+    t.endPause().play('9h Ad Js Kh')
+    expect(claims(t, 'wild')).toBe(0)
   })
 
-  test('Sly bluffs at most once a round', () => {
-    const t = won()
+  test('nobody bluffs a Jodhi whose other card an opponent may hold', () => {
+    // Seat 1 trumps the first trick; it holds Kd and Qc, and neither opponent has shown out of either suit.
+    const t = start().play('Ah Qh 9h 10s')
+    for (const persona of ['sly', 'wild', 'straight', 'sharp'] as const) expect(claims(t, persona)).toBe(0)
+  })
+
+  test('Wild bluffs at most once a round', () => {
+    const t = shownOut()
     let salt = 1
-    while (salt <= 1000 && !chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'sly', salt })) salt++
-    const claim = chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'sly', salt })
+    while (salt <= 1000 && !chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'wild', salt })) salt++
+    const claim = chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'wild', salt })
     expect(claim).not.toBeNull()
     t.do(1, claim!)
-    for (let s = 1; s <= 100; s++) expect(chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'sly', salt: s })).toBeNull()
+    for (let s = 1; s <= 100; s++) expect(chooseJodhi(viewFor(t.game, 1, 'full'), { persona: 'wild', salt: s })).toBeNull()
   })
 })
