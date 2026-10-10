@@ -217,16 +217,17 @@ Practice works as for Hearts: one person and honest computers, a clock that wait
 
 ## 10. Changes outside the game
 
-Each is small and done before the game needs it, with its own tests:
+Each is small and done before the game needs it, with its own tests. A move takes the code out of the game it came from, which then uses the shared version, so nothing is kept twice:
 
 1. **The 52-card deck.** Hearts' ranks, `createDeck` and `strength` move to the kit; Hearts imports them from there.
-2. **Partners.** Thunee's `teamOf` and `partnerOf` move to the kit as a partnership helper for four seats.
-3. **A play suit.** `ledSuit`, `followSuit` and `trickWinner` take an optional `suitOf` (section 3.1).
-4. **Settled plays.** The kit's `SeenPlay` gains `settled`: `playProofs` and `exposes` never treat a settled play as the cheat, but still use it as the card that reveals one (section 6).
-5. **Three seats on screen.** `place` in `src/ui/seats.ts` puts the two opponents of three at left and right; `Where` and the trick area need nothing new. A third side colour, `--team2`, joins the tokens.
-6. **The hand.** The shared `Hand` shows two tiers when `most` is over thirteen, and a face-down mode for Blind nil and the two-player draw.
-7. **The calling panel**, `CallPanel` in `src/ui/Call.tsx`: the numbers offered and the named calls, so Oh Hell can later withhold the dealer's forbidden number.
-8. **A joker face** for the shared `Card`.
+2. **Partners.** Thunee's `teamOf` and `partnerOf` move to the kit as a partnership helper for four seats; Thunee imports them from there.
+3. **A suit that must be broken.** Hearts' `heartsLead` and Spades' `spadesLead` are one excuse with a different suit: the kit gains it beside `followSuit`, and Hearts uses it.
+4. **A play suit.** `ledSuit`, `followSuit` and `trickWinner` take an optional `suitOf` (section 3.1).
+5. **Settled plays.** The kit's `SeenPlay` gains `settled`: `playProofs` and `exposes` never treat a settled play as the cheat, but still use it as the card that reveals one (section 6).
+6. **Three seats on screen.** `place` in `src/ui/seats.ts` puts the two opponents of three at left and right; `Where` and the trick area need nothing new. A third side colour, `--team2`, joins the tokens.
+7. **The hand.** The shared `Hand` shows two tiers when `most` is over thirteen, and a face-down mode for Blind nil and the two-player draw.
+8. **The calling panel**, `CallPanel` in `src/ui/Call.tsx`: the numbers offered and the named calls, so Oh Hell can later withhold the dealer's forbidden number. Thunee's calling grid (its amounts and Pass) is the same shape and moves onto it.
+9. **A joker face** for the shared `Card`.
 
 Registering the game, as AGENTS.md's "Adding a game" lists: the module in `src/games/index.ts` with `FORMAT_VERSION` 1; the contract fixture in `FIXTURES` in `src/games/index.test.ts` and `src/kit/search/step.test.ts`; the client in `GAMES` and `LOADERS` in `src/ui/games.ts`; the rule book and its line in `src/presets/books.test.ts`; the coach in `COACHED` in `src/practice/coaches.test.ts`.
 
@@ -246,9 +247,9 @@ The contract test's `COVERAGE` expects the same phases at every table size. Spad
 
 ## 12. Build order
 
-1. Section 10, items 1 to 4.
+1. Section 10, items 1 to 5.
 2. The engine and module for four players (sections 2 to 6), with the random legal player.
 3. Three and two players.
 4. The computer players and personas (section 7).
-5. Section 10, items 5 to 7; the screens, practice and coach (sections 8 and 9).
-6. Jokers (section 3.1, section 10 item 8).
+5. Section 10, items 6 to 8; the screens, practice and coach (sections 8 and 9).
+6. Jokers (section 3.1, section 10 item 9).
