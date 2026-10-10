@@ -38,6 +38,8 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
   private readonly random: Rng
   /** The computers' banter since it was last taken. Never saved, and drawn apart from the game's own randomness. */
   private said: Said[] = []
+  /** The round's decisions as saved so far, for `save`. */
+  private written: { decisions: readonly DecisionRecord<V, A>[]; count: number; json: string } | null = null
 
   private constructor(
     readonly practice: GamePractice<G, A, E, V, N, D, S>,
@@ -106,17 +108,22 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
     }
   }
 
+  /**
+   * The game as `JSON.stringify` writes a `Saved`, field by field. Practice saves after every change, and
+   * the round's decisions, each with a full view, are most of a save; a decision never changes once
+   * logged, so each is written only once.
+   */
   save(): string {
-    const saved: Saved<G, V, A, D> = {
-      format: PRACTICE_FORMAT,
-      game: this.game,
-      rng: this.random.state,
-      virtualNow: this.virtualNow,
-      eventCount: this.eventCount,
-      round: this.round,
-      continued: this.continued,
+    const json: { [K in keyof Saved<G, V, A, D>]: string } = {
+      format: JSON.stringify(PRACTICE_FORMAT),
+      game: JSON.stringify(this.game),
+      rng: JSON.stringify(this.random.state),
+      virtualNow: JSON.stringify(this.virtualNow),
+      eventCount: JSON.stringify(this.eventCount),
+      round: `{"dealt":${JSON.stringify(this.round.dealt)},"decisions":[${this.savedDecisions()}]}`,
+      continued: JSON.stringify(this.continued),
     }
-    return JSON.stringify(saved)
+    return `{${Object.entries(json).map(([key, value]) => `"${key}":${value}`).join(',')}}`
   }
 
   /** What the table shows: the player's view with only the last trick face up. */
@@ -260,6 +267,15 @@ export class PracticeGame<G extends TableState, A extends { type: string }, E, V
     if (this.practice.roundBegins(events)) this.round = { dealt: [], decisions: [] }
     const deal = this.practice.dealInPlay(this.game)
     if (deal !== null) this.round.dealt[deal.index] = deal.hands
+  }
+
+  /** The round's decisions in JSON, without their brackets: those written before, and any logged since. */
+  private savedDecisions(): string {
+    const decisions = this.round.decisions
+    if (this.written?.decisions !== decisions) this.written = { decisions, count: 0, json: '' }
+    const written = this.written
+    for (; written.count < decisions.length; written.count++) written.json += `${written.count > 0 ? ',' : ''}${JSON.stringify(decisions[written.count])}`
+    return written.json
   }
 
   private takeSaid(): Said[] {

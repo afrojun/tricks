@@ -108,9 +108,25 @@ describe('Hearts practice', () => {
     expect(q.view()).toEqual(p.view())
     expect(q.round).toEqual(p.round)
     expect(playPractice(q, 400, learner).view()).toEqual(playPractice(p, 400, learner).view())
+    // Rounds later, a save still holds the round as it stands, written alike by the game loaded and the one played on.
+    expect(JSON.parse(p.save()).round).toEqual(p.round)
+    expect(q.save()).toBe(p.save())
     const saved = JSON.parse(p.save())
     expect(saved.game.formatVersion).toBe(heartsPractice.module.formatVersion)
     expect(PracticeGame.load(heartsPractice, JSON.stringify({ ...saved, game: { ...saved.game, formatVersion: 99 } }))).toBeNull()
+  })
+
+  test('a save made later in the round holds the decisions logged since the last', () => {
+    const p = PracticeGame.start(heartsPractice, 4, 6, 'You')
+    playPractice(p, 60, learner)
+    const round = p.round
+    const before = round.decisions.length
+    p.save()
+    playPractice(p, 12, learner)
+    expect(p.round).toBe(round)
+    expect(before).toBeGreaterThan(0)
+    expect(round.decisions.length).toBeGreaterThan(before)
+    expect(JSON.parse(p.save()).round).toEqual(p.round)
   })
 
   describe('through the practice session', () => {

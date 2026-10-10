@@ -1,9 +1,9 @@
 /** The suggested move for the player's decision, and why: the honest computer's choice, put into words. */
-import { type Action, type Card, type Suit, type View, type ViewPlaying, SUIT_NAME, availableActions, jodhiPoints, sameCard } from '../engine'
+import { type Action, type Available, type Card, type Suit, type View, type ViewPlaying, SUIT_NAME, availableActions, jodhiPoints, sameCard } from '../engine'
 import { decide, chooseJodhi } from '../ai/choose'
 import { HONEST } from '../../../kit/mind'
 import { wouldWin } from '../ai/read'
-import type { Reason } from '../ai/reasons'
+import type { Decision, Reason } from '../ai/reasons'
 import { findProofs, inPlay } from '../ai/suspicion'
 import type { Note } from './note'
 import { thuneeRisk } from './check'
@@ -21,7 +21,7 @@ export function advise(view: View): Advice | null {
   const can = availableActions(view)
   const phase = view.phase
 
-  const challenge = provableChallenge(view)
+  const challenge = provableChallenge(view, can)
   if (challenge) return challenge
 
   const jodhi = chooseJodhi(view, HONEST)
@@ -44,9 +44,10 @@ export function advise(view: View): Advice | null {
     (phase.kind === 'trickPause' && can.pass) || (phase.kind === 'playing' && phase.turn === me)
   if (!decides) return null
 
-  const { action, reason } = decide(view, HONEST)
+  const decision = decide(view, HONEST)
+  const { action, reason } = decision
   const title = action.type !== 'pass' ? titleOf(action) : phase.kind === 'thuneeWindow' ? 'No Thunee' : phase.kind === 'trickPause' ? (phase.redeal ? 'Deal again' : 'No Jodhi') : titleOf(action)
-  return { action, note: { tone: 'suggest', title, body: explain(view, action, reason), cards: cardsOf(action, reason), topic: topicOf(reason) } }
+  return { action, note: { tone: 'suggest', title, body: explain(view, can, decision), cards: cardsOf(action, reason), topic: topicOf(reason) } }
 }
 
 function titleOf(action: Action): string {
@@ -112,16 +113,17 @@ function strength(r: { jacks: number; backedJack: boolean; high: number }): stri
   return r.high > 0 ? `no jacks and ${count(r.high, 'high card')}` : 'no jacks or high cards'
 }
 
-function explain(view: View, action: Action, reason: Reason): string {
+/** The decision in words; `can` is what the player may do. */
+function explain(view: View, can: Available, { action, reason, alternatives }: Decision): string {
   const phase = inPlay(view)
-  if (action.type === 'playCard' && availableActions(view).legal.length === 1 && view.phase.kind === 'playing' && view.phase.hand.length === 1) {
+  if (action.type === 'playCard' && can.legal.length === 1 && view.phase.kind === 'playing' && view.phase.hand.length === 1) {
     return `${card(action.card)} is your only card.`
   }
   switch (reason.code) {
     case 'callStrong':
       return `Your four cards hold ${strength(reason)}: strong enough to choose trump. A call is added to the other side's points, so this hand is worth calling up to ${reason.limit}.`
     case 'passWeak': {
-      const next = availableActions(view).calls[0]
+      const next = can.calls[0]
       if (reason.limit > 0 && next !== undefined) return `Your four cards hold ${strength(reason)}, worth calling up to ${reason.limit}. The next call would be ${next}, more than this hand is worth, so pass.`
       return `Your four cards hold ${strength(reason)}. That is not strong enough to call: a call is added to the other side's points.`
     }
@@ -134,7 +136,7 @@ function explain(view: View, action: Action, reason: Reason): string {
     case 'thuneeUnsafe':
       return `Thunee means winning all six tricks yourself, and your hand cannot promise that. ${thuneeRisk(view)}`
     case 'leadBoss':
-      return `The jack is the highest card of its suit, so only a trump can beat ${card(reason.card)}.${whyNot(view, phase, reason.card)}`
+      return `The jack is the highest card of its suit, so only a trump can beat ${card(reason.card)}.${whyNot(view, can, phase, reason.card)}`
     case 'leadLow':
       return phase?.trump
         ? `${card(reason.card)} is your cheapest card outside trump. Keep stronger cards for tricks you can win.`
@@ -146,9 +148,9 @@ function explain(view: View, action: Action, reason: Reason): string {
     case 'thuneeSetTrump':
       return `The first card you lead in a Thunee makes its suit trump. ${suitPlural(reason.card.suit)} are your longest suit, so lead your best of them.`
     case 'thuneeDrawTrumps':
-      return `The other side may still hold trumps, and a trump can cut any other card you lead. Lead trumps until they have none.${others(view, reason.card)}`
+      return `The other side may still hold trumps, and a trump can cut any other card you lead. Lead trumps until they have none.${others(alternatives, reason.card)}`
     case 'thuneeSureLead':
-      return `Nobody can beat ${card(reason.card)}: every higher card is played or in your hand, and the other side cannot trump it.${others(view, reason.card)}`
+      return `Nobody can beat ${card(reason.card)}: every higher card is played or in your hand, and the other side cannot trump it.${others(alternatives, reason.card)}`
     case 'keepOffThunee':
       return `${phase && phase.thunee ? who(view, phase.thunee.caller) : 'Your partner'} called Thunee and must win every trick alone. If you take one, the Thunee fails, so stay under them and get rid of high cards you could later be forced to win with.`
     case 'feedPartner':
@@ -161,7 +163,7 @@ function explain(view: View, action: Action, reason: Reason): string {
       const led = phase?.current[0]?.card.suit
       const trumping = phase !== null && phase.trump !== null && reason.card.suit === phase.trump && led !== phase.trump
       const lead = trumping ? `You have no ${suitPlural(led!)}, so a trump takes this trick: ${card(reason.card)} is the cheapest one that wins.` : `${card(reason.card)} is the cheapest card that wins this trick.`
-      return `${lead}${whyNot(view, phase, reason.card)}`
+      return `${lead}${whyNot(view, can, phase, reason.card)}`
     }
     case 'cannotWin':
       return 'None of your cards can win this trick, so give away as few points as possible.'
@@ -178,9 +180,9 @@ function explain(view: View, action: Action, reason: Reason): string {
   }
 }
 
-/** The other cards the computer counts as just as good. */
-function others(view: View, chosen: Card): string {
-  const same = decide(view, HONEST).alternatives?.filter((c) => !sameCard(c, chosen)) ?? []
+/** The other cards the computer counts as just as good, of its `alternatives`. */
+function others(alternatives: readonly Card[] | undefined, chosen: Card): string {
+  const same = alternatives?.filter((c) => !sameCard(c, chosen)) ?? []
   return same.length === 0 ? '' : ` ${list(same.map(card))} ${same.length === 1 ? 'is' : 'are'} just as good.`
 }
 
@@ -191,15 +193,14 @@ function partnerText(view: View, phase: ViewPlaying | null): string {
 }
 
 /** One sentence on the other cards that would also win, when there are some. */
-function whyNot(view: View, phase: ViewPlaying | null, chosen: Card): string {
+function whyNot(view: View, can: Available, phase: ViewPlaying | null, chosen: Card): string {
   if (phase === null || view.seat === null || phase.current.length === 0) return ''
-  const others = availableActions(view).legal.filter((c) => !sameCard(c, chosen) && wouldWin(phase, view.seat!, c))
+  const others = can.legal.filter((c) => !sameCard(c, chosen) && wouldWin(phase, view.seat!, c))
   if (others.length === 0) return ''
   return ` ${list(others.map(card))} would also win, but ${others.length === 1 ? 'it is' : 'they are'} worth keeping for later.`
 }
 
-function provableChallenge(view: View): Advice | null {
-  const can = availableActions(view)
+function provableChallenge(view: View, can: Available): Advice | null {
   for (const proof of findProofs(view)) {
     const action: Action | null = proof.id.startsWith('thunee:')
       ? can.challengeThunee ? { type: 'challengeThunee' } : null
