@@ -118,13 +118,14 @@ function DrillsSheet({ onClose }: { onClose: () => void }) {
           {practice.drills.map((d) => (
             <li key={d.id}>
               <button
-                className="btn w-full justify-between text-left"
+                className="btn w-full text-left"
                 onClick={() => {
                   playSound('tap')
                   navigate(drillPath(game.id, d.id))
                 }}
               >
-                <span className="grid">
+                {/* The text takes the row, so every title starts at the same edge: `.btn` centres what it holds. */}
+                <span className="grid flex-1">
                   <span>{d.title}</span>
                   <span className="text-sm font-normal text-on-surface-muted">{d.summary}</span>
                 </span>
