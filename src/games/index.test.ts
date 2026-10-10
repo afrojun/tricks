@@ -5,22 +5,26 @@ import { Table } from './thunee/engine/testing'
 import { checkMalformed, runContract } from '../kit/contract'
 import type { Actor, Seat } from '../kit/table'
 import { hearts } from './hearts'
+import { spades } from './spades'
 import { thunee } from './thunee'
 import { thuneeContract } from './thunee/contract'
 
 describe('the list of games', () => {
   test('holds every game under its own id', () => {
-    expect([...GAMES.keys()]).toEqual(['thunee', 'hearts'])
+    expect([...GAMES.keys()]).toEqual(['thunee', 'hearts', 'spades'])
     for (const [id, module] of GAMES) expect(module.id).toBe(id)
     expect(GAMES.get('thunee')).toBe(thunee)
     expect(GAMES.get('hearts')).toBe(hearts)
+    expect(GAMES.get('spades')).toBe(spades)
   })
 
   test('a room named by a known game and a six-letter code holds that game', () => {
     expect(gameOf('thunee-ABCDEF')).toBe(thunee)
     expect(gameOf('hearts-QWERTY')).toBe(hearts)
+    expect(gameOf('spades-ABCDEF')).toBe(spades)
     expect(isRoomName('thunee-ABCDEF')).toBe(true)
     expect(isRoomName('hearts-ABCDEF')).toBe(true)
+    expect(isRoomName('spades-ZXCVBN')).toBe(true)
   })
 
   test('any other name holds no game', () => {
@@ -30,7 +34,8 @@ describe('the list of games', () => {
       'thunee-abcdef',
       'thunee_ABCDEF',
       'hearts-ABC123',
-      'spades-ABCDEF',
+      'spades-ABC',
+      'rummy-ABCDEF',
       'constructor-ABCDEF',
       'toString-ABCDEF',
       '-ABCDEF',

@@ -10,7 +10,10 @@ import { describe, expect, test } from 'vitest'
 import { GAMES } from '../../games'
 import { STANDARD } from '../../games/hearts'
 import { heartsContract } from '../../games/hearts/contract'
+import { contractRules, spadesContract } from '../../games/spades/contract'
+import { blindNilStates } from '../../games/spades/engine/testing'
 import { thuneeContract } from '../../games/thunee/contract'
+import { STANDARD as SPADES_STANDARD } from '../../games/spades/engine/rules'
 import { TRADITIONAL } from '../../games/thunee/engine'
 import { type Contract, checkMalformed, runContract } from '../contract'
 import type { AnyGameModule } from '../module'
@@ -103,6 +106,7 @@ interface Fixture {
 const FIXTURES: Record<string, (playerCount: number, allowCheating: boolean) => Fixture> = {
   thunee: (playerCount, allowCheating) => fixture(thuneeContract({ allowCheating }, playerCount as 2 | 4)),
   hearts: (_, allowCheating) => fixture(heartsContract({ allowCheating })),
+  spades: (playerCount, allowCheating) => fixture(spadesContract({ ...contractRules(playerCount), allowCheating }, playerCount as 2 | 3 | 4)),
 }
 
 /** A game's fixture, its contract widened to any game's and its tally still checked. */
@@ -118,11 +122,11 @@ const overrides = (rules: object) => ['setRules.overrides', ...Object.keys(rules
 const card = (at: string) => [at, `${at}.suit`, `${at}.rank`]
 
 /**
- * What the malformed-action check must reach in each game: the phases of a first round, every action a client may
- * send, and every field. A union's shapes with fields of their own would add those fields here; neither game has one
+ * What the malformed-action check must reach in each game: the phases of a first round (by table size, where they
+ * differ), every action a client may send, and every field, and any states the game hands it beyond those. A union's shapes with fields of their own would add those fields here; neither game has one
  * yet (Thunee's trump choice is a suit or `lastCard`), so the exact lists below fail the day one appears unlisted.
  */
-const COVERAGE: Record<string, { phases: string[]; actions: string[]; paths: string[] }> = {
+const COVERAGE: Record<string, { phases: string[] | Record<number, string[]>; actions: string[]; paths: string[]; also?: () => { label: string; game: TableState }[] }> = {
   thunee: {
     phases: ['calling', 'trumpSelection', 'thuneeWindow', 'playing', 'trickPause', 'roundResult'],
     actions: [
@@ -146,6 +150,22 @@ const COVERAGE: Record<string, { phases: string[]; actions: string[]; paths: str
       ...['choosePass.cards', ...card('choosePass.cards.0'), ...card('choosePass.cards.1'), ...card('choosePass.cards.2')],
       ...[...card('playCard.card'), 'challengePlay.seat', 'rematch.now'],
     ],
+  },
+  spades: {
+    phases: {
+      2: ['drawing', 'calling', 'playing', 'trickPause', 'roundResult'],
+      3: ['calling', 'playing', 'trickPause', 'roundResult'],
+      4: ['calling', 'playing', 'trickPause', 'roundResult'],
+    },
+    actions: [...TABLE_ACTIONS, 'setRules', 'draw', 'lookAtHand', 'call', 'callBlindNil', 'giveCards', 'playCard', 'challengePlay', 'nextRound', 'rematch'],
+    paths: [
+      ...TABLE_PATHS,
+      ...overrides(SPADES_STANDARD),
+      ...['draw.keep', 'call.tricks', 'giveCards.cards', ...card('giveCards.cards.0'), ...card('giveCards.cards.1')],
+      ...[...card('playCard.card'), 'challengePlay.seat', 'rematch.now'],
+    ],
+    // A Blind nil needs a side 100 behind, which a new game never is: its exchange, before and after the first gift.
+    also: blindNilStates,
   },
 }
 
@@ -189,12 +209,16 @@ describe('step is the in-place half of apply', () => {
 
     test(`${module.id}: every malformed action, from anyone, in every phase reached`, () => {
       const tally: Tally = { applied: 0, rejected: 0 }
-      const covered = checkMalformed(checked(module, tally))
+      const coverage = COVERAGE[module.id]
+      const also = coverage.also?.() ?? []
+      const covered = checkMalformed(checked(module, tally), 1, also)
       expect(covered.states[0]).toBe('an empty lobby')
       for (const count of module.seatCounts) {
         expect(covered.states).toContain(`a full lobby of ${count}`)
-        for (const phase of COVERAGE[module.id].phases) expect(covered.states).toContain(`${phase} with ${count}`)
+        const phases = Array.isArray(coverage.phases) ? coverage.phases : coverage.phases[count]
+        for (const phase of phases) expect(covered.states).toContain(`${phase} with ${count}`)
       }
+      for (const { label } of also) expect(covered.states).toContain(label)
       expect([...covered.actions].sort()).toEqual([...COVERAGE[module.id].actions].sort())
       expect([...covered.paths].sort()).toEqual([...COVERAGE[module.id].paths].sort())
       expect(tally.rejected).toBeGreaterThan(10_000)

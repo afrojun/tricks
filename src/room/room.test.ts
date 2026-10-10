@@ -143,7 +143,8 @@ describe('room names', () => {
     expect(roomName('thunee', 'ABCDEF')).toBe('thunee-ABCDEF')
     expect(isRoomName('thunee-ABCDEF')).toBe(true)
     expect(isRoomName('hearts-ABCDEF')).toBe(true)
-    for (const name of ['thunee-ABCDE', 'thunee-ABCDEFG', 'thunee-abcdef', 'thunee_ABCDEF', 'spades-ABCDEF', 'ABCDEF', 'main', '']) {
+    expect(isRoomName('spades-ABCDEF')).toBe(true)
+    for (const name of ['thunee-ABCDE', 'thunee-ABCDEFG', 'thunee-abcdef', 'thunee_ABCDEF', 'rummy-ABCDEF', 'ABCDEF', 'main', '']) {
       expect(isRoomName(name)).toBe(false)
     }
   })
@@ -161,7 +162,7 @@ describe('room names', () => {
 
   test('a room named by a game the server does not hold is refused the same way, saved state or not', async () => {
     const w = new World()
-    w.host = { ...w.host, name: 'spades-ABCDEF' }
+    w.host = { ...w.host, name: 'rummy-ABCDEF' }
     w.data.set('state', { game: createGame(), tokens: {}, version: 3, eventCount: 0, emptySince: null })
     await w.boot()
     const conn = await w.connect(TOKENS[0])

@@ -79,7 +79,7 @@ function closeCodeFor(name: string): Promise<number> {
     })
   })
 }
-for (const name of ['SIM123', 'thunee-abcdef', 'spades-ABCDEF']) {
+for (const name of ['SIM123', 'thunee-abcdef', 'rummy-ABCDEF']) {
   const closed = await closeCodeFor(name)
   if (closed !== UNKNOWN_ROOM_CLOSE_CODE) throw new Error(`a socket to ${name} closed with ${closed}, not ${UNKNOWN_ROOM_CLOSE_CODE}`)
 }

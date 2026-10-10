@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:quick": "TEST_QUICK=1 vitest run",
     "test:watch": "vitest",
-    "test:soak": "SIM_GAMES=400 vitest run src/games/thunee/ai src/games/hearts/simulation.test.ts",
+    "test:soak": "SIM_GAMES=400 vitest run src/games/thunee/ai src/games/hearts/simulation.test.ts src/games/spades/simulation.test.ts",
     "test:slots": "tsx scripts/test-slots.ts",
     "e2e": "tsx scripts/e2e.ts && tsx scripts/e2e-two.ts && tsx scripts/e2e-controls.ts && tsx scripts/e2e-practice.ts && tsx scripts/e2e-hearts.ts && tsx scripts/e2e-drills.ts",
     "e2e:sockets": "tsx scripts/play.ts"

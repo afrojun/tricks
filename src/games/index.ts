@@ -5,9 +5,10 @@
 import { type AnyGameModule, anyGame } from '../kit/module'
 import { splitRoomName } from '../protocol'
 import { hearts } from './hearts'
+import { spades } from './spades'
 import { thunee } from './thunee'
 
-export const GAMES: ReadonlyMap<string, AnyGameModule> = new Map([anyGame(thunee), anyGame(hearts)].map((module) => [module.id, module]))
+export const GAMES: ReadonlyMap<string, AnyGameModule> = new Map([anyGame(thunee), anyGame(hearts), anyGame(spades)].map((module) => [module.id, module]))
 
 /** The game a room named `<game>-<CODE>` holds; null for a name that is not a known game and a code. */
 export function gameOf(roomName: string): AnyGameModule | null {

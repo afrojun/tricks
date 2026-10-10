@@ -294,8 +294,9 @@ function describe(value: unknown): string {
  * stood in for) until nothing is due, and in an empty lobby, a full one and the first state of
  * every phase reached, applies to a frozen game: messages that are not actions, which must be
  * refused; and every action type, valid and then with one field at a time wrong or missing; from
- * every seat, a seat outside the table, a spectator and the system. Throws on a breach; returns
- * the states, action types and field paths it covered.
+ * every seat, a seat outside the table, a spectator and the system. Then the same in each of
+ * `also`, states a game's own rules or scores reach that a new game's computers never do. Throws
+ * on a breach; returns the states, action types and field paths it covered.
  *
  * `apply` is pure: a message it refuses from an actor without reading anything of the game but its
  * player count, or anything of the clock or the random draws, it refuses alike in every game with
@@ -307,6 +308,7 @@ function describe(value: unknown): string {
 export function checkMalformed<G extends TableState, A, E, V extends TableView>(
   module: GameModule<G, A, E, V>,
   seed = 1,
+  also: readonly { label: string; game: G }[] = [],
 ): { states: string[]; actions: string[]; paths: string[] } {
   const rng = seededRng(seed)
   let now = 1_000_000
@@ -408,5 +410,7 @@ export function checkMalformed<G extends TableState, A, E, V extends TableView>(
       game = next ?? fail(`${describe(step.action)} by ${step.actor} in ${game.phase.kind} refused`)
     }
   }
+  // States the computers never reach from a new game under its default rules, such as Spades' Blind nil exchange.
+  for (const { label, game } of also) tryAll(game, label)
   return { states, actions: malformed.names, paths: malformed.paths }
 }
