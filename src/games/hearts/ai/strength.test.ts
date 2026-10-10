@@ -8,9 +8,10 @@
  */
 import { describe, expect, test } from 'vitest'
 import { shuffle } from '../../../kit/cards'
+import { copy } from '../../../kit/copy'
 import type { Mind } from '../../../kit/mind'
 import { seededRng } from '../../../kit/testing'
-import { apply, seatsToAct } from '../engine/apply'
+import { seatsToAct, step } from '../engine/apply'
 import { type Card, createDeck } from '../engine/cards'
 import { beginRound } from '../engine/round'
 import { HAND_SIZE, MOON_POINTS, PLAYERS, type PassDirection } from '../engine/rules'
@@ -49,7 +50,8 @@ function dealt(hands: string[], direction: PassDirection): Game {
 
 /** Plays the round out with these players, every chance drawn from `salt`, and returns each seat's points. */
 function playRound(start: Game, players: Player[], salt: number): number[] {
-  let game = start
+  // Played in place in a copy of its own, as the search player plays its imagined games.
+  const game = copy(start)
   let now = 0
   const ctx = () => ({ now, rng: () => 0.5 })
   for (let guard = 0; guard < 500; guard++) {
@@ -63,9 +65,8 @@ function playRound(start: Game, players: Player[], salt: number): number[] {
       action = players[seat](viewFor(game, seat, 'full'), { persona: 'straight', salt })
     }
     if (action === null) throw new Error(`seat ${seat} has nothing to do in ${phase.kind}`)
-    const result = apply(game, seat, action, ctx())
+    const result = step(game, seat, action, ctx())
     if ('rejected' in result) throw new Error(`${JSON.stringify(action)} by ${seat} rejected: ${result.rejected}`)
-    game = result.game
   }
   throw new Error('the round did not finish')
 }

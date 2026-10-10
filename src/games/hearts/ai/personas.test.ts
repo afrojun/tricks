@@ -5,7 +5,7 @@ import { seatsToAct } from '../engine/apply'
 import { availableActions } from '../engine/available'
 import type { RuleOverrides } from '../engine/rules'
 import { Table, playOf } from '../engine/testing'
-import type { Action } from '../engine/types'
+import type { Action, View } from '../engine/types'
 import { viewFor } from '../engine/view'
 import { chooseChallenge, findProofs } from './catch'
 import { decide } from './choose'
@@ -24,21 +24,23 @@ interface Tally {
 
 const EMPTY: Tally = { cheats: 0, guilty: 0, innocent: 0, proofs: 0 }
 
+/** Each seat's `full` view of the game. */
+const fullViews = (t: Table) => [0, 1, 2, 3].map((seat) => viewFor(t.game, seat, 'full'))
+
 /**
- * Every proof any seat holds names a rule its accused broke with the card the
- * proof is about, as the engine recorded it. Returns how many each seat holds.
+ * Every proof any seat holds, as `views` (each seat's `full` view of the round
+ * in play) show them, names a rule its accused broke with the card the proof
+ * is about, as the engine recorded it. Returns how many each seat holds.
  */
-function soundProofs(t: Table): number[] {
-  const phase = t.game.phase
-  if (phase.kind !== 'playing' && phase.kind !== 'trickPause') return [0, 0, 0, 0]
-  const { tricks, current } = phase.play
-  return [0, 1, 2, 3].map((observer) => {
-    const proofs = findProofs(viewFor(t.game, observer, 'full'))
+function soundProofs(t: Table, views: readonly View[]): number[] {
+  const { tricks, current } = playOf(t.game)
+  return views.map((view) => {
+    const proofs = findProofs(view)
     for (const proof of proofs) {
       // Proof ids are `<rule>:<seat>:<trick>:<what shows it>`.
       const trick = Number(proof.id.split(':')[2])
       const plays = trick < tricks.length ? tricks[trick].plays : current
-      expect(plays.find((p) => p.seat === proof.accused)!.broke).toContain(proof.rule)
+      if (!plays.find((p) => p.seat === proof.accused)!.broke.some((rule) => rule === proof.rule)) throw new Error(`seat ${view.seat} holds an unsound proof ${proof.id}`)
     }
     return proofs.length
   })
@@ -63,7 +65,6 @@ function playGame(personas: Persona[], seed: number, overrides: RuleOverrides = 
     const { action, reason } = decision
     const illegal = action.type === 'playCard' && !hasCard(availableActions(viewFor(t.game, seat)).legal, action.card)
     t.do(seat, action)
-    soundProofs(t).forEach((n, observer) => (tally.get(personas[observer])!.proofs += n))
     if (illegal) {
       tally.get(personas[seat])!.cheats++
       expect(reason).toMatchObject({ code: 'renege' })
@@ -72,8 +73,12 @@ function playGame(personas: Persona[], seed: number, overrides: RuleOverrides = 
       const record = play.current.at(-1) ?? play.tricks.at(-1)!.plays.at(-1)!
       expect(record.broke).toEqual(['followSuit'])
     }
+    if (!inPlay()) return
+    // Nothing changes the game again until a challenge, which ends the round: every seat's view stands till then.
+    const views = fullViews(t)
+    soundProofs(t, views).forEach((n, observer) => (tally.get(personas[observer])!.proofs += n))
     for (let s = 0; s < personas.length && watch && inPlay(); s++) {
-      const challenge = chooseChallenge(viewFor(t.game, s, 'full'), mind(s))
+      const challenge = chooseChallenge(views[s], mind(s))
       if (!challenge) continue
       const from = t.events.length
       t.do(s, challenge)
@@ -145,9 +150,11 @@ describe('personas in whole games', () => {
         }
         const p = t.game.phase
         if (p.kind === 'playing' || p.kind === 'trickPause') {
-          expect([...p.play.tricks.flatMap((x) => x.plays), ...p.play.current].every((r) => r.broke.length === 0)).toBe(true)
-          for (const seat of [0, 2]) expect(chooseChallenge(viewFor(t.game, seat, 'full'), mind(seat))).toBeNull()
-          expect(soundProofs(t)).toEqual([0, 0, 0, 0])
+          // Checked after every action, so without expect's cost.
+          if ([...p.play.tricks.flatMap((x) => x.plays), ...p.play.current].some((r) => r.broke.length > 0)) throw new Error(`seed ${seed}: a card broke a rule`)
+          const views = fullViews(t)
+          for (const seat of [0, 2]) if (chooseChallenge(views[seat], mind(seat)) !== null) throw new Error(`seed ${seed}: seat ${seat} accuses`)
+          if (soundProofs(t, views).some((n) => n > 0)) throw new Error(`seed ${seed}: a seat holds a proof`)
         }
       }
       expect(t.game.phase.kind).toBe('gameOver')

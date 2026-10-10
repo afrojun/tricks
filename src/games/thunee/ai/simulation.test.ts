@@ -9,12 +9,13 @@ import {
   checkInvariants,
   hasCard,
   nextDeadline,
-  sameCard,
   seatsToAct,
   teamOf,
   viewFor,
 } from '../engine'
-import { ALTERNATIVES, Table, collectCards, seededRng } from '../engine/testing'
+import { ALTERNATIVES, Table, seededRng } from '../engine/testing'
+import { hiddenFrom } from '../contract'
+import { exposed, same } from '../../../kit/testing'
 import { chooseAction, chooseJodhi } from './choose'
 import { HONEST } from '../../../kit/mind'
 import { chooseChallenge } from './suspicion'
@@ -22,22 +23,17 @@ import { chooseChallenge } from './suspicion'
 /** Raise with SIM_GAMES=2000 for a soak run. */
 const GAMES = Number(process.env.SIM_GAMES ?? 30)
 
+const SECRETS = ['handBefore', 'broke', 'valid', 'stock', 'dealt', 'aiSalt']
+
 function expectNoLeak(game: Game, seat: number | null) {
   const phase = game.phase
-  const hands = 'hands' in phase ? phase.hands : 'play' in phase ? phase.play.hands : null
-  if (hands === null) return
-  const stock = 'stock' in phase ? phase.stock : 'play' in phase ? phase.play.stock : []
-  // Cards of tricks before the last one have been turned down and must be gone from the view too.
-  const forgotten = 'play' in phase ? phase.play.tricks.slice(0, -1).flatMap((t) => t.plays.map((p) => p.card)) : []
-  const hidden = [...hands.filter((_, s) => s !== seat).flat(), ...stock, ...forgotten]
-  const leaked = collectCards(viewFor(game, seat)).filter((c) => hidden.some((h) => sameCard(h, c)))
-  if (leaked.length > 0) throw new Error(`view for ${seat} leaks ${JSON.stringify(leaked)} in ${phase.kind}`)
-  const text = JSON.stringify(viewFor(game, seat))
-  for (const secret of ['"handBefore":', '"broke":', '"valid":', '"stock":', '"dealt":', '"aiSalt":']) {
-    if (text.includes(secret)) throw new Error(`view contains ${secret}`)
-  }
+  if (!('hands' in phase || 'play' in phase)) return
+  const view = viewFor(game, seat)
+  const shown = exposed(view, hiddenFrom(game, seat), SECRETS)
+  if (shown.cards.length > 0) throw new Error(`view for ${seat} leaks ${JSON.stringify(shown.cards)} in ${phase.kind}`)
+  for (const secret of SECRETS) if (shown.keys.has(secret)) throw new Error(`view contains "${secret}":`)
   if ((phase.kind === 'playing' || phase.kind === 'trickPause') && !phase.play.trumpRevealed) {
-    const v = viewFor(game, seat).phase
+    const v = view.phase
     const mayKnow = seat === phase.play.trumper && phase.play.thunee === null
     if ('trump' in v && v.trump !== null && !mayKnow) throw new Error('trump leaked before reveal')
   }
@@ -52,7 +48,8 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
   t.do(0, { type: 'start' })
 
   const step = (seat: number | null, action: Parameters<Table['do']>[1], mustSucceed: boolean) => {
-    if (seat !== null) expect(actionSchema.safeParse(action).success).toBe(true)
+    // Checked after every action, so without expect's cost.
+    if (seat !== null && !actionSchema.safeParse(action).success) throw new Error(`seed ${seed}: ${JSON.stringify(action)} is not a valid message`)
     const rejected = t.try(seat ?? 'system', action)
     if (mustSucceed && rejected !== null) {
       throw new Error(`seed ${seed}: ${JSON.stringify(action)} by ${seat} rejected (${rejected}) in ${t.game.phase.kind}`)
@@ -77,8 +74,9 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
       const s = phase.summary
       stats.rounds++
       stats.reasons.add(s.reason)
-      if (s.reason === 'normal') expect(s.cardPoints[0] + s.cardPoints[1]).toBe(304)
-      expect(s.ballsAfter).toEqual(t.game.balls)
+      // Checked after every round, so without expect's cost.
+      if (s.reason === 'normal' && s.cardPoints[0] + s.cardPoints[1] !== 304) throw new Error(`seed ${seed}: a normal round counted ${s.cardPoints}`)
+      if (!same(s.ballsAfter, t.game.balls)) throw new Error(`seed ${seed}: balls ${t.game.balls} after a summary of ${s.ballsAfter}`)
       step(0, { type: 'nextRound' }, true)
       continue
     }
@@ -88,7 +86,7 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
       for (let seat = 0; seat < playerCount; seat++) {
         const honest = chooseJodhi(viewFor(t.game, seat, 'full'), HONEST)
         if (honest) step(seat, honest, true)
-        else if (chaos() < 0.02 && availableActions(viewFor(t.game, seat)).claimJodhi.length > 0) {
+        else if (chaos() < 0.02 && t.can(seat).claimJodhi.length > 0) {
           step(seat, { type: 'claimJodhi', suit: pick(SUITS), withJack: chaos() < 0.5 }, false)
         }
       }
@@ -96,7 +94,7 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
       // The occasional challenge, right or wrong.
       if (chaos() < 0.01) {
         const seat = Math.floor(chaos() * playerCount)
-        const can = availableActions(viewFor(t.game, seat))
+        const can = t.can(seat)
         if (can.challengeJodhi.length > 0 && chaos() < 0.5) {
           step(seat, { type: 'challengeJodhi', claim: pick(can.challengeJodhi) }, true)
           continue
@@ -119,20 +117,22 @@ function playGame(playerCount: 2 | 4, overrides: RuleOverrides, seed: number) {
     }
     const seat = pick(waiting)
     const view = viewFor(t.game, seat, 'full')
-    expect(availableActions(view)).toEqual(availableActions(viewFor(t.game, seat)))
+    const can = availableActions(view)
+    if (!same(can, t.can(seat))) throw new Error(`seed ${seed}: what seat ${seat} may do depends on memory in ${current.kind}`)
     if (current.kind === 'playing' && chaos() < 0.03) {
       // Possibly a cheat, accepted only while cheating is allowed; the invariants check nothing breaks a rule otherwise.
       const card = pick(current.play.hands[seat])
-      const accepted = hasCard(availableActions(view).play, card)
-      expect(step(seat, { type: 'playCard', card }, accepted)).toBe(accepted ? null : 'illegalCard')
-    } else if (current.kind === 'playing' && chaos() < 0.05 && availableActions(view).callKhanaak) {
+      const accepted = hasCard(can.play, card)
+      const rejected = step(seat, { type: 'playCard', card }, accepted)
+      if (!accepted && rejected !== 'illegalCard') throw new Error(`seed ${seed}: a card seat ${seat} may not play gave ${rejected}, not illegalCard`)
+    } else if (current.kind === 'playing' && chaos() < 0.05 && can.callKhanaak) {
       step(seat, { type: 'callKhanaak' }, true)
-    } else if (current.kind === 'playing' && chaos() < 0.3 && availableActions(view).callDouble) {
+    } else if (current.kind === 'playing' && chaos() < 0.3 && can.callDouble) {
       step(seat, { type: 'callDouble' }, true)
-    } else if (current.kind === 'thuneeWindow' && chaos() < 0.03 && availableActions(view).callThunee) {
+    } else if (current.kind === 'thuneeWindow' && chaos() < 0.03 && can.callThunee) {
       step(seat, { type: 'callThunee' }, true)
-    } else if (current.kind === 'calling' && chaos() < 0.2 && availableActions(view).calls.length > 0) {
-      step(seat, { type: 'call', amount: availableActions(view).calls[0] }, true)
+    } else if (current.kind === 'calling' && chaos() < 0.2 && can.calls.length > 0) {
+      step(seat, { type: 'call', amount: can.calls[0] }, true)
     } else {
       step(seat, chooseAction(view, HONEST), true) // AI actions must never be rejected
     }
@@ -194,10 +194,13 @@ describe('simulation', () => {
           t.do(seat, chooseAction(viewFor(t.game, seat, 'full'), mind(seat)))
         }
         const p = t.game.phase
+        // Checked after every action, so without expect's cost.
         if (p.kind === 'playing' || p.kind === 'trickPause') {
-          expect(p.play.current.every((r) => r.broke.length === 0)).toBe(true)
-          expect(p.play.jodhiClaims.every((j) => j.valid)).toBe(true)
-          for (const seat of [0, 2]) expect(chooseChallenge(viewFor(t.game, seat, 'full'), mind(seat))).toBeNull()
+          if (p.play.current.some((r) => r.broke.length > 0)) throw new Error(`seed ${seed}: a card broke a rule`)
+          if (p.play.jodhiClaims.some((j) => !j.valid)) throw new Error(`seed ${seed}: a Jodhi was bluffed`)
+          for (const seat of [0, 2]) {
+            if (chooseChallenge(viewFor(t.game, seat, 'full'), mind(seat)) !== null) throw new Error(`seed ${seed}: seat ${seat} challenges without a proof`)
+          }
         }
       }
       expect(t.game.phase.kind).toBe('gameOver')

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
-import { type Action, type Game, type Persona, type RuleOverrides, availableActions, checkInvariants, hasCard, nextDeadline, seatsToAct, viewFor } from '../engine'
+import { type Action, type Game, type Persona, type RuleOverrides, checkInvariants, hasCard, nextDeadline, seatsToAct, viewFor } from '../engine'
 import { ALTERNATIVES, Table } from '../engine/testing'
+import { exposed } from '../../../kit/testing'
 import { chooseAction, chooseJodhi } from './choose'
 import { type Mind, TRAITS } from '../../../kit/mind'
 import { chooseChallenge } from './suspicion'
@@ -20,12 +21,13 @@ function playGame(personas: Persona[], seed: number, preset: RuleOverrides = {})
   const inPlay = () => t.game.phase.kind === 'playing' || t.game.phase.kind === 'trickPause'
 
   const act = (seat: number, action: Action) => {
-    if (action.type === 'playCard' && !hasCard(availableActions(viewFor(t.game, seat)).legal, action.card)) {
+    if (action.type === 'playCard' && !hasCard(t.can(seat).legal, action.card)) {
       tally.get(personas[seat])!.illegal++
     }
     t.do(seat, action)
     checkInvariants(t.game)
-    expect(JSON.stringify(viewFor(t.game, seat))).not.toContain('"aiSalt"')
+    // Checked after every action, so without expect's cost or the view's JSON.
+    if (exposed(viewFor(t.game, seat), [], ['aiSalt']).keys.size > 0) throw new Error(`the view for ${seat} holds the aiSalt`)
     const phase = t.game.phase as Extract<Game['phase'], { kind: 'playing' | 'trickPause' }>
     if (action.type === 'claimJodhi' && !phase.play.jodhiClaims.at(-1)!.valid) tally.get(personas[seat])!.bluffs++
     // Everyone watches after every action; a challenge ends the round.

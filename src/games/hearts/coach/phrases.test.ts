@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { cardId, cardText, hasCard, sameCard } from '../../../kit/cards'
 import { HONEST } from '../../../kit/mind'
+import { same } from '../../../kit/testing'
 import { trickWinner } from '../../../kit/tricks'
 import { decide } from '../ai/choose'
 import type { Reason } from '../ai/reasons'
@@ -135,20 +136,26 @@ function honestGames(overrides: RuleOverrides, seeds: number, ask: (view: View, 
 }
 
 describe('Hearts’ coach puts every reason into words', () => {
-  test('in whole games, the hint is the honest player’s move, named, with what its reason carries', () => {
+  test('in whole games, the hint is the honest player’s move, named, with what its reason carries, in sentence case and plain words', () => {
     const seen = new Set<string>()
     for (const overrides of [{}, { jackOfDiamonds: true }, { pointsOnFirstTrick: true }] satisfies RuleOverrides[]) {
       honestGames(overrides, 6, (view, reason, action) => {
         const advice = heartsCoach.advise(view)!
-        expect(advice.action).toEqual(action)
-        const where = `${reason.code}: ${advice.note.body}`
-        if (reason.code === 'pass') for (const pick of reason.picks) expect(named(advice.note.body, pick.card), where).toBe(true)
-        else expect(named(advice.note.body, reason.card), where).toBe(true)
-        for (const words of carried(reason, view)) expect(advice.note.body, where).toContain(words)
-        checkClaims(reason, view, advice.note.body)
-        expect(advice.note.cards).toEqual(action.type === 'choosePass' ? action.cards : action.type === 'playCard' ? [action.card] : [])
-        expect(heartsCoach.check(view, action), where).toBeNull()
-        expect(heartsCoach.situation(view)?.body).not.toBe('')
+        const situation = heartsCoach.situation(view)!
+        const body = advice.note.body
+        // Checked at every decision, so without expect's cost.
+        const fail = (what: string) => {
+          throw new Error(`${reason.code}: ${what}: ${body}`)
+        }
+        if (!same(advice.action, action)) fail(`the hint is ${JSON.stringify(advice.action)}, not ${JSON.stringify(action)}`)
+        for (const c of reason.code === 'pass' ? reason.picks.map((p) => p.card) : [reason.card]) if (!named(body, c)) fail(`${cardText(c)} is not named`)
+        for (const words of carried(reason, view)) if (!body.includes(words)) fail(`"${words}" is not said`)
+        checkClaims(reason, view, body)
+        if (!same(advice.note.cards, action.type === 'choosePass' ? action.cards : action.type === 'playCard' ? [action.card] : [])) fail('the cards shown are not the move’s')
+        if (heartsCoach.check(view, action) !== null) fail('the hint is warned against')
+        for (const line of [situation.title, situation.body, advice.note.title, body]) {
+          if (!/^[A-Z0-9]/.test(line) || /\bbid/i.test(line)) fail(`"${line}" is not in sentence case and plain words`)
+        }
         seen.add(reason.code)
       })
     }
@@ -156,17 +163,6 @@ describe('Hearts’ coach puts every reason into words', () => {
     expect([...seen].sort()).toEqual(
       ['pass', 'openingLead', 'onlyCard', 'firstTrickHigh', 'fishForQueen', 'leadLow', 'leadLeastBad', 'duck', 'winClean', 'playLow', 'stopMoon', 'takeJack', 'dumpQueen', 'dumpHighSpade', 'dumpHeart', 'dumpHigh'].sort(),
     )
-  })
-
-  test('every phrase is in sentence case and plain words', () => {
-    honestGames({ jackOfDiamonds: true }, 2, (view) => {
-      for (const note of [heartsCoach.situation(view), heartsCoach.advise(view)?.note]) {
-        for (const line of [note!.title, note!.body]) {
-          expect(line).toMatch(/^[A-Z0-9]/)
-          expect(line).not.toMatch(/\bbid/i)
-        }
-      }
-    })
   })
 })
 

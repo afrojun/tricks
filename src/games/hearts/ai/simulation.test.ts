@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { hasCard } from '../../../kit/cards'
 import { type Persona, mindFor } from '../../../kit/mind'
+import { same } from '../../../kit/testing'
 import { seatsToAct } from '../engine/apply'
 import { availableActions } from '../engine/available'
 import { PASS_SIZE, type RuleOverrides } from '../engine/rules'
@@ -47,7 +48,8 @@ function playGame(overrides: RuleOverrides, personas: Persona[], seed: number, t
     const view = viewFor(t.game, seat, 'full')
     const decision = decide(view, mind(seat))
     if (decision === null) throw new Error(`seed ${seed}: seat ${seat} has nothing to do in ${phase.kind}`)
-    expect(decide(viewFor(t.game, seat, 'full'), mind(seat))).toEqual(decision)
+    // Checked after every action, so without expect's cost.
+    if (!same(decide(viewFor(t.game, seat, 'full'), mind(seat)), decision)) throw new Error(`seed ${seed}: seat ${seat} decides otherwise when asked again`)
     const { action, reason } = decision
     if (mind(seat).persona === 'straight') {
       tally.honest++
@@ -58,7 +60,7 @@ function playGame(overrides: RuleOverrides, personas: Persona[], seed: number, t
         expect(new Set(action.cards.map((c) => `${c.rank}${c.suit}`)).size).toBe(PASS_SIZE)
         expect(action.cards.every((c) => hasCard(can.pass, c))).toBe(true)
       } else if (action.type === 'playCard') {
-        expect(hasCard(can.legal, action.card)).toBe(true)
+        if (!hasCard(can.legal, action.card)) throw new Error(`seed ${seed}: seat ${seat} plays an illegal ${JSON.stringify(action.card)}`)
       } else throw new Error(`seed ${seed}: seat ${seat} chose ${action.type}`)
     }
     const rejected = t.try(seat, action)
@@ -66,7 +68,7 @@ function playGame(overrides: RuleOverrides, personas: Persona[], seed: number, t
     if (action.type === 'playCard' && mind(seat).persona === 'straight' && inPlay()) {
       const play = playOf(t.game)
       const record = play.current.at(-1) ?? play.tricks.at(-1)!.plays.at(-1)!
-      expect(record.broke).toEqual([])
+      if (record.broke.length > 0) throw new Error(`seed ${seed}: seat ${seat} broke ${record.broke}`)
     }
     for (let s = 0; s < personas.length && inPlay(); s++) {
       const challenge = chooseChallenge(viewFor(t.game, s, 'full'), mind(s))

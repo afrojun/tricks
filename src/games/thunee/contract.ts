@@ -2,6 +2,7 @@
 import { chooseJodhi } from './ai/choose'
 import {
   type Action,
+  type Card,
   type Game,
   type GameEvent,
   type Persona,
@@ -44,6 +45,21 @@ export function trumpHiddenFrom(game: Game, seat: Seat | null): boolean {
   const play = phase.play
   if (play.trump === null || play.trumpRevealed) return false
   return seat !== play.trumper || play.thunee !== null
+}
+
+/**
+ * The cards this seat (or a spectator) must not see: the other hands and the stock, and the cards of
+ * tricks before the last one, which have been turned down.
+ */
+export function hiddenFrom(game: Game, seat: Seat | null): Card[] {
+  const phase = game.phase
+  const round = 'play' in phase ? phase.play : 'hands' in phase ? phase : null
+  if (round === null) return []
+  const hidden: Card[] = []
+  for (const [s, hand] of round.hands.entries()) if (s !== seat) hidden.push(...hand)
+  hidden.push(...round.stock)
+  if ('play' in phase) for (const trick of phase.play.tricks.slice(0, -1)) for (const p of trick.plays) hidden.push(p.card)
+  return hidden
 }
 
 const PERSONAS: (Persona | 'surprise')[] = ['surprise', 'sharp', 'wild']
@@ -115,15 +131,7 @@ export function thuneeContract(overrides: RuleOverrides, playerCount: 2 | 4): { 
       return null
     },
 
-    hidden(game, seat) {
-      const phase = game.phase
-      const hands = 'hands' in phase ? phase.hands : 'play' in phase ? phase.play.hands : null
-      if (hands === null) return []
-      const stock = 'stock' in phase ? phase.stock : 'play' in phase ? phase.play.stock : []
-      // Cards of tricks before the last one have been turned down and must be gone from the view too.
-      const forgotten = 'play' in phase ? phase.play.tricks.slice(0, -1).flatMap((t) => t.plays.map((p) => p.card)) : []
-      return [...hands.filter((_, s) => s !== seat).flat(), ...stock, ...forgotten]
-    },
+    hidden: hiddenFrom,
 
     secrets: ['handBefore', 'broke', 'valid', 'sixOfASuit', 'stock', 'dealt', 'aiSalt'],
 

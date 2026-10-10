@@ -6,7 +6,7 @@ import { type Card, type Rank, type Suit, createDeck, sameCard } from './cards'
 import { type RuleOverrides, resolveRules } from './rules'
 import { type Seat, allSeats, next, seatsFrom } from './seats'
 import type { Action, Actor, Ctx, Game, GameEvent } from './types'
-import { availableActions, seenBy } from './available'
+import { type Available, availableActions, seenBy } from './available'
 import { viewFor } from './view'
 
 export { collectCards, deepFreeze, seededRng } from '../../../kit/testing'
@@ -51,6 +51,8 @@ export class Table {
   now = 1_000_000
   rng: () => number
   events: GameEvent[] = []
+  /** What each seat of `game` may do, as `can` worked it out; the game is frozen, so it holds. */
+  private asked: { game: Game; can: Available[] } | null = null
 
   constructor(playerCount: 2 | 4 = 4, overrides: RuleOverrides = {}, seed = 1) {
     this.rng = seededRng(seed)
@@ -66,13 +68,19 @@ export class Table {
     return { now: this.now, rng: this.rng }
   }
 
+  /** What `seat` may do now, as its view says. Worked out once per game: tests and `try` both ask. */
+  can(seat: Seat): Available {
+    if (this.asked?.game !== this.game) this.asked = { game: deepFreeze(this.game), can: [] }
+    return (this.asked.can[seat] ??= availableActions(viewFor(this.game, seat)))
+  }
+
   /**
    * Applies an action and returns the rejection reason, or null on success. The engine checks a seat's round
    * actions against `seenBy`, which must first answer just as the seat's view does.
    */
   try(actor: Actor, action: Action) {
     deepFreeze(this.game)
-    if (typeof actor === 'number' && !same(availableActions(seenBy(this.game, actor)), availableActions(viewFor(this.game, actor)))) {
+    if (typeof actor === 'number' && !same(availableActions(seenBy(this.game, actor)), this.can(actor))) {
       throw new Error(`seat ${actor} may do otherwise than its view says, in ${this.game.phase.kind}`)
     }
     const result = apply(this.game, actor, action, this.ctx)
@@ -151,8 +159,7 @@ export class Table {
       if (until.includes(phase.kind)) return this
       if (phase.kind === 'trickPause') this.advance(2000)
       else if (phase.kind === 'playing') {
-        const legal = availableActions(viewFor(this.game, phase.turn)).legal
-        this.do(phase.turn, { type: 'playCard', card: legal[0] })
+        this.do(phase.turn, { type: 'playCard', card: this.can(phase.turn).legal[0] })
       } else throw new Error(`autoPlay stuck in ${phase.kind}`)
     }
     throw new Error('autoPlay did not finish')

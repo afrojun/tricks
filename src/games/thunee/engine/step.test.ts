@@ -4,7 +4,7 @@ import { thuneeContract } from '../contract'
 import { checkMalformed, runContract } from '../../../kit/contract'
 import type { GameModule } from '../../../kit/module'
 import type { Ctx } from '../../../kit/table'
-import { deepFreeze } from '../../../kit/testing'
+import { clone, deepFreeze, same } from '../../../kit/testing'
 import { type Action, type Game, type GameEvent, type View, apply, step } from '.'
 
 /** How often the two halves were compared, to show both paths were exercised. */
@@ -24,13 +24,21 @@ function twin(tally: Tally): GameModule<Game, Action, GameEvent, View> {
     apply(game, actor, action, ctx) {
       deepFreeze(game)
       const drawn: number[] = []
-      const viaApply = apply(game, actor, action, { now: ctx.now, rng: () => drawn[drawn.push(ctx.rng()) - 1] })
-      const what = `${JSON.stringify(action)} by ${actor} in ${game.phase.kind}`
+      // The clock is read only when apply reads it, so that checkMalformed sees a refusal that read nothing.
+      const viaApply = apply(game, actor, action, {
+        get now() {
+          return ctx.now
+        },
+        rng: () => drawn[drawn.push(ctx.rng()) - 1],
+      })
+      const what = () => `${JSON.stringify(action)} by ${actor} in ${game.phase.kind}`
       let next = 0
       const replay: Ctx = {
-        now: ctx.now,
+        get now() {
+          return ctx.now
+        },
         rng: () => {
-          if (next >= drawn.length) throw new Error(`step drew more randomness than apply for ${what}`)
+          if (next >= drawn.length) throw new Error(`step drew more randomness than apply for ${what()}`)
           return drawn[next++]
         },
       }
@@ -39,19 +47,19 @@ function twin(tally: Tally): GameModule<Game, Action, GameEvent, View> {
         try {
           viaStep = step(game, actor, action, replay)
         } catch (error) {
-          throw new Error(`step changed the draft while refusing ${what}: ${error}`)
+          throw new Error(`step changed the draft while refusing ${what()}: ${error}`)
         }
-        if (!('rejected' in viaStep) || viaStep.rejected !== viaApply.rejected) throw new Error(`apply refused ${what} as ${viaApply.rejected}; step gave ${JSON.stringify(viaStep)}`)
+        if (!('rejected' in viaStep) || viaStep.rejected !== viaApply.rejected) throw new Error(`apply refused ${what()} as ${viaApply.rejected}; step gave ${JSON.stringify(viaStep)}`)
         tally.rejected++
       } else {
-        const draft = structuredClone(game)
+        const draft = clone(game)
         const viaStep = step(draft, actor, action, replay)
-        if ('rejected' in viaStep) throw new Error(`apply took ${what}; step refused it as ${viaStep.rejected}`)
-        if (JSON.stringify(viaStep.events) !== JSON.stringify(viaApply.events)) throw new Error(`the events differ for ${what}`)
-        if (JSON.stringify(draft) !== JSON.stringify(viaApply.game)) throw new Error(`the games differ after ${what}`)
+        if ('rejected' in viaStep) throw new Error(`apply took ${what()}; step refused it as ${viaStep.rejected}`)
+        if (!same(viaStep.events, viaApply.events)) throw new Error(`the events differ for ${what()}`)
+        if (!same(draft, viaApply.game)) throw new Error(`the games differ after ${what()}`)
         tally.applied++
       }
-      if (next !== drawn.length) throw new Error(`step drew less randomness than apply for ${what}`)
+      if (next !== drawn.length) throw new Error(`step drew less randomness than apply for ${what()}`)
       return viaApply
     },
   }

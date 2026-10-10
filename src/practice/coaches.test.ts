@@ -42,23 +42,29 @@ function followTheCoach<G extends TableState, A extends { type: string }, E, V e
   const { coach, module } = practice
   const p = PracticeGame.start(practice, playerCount, seed, 'You')
   let advised = 0
+  /** The coach's advice for the game as it stands, asked once per state: checked, then followed. */
+  let asked: { game: G; view: V; advice: ReturnType<typeof coach.advise> } | null = null
+  const adviceNow = () => {
+    if (asked?.game !== p.game) {
+      const view = p.coachView()
+      asked = { game: p.game, view, advice: coach.advise(view) }
+    }
+    return asked
+  }
   const inspect = () => {
-    const view = p.coachView()
-    const advice = coach.advise(view)
+    const { view, advice } = adviceNow()
     if (advice === null) return
     advised++
-    const where = `${module.id} ${playerCount}p seed ${seed}, ${p.game.phase.kind}: ${JSON.stringify(advice.action)}`
-    expect(coach.check(view, advice.action), where).toBeNull()
+    // Checked after every step, so without expect's cost.
+    const warning = coach.check(view, advice.action)
     const result = module.apply(p.game, p.you, advice.action, { now: p.virtualNow, rng: () => 0.5 })
-    expect('rejected' in result ? result.rejected : null, where).toBeNull()
+    const rejected = 'rejected' in result ? result.rejected : null
+    if (warning !== null || rejected !== null) {
+      throw new Error(`${module.id} ${playerCount}p seed ${seed}, ${p.game.phase.kind}: ${JSON.stringify(advice.action)} is ${warning !== null ? `warned against: ${warning.body}` : `rejected: ${rejected}`}`)
+    }
   }
   inspect()
-  playPractice(
-    p,
-    steps,
-    (q) => (q.game.phase.kind === 'roundResult' ? moveOn : (coach.advise(q.coachView())?.action ?? null)),
-    inspect,
-  )
+  playPractice(p, steps, (q) => (q.game.phase.kind === 'roundResult' ? moveOn : (adviceNow().advice?.action ?? null)), inspect)
   return { advised, over: p.game.phase.kind === 'gameOver' }
 }
 

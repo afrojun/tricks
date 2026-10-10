@@ -91,7 +91,9 @@ describe('Hearts practice', () => {
       const advice = heartsCoach.advise(view)
       const notes = [heartsCoach.situation(view), advice?.note, advice ? heartsCoach.check(view, advice.action) : null].filter((n) => n)
       const said = notes.map((n) => `${n!.title} ${n!.body}`).join(' ')
-      for (const c of hidden) expect(said, `${cardText(c)} is hidden`).not.toContain(cardText(c))
+      // Checked for every hidden card after every step, so without expect's cost.
+      const named = hidden.map(cardText).filter((text) => said.includes(text))
+      if (named.length > 0) throw new Error(`${named.join(', ')} hidden, but said: ${said}`)
       checked += notes.length
     })
     expect(checked).toBeGreaterThan(100)
