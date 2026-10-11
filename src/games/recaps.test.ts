@@ -10,7 +10,7 @@ import { recap as thuneeRecap } from './thunee/ui/recap'
 import { Table as ThuneeTable } from './thunee/engine/testing'
 import { viewFor as thuneeView } from './thunee/engine'
 import { createGame as createHearts, viewFor as heartsView } from './hearts'
-import { createGame as createSpades, viewFor as spadesView } from './spades'
+import { createGame as createSpades, spades, viewFor as spadesView } from './spades'
 
 /** A view with these names at the table; the recaps read only names and seats from it. */
 function named<V extends { seats: { name: string }[] }>(view: V, names: string[]): V {
@@ -53,6 +53,12 @@ describe('while you were away', () => {
     expect(lines).toEqual(['You took the queen of spades', 'Hearts were broken', 'Devi won the game'])
   })
 
+  test('Spades: a challenge is recapped without its card, since play may go on after it', () => {
+    const event = { type: 'challengeResolved', challenger: 1, accused: 2, guilty: true, penalty: 'plusThree', effect: 'raised', rule: 'renege', card: { suit: 'diamonds', rank: '9' } } as const
+    expect(spades.recapOf(event as never)).toEqual({ type: 'challengeResolved', challenger: 1, accused: 2, guilty: true })
+    expect(spades.recapOf({ type: 'cardPlayed', seat: 1, card: { suit: 'diamonds', rank: '9' } } as never)).toBeNull()
+  })
+
   test('Spades: the calls and a Nil broken', () => {
     const view = named(spadesView(createSpades(), 0), NAMES)
     const lines = spadesRecap(
@@ -84,10 +90,13 @@ describe('while you were away', () => {
     } } as unknown as Contract<TableState, unknown, unknown, TableView>
     const { game } = runContract(watched, 7)
     const view = contract.module.viewFor(game as never, 0)
-    const allowed = new Set(contract.module.recapEvents)
-    const all = (recap as (e: readonly unknown[], v: unknown, s: number) => string[])(events, view, 0)
+    const told = events.flatMap((e) => (contract.module.recapOf as (e: unknown) => { type: string } | null)(e) ?? [])
+    const say = recap as (e: readonly unknown[], v: unknown, s: number) => string[]
+    const all = say(events, view, 0)
     expect(all.length).toBeGreaterThan(0)
-    expect((recap as (e: readonly unknown[], v: unknown, s: number) => string[])(events.filter((e) => allowed.has(e.type)), view, 0)).toEqual(all)
-    expect(allowed.has('cardPlayed')).toBe(false)
+    expect(say(told, view, 0)).toEqual(all)
+    // No card in play reaches a recap: none played, none challenged. A round's summary names only cards of a round that is over.
+    expect(told.some((e) => e.type === 'cardPlayed')).toBe(false)
+    expect(told.filter((e) => e.type !== 'roundScored' && e.type !== 'gameOver').some((e) => JSON.stringify(e).includes('"rank"'))).toBe(false)
   })
 })

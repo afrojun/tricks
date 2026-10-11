@@ -52,12 +52,18 @@ export interface GameModule<G extends TableState, A, E, V extends TableView> {
   /** Questions to put to computer seats after an applied action. The host applies each answer before asking the next. */
   reactions(game: G, events: readonly E[]): Ask<G, A>[]
   /**
-   * The kinds of event a recap may carry to a player coming back: those its client's `recap` reads, and
-   * none that shows a card a view would hide by then (a card played). The table's own are the room's to add.
+   * An event as a recap may carry it to a player coming back: null to leave it out, or the fields its
+   * client's `recap` reads and nothing a view would hide by then (a card played, a card challenged while
+   * play goes on). The table's own events are the room's to add.
    */
-  recapEvents: readonly string[]
+  recapOf(event: E): { type: string } | null
   /** What the computers say about an applied action's events, shown with them. Never saved; `rng` is the host's. */
   banter?(game: G, events: readonly E[], rng: () => number): Said[]
+}
+
+/** A `recapOf` that carries the listed kinds of event whole, and no others. */
+export function recapOnly<E extends { type: string }>(types: readonly E['type'][]): (event: E) => E | null {
+  return (event) => (types.includes(event.type) ? event : null)
 }
 
 /**

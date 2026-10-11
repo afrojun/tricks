@@ -37,7 +37,7 @@ function toy(faults: Faults = {}, actionSchema: z.ZodType = toySchema): GameModu
   return {
     id: 'toy',
     name: 'Toy',
-    recapEvents: [],
+    recapOf: () => null,
     formatVersion: 1,
     seatCounts: [2],
     createGame: () => ({ formatVersion: 1, playerCount: 2, seats: emptySeats(2), host: null, settings: LIVE, waiting: [], aiActAt: null, aiSalt: 0, phase: { kind: 'lobby' } }),

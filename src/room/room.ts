@@ -459,8 +459,12 @@ class Table {
     const log = this.saved.log ?? []
     if (seen === null || seen >= this.saved.eventCount || log.length === 0 || log[0].n > seen + 1) return
     // Only what the game says a recap may tell: never a card played, which the view hides once its trick is past.
-    const told = new Set<string>([...this.module.recapEvents, ...TABLE_RECAP])
-    this.sendTo(conn, { type: 'recap', events: log.filter((e) => e.n > seen && told.has(e.type)) })
+    const events = log.flatMap((e) => {
+      if (e.n <= seen) return []
+      const told = TABLE_RECAP.includes(e.type) ? e : this.module.recapOf(e)
+      return told === null ? [] : [{ ...told, n: e.n }]
+    })
+    this.sendTo(conn, { type: 'recap', events })
   }
 
   /**

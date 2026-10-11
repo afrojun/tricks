@@ -915,7 +915,8 @@ describe('recaps', () => {
     const back = await w.connect(TOKENS[0], null, `&since=${at}`)
     const recap = back.inbox.find((m) => m.type === 'recap') as { events: { type: string }[] }
     expect(recap.events.length).toBeGreaterThan(0)
-    expect(recap.events.every((e) => gameOf(w.host.name)!.recapEvents.includes(e.type))).toBe(true)
+    expect(recap.events.some((e) => e.type === 'cardPlayed' || e.type === 'passChosen')).toBe(false)
+    expect(recap.events.every((e) => gameOf(w.host.name)!.recapOf(e) !== null)).toBe(true)
   })
 
   test('the room keeps only its newest events', async () => {
