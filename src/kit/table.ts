@@ -78,7 +78,10 @@ export interface TableState {
   aiActAt: number | null
   /** Hidden: seeds the computer players' chance rolls for this round. Never in a view. */
   aiSalt: number
-  /** 'lobby' is every game's first phase, 'gameOver' its last. */
+  /**
+   * 'lobby' is every game's first phase, 'gameOver' its last, and 'roundResult' the pause between
+   * rounds, which waits for any person at the table to press Next round.
+   */
   phase: { kind: string }
 }
 

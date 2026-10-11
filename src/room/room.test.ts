@@ -817,6 +817,14 @@ describe('status', () => {
     for (const token of ['s'.repeat(20), null, 'short', 'constructor', '__proto__']) expect(await w.server.status(token)).toBeNull()
   })
 
+  test('a round over waits for anyone to start the next', async () => {
+    const { w } = await startedGame()
+    const saved = w.data.get('state') as { game: TableState }
+    w.data.set('state', { ...saved, game: { ...saved.game, phase: { ...saved.game.phase, kind: 'roundResult' } } })
+    await w.wake()
+    expect(await w.server.status(TOKENS[2])).toMatchObject({ stage: 'roundOver', waitingOn: [], yourTurn: false })
+  })
+
   test('a lobby, a seat played for by the computer, and a room that names no game', async () => {
     const w = await new World().boot()
     const me = await w.connect(TOKENS[0])

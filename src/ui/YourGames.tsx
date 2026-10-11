@@ -4,7 +4,7 @@ import type { RoomStatus } from '../protocol'
 import { GAMES } from './games'
 import { Link } from './Link'
 import { roomPath } from './routes'
-import { gameTitle, needsYou, rank, statusLine } from './yourGames'
+import { gameTitle, latestOnly, needsYou, rank, statusLine } from './yourGames'
 
 interface Row {
   room: KeptRoom
@@ -20,8 +20,7 @@ interface Row {
 export function YourGames({ game, onlyYours = false }: { game?: string; onlyYours?: boolean }) {
   const [rows, setRows] = useState<Row[]>([])
   useEffect(() => {
-    let live = true
-    const refresh = async () => {
+    const rows = async () => {
       const rooms = keptRooms().filter((r) => game === undefined || r.game === game)
       const answers = await Promise.all(
         rooms.map(async (room): Promise<Row | null> => {
@@ -30,13 +29,15 @@ export function YourGames({ game, onlyYours = false }: { game?: string; onlyYour
           return name !== undefined && status !== null && status !== 'unknown' ? { room, name, status } : null
         }),
       )
-      if (live) setRows(answers.filter((r): r is Row => r !== null).sort((a, b) => rank(a.status) - rank(b.status)))
+      return answers.filter((r): r is Row => r !== null).sort((a, b) => rank(a.status) - rank(b.status))
     }
-    void refresh()
-    const onVisible = () => document.visibilityState === 'visible' && void refresh()
+    // Opening the page and coming back to it may overlap: only the latest answer shows.
+    const refresh = latestOnly(rows, setRows)
+    void refresh.run()
+    const onVisible = () => document.visibilityState === 'visible' && void refresh.run()
     document.addEventListener('visibilitychange', onVisible)
     return () => {
-      live = false
+      refresh.close()
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [game])

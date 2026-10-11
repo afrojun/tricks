@@ -355,7 +355,7 @@ class Table {
       const kind = game.phase.kind
       const toAct = this.module.seatsToAct(game)
       answer = {
-        stage: kind === 'lobby' || kind === 'gameOver' ? kind : 'playing',
+        stage: kind === 'lobby' || kind === 'gameOver' ? kind : kind === 'roundResult' ? 'roundOver' : 'playing',
         seat,
         names: game.seats.map((s) => (s.kind === 'empty' ? '' : s.name)),
         waitingOn: toAct.filter((s) => game.seats[s].kind === 'human' && !game.seats[s].standIn),

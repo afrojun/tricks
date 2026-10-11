@@ -77,7 +77,8 @@ export const STATUS_TOKEN_HEADER = 'X-Tricks-Token'
  * and whom the table waits on. Nothing a view would hide.
  */
 export interface RoomStatus {
-  stage: 'lobby' | 'playing' | 'gameOver'
+  /** `roundOver` waits for any person at the table to start the next round. */
+  stage: 'lobby' | 'playing' | 'roundOver' | 'gameOver'
   /** The device's own seat. */
   seat: Seat
   /** Each seat's name, in seat order; empty for an empty seat. */
