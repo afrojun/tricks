@@ -12,6 +12,7 @@ import {
   jodhiPoints,
   pauseWaitingOn,
   teamOf,
+  TIMERS,
 } from '../engine'
 import { AccuseSheet } from '../../../ui/Accuse'
 import { CallGrid } from '../../../ui/Call'
@@ -443,7 +444,7 @@ function CallingPanel({ view, phase, can }: { view: View; phase: Extract<ViewPha
   const mine = trumper === view.seat
   return (
     <section className="panel p-3 w-full max-w-sm grid gap-3">
-      {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.rules.callTimerSeconds} />}
+      {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.settings.timers?.call ?? TIMERS.call.default} />}
       <p className="text-center">
         {phase.call
           ? `${mine ? 'You called' : `${seatName(view, phase.call.seat)} called`} ${phase.call.amount}.`
@@ -494,7 +495,7 @@ function ThuneePanel({ view, phase, can }: { view: View; phase: Extract<ViewPhas
   const commit = useCommit()
   return (
     <section className="panel p-3 w-full max-w-sm grid gap-3">
-      {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.rules.thuneeWindowSeconds} />}
+      {phase.deadline !== null && <Timer deadline={phase.deadline} totalSeconds={view.settings.timers?.thunee ?? TIMERS.thunee.default} />}
       <p className="text-center">
         {phase.pending !== null
           ? `${phase.pending === view.seat ? 'You want' : `${seatName(view, phase.pending)} wants`} Thunee. The trumping side can take it instead.`

@@ -17,7 +17,7 @@ import { HONEST } from '../../../kit/mind'
  */
 function playGame(playerCount: 2 | 4, personas: (Persona | 'surprise')[], overrides: RuleOverrides, seed: number) {
   const t = new Table(4, { ...overrides, ballsToWin: 6 }, seed)
-  t.game = { ...createGame(), rules: t.game.rules }
+  t.game = { ...createGame(), rules: t.game.rules, settings: t.game.settings }
   t.do(null, { type: 'sit', seat: 0, name: 'You' })
   if (playerCount === 2) t.do(0, { type: 'setPlayerCount', playerCount: 2 })
   personas.forEach((persona, i) => t.do(0, { type: 'addAi', seat: i + 1, persona }))

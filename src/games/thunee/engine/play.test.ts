@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { type SeatInfo, replaceableSeats } from '../../../kit/table'
+import { LIVE, type SeatInfo, replaceableSeats } from '../../../kit/table'
 import { seatsToAct, untimedSeats } from './apply'
 import { availableActions } from './available'
 import type { RuleOverrides } from './rules'
@@ -137,7 +137,7 @@ describe('jodhi', () => {
   /** D1's first trick, won by seat 2 for team 0, with timers off and seat 2 (and any others given) changed. */
   const wonBySeatTwo = (changes: Record<number, Partial<SeatInfo>> = { 2: { standIn: true } }, timers = false) => {
     const t = start()
-    t.game = { ...t.game, rules: { ...t.game.rules, timers }, seats: t.game.seats.map((s, i) => ({ ...s, ...changes[i] })) }
+    t.game = { ...t.game, settings: timers ? t.game.settings : LIVE, seats: t.game.seats.map((s, i) => ({ ...s, ...changes[i] })) }
     return t.play('Jc Qh 10c Qc')
   }
 

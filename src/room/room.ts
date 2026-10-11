@@ -1,8 +1,8 @@
 import type { z } from 'zod'
 import { gameOf } from '../games'
-import type { AnyGameModule } from '../kit/module'
+import type { AnyGameModule, Step } from '../kit/module'
 import { NUDGE_GAP_MS, type Said, type Say, TALK_GAP_MS, answerThrow } from '../kit/talk'
-import { type Actor, type Seat, type TableAction, type TableState, type TableView, isTableAction } from '../kit/table'
+import { type Actor, type Seat, type TableAction, type TableSettings, type TableState, type TableView, isTableAction, standInDeadline, standInDue } from '../kit/table'
 import {
   type ClientMessage,
   type NumberedEvent,
@@ -88,6 +88,8 @@ export const defaultDeps: Deps = {
 const STORAGE_KEY = 'state'
 /** A room no seated human has been connected to for this long is reset to an empty lobby. */
 export const ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000
+/** The same for a table playing over days, where nobody being connected is the usual state. */
+export const ASYNC_ABANDONED_AFTER_MS = 14 * 24 * 60 * 60 * 1000
 const MAX_MESSAGE_LENGTH = 2000
 /** A device's sockets to one room: a new one past this closes its oldest, which may be a dead one a phone left behind. */
 export const MAX_SOCKETS_PER_DEVICE = 4
@@ -404,11 +406,15 @@ class Table {
     for (let guard = 0; guard < 100; guard++) {
       const game = this.saved.game
       const now = this.now()
-      if (this.saved.emptySince !== null && now >= this.saved.emptySince + ABANDONED_AFTER_MS) {
+      const expiry = this.expiry()
+      if (expiry !== null && now >= expiry) {
         await this.reset()
         break
       }
-      const step = this.module.dueStep(game, now)
+      // Over days, a person who has left their turn for too long is stood in for by the computer.
+      const late = standInDue(game, now)
+      const standIn: Step<unknown> | null = late === null ? null : { actor: 'system', action: { type: 'standIn', seat: late } satisfies TableAction }
+      const step = this.module.dueStep(game, now) ?? standIn
       if (step === null) break
       const applied = (await this.act(step.actor, step.action)) || (step.fallback !== undefined && (await this.act(step.actor, step.fallback)))
       if (!applied && step.fallback !== undefined) throw new Error(`AI seat ${step.actor} has no acceptable action in ${game.phase.kind}`)
@@ -435,9 +441,13 @@ class Table {
     for (const conn of this.host.connections()) this.send(conn, [])
   }
 
+  /** When the room is reset if nobody seated connects before then; null while someone is. */
+  private expiry(): number | null {
+    return this.saved.emptySince === null ? null : this.saved.emptySince + abandonedAfter(this.saved.game.settings)
+  }
+
   private async armAlarm(): Promise<void> {
-    const expiry = this.saved.emptySince === null ? null : this.saved.emptySince + ABANDONED_AFTER_MS
-    const times = [this.module.nextDeadline(this.saved.game), expiry].filter((t): t is number => t !== null)
+    const times = [this.module.nextDeadline(this.saved.game), standInDeadline(this.saved.game), this.expiry()].filter((t): t is number => t !== null)
     const deadline = times.length > 0 ? Math.min(...times) : null
     if (deadline === null) await this.host.storage.deleteAlarm()
     else await this.host.storage.setAlarm(Math.max(Math.ceil(this.realAt(deadline)), this.deps.now() + 1))
@@ -529,6 +539,11 @@ class Table {
 /** Oldest socket first. */
 function byAge(a: RoomConnection, b: RoomConnection): number {
   return (a.state?.at ?? 0) - (b.state?.at ?? 0)
+}
+
+/** How long a room may go with nobody seated connected before it is reset: a day, or two weeks over days. */
+export function abandonedAfter(settings: TableSettings): number {
+  return settings.pace === 'async' ? ASYNC_ABANDONED_AFTER_MS : ABANDONED_AFTER_MS
 }
 
 function fresh(module: AnyGameModule): Saved {

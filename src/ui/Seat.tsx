@@ -70,7 +70,8 @@ export function SeatBadge({ view, seat, side, turn, choosing = false, count, tag
           <MutedTag seat={seat} />
         </div>
         {children}
-        {(away || info.standIn) && <p className="text-xs text-muted">{info.standIn ? 'Computer playing' : 'Away'}</p>}
+        {/* Over days everyone is away most of the time: only a computer playing for someone is worth saying. */}
+        {(info.standIn || (away && view.settings.pace !== 'async')) && <p className="text-xs text-muted">{info.standIn ? 'Computer playing' : 'Away'}</p>}
         <Fan seat={seat} count={count} turn={turn} lifted={lifted} />
       </div>
     </div>

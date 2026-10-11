@@ -1,9 +1,9 @@
 /** Helpers for tests and simulations. Not used by the app. */
 import { deepFreeze, same, seededRng } from '../../../kit/testing'
-import { settle } from '../../../kit/table'
+import { type TableSettings, settle } from '../../../kit/table'
 import { apply, createGame, seatsToAct, untimedSeats } from './apply'
 import { type Card, type Rank, type Suit, createDeck, sameCard } from './cards'
-import { type RuleOverrides, resolveRules } from './rules'
+import { type RuleOverrides, TIMERS, type TimerId, resolveRules } from './rules'
 import { type Seat, allSeats, next, seatsFrom } from './seats'
 import type { Action, Actor, Ctx, Game, GameEvent } from './types'
 import { type Available, availableActions, seenBy } from './available'
@@ -45,6 +45,9 @@ export function cards(text: string): Card[] {
   return text.trim().split(/\s+/).map(card)
 }
 
+/** A test table's rules, and its timers, which are the table's settings: on by default, at their default seconds. */
+export type TableOptions = RuleOverrides & { timers?: boolean; callTimerSeconds?: number; thuneeWindowSeconds?: number }
+
 /** A test harness holding the current game and a clock. */
 export class Table {
   game: Game
@@ -54,14 +57,21 @@ export class Table {
   /** What each seat of `game` may do, as `can` worked it out; the game is frozen, so it holds. */
   private asked: { game: Game; can: Available[] } | null = null
 
-  constructor(playerCount: 2 | 4 = 4, overrides: RuleOverrides = {}, seed = 1) {
+  constructor(playerCount: 2 | 4 = 4, options: TableOptions = {}, seed = 1) {
     this.rng = seededRng(seed)
     this.game = createGame()
     this.do(null, { type: 'sit', seat: 0, name: 'P0' })
     if (playerCount === 2) this.do(0, { type: 'setPlayerCount', playerCount: 2 })
     for (const seat of allSeats(playerCount).slice(1)) this.do(null, { type: 'sit', seat, name: `P${seat}` })
     // Timed unless a test says otherwise: most close calling and the Thunee window by letting the clock run.
-    this.game = { ...this.game, rules: resolveRules({ timers: true, ...overrides }) }
+    const { timers = true, callTimerSeconds = TIMERS.call.default, thuneeWindowSeconds = TIMERS.thunee.default, ...overrides } = options
+    const settings: TableSettings = { pace: 'live', timers: timers ? { call: callTimerSeconds, thunee: thuneeWindowSeconds } : null }
+    this.game = { ...this.game, rules: resolveRules(overrides), settings }
+  }
+
+  /** The seconds a window stays open at this table, or its default without timers. */
+  seconds(window: TimerId): number {
+    return this.game.settings.timers?.[window] ?? TIMERS[window].default
   }
 
   get ctx(): Ctx {
@@ -133,11 +143,11 @@ export class Table {
 
   /** Closes calling with no call, then has the default trumper choose `trump`. */
   toPlay(trump: Suit | 'lastCard'): this {
-    this.advance(this.game.rules.callTimerSeconds * 1000)
+    this.advance(this.seconds('call') * 1000)
     const phase = this.game.phase
     if (phase.kind !== 'trumpSelection') throw new Error(`expected trumpSelection, got ${phase.kind}`)
     this.do(phase.trumper, { type: 'chooseTrump', choice: trump })
-    if (this.game.phase.kind === 'thuneeWindow') this.advance(this.game.rules.thuneeWindowSeconds * 1000)
+    if (this.game.phase.kind === 'thuneeWindow') this.advance(this.seconds('thunee') * 1000)
     return this
   }
 

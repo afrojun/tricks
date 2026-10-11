@@ -210,13 +210,11 @@ Each player gets 4 cards, calling and trump selection run as above with the non-
 | `ballsToWin` | number | 12 | 12 |
 | `twoToClear` | boolean | false | false |
 | `twoPlayerTarget` | number | 125 | 105 |
-| `timers` | boolean | false | false |
-| `callTimerSeconds` | number | 10 | 10 |
-| `thuneeWindowSeconds` | number | 5 | 10 |
 
 Definitions:
 - `jodhiCards: inHand` means the cards are in hand when the claim is made; `dealt` means they were among the six cards dealt.
 - `defaultTrumper: teamAhead` means the team ahead in balls, or on a tie the last round's winner, or failing that the dealer's right; the trumper is that team's member nearest the dealer's right.
+- Timers are no longer rules (2026-10-11): they are the table's settings, `settings.timers.call` and `settings.timers.thunee` (`TIMERS` in `rules.ts`), which the host sets in the lobby or the menu and which apply only while the table plays together (`docs/superpowers/specs/2026-10-11-async-play-design.md`). Tuscans' 10-second Thunee window went with them. Below, `timers` on means those are set.
 - `timers: false` means calling and the Thunee window have no deadline: each waits until every seat it waits on has called or passed, and those seats count as waited on, so a stalled one can be handed to the computer. The same goes for a person whose computer partner is about to lead with a Jodhi open (4.6). `callTimerSeconds` and `thuneeWindowSeconds` apply only with `timers` on; with them on, a Jodhi must come within the trick pause.
 - `dealerRotation: stayWhileBehind` means the deal passes to the right only when the dealer's team has at least as many balls as the other team after scoring.
 

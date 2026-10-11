@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { z } from 'zod'
 import { checkMalformed } from './contract'
 import type { GameModule } from './module'
-import { type Actor, type Ctx, type TableAction, type TableEvent, type TableState, type TableView, emptySeats, isAction, isActor, isTableAction, tableAction, tableActionSchemas, tableView } from './table'
+import { type Actor, type Ctx, type TableAction, type TableEvent, type TableState, type TableView, LIVE, emptySeats, isAction, isActor, isTableAction, tableAction, tableActionSchemas, tableView } from './table'
 
 /** The smallest game: a lobby, then one phase in which anyone may name a card, pick a card or a joker, or say they are ready. */
 type ToyAction =
@@ -38,7 +38,7 @@ function toy(faults: Faults = {}, actionSchema: z.ZodType = toySchema): GameModu
     id: 'toy',
     formatVersion: 1,
     seatCounts: [2],
-    createGame: () => ({ formatVersion: 1, playerCount: 2, seats: emptySeats(2), host: null, waiting: [], aiActAt: null, aiSalt: 0, phase: { kind: 'lobby' } }),
+    createGame: () => ({ formatVersion: 1, playerCount: 2, seats: emptySeats(2), host: null, settings: LIVE, waiting: [], aiActAt: null, aiSalt: 0, phase: { kind: 'lobby' } }),
     apply(game: TableState, actor: Actor, action: ToyAction, ctx: Ctx) {
       if (faults.phase && game.phase.kind === 'naming' && isAction(action) && action.type === 'name') void (action.card as { suit: unknown }).suit
       if (!isAction(action)) return { rejected: 'notAllowed' }
@@ -86,7 +86,7 @@ describe('the malformed-action check', () => {
   test('passes a game that refuses whatever it cannot read, covering every state, action and field it reaches', () => {
     const covered = checkMalformed(toy())
     expect(covered.states).toEqual(['an empty lobby', 'a full lobby of 2', 'naming with 2'])
-    expect(covered.actions).toEqual(['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat', 'name', 'pick', 'ready'])
+    expect(covered.actions).toEqual(['sit', 'leaveSeat', 'rename', 'addAi', 'setPersona', 'clearSeat', 'setPlayerCount', 'start', 'replaceWithAi', 'reclaimSeat', 'setSettings', 'name', 'pick', 'ready'])
     expect(covered.paths).toEqual([
       'sit.seat',
       'sit.name',
@@ -98,6 +98,9 @@ describe('the malformed-action check', () => {
       'clearSeat.seat',
       'setPlayerCount.playerCount',
       'replaceWithAi.seat',
+      'setSettings.settings',
+      'setSettings.settings.pace',
+      'setSettings.settings.timers',
       'name.card',
       'name.card.suit',
       'name.card.rank',

@@ -1,7 +1,9 @@
 import { useLayoutEffect, useState } from 'react'
+import type { TableSettings } from '../kit/table'
 import { SHARE_PARAM } from '../presets/share'
 import { listPresets, readChoice } from '../presets/storage'
 import { GameStrip } from './GameStrip'
+import { readSettings } from './tableSettings'
 import { Link } from './Link'
 import { CODE_LENGTH, cleanCode, drillPath, drillsQuery, gamePath, practicePath, roomPath, rulesPath } from './routes'
 import { countWord } from './seats'
@@ -21,6 +23,7 @@ export function newGameCode(): string {
 export interface GameSetup {
   playerCount: number
   overrides: object
+  settings: TableSettings
 }
 
 export function setupKey(game: string, code: string): string {
@@ -175,8 +178,9 @@ export function Home() {
     const choice = readChoice(game)
     const overrides = (presets.find((p) => p.id === choice) ?? presets[0]).overrides
     const playerCount = readPlayers(game.id, game.seatCounts)
+    const settings = readSettings(game.id, game.timers)
     const code = newGameCode()
-    sessionStorage.setItem(setupKey(game.id, code), JSON.stringify({ playerCount, overrides } satisfies GameSetup))
+    sessionStorage.setItem(setupKey(game.id, code), JSON.stringify({ playerCount, overrides, settings } satisfies GameSetup))
     navigate(roomPath(game.id, code))
   }
 
@@ -199,7 +203,7 @@ export function Home() {
       <div className="home-width grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
       <section className="panel p-4 grid gap-3">
         <h2 className="display text-xl">Play with friends</h2>
-        <p>Create a game, then invite friends or add computers. Choose the table size and the rules in the lobby.</p>
+        <p>Create a game, then invite friends or add computers. Choose the table size, the rules and the pace in the lobby.</p>
         <button className="btn btn-primary" onClick={create}>
           Create game
         </button>

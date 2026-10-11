@@ -7,7 +7,7 @@ import type { Seat, Team } from './seats'
 export { type Persona, PERSONAS } from '../../../kit/mind'
 export type { Actor, Ctx, SeatInfo, ViewSeat, Waiting } from '../../../kit/table'
 
-export const FORMAT_VERSION = 5
+export const FORMAT_VERSION = 6
 
 export type TrumpChoice = Suit | 'lastCard'
 

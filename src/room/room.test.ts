@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { chooseAction, chooseJodhi } from '../games/thunee/ai/choose'
 import { HONEST } from '../kit/mind'
 import { NUDGE_GAP_MS, TALK_GAP_MS } from '../kit/talk'
-import type { TableState } from '../kit/table'
+import { type TableState, TURN_LIMIT_MS } from '../kit/table'
 import type { Action, GameEvent, View } from '../games/thunee/engine'
 import { type Game, availableActions, createGame } from '../games/thunee/engine'
 import { Table, card, seededRng } from '../games/thunee/engine/testing'
@@ -28,6 +28,7 @@ import {
   MESSAGES_PER_SECOND,
   type RoomConnection,
   type RoomHost,
+  ASYNC_ABANDONED_AFTER_MS,
   TableRoom,
 } from './room'
 
@@ -161,7 +162,7 @@ async function startedGame() {
     await w.send(conn, { type: 'sit', seat, name: `P${seat}` })
     conns.push(conn)
   }
-  await w.send(conns[0], { type: 'setRules', overrides: { timers: true } })
+  await w.send(conns[0], { type: 'setSettings', settings: { pace: 'live', timers: { call: 10, thunee: 5 } } })
   await w.send(conns[0], { type: 'start' })
   return { w, conns }
 }
@@ -805,6 +806,56 @@ describe('pace', () => {
   })
 })
 
+describe('over days', () => {
+  /** Two people and two computers playing Hearts over days, both people gone. */
+  async function overDays() {
+    const w = new World()
+    w.host = { ...w.host, name: 'hearts-TESTAB' }
+    await w.boot()
+    const a = await w.connect(TOKENS[0])
+    const b = await w.connect(TOKENS[1])
+    await w.send(a, { type: 'sit', seat: 0, name: 'Asha' })
+    await w.send(b, { type: 'sit', seat: 1, name: 'Bheki' })
+    for (const seat of [2, 3]) await w.send(a, { type: 'addAi', seat })
+    await w.send(a, { type: 'setSettings', settings: { pace: 'async', timers: null } })
+    await w.send(a, { type: 'start' })
+    await w.close(a)
+    await w.close(b)
+    return w
+  }
+  const seats = (w: World) => (w.data.get('state') as { game: TableState }).game.seats
+
+  test('the computer plays for a person after two days, and never for the last one playing', async () => {
+    const w = await overDays()
+    const start = w.now
+    // The computers pick their cards; then passing waits on both people, and the alarm is the turn limit.
+    for (let i = 0; i < 20 && w.alarm !== null && w.alarm - w.now < 60_000; i++) await w.fireAlarm()
+    expect(w.alarm).toBe(start + TURN_LIMIT_MS)
+    w.now = start + TURN_LIMIT_MS - 1
+    await w.server.onAlarm()
+    expect(seats(w).map((s) => s.standIn)).toEqual([false, false, false, false])
+    await w.fireAlarm()
+    // One of the two is stood in for; the other is the last person playing, and is waited on.
+    expect(seats(w).filter((s) => s.standIn)).toHaveLength(1)
+    for (let i = 0; i < 20 && w.alarm !== null && w.alarm - w.now < 60_000; i++) await w.fireAlarm()
+    expect(seats(w).filter((s) => s.standIn)).toHaveLength(1)
+    expect(w.alarm).toBe(start + ASYNC_ABANDONED_AFTER_MS)
+  })
+
+  test('a person coming back sits back down', async () => {
+    const w = await overDays()
+    w.now += TURN_LIMIT_MS
+    await w.server.onAlarm()
+    const out = seats(w).findIndex((s) => s.standIn)
+    const back = await w.connect(TOKENS[out])
+    await w.send(back, { type: 'reclaimSeat' })
+    expect(back.view.seats[out].standIn).toBe(false)
+    // Their wait starts again from now: the computer does not take the seat straight back.
+    await w.close(back)
+    expect(seats(w)[out].standIn).toBe(false)
+  })
+})
+
 describe('abandoned rooms', () => {
   const DAY = 24 * 60 * 60 * 1000
 
@@ -837,6 +888,25 @@ describe('abandoned rooms', () => {
     expect(back.view.phase.kind).toBe('lobby')
     expect(back.view.seats.every((s) => s.kind === 'empty')).toBe(true)
     expect(back.view.host).toBeNull()
+  })
+
+  test('over days, a room waits two weeks with nobody connected before it resets', async () => {
+    const w = await new World().boot()
+    const me = await w.connect(TOKENS[0])
+    await w.send(me, { type: 'sit', seat: 0, name: 'Human' })
+    for (const seat of [1, 2, 3]) await w.send(me, { type: 'addAi', seat })
+    await w.send(me, { type: 'setSettings', settings: { pace: 'async', timers: null } })
+    await w.send(me, { type: 'start' })
+    const leftAt = w.now
+    await w.close(me)
+    await settle(w)
+    expect(w.alarm).toBe(leftAt + ASYNC_ABANDONED_AFTER_MS)
+    w.now = leftAt + 13 * DAY
+    expect((await w.connect(TOKENS[0])).view.phase.kind).not.toBe('lobby')
+    await w.close(w.conns[0])
+    await settle(w)
+    await w.fireAlarm()
+    expect(w.data.size).toBe(0)
   })
 
   test('coming back before the day is up cancels the reset', async () => {

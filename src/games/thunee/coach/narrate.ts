@@ -6,7 +6,7 @@ import { runningPoints } from './reads'
 import { card, isPartner, otherSide, sentence, sideDoes, sideOf, suitOne, suitPlural, target, verb, who, whoIn, whose, yourSide } from './words'
 
 /** Events that never need a line from the coach. A card played is narrated only when it shows something. */
-export const SILENT: ReadonlySet<GameEvent['type']> = new Set(['seatChanged', 'passed'])
+export const SILENT: ReadonlySet<GameEvent['type']> = new Set(['seatChanged', 'paceChanged', 'passed'])
 
 export function narrate(event: GameEvent, view: View): Note | null {
   const note = (title: string, body: string, extra: Partial<Note> = {}): Note => ({ tone: 'info', title, body, ...extra })
@@ -15,6 +15,7 @@ export function narrate(event: GameEvent, view: View): Note | null {
 
   switch (event.type) {
     case 'seatChanged':
+    case 'paceChanged':
     case 'passed':
       return null
     case 'dealt':

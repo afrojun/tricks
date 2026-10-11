@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { tableActionSchemas } from '../../../kit/table'
-import { CALL_AMOUNTS, type RuleOverrides, SEAT_COUNTS } from './rules'
+import { CALL_AMOUNTS, type RuleOverrides, SEAT_COUNTS, TIMERS } from './rules'
 import type { Action } from './types'
 
 const suit = z.enum(['hearts', 'diamonds', 'clubs', 'spades'])
@@ -32,9 +32,6 @@ function ruleOverrides(bounded: boolean) {
       ballsToWin: whole(1, 30),
       twoToClear: z.boolean(),
       twoPlayerTarget: whole(50, 250),
-      timers: z.boolean(),
-      callTimerSeconds: whole(3, 60),
-      thuneeWindowSeconds: whole(0, 30),
     })
     .partial()
 }
@@ -50,7 +47,7 @@ export const ruleOverridesSchema = ruleOverrides(true) satisfies z.ZodType<RuleO
 function actions(bounded: boolean) {
   const seat = bounded ? z.number().int().min(0).max(3) : z.number()
   return z.discriminatedUnion('type', [
-    ...tableActionSchemas(SEAT_COUNTS, { bounded }),
+    ...tableActionSchemas(SEAT_COUNTS, { bounded, timers: TIMERS }),
     z.object({ type: z.literal('setRules'), overrides: ruleOverrides(bounded) }),
     z.object({ type: z.literal('call'), amount: bounded ? z.union(CALL_AMOUNTS.map((a) => z.literal(a))) : z.number() }),
     z.object({ type: z.literal('pass') }),

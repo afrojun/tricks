@@ -3,7 +3,7 @@ import type { Seat, TableAction, TableEvent, TableReject, TableState, TableView 
 import type { Card } from './cards'
 import type { RuleOverrides, SpadesRules } from './rules'
 
-export const FORMAT_VERSION = 1
+export const FORMAT_VERSION = 2
 
 // ── Game state ───────────────────────────────────────────────────────────
 

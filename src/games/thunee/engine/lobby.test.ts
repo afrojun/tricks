@@ -130,6 +130,7 @@ describe('lobby', () => {
       start: [],
       replaceWithAi: [{ seat: null }, { seat: '2' }, {}],
       reclaimSeat: [],
+      setSettings: [{ settings: null }, {}, { settings: { pace: 'live' } }, { settings: { pace: 'soon', timers: null } }, { settings: { pace: 'live', timers: { call: 'x', thunee: 5 } } }, { settings: { pace: 'live', timers: { call: 10 } } }],
       setRules: [{ overrides: null }, { overrides: 'x' }, {}, { overrides: { ballsToWin: 'x' } }, { overrides: { allowCheating: 'no' } }],
       call: [{ amount: null }, { amount: '10' }, {}],
       pass: [],
@@ -182,7 +183,7 @@ describe('lobby', () => {
   test('a rule override of the right type is the engine’s to judge, whatever the wire’s bounds', () => {
     const game = deepFreeze(run(run(createGame(), null, { type: 'sit', seat: 0, name: 'Host' }), null, { type: 'sit', seat: 1, name: 'Guest' }))
     // Outside the bounds a share link or the room would accept, but of the right type: stored as sent, as before.
-    const odd = { ballsToWin: 31, twoPlayerTarget: 1000, callTimerSeconds: 1, thuneeWindowSeconds: 0.5, thuneePartnerCatchBalls: 0 }
+    const odd = { ballsToWin: 31, twoPlayerTarget: 1000, thuneePartnerCatchBalls: 0 }
     expect(run(game, 0, { type: 'setRules', overrides: odd }).rules).toEqual({ ...TRADITIONAL, ...odd })
     expect(reject(game, 1, { type: 'setRules', overrides: odd })).toBe('notHost')
     expect(reject(game, null, { type: 'setRules', overrides: odd })).toBe('notSeated')

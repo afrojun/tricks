@@ -23,6 +23,7 @@ export const heartsClient: GameClient<View, Action, GameEvent> = {
   Table,
   rules: ruleBook,
   lobbyTeams: () => null,
+  timers: [],
   rejections: REJECTIONS,
   practice: practiceClient(heartsPractice, dwell),
 }

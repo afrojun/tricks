@@ -1,12 +1,15 @@
-import { type Actor, type Ctx, againComplete, checkLobbyHost, emptySeats, isTableAction, redrawSurprises, screen, settle, tableAction } from '../../../kit/table'
+import { type Actor, type Ctx, type TableOptions, LIVE, againComplete, checkLobbyHost, emptySeats, isTableAction, redrawSurprises, screen, settle, tableAction } from '../../../kit/table'
 import { hasCard } from './cards'
 import { availableActions, seenBy } from './available'
 import { actionShape } from './schema'
 import { mayCall, pauseWaitingOn } from './predicates'
-import { SEAT_COUNTS, TRADITIONAL, resolveRules } from './rules'
+import { SEAT_COUNTS, TIMERS, TRADITIONAL, resolveRules } from './rules'
 import * as round from './round'
 import { type Seat, allSeats } from './seats'
 import { type Action, type ApplyResult, FORMAT_VERSION, type Game, type GameEvent, type Phase, type RejectReason, type RoundPlay, type TrickPause } from './types'
+
+/** What the kit's table needs of this game. */
+const TABLE: TableOptions = { seatCounts: SEAT_COUNTS, timers: TIMERS }
 
 export function createGame(): Game {
   return {
@@ -15,6 +18,7 @@ export function createGame(): Game {
     playerCount: 4,
     seats: emptySeats(4),
     host: null,
+    settings: LIVE,
     balls: [0, 0],
     dealer: 0,
     khanaakCalled: false,
@@ -148,7 +152,7 @@ export function nextDeadline(game: Game): number | null {
 
 function dispatch(game: Game, actor: Actor, action: Action, ctx: Ctx, events: GameEvent[]): RejectReason | null {
   if (isTableAction(action)) {
-    const rejected = tableAction(game, actor, action, ctx, events, { seatCounts: SEAT_COUNTS })
+    const rejected = tableAction(game, actor, action, ctx, events, TABLE)
     if (rejected !== null) return rejected
     if (action.type === 'start') {
       game.balls = [0, 0]
