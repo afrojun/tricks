@@ -69,12 +69,19 @@ export type ServerMessage<V, E> =
       events: NumberedEvent<E>[]
       /** What the computers said about these events, shown with them. */
       said?: Said[]
+      /** The number of the room's latest event, which a device keeps to ask for a recap when it comes back. */
+      lastEvent?: number
     }
   /** Something a person said, or a computer's answer to a throw: shown at once, never held for a dwell. */
   | ({ type: 'said' } & Said)
   /** The game's own reason for refusing an action, or `malformed` for a message it could not read. */
   | { type: 'rejected'; reason: string }
   | { type: 'error'; message: string }
+  /**
+   * The events since the one a connection said it last saw (`SINCE_PARAM`), sent before its first sync when
+   * the room still has them all: what happened while it was away. Shown as a summary, never played.
+   */
+  | { type: 'recap'; events: NumberedEvent<E>[] }
   /** A player at the table lifted a card in their hand (`up`), or put it back or played it. Never saved, never paced. */
   | { type: 'lift'; seat: Seat; up: boolean }
   /**
@@ -108,6 +115,9 @@ export interface RoomStatus {
   standIn: boolean
   pace: Pace
 }
+
+/** The connection query parameter carrying the number of the last event this device saw in the room, for a recap. */
+export const SINCE_PARAM = 'since'
 
 /** The connection query parameter carrying the device's secret token. */
 export const TOKEN_PARAM = 'token'

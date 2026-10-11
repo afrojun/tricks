@@ -62,6 +62,17 @@ describe('game store', () => {
     expect(store.getState().lifted).toEqual([3])
   })
 
+  test('a recap is kept to be read, never played, until cleared; an empty one is nothing', () => {
+    const { store, played } = connected()
+    store.receive({ type: 'recap', events: [] }, 5000)
+    expect(store.getState().recap).toBeNull()
+    store.receive({ type: 'recap', events: [event(3), event(4)] }, 5000)
+    expect(store.getState().recap?.events.map((e) => e.n)).toEqual([3, 4])
+    expect(played).toEqual([])
+    store.clearRecap()
+    expect(store.getState().recap).toBeNull()
+  })
+
   test('a stale version is ignored', () => {
     const { store, played } = connected()
     store.receive(sync(5, [event(1)]), 5000)

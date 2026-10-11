@@ -51,6 +51,8 @@ export interface GameClient<V extends ShellView, A, E extends { type: string }> 
   dwell(event: E): number
   /** Plays one event's sound and says what else it shows. */
   present(event: E, view: V, seat: Seat | null): Presentation
+  /** What happened while a player was away, in a few lines, from the events they missed: the calls, the challenges, the results. The table's own news (a change of pace) the shell adds. */
+  recap(events: readonly E[], view: V, seat: Seat | null): string[]
   /** Everything after the lobby. */
   Table: ComponentType<{ view: V; room: string }>
   /** House rules: defaults, schema for share links, built-in presets, and each rule's label and choices. */

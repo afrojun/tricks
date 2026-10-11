@@ -109,7 +109,8 @@ export type GameEvent =
   | { type: 'passesExchanged' }
   | { type: 'cardPlayed'; seat: Seat; card: Card }
   | { type: 'heartsBroken' }
-  | { type: 'trickWon'; seat: Seat; points: number }
+  /** `queen`: the queen of spades was in the trick, so a recap can say who took her without the cards. */
+  | { type: 'trickWon'; seat: Seat; points: number; queen: boolean }
   | { type: 'challengeResolved'; challenger: Seat; accused: Seat; guilty: boolean }
   | { type: 'roundScored'; summary: RoundSummary }
   | { type: 'gameOver'; winner: Seat }

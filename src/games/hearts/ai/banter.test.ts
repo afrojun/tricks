@@ -14,11 +14,11 @@ function table() {
 
 describe('what Hearts’ computers say', () => {
   test('taking the queen of spades stings', () => {
-    expect(banter(table(), [{ type: 'trickWon', seat: 3, points: 13 }], () => 0)).toEqual([{ seat: 3, say: { kind: 'line', id: 'eish' } }])
+    expect(banter(table(), [{ type: 'trickWon', seat: 3, points: 13, queen: true }], () => 0)).toEqual([{ seat: 3, say: { kind: 'line', id: 'eish' } }])
   })
 
   test('a few hearts are not worth a word', () => {
-    expect(banter(table(), [{ type: 'trickWon', seat: 3, points: 2 }], () => 0)).toEqual([])
+    expect(banter(table(), [{ type: 'trickWon', seat: 3, points: 2, queen: false }], () => 0)).toEqual([])
   })
 
   test('the winner of the game, if a computer, is pleased', () => {

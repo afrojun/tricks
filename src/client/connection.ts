@@ -1,9 +1,9 @@
 import PartySocket from 'partysocket'
 import type { TableAction, TableView } from '../kit/table'
-import { PACE_PARAM, PING, PONG, type PushTarget, REPLACED_CLOSE_CODE, ROOM_FULL_CLOSE_CODE, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
+import { PACE_PARAM, PING, PONG, type PushTarget, REPLACED_CLOSE_CODE, SINCE_PARAM, ROOM_FULL_CLOSE_CODE, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
 import { deviceToken } from './identity'
 import { currentTarget } from './notify'
-import { forgetRoom, keepRoom } from './rooms'
+import { forgetRoom, keepRoom, lastSeenEvent, noteSeenEvent } from './rooms'
 import { pace } from './pace'
 import type { Say } from '../kit/talk'
 import { Playback } from './playback'
@@ -51,6 +51,8 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
       if (message.type === 'sync') {
         remember(message.seat !== null)
         tellPush(message)
+        // Seated, the device keeps where the room has got to, to hear what it missed when it comes back.
+        if (message.seat !== null && message.lastEvent !== undefined) noteSeenEvent(game.id, code, message.lastEvent)
       }
       // Coming back to a seat the AI was minding: take it back straight away.
       if (justOpened && message.type === 'sync') {
@@ -66,7 +68,11 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     protocol: location.protocol === 'https:' ? 'wss' : 'ws',
     party: 'room',
     room: roomName(game.id, code),
-    query: { [TOKEN_PARAM]: deviceToken(), ...(speed > 1 && { [PACE_PARAM]: String(speed) }) },
+    // Asked afresh on every connection, so a reconnect asks only for what came since the last view.
+    query: () => {
+      const since = lastSeenEvent(game.id, code)
+      return { [TOKEN_PARAM]: deviceToken(), ...(speed > 1 && { [PACE_PARAM]: String(speed) }), ...(since !== null && { [SINCE_PARAM]: String(since) }) }
+    },
     shouldReconnectOnClose: (e) => HELD[e.code] === undefined,
   })
   /** Any game's actions include the table's, such as taking a seat back. */

@@ -8,6 +8,7 @@ import { type Action, type GameEvent, SEAT_COUNTS, type View } from './engine'
 import { spadesPractice } from './practice'
 import { dwell } from './ui/dwell'
 import { present } from './ui/present'
+import { recap } from './ui/recap'
 import { ruleBook } from './ui/rules'
 import { Table } from './ui/Table'
 import { REJECTIONS } from './ui/text'
@@ -20,6 +21,7 @@ export const spadesClient: GameClient<View, Action, GameEvent> = {
   seatCounts: SEAT_COUNTS,
   dwell,
   present,
+  recap,
   Table,
   rules: ruleBook,
   lobbyTeams: (seat, playerCount) => (playerCount === 4 ? seat % 2 : null),

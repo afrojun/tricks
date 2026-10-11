@@ -69,7 +69,7 @@ describe('the moon and a jack of diamonds taken by someone else', () => {
 
   test('everyone else scores 26, and the jack’s taker -10 on top', () => {
     const t = moonJack({})
-    expect(t.events).toContainEqual({ type: 'trickWon', seat: 1, points: -10 })
+    expect(t.events).toContainEqual({ type: 'trickWon', seat: 1, points: -10, queen: false })
     expect(summaryOf(t.game)).toMatchObject({ reason: 'moon', moon: 3, points: [26, 16, 26, 0] })
   })
 

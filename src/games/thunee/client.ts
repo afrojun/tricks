@@ -5,6 +5,7 @@ import { type Action, type GameEvent, SEAT_COUNTS, TIMERS, type View, teamOf } f
 import { thuneePractice } from './practice'
 import { dwell } from './ui/dwell'
 import { present } from './ui/present'
+import { recap } from './ui/recap'
 import { ruleBook } from './ui/rules'
 import { Table } from './ui/Table'
 import { REJECTIONS } from './ui/text'
@@ -17,6 +18,7 @@ export const thuneeClient: GameClient<View, Action, GameEvent> = {
   seatCounts: SEAT_COUNTS,
   dwell,
   present,
+  recap,
   Table,
   rules: ruleBook,
   // Two players are two teams of one, so the lobby names them as players.

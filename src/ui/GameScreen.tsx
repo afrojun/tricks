@@ -9,11 +9,18 @@ import { TalkLayer } from './talk/TalkLayer'
 import { Sheet } from './Sheet'
 import { SuitText } from './SuitText'
 import { rejectionText, seatName } from './text'
+import type { AnyGameClient, ShellView } from './contract'
 import { paceChangedText } from './tableSettings'
 import type { TableEvent } from '../kit/table'
 
 function isPaceChanged(event: { type: string }): event is Extract<TableEvent, { type: 'paceChanged' }> {
   return event.type === 'paceChanged'
+}
+
+/** The table's own news first (a change of pace), then the game's account of the rest. */
+export function recapLines(events: readonly { type: string }[], view: ShellView, seat: number | null, game: Pick<AnyGameClient, 'recap'>): string[] {
+  const paces = events.filter(isPaceChanged).map((e) => paceChangedText(e.seat === seat ? 'You' : seatName(view, e.seat), e.pace))
+  return [...paces, ...game.recap(events, view, seat)]
 }
 
 /** Why the room closed this table, for the two closes that wait for the player, and how to come back. */
@@ -75,6 +82,15 @@ export function Screen({ room }: { room: string }) {
     store.clearRejection()
   }, [client.rejection, store, game])
 
+  // What the room said happened while this player was away, shown once, until they have read it.
+  const recap = client.recap
+  const missed = useMemo(() => (recap && client.view ? recapLines(recap.events, client.view, client.view.seat, game) : []), [recap, client.view, game])
+  // A recap with nothing worth saying is dropped, once there is a view to say it of: the recap comes before the first.
+  const viewed = client.view !== null
+  useEffect(() => {
+    if (recap && viewed && missed.length === 0) store.clearRecap()
+  }, [recap, viewed, missed, store])
+
   const closed = client.connection === 'replaced' || client.connection === 'full' ? CLOSED[client.connection] : null
   if (!client.view) {
     return (
@@ -120,6 +136,20 @@ export function Screen({ room }: { room: string }) {
       )}
       {client.view.phase.kind === 'lobby' ? <Lobby view={client.view} room={room} /> : <game.Table view={client.view} room={room} />}
       <TalkLayer seat={client.view.seat} />
+      {recap && missed.length > 0 && (
+        <Sheet title="While you were away" onClose={() => store.clearRecap()}>
+          <ul className="grid gap-1 mb-4 list-disc pl-5">
+            {missed.map((line, i) => (
+              <li key={i}>
+                <SuitText text={line} />
+              </li>
+            ))}
+          </ul>
+          <button className="btn btn-primary w-full" onClick={() => store.clearRecap()}>
+            Got it
+          </button>
+        </Sheet>
+      )}
       {askLeave && (
         <Sheet title="Leave this game?" onClose={() => setAskLeave(false)}>
           <LeaveQuestion onStay={() => setAskLeave(false)} />

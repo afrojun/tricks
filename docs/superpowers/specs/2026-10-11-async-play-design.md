@@ -1,6 +1,6 @@
 # Playing over days
 
-**Date:** 2026-10-11. **Status:** designed, and reviewed for design and copy; built in parts, in the order of section 3. Parts 1, 2 and 3 built. A room hears a device's subscription when the device next connects to it, so turning notifications on at one game reaches the others as each is opened; and "Round over" is told as well, since over days the next round waits for anyone to start it.
+**Date:** 2026-10-11. **Status:** designed, and reviewed for design and copy; built in parts, in the order of section 3. Parts 1 to 4 built. A room hears a device's subscription when the device next connects to it, so turning notifications on at one game reaches the others as each is opened; and "Round over" is told as well, since over days the next round waits for anyone to start it.
 
 ## 1. The gap
 

@@ -109,7 +109,7 @@ describe('the first trick', () => {
     t.play('Jd')
     expect(last(t)).toMatchObject({ seat: 1, card: card('Jd'), broke: [] })
     t.play('2s 2h')
-    expect(t.events).toContainEqual({ type: 'trickWon', seat: 0, points: -9 })
+    expect(t.events).toContainEqual({ type: 'trickWon', seat: 0, points: -9, queen: false })
   })
 })
 
@@ -173,7 +173,7 @@ describe('winning a trick', () => {
   test('the highest card of the led suit wins, and its winner leads after a pause', () => {
     const t = start(LEAD).play('2c Ac 6c Jc')
     expect(t.game.phase.kind).toBe('trickPause')
-    expect(t.events).toContainEqual({ type: 'trickWon', seat: 1, points: 0 })
+    expect(t.events).toContainEqual({ type: 'trickWon', seat: 1, points: 0, queen: false })
     expect(t.try(1, { type: 'playCard', card: card('5d') })).toBe('wrongPhase')
     t.advance(1999)
     expect(t.game.phase.kind).toBe('trickPause')
@@ -183,7 +183,7 @@ describe('winning a trick', () => {
 
   test('a card off the led suit never wins, however high, and the trick’s points go to its winner', () => {
     const t = start().play('2c 4d 9c Ac  Qc 3c Qs 10c')
-    expect(t.events).toContainEqual({ type: 'trickWon', seat: 3, points: 13 })
+    expect(t.events).toContainEqual({ type: 'trickWon', seat: 3, points: 13, queen: true })
     expect(viewFor(t.game, 0).phase).toMatchObject({ taken: [0, 0, 0, 13] })
   })
 

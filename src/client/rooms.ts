@@ -54,7 +54,16 @@ export function keepRoom(game: string, code: string, now = Date.now()): void {
 export function forgetRoom(game: string, code: string, now = Date.now(), seen?: number): void {
   const rooms = keptRooms(now)
   const left = rooms.filter((r) => r.game !== game || r.code !== code || (seen !== undefined && r.seen !== seen))
-  if (left.length !== rooms.length) write(left)
+  if (left.length === rooms.length) return
+  write(left)
+  // Its last event seen goes with it: a room reset and played again is a new game.
+  try {
+    const seenEvents = JSON.parse(localStorage.getItem('tricks-seen') ?? '{}') as Record<string, number>
+    delete seenEvents[`${game}-${code}`]
+    localStorage.setItem('tricks-seen', JSON.stringify(seenEvents))
+  } catch {
+    // A full or blocked store forgets.
+  }
 }
 
 /** What a room says of this device's seat now, or null when it gives none: the room forgot the seat, and so does the device. */
@@ -70,5 +79,37 @@ export async function fetchStatus(room: KeptRoom): Promise<RoomStatus | null | '
     return (await response.json()) as RoomStatus
   } catch {
     return 'unknown'
+  }
+}
+
+const SEEN_KEY = 'tricks-seen'
+
+function readSeen(): Record<string, number> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as unknown
+    return typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, number>) : {}
+  } catch {
+    return {}
+  }
+}
+
+/** The number of the last event this device saw in a room it sits in, to ask what it missed; null if none is kept. */
+export function lastSeenEvent(game: string, code: string): number | null {
+  if (!keptRooms().some((r) => r.game === game && r.code === code)) return null
+  const n = readSeen()[`${game}-${code}`]
+  return Number.isInteger(n) && n >= 0 ? n : null
+}
+
+/** Keeps the room's latest event as seen, for the rooms this device sits in only; the rest are dropped as it writes. */
+export function noteSeenEvent(game: string, code: string, n: number): void {
+  const key = `${game}-${code}`
+  const seen = readSeen()
+  if (seen[key] === n) return
+  const kept = new Set(keptRooms().map((r) => `${r.game}-${r.code}`))
+  const next = Object.fromEntries(Object.entries({ ...seen, [key]: n }).filter(([k]) => kept.has(k)))
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(next))
+  } catch {
+    // A full or blocked store forgets.
   }
 }
