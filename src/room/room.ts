@@ -6,6 +6,7 @@ import { type Actor, type Seat, type TableAction, type TableSettings, type Table
 import {
   type ClientMessage,
   type NumberedEvent,
+  type RoomStatus,
   type ServerMessage,
   MAX_TOKEN_LENGTH,
   MIN_TOKEN_LENGTH,
@@ -141,6 +142,11 @@ export class TableRoom {
 
   onAlarm(): Promise<void> {
     return this.table?.onAlarm() ?? Promise.resolve()
+  }
+
+  /** What the room says of the seat a device token holds, or null when the token holds none here. */
+  status(token: string | null): Promise<RoomStatus | null> {
+    return this.table?.status(token) ?? Promise.resolve(null)
   }
 }
 
@@ -338,6 +344,29 @@ class Table {
     return this.enqueue(() => this.drive())
   }
 
+  /** Answered in turn with the game's changes, so it reads the game as one of them left it. */
+  async status(token: string | null): Promise<RoomStatus | null> {
+    let answer: RoomStatus | null = null
+    await this.enqueue(() => {
+      const valid = token !== null && token.length >= MIN_TOKEN_LENGTH && token.length <= MAX_TOKEN_LENGTH
+      const seat = valid ? this.seatOfToken(token) : null
+      if (seat === null) return
+      const game = this.saved.game
+      const kind = game.phase.kind
+      const toAct = this.module.seatsToAct(game)
+      answer = {
+        stage: kind === 'lobby' || kind === 'gameOver' ? kind : kind === 'roundResult' ? 'roundOver' : 'playing',
+        seat,
+        names: game.seats.map((s) => (s.kind === 'empty' ? '' : s.name)),
+        waitingOn: toAct.filter((s) => game.seats[s].kind === 'human' && !game.seats[s].standIn),
+        yourTurn: toAct.includes(seat),
+        standIn: game.seats[seat].standIn,
+        pace: game.settings.pace,
+      }
+    })
+    return answer
+  }
+
   // ── Core ───────────────────────────────────────────────────────────────
 
   private enqueue(work: () => Promise<void> | void): Promise<void> {
@@ -493,8 +522,11 @@ class Table {
    * count: a token named like a property every object inherits, such as `constructor`, is a stranger.
    */
   private seatOf(conn: RoomConnection): Seat | null {
-    const token = conn.state?.token
-    if (token === undefined || !Object.hasOwn(this.saved.tokens, token)) return null
+    return conn.state ? this.seatOfToken(conn.state.token) : null
+  }
+
+  private seatOfToken(token: string): Seat | null {
+    if (!Object.hasOwn(this.saved.tokens, token)) return null
     const seat = this.saved.tokens[token]
     return Number.isInteger(seat) && this.saved.game.seats[seat]?.kind === 'human' ? seat : null
   }

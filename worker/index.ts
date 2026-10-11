@@ -1,6 +1,6 @@
 import { type Lobby, routePartykitRequest } from 'partyserver'
 import { isRoomName } from '../src/games'
-import { UNKNOWN_ROOM_CLOSE_CODE } from '../src/protocol'
+import { STATUS_TOKEN_HEADER, UNKNOWN_ROOM_CLOSE_CODE } from '../src/protocol'
 import { asRoomSees, gate } from '../src/room/gate'
 
 export { Room } from './room'
@@ -26,9 +26,17 @@ async function admitSocket(request: Request, lobby: Lobby<Env>, env: Env): Promi
   return asRoomSees(request)
 }
 
-/** A room is reached only by socket: a plain request never wakes one. */
-function refuseRequest(_request: Request, lobby: Lobby<Env>): Response {
-  return isRoomName(lobby.name) ? new Response('Not found', { status: 404 }) : new Response('Unknown room', { status: 404 })
+/**
+ * A room is reached by socket, and by one plain request: a device asking what a game it sits in waits
+ * on (`GET` with its token in `STATUS_TOKEN_HEADER`), gated as a socket is. Any other request never wakes a room.
+ */
+async function admitRequest(request: Request, lobby: Lobby<Env>, env: Env): Promise<Request | Response> {
+  if (!isRoomName(lobby.name)) return new Response('Unknown room', { status: 404 })
+  if (request.method !== 'GET' || !request.headers.has(STATUS_TOKEN_HEADER)) return new Response('Not found', { status: 404 })
+  const verdict = await gate(request, env.CONNECTS)
+  if (verdict === 'foreign') return new Response('Forbidden', { status: 403 })
+  if (verdict === 'tooFast') return new Response('Too many requests', { status: 429 })
+  return asRoomSees(request)
 }
 
 /** Only `/parties/*` reaches the Worker first; everything else is the app's static assets. */
@@ -36,7 +44,7 @@ export default {
   async fetch(request, env) {
     const routed = await routePartykitRequest(request, env, {
       onBeforeConnect: (req, lobby) => admitSocket(req, lobby, env),
-      onBeforeRequest: refuseRequest,
+      onBeforeRequest: (req, lobby) => admitRequest(req, lobby, env),
     })
     return routed ?? new Response('Not found', { status: 404 })
   },

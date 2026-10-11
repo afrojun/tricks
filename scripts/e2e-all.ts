@@ -9,7 +9,7 @@ import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 import path from 'node:path'
 
 /** Longest first, so the long ones do not start last and run alone. */
-const ALL = ['e2e-spades', 'e2e', 'e2e-hearts', 'e2e-drills', 'e2e-practice', 'e2e-two', 'e2e-controls', 'e2e-pace']
+const ALL = ['e2e-spades', 'e2e', 'e2e-hearts', 'e2e-drills', 'e2e-practice', 'e2e-two', 'e2e-controls', 'e2e-pace', 'e2e-yours']
 const names = process.argv.slice(2)
 const unknown = names.filter((name) => !ALL.includes(name))
 const queue = names.length > 0 ? [...names] : [...ALL]

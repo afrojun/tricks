@@ -4,6 +4,7 @@ import { Link } from './Link'
 import { gamePath } from './routes'
 import { tableSizes } from './seats'
 import { TopBar } from './TopBar'
+import { YourGames } from './YourGames'
 
 /** `/`: the games, and the look that every game shares. Loads no game. */
 export function TricksHome() {
@@ -15,6 +16,8 @@ export function TricksHome() {
         <h1 className="wordmark text-[5.5rem] md:text-[7rem]">Tricks</h1>
         <p className="font-semibold mt-3 max-w-[19em] mx-auto">Trick-taking card games to play with friends or the computer.</p>
       </header>
+
+      <YourGames />
 
       <section className="home-width grid gap-5 md:grid-cols-2 md:gap-6" aria-label="Games">
         {GAMES.map((game, i) => (

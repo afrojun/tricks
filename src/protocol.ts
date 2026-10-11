@@ -1,7 +1,7 @@
 /** Messages exchanged between the client and a room. The envelope is every game's; the game supplies the view, action and event types. */
 import { z } from 'zod'
 import { type Said, type Say, saySchema } from './kit/talk'
-import type { Seat } from './kit/table'
+import type { Pace, Seat } from './kit/table'
 
 /** A room is named `<game>-<CODE>`, so which game it holds is never stored separately. */
 export function roomName(game: string, code: string): string {
@@ -65,6 +65,32 @@ export type ServerMessage<V, E> =
    * never sends the close frame of a socket closed while the room handles another's event.
    */
   | { type: 'closing'; code: number }
+
+/**
+ * The header carrying the device's secret token on a room's status request: a header and not the
+ * address, so no log of the address holds it, and another site's page cannot send it without asking first.
+ */
+export const STATUS_TOKEN_HEADER = 'X-Tricks-Token'
+
+/**
+ * What a room tells a device seated in it, for "Your games", and only that device: who sits where,
+ * and whom the table waits on. Nothing a view would hide.
+ */
+export interface RoomStatus {
+  /** `roundOver` waits for any person at the table to start the next round. */
+  stage: 'lobby' | 'playing' | 'roundOver' | 'gameOver'
+  /** The device's own seat. */
+  seat: Seat
+  /** Each seat's name, in seat order; empty for an empty seat. */
+  names: string[]
+  /** The people the table waits on now, not counting a computer playing for one. */
+  waitingOn: Seat[]
+  /** Whether the table waits on this seat now, whoever plays it. */
+  yourTurn: boolean
+  /** Whether a computer is playing for this seat. */
+  standIn: boolean
+  pace: Pace
+}
 
 /** The connection query parameter carrying the device's secret token. */
 export const TOKEN_PARAM = 'token'

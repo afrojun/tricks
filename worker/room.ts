@@ -1,5 +1,5 @@
 import { type Connection, type ConnectionContext, Server, type WSMessage } from 'partyserver'
-import { PING, PONG } from '../src/protocol'
+import { PING, PONG, STATUS_TOKEN_HEADER } from '../src/protocol'
 import { type ConnState, TableRoom, defaultDeps } from '../src/room/room'
 
 /**
@@ -54,10 +54,13 @@ export class Room extends Server<Env> {
   }
 
   /**
-   * A room is reached only by socket. A plain request is refused without a word to the log:
-   * partyserver's default logs the URL, and a socket's URL carries the device's secret token.
+   * The one plain request a room answers, which the Worker lets through: a device asking what a game
+   * it sits in waits on. Anything else, or a token that holds no seat here, is not found, without a
+   * word to the log: partyserver's default logs the URL, and a socket's URL carries the device's token.
    */
-  onRequest() {
-    return new Response('Not found', { status: 404 })
+  async onRequest(request: Request) {
+    const status = request.method === 'GET' ? await this.table.status(request.headers.get(STATUS_TOKEN_HEADER)) : null
+    if (status === null) return new Response('Not found', { status: 404 })
+    return Response.json(status, { headers: { 'Cache-Control': 'no-store' } })
   }
 }

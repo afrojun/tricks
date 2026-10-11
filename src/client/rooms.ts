@@ -1,0 +1,74 @@
+/**
+ * The games this device has a seat in, for "Your games": each room's game and code and when it was
+ * last seen with a seat, and what the room says of it now. The device keeps only the list; the
+ * room answers for itself, and only to a device seated in it.
+ */
+import { type RoomStatus, STATUS_TOKEN_HEADER, roomName } from '../protocol'
+import { deviceToken } from './identity'
+
+const KEY = 'tricks-rooms'
+/** The newest rooms kept, and how long one not seen is kept. */
+export const MAX_ROOMS = 20
+export const ROOM_KEPT_MS = 30 * 24 * 60 * 60 * 1000
+
+export interface KeptRoom {
+  game: string
+  code: string
+  /** When this device last saw itself seated there. */
+  seen: number
+}
+
+/** The rooms kept, newest first, none older than a month. */
+export function keptRooms(now = Date.now()): KeptRoom[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? '[]') as unknown
+    if (!Array.isArray(raw)) return []
+    return raw
+      .filter((r): r is KeptRoom => typeof r?.game === 'string' && typeof r?.code === 'string' && typeof r?.seen === 'number')
+      .filter((r) => now - r.seen < ROOM_KEPT_MS)
+      .sort((a, b) => b.seen - a.seen)
+      .slice(0, MAX_ROOMS)
+  } catch {
+    return []
+  }
+}
+
+function write(rooms: KeptRoom[]): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(rooms))
+  } catch {
+    // A full or blocked store forgets.
+  }
+}
+
+/** This device has a seat in a room: kept, as seen now. */
+export function keepRoom(game: string, code: string, now = Date.now()): void {
+  const others = keptRooms(now).filter((r) => r.game !== game || r.code !== code)
+  write([{ game, code, seen: now }, ...others].slice(0, MAX_ROOMS))
+}
+
+/**
+ * This device has no seat in a room any more: stood up, or the room was reset. With `seen`, only if the
+ * room has not been kept again since then: an answer about an older seat must not forget a newer one.
+ */
+export function forgetRoom(game: string, code: string, now = Date.now(), seen?: number): void {
+  const rooms = keptRooms(now)
+  const left = rooms.filter((r) => r.game !== game || r.code !== code || (seen !== undefined && r.seen !== seen))
+  if (left.length !== rooms.length) write(left)
+}
+
+/** What a room says of this device's seat now, or null when it gives none: the room forgot the seat, and so does the device. */
+export async function fetchStatus(room: KeptRoom): Promise<RoomStatus | null | 'unknown'> {
+  try {
+    const response = await fetch(`/parties/room/${roomName(room.game, room.code)}`, { headers: { [STATUS_TOKEN_HEADER]: deviceToken() } })
+    if (response.status === 404) {
+      forgetRoom(room.game, room.code, Date.now(), room.seen)
+      return null
+    }
+    // Too many requests, or the network: say nothing of it this time.
+    if (!response.ok) return 'unknown'
+    return (await response.json()) as RoomStatus
+  } catch {
+    return 'unknown'
+  }
+}
