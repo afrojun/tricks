@@ -1,31 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { type NotifyState, notifyState, turnOff, turnOn } from '../client/notify'
 import { useSession } from './session'
+
+/** This device's notifications as every screen on the page sees them: one state, so the offer and the menu's switch agree. */
+let shared: NotifyState | null = null
+const listeners = new Set<() => void>()
+function share(state: NotifyState): void {
+  shared = state
+  for (const listener of listeners) listener()
+}
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
 
 /** Whether this device's notifications are on, and the two ways to change that; null while it is being found out. */
 export function useNotify(): { state: NotifyState | null; on: () => Promise<void>; off: () => Promise<void> } {
   const { push } = useSession()
-  const [state, setState] = useState<NotifyState | null>(null)
+  const state = useSyncExternalStore(subscribe, () => shared)
   useEffect(() => {
-    let live = true
-    void notifyState().then((s) => live && setState(s))
-    return () => {
-      live = false
-    }
+    // Found out again as each screen opens: permission and the subscription may have changed outside the page.
+    void notifyState().then(share)
   }, [])
   return {
     state,
     // Asked from a tap, as browsers require. The room this screen is open on hears at once; the others as each is opened.
     on: async () => {
       const result = await turnOn()
-      if (typeof result === 'string') return setState(result)
+      if (typeof result === 'string') return share(result)
       push(result)
-      setState('on')
+      share('on')
     },
     off: async () => {
       await turnOff()
       push(null)
-      setState('off')
+      share('off')
     },
   }
 }

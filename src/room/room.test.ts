@@ -886,6 +886,14 @@ describe('notifications', () => {
     expect(w.pushed.map((p) => p.endpoint)).toEqual([target(0).endpoint])
   })
 
+  test('a table going over days tells the people it already waits on', async () => {
+    const { w, b } = await hearts(true)
+    await w.send(b, { type: 'start' })
+    expect(w.pushed).toEqual([])
+    await w.send(b, { type: 'setSettings', settings: { pace: 'async', timers: null } })
+    expect(w.pushed.map((p) => p.title)).toEqual(['Your turn'])
+  })
+
   test('a nudge reaches a person away; the computer standing in says so', async () => {
     const { w, b } = await hearts()
     await w.send(b, { type: 'start' })

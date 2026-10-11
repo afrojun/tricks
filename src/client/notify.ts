@@ -34,10 +34,13 @@ function want(on: boolean): void {
   }
 }
 
+/** On only while the player wants them, the browser allows them, and the browser still holds a subscription: one it dropped is offered again. */
 export async function notifyState(): Promise<NotifyState> {
-  if ((await registration()) === null) return 'unsupported'
+  const reg = await registration()
+  if (reg === null) return 'unsupported'
   if (Notification.permission === 'denied') return 'denied'
-  return Notification.permission === 'granted' && wanted() ? 'on' : 'off'
+  if (Notification.permission !== 'granted' || !wanted()) return 'off'
+  return (await reg.pushManager.getSubscription().catch(() => null)) ? 'on' : 'off'
 }
 
 function targetOf(subscription: PushSubscription): PushTarget | null {
@@ -68,11 +71,14 @@ export async function turnOn(): Promise<PushTarget | Exclude<NotifyState, 'on'>>
   }
 }
 
-/** Stops them on this device: the subscription ends, and each room forgets it the next time it pushes. */
+/**
+ * Stops them on this device: the player no longer wants them, so each room this device sits in is told
+ * so as the device next connects to it, and the subscription ends if the browser lets it.
+ */
 export async function turnOff(): Promise<void> {
   want(false)
   const reg = await registration()
-  await (await reg?.pushManager.getSubscription())?.unsubscribe().catch(() => false)
+  await (await reg?.pushManager.getSubscription().catch(() => null))?.unsubscribe().catch(() => false)
 }
 
 /** The subscription to hand a room this device sits in, while notifications are on. */

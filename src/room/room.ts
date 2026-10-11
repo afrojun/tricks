@@ -471,7 +471,8 @@ class Table {
     if (this.host.push === undefined || after.settings.pace !== 'async') return
     const person = (game: TableState, seat: Seat) => game.seats[seat]?.kind === 'human'
     const playing = (game: TableState, seat: Seat) => person(game, seat) && !game.seats[seat].standIn
-    const waited = new Set(this.module.seatsToAct(before).filter((seat) => playing(before, seat)))
+    // A table that has just gone over days tells everyone it already waits on, as if the wait were new.
+    const waited = new Set(before.settings.pace === 'async' ? this.module.seatsToAct(before).filter((seat) => playing(before, seat)) : [])
     const told = new Map<Seat, string>()
     after.seats.forEach((s, seat) => {
       if (!person(after, seat) || s.connected) return

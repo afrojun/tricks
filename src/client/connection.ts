@@ -85,18 +85,21 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
    * this visit, forgotten when one gives it none (it stood up, or the room was reset).
    */
   let seated: boolean | null = null
+  /** Whether this socket has told the room about notifications since it last found a seat. */
+  let told = false
   const remember = (now: boolean) => {
     if (now === seated) return
     seated = now
+    // A seat taken again is told again: standing up made the room forget this device's notifications.
+    told = false
     if (now) keepRoom(game.id, code)
     else forgetRoom(game.id, code)
   }
-  // Once a socket finds its seat, the room hears where this device's notifications go, if they are on.
-  let told = false
+  // Once a socket finds its seat, the room hears where this device's notifications go, or that it wants none.
   const tellPush = (sync: { seat: number | null }) => {
     if (told || sync.seat === null) return
     told = true
-    void currentTarget().then((target) => target && push(target))
+    void currentTarget().then(push)
   }
   const push = (target: PushTarget | null) => {
     if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ push: target }))
