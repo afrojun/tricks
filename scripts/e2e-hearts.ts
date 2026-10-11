@@ -12,7 +12,7 @@
  * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-hearts.ts [shots-dir]
  */
 import type { Browser, Page } from 'playwright-core'
-import { launch, paced } from './browser'
+import { launch, paced, tapCard } from './browser'
 import { TOPICS } from '../src/games/hearts/coach/topics'
 import { addComputers } from './lobby'
 
@@ -40,8 +40,6 @@ const check = (ok: boolean, what: string) => {
 const shot = (page: Page, name: string) => page.screenshot({ path: `${shots}/hearts-${name}.png` })
 const seen = (page: Page, text: string | RegExp, timeout = 5000) => page.getByText(text).first().waitFor({ timeout }).then(() => true, () => false)
 
-// Thirteen cards overlap: each shows only a strip at its left edge, which is where a finger lands.
-const STRIP = { x: 8, y: 30 }
 const handCards = (page: Page) => page.locator('.hand .playing-card')
 const handSize = (page: Page) => handCards(page).count()
 const trickOf = (page: Page) => page.locator('.trick-area .playing-card').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')).sort())
@@ -124,14 +122,14 @@ const passLeft = a.getByRole('button', { name: 'Pass left' })
 check(await passLeft.isDisabled(), 'Pass left waits for three cards')
 /** Picks the first three cards of the hand, a tap each. */
 async function pickThree(page: Page) {
-  for (const i of [0, 1, 2]) await handCards(page).nth(i).click({ position: STRIP })
+  for (const i of [0, 1, 2]) await tapCard(handCards(page).nth(i))
 }
 await pickThree(a)
 check((await a.locator('.hand .playing-card.picked').count()) === 3, 'three taps pick three cards')
-await handCards(a).nth(3).click({ position: STRIP })
+await tapCard(handCards(a).nth(3))
 check((await a.locator('.hand .playing-card.picked').count()) === 3, 'a fourth card is not picked')
-await handCards(a).nth(2).click({ position: STRIP })
-await handCards(a).nth(2).click({ position: STRIP })
+await tapCard(handCards(a).nth(2))
+await tapCard(handCards(a).nth(2))
 check((await a.locator('.hand .playing-card.picked').count()) === 3 && (await passLeft.isEnabled()), 'a picked card can be put back and picked again')
 await shot(a, '3-pass')
 await passLeft.click()
@@ -152,7 +150,7 @@ for (const [page, who] of [[a, 'A'], [b, 'B']] as const) {
 async function playLegal(page: Page) {
   if (!(await myTurn(page))) return false
   // Forced: the outer cards of a full fan lean, so the strip can fall on the card's own slot, which takes the tap.
-  await page.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500, force: true }).catch(() => {})
+  await tapCard(page.locator('.hand .playing-card[data-dim="false"]').first(), { timeout: 1500 }).catch(() => {})
   return page.getByText(/^Your (turn|lead)/).waitFor({ state: 'hidden', timeout: 1500 }).then(() => true, () => false)
 }
 
@@ -221,7 +219,7 @@ for (let i = 0; i < 600 && !anyway; i++) {
   const dimmed = a.locator('.hand .playing-card[data-dim="true"]')
   if ((await myTurn(a)) && !(await a.getByText(/two of clubs/).isVisible()) && (await dimmed.count()) > 0) {
     const before = await handSize(a)
-    await dimmed.first().click({ position: STRIP })
+    await tapCard(dimmed.first())
     const confirm = a.getByRole('button', { name: /^Play .* anyway$/ })
     check((await confirm.isVisible()) && (await handSize(a)) === before, 'a rule-breaking card asks before it is played')
     await shot(a, '8-play-anyway')
@@ -287,7 +285,7 @@ async function pickToThree(page: Page) {
   const picked = page.locator('.hand .playing-card.picked')
   for (let i = 0; i < 13 && (await picked.count()) < 3; i++) {
     const card = handCards(page).nth(i)
-    if (!((await card.getAttribute('class')) ?? '').includes('picked')) await card.click({ position: STRIP })
+    if (!((await card.getAttribute('class')) ?? '').includes('picked')) await tapCard(card)
   }
 }
 const numberOf = (text: string) => Number(text.trim().replace('−', '-').replace('+', ''))
@@ -403,13 +401,13 @@ if (practised) {
     // At the opening lead only the two of clubs may be played at all: no trick is complete and none is begun.
     const opening = (await a.getByRole('button', { name: 'Last trick' }).count()) === 0 && (await a.locator('.trick-area .playing-card').count()) === 0
     if (mine && !opening && (await dimmed.count()) > 0) {
-      await dimmed.first().click({ position: STRIP })
+      await tapCard(dimmed.first())
       const why = a.locator('.play-anyway-why')
       warned = await why.waitFor({ timeout: 2000 }).then(() => true, () => false)
       check(warned && /challenge you/.test((await why.textContent()) ?? ''), `the second tap shows the coach's warning (${(await why.textContent().catch(() => null)) ?? 'none'})`)
       await shot(a, '11-practice-warning')
       await a.locator('.hand').click({ position: { x: 3, y: 3 } })
-    } else if (mine) await a.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500 }).catch(() => {})
+    } else if (mine) await tapCard(a.locator('.hand .playing-card[data-dim="false"]').first(), { timeout: 1500 }).catch(() => {})
     await a.waitForTimeout(150)
   }
   check(warned, 'a practice turn offered a rule-breaking card')

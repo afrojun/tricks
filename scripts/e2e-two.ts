@@ -4,7 +4,7 @@
  * between them. Needs `pnpm dev`.
  */
 import type { Locator, Page } from 'playwright-core'
-import { launch, paced } from './browser'
+import { launch, paced, tapCard } from './browser'
 
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 const browser = await launch()
@@ -83,8 +83,7 @@ async function act(page: Page): Promise<boolean> {
     return true
   }
   if (await page.getByText(/Your (turn|lead)/).isVisible()) {
-    // On the strip the card shows: its centre can be under the next card in the fan.
-    await page.locator('.hand .playing-card[data-dim="false"]').first().click({ position: { x: 24, y: 30 }, timeout: 1500 }).catch(() => {})
+    await tapCard(page.locator('.hand .playing-card[data-dim="false"]').first(), { timeout: 1500 }).catch(() => {})
     return true
   }
   return false

@@ -3,7 +3,7 @@
  * Thunee, one human against three computers, with a page refresh mid-hand.
  * Needs `pnpm dev` running. Usage: pnpm tsx scripts/e2e.ts [theme] [shots-dir]
  */
-import { launch, paced } from './browser'
+import { launch, paced, tapCard } from './browser'
 import { addComputers } from './lobby'
 
 const theme = process.argv[2] ?? 'green'
@@ -61,7 +61,8 @@ await page.waitForURL(/\/thunee\/[A-Z]{6}$/)
 await page.getByPlaceholder('Name').fill('Arjun')
 await page.getByRole('button', { name: 'Sit here' }).first().click()
 await page.getByRole('button', { name: 'Short', exact: true }).waitFor()
-if ((await page.getByRole('button', { name: 'Short', exact: true }).getAttribute('aria-pressed')) !== 'true') problems.push('the room did not start on the new preset')
+// The room takes the preset as the host sits, a moment after the buttons show.
+if (!(await page.getByRole('button', { name: 'Short', exact: true, pressed: true }).waitFor({ timeout: 5000 }).then(() => true, () => false))) problems.push('the room did not start on the new preset')
 await addComputers(page, 3)
 await page.getByText('Short', { exact: true }).first().waitFor()
 await shot('3-lobby')
@@ -107,8 +108,7 @@ while (Date.now() - started < 6 * 60_000) {
       console.log(`refreshed mid-hand, same ${after.length} cards`)
     }
     const legal = page.locator('.hand .playing-card[data-dim="false"]').first()
-    // On the strip the card shows: its centre can be under the next card in the fan.
-    await legal.click({ position: { x: 24, y: 30 }, timeout: 1500 }).catch(() => {})
+    await tapCard(legal, { timeout: 1500 }).catch(() => {})
   }
   await page.waitForTimeout(150)
 }

@@ -7,7 +7,7 @@
  * Needs `pnpm dev`. Usage: pnpm tsx scripts/e2e-spades.ts [shots-dir]
  */
 import type { Browser, Page } from 'playwright-core'
-import { launch, paced } from './browser'
+import { launch, paced, tapCard } from './browser'
 import { TOPICS } from '../src/games/spades/coach/topics'
 import { addComputers } from './lobby'
 
@@ -34,8 +34,6 @@ const seen = (page: Page, text: string | RegExp, timeout = 5000) => page.getByTe
 const button = (page: Page, name: string | RegExp) => page.getByRole('button', { name, exact: typeof name === 'string' }).first()
 const visible = (page: Page, name: string | RegExp) => button(page, name).isVisible().catch(() => false)
 
-// A long hand overlaps: each card shows only a strip at its left edge, which is where a finger lands.
-const STRIP = { x: 8, y: 30 }
 const handCards = (page: Page) => page.locator('.hand .playing-card')
 const trickOf = (page: Page) => page.locator('.trick-area .playing-card').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')).sort())
 
@@ -76,7 +74,7 @@ async function move(page: Page): Promise<string> {
   }
   const card = page.locator('.hand .playing-card[data-playable="true"][data-dim="false"]').first()
   if (await card.isVisible().catch(() => false)) {
-    await card.click({ position: STRIP, timeout: 2000 }).catch(() => {})
+    await tapCard(card, { timeout: 2000 }).catch(() => {})
     return 'play'
   }
   if (await visible(page, 'Next round')) return 'result'
@@ -193,12 +191,12 @@ for (let i = 0; i < 600 && !warned && Date.now() < giveUp; i++) {
   if (mine && (await dimmed.count()) > 0) {
     const why = a.locator('.play-anyway-why')
     // A tap that misses (the hand moving under it) is tried again on the next turn.
-    if (await dimmed.first().click({ position: STRIP, timeout: 2000 }).then(() => true, () => false)) {
+    if (await tapCard(dimmed.first(), { timeout: 2000 }).then(() => true, () => false)) {
       warned = await why.waitFor({ timeout: 2000 }).then(() => true, () => false)
       check(warned && /challenge you/.test((await why.textContent()) ?? ''), `the second tap shows the coach's warning (${(await why.textContent().catch(() => null)) ?? 'none'})`)
       await shot(a, '9-practice-warning')
     }
-  } else if (mine) await a.locator('.hand .playing-card[data-dim="false"]').first().click({ position: STRIP, timeout: 1500 }).catch(() => {})
+  } else if (mine) await tapCard(a.locator('.hand .playing-card[data-dim="false"]').first(), { timeout: 1500 }).catch(() => {})
   await a.waitForTimeout(150)
 }
 check(warned, 'a practice turn offered a rule-breaking card')
