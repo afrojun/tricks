@@ -76,6 +76,18 @@ await menuPace.getByRole('button', { name: 'Together' }).click()
 check(await shows(b.page.getByText('Asha set the pace to together')), 'the host changes the pace during play')
 if (shots) await a.page.screenshot({ path: `${shots}/pace-menu.png`, fullPage: true })
 
+// B goes away; A plays over days again; B comes back to hear what happened while away.
+const room = b.page.url()
+await b.page.goto(`${base}/`)
+await menuPace.getByRole('button', { name: 'Over days' }).click()
+await a.page.waitForTimeout(500)
+await b.page.goto(room)
+const away = b.page.getByRole('dialog', { name: 'While you were away' })
+check(await shows(away.getByText('Asha set the pace to over days')), 'coming back, a player hears what happened while away')
+if (shots) await b.page.screenshot({ path: `${shots}/recap.png`, fullPage: true })
+await away.getByRole('button', { name: 'Got it' }).click()
+check(!(await away.isVisible()), 'and closes it')
+
 // The next game A creates starts on the pace A last chose.
 await a.page.goto(`${base}/thunee`)
 await a.page.getByRole('button', { name: 'Create game' }).click()
@@ -83,7 +95,9 @@ await a.page.getByRole('button', { name: 'Sit here' }).first().click()
 const next = a.page.locator('section', { has: a.page.getByRole('heading', { name: 'Pace' }) })
 await next.getByRole('button', { name: 'Together' }).waitFor()
 await a.page.waitForTimeout(500)
-check((await next.getByRole('switch').getAttribute('aria-checked')) === 'true', 'the next game starts with the host’s last time limits')
+check((await next.getByRole('button', { name: 'Over days' }).getAttribute('aria-pressed')) === 'true', 'the next game starts on the host’s last pace')
+await next.getByRole('button', { name: 'Together' }).click()
+check((await next.getByRole('switch').getAttribute('aria-checked')) === 'true', 'with their last time limits')
 
 await browser.close()
 if (problems.length > 0) {

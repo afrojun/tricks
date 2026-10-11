@@ -7,7 +7,7 @@ import type { NumberedEvent, ServerMessage } from '../protocol'
  */
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'full'
 
-export interface ClientState<V> {
+export interface ClientState<V, E = unknown> {
   connection: ConnectionStatus
   seat: Seat | null
   /** The latest view from the server; null until the first sync. */
@@ -18,6 +18,8 @@ export interface ClientState<V> {
   error: string | null
   /** The other seats with a card lifted in their hand, as their players last said. Forgotten on a reconnect. */
   lifted: readonly Seat[]
+  /** What happened while this device was away, as the room told it on connecting; until the player has read it. */
+  recap: { events: readonly NumberedEvent<E>[]; id: number } | null
 }
 
 type EventListener<V, E> = (event: NumberedEvent<E>, view: V, seat: Seat | null) => void
@@ -29,7 +31,7 @@ type EventListener<V, E> = (event: NumberedEvent<E>, view: V, seat: Seat | null)
  * the view and event types.
  */
 export class GameStore<V extends TableView, E> {
-  private state: ClientState<V> = {
+  private state: ClientState<V, E> = {
     connection: 'connecting',
     seat: null,
     view: null,
@@ -37,7 +39,9 @@ export class GameStore<V extends TableView, E> {
     rejection: null,
     error: null,
     lifted: [],
+    recap: null,
   }
+  private recaps = 0
   private listeners = new Set<() => void>()
   private eventListeners = new Set<EventListener<V, E>>()
   private lastEvent = 0
@@ -48,7 +52,7 @@ export class GameStore<V extends TableView, E> {
   /** The server's clock as the last sync gave it: `now` at this device's `at`, running `rate` times real time. */
   private clock = { now: 0, at: 0, rate: 1 }
 
-  getState = (): ClientState<V> => this.state
+  getState = (): ClientState<V, E> => this.state
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
@@ -78,6 +82,10 @@ export class GameStore<V extends TableView, E> {
     }
     if (message.type === 'said') return // talk, which the session hands to its own store
     if (message.type === 'closing') return // the session's, which closes the socket
+    if (message.type === 'recap') {
+      if (message.events.length > 0) this.update({ recap: { events: message.events, id: ++this.recaps } })
+      return
+    }
     if (message.type === 'lift') {
       const others = this.state.lifted.filter((seat) => seat !== message.seat)
       this.update({ lifted: message.up ? [...others, message.seat] : others })
@@ -114,11 +122,15 @@ export class GameStore<V extends TableView, E> {
     return this.clock.rate
   }
 
+  clearRecap(): void {
+    if (this.state.recap !== null) this.update({ recap: null })
+  }
+
   clearRejection(): void {
     if (this.state.rejection !== null) this.update({ rejection: null })
   }
 
-  private update(patch: Partial<ClientState<V>>): void {
+  private update(patch: Partial<ClientState<V, E>>): void {
     this.state = { ...this.state, ...patch }
     for (const listener of this.listeners) listener()
   }

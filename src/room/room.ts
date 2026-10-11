@@ -19,6 +19,7 @@ import {
   PONG,
   REPLACED_CLOSE_CODE,
   ROOM_FULL_CLOSE_CODE,
+  SINCE_PARAM,
   TOKEN_PARAM,
   TOO_MANY_MESSAGES_CLOSE_CODE,
   UNKNOWN_ROOM_CLOSE_CODE,
@@ -83,7 +84,12 @@ interface Saved {
   clock?: { rate: number; real: number; table: number }
   /** Secret device token → where its notifications go, for a seated device that asked for them. Never sent to clients. */
   pushes?: Record<string, PushTarget>
+  /** The newest events, up to `LOG_SIZE`, for a device coming back to tell it what it missed. Every event is sent to everyone, so none is secret. */
+  log?: NumberedEvent<Event>[]
 }
+
+/** How many of the newest events a room keeps for its recaps. */
+export const LOG_SIZE = 200
 
 export interface Deps {
   now: () => number
@@ -242,6 +248,7 @@ class Table {
     return this.enqueue(async () => {
       if (this.deps.paced) await this.pace(query.get(PACE_PARAM))
       this.admit(conn)
+      this.recap(conn, query.get(SINCE_PARAM))
       this.send(conn, []) // the current view, with no events to replay
       const seat = this.seatOf(conn)
       if (seat !== null && !this.saved.game.seats[seat].connected) await this.setConnected(seat, true)
@@ -423,6 +430,7 @@ class Table {
       pushes: Object.fromEntries(Object.entries(this.saved.pushes ?? {}).filter(([token]) => Object.hasOwn(tokens, token))),
       version: this.saved.version + 1,
       eventCount: this.saved.eventCount + events.length,
+      log: events.length > 0 ? [...(this.saved.log ?? []), ...events].slice(-LOG_SIZE) : this.saved.log,
       emptySince: emptySince(result.game, this.saved.emptySince, this.now()),
     }
     await this.host.storage.put(STORAGE_KEY, this.saved)
@@ -436,6 +444,17 @@ class Table {
       if (step) await this.act(step.actor, step.action)
     }
     return true
+  }
+
+  /**
+   * Tells a connection coming back what it missed: the events after the last one it saw, if the room
+   * still has every one of them. A room that has moved on further, or been reset, says nothing.
+   */
+  private recap(conn: RoomConnection, since: string | null): void {
+    const seen = since === null || !/^\d{1,9}$/.test(since) ? null : Number(since)
+    const log = this.saved.log ?? []
+    if (seen === null || seen >= this.saved.eventCount || log.length === 0 || log[0].n > seen + 1) return
+    this.sendTo(conn, { type: 'recap', events: log.filter((e) => e.n > seen) })
   }
 
   /**
@@ -626,6 +645,7 @@ class Table {
         view: this.module.viewFor(this.saved.game, seat),
         events,
         ...(said.length > 0 ? { said } : {}),
+        lastEvent: this.saved.eventCount,
       }
     })
   }

@@ -31,6 +31,7 @@ import {
   type RoomConnection,
   type RoomHost,
   ASYNC_ABANDONED_AFTER_MS,
+  LOG_SIZE,
   TableRoom,
 } from './room'
 
@@ -843,6 +844,64 @@ describe('status', () => {
     other.host = { ...other.host, name: 'rummy-ABCDEF' }
     await other.boot()
     expect(await other.server.status(TOKENS[0])).toBeNull()
+  })
+})
+
+describe('recaps', () => {
+  /** A Thunee room after some play, and a device coming back that last saw event `since`. */
+  async function cameBack(since: number | null) {
+    const { w, conns } = await startedGame()
+    const at = conns[0].sync.lastEvent!
+    // Something happens while the device is gone: each change is an event.
+    for (const name of ['Asha', 'Bheki', 'Chan']) await w.send(conns[1], { type: 'rename', name })
+    const query = since === null ? '' : `&since=${since}`
+    const back = await w.connect(TOKENS[0], null, query)
+    return { w, back, at }
+  }
+
+  test('every sync says the room’s latest event', async () => {
+    const { w, conns } = await startedGame()
+    expect(conns[1].sync.lastEvent).toBe((w.data.get('state') as { eventCount: number }).eventCount)
+  })
+
+  test('a device coming back hears the events since the last it saw, before its view', async () => {
+    const { w, back, at } = await cameBack(null)
+    const count = (w.data.get('state') as { eventCount: number }).eventCount
+    expect(back.inbox.some((m) => m.type === 'recap')).toBe(false)
+    const again = await w.connect(TOKENS[0], null, `&since=${at}`)
+    const first = again.inbox[0]
+    expect(first.type).toBe('recap')
+    const events = (first as { events: { n: number }[] }).events
+    expect(events.map((e) => e.n)).toEqual(Array.from({ length: count - at }, (_, i) => at + i + 1))
+    expect(again.inbox[1].type).toBe('sync')
+  })
+
+  test('nothing when there is nothing new, when the room no longer has it all, or for a number that is not one', async () => {
+    const { w } = await cameBack(null)
+    const count = (w.data.get('state') as { eventCount: number }).eventCount
+    for (const since of [String(count), String(count + 5), '-1', 'x', '1e3', '']) {
+      const c = await w.connect(TOKENS[1], null, `&since=${since}`)
+      expect(c.inbox.some((m) => m.type === 'recap'), since).toBe(false)
+    }
+    const saved = w.data.get('state') as { log: { n: number }[] }
+    w.data.set('state', { ...saved, log: saved.log.slice(5) })
+    await w.wake()
+    const c = await w.connect(TOKENS[1], null, `&since=${saved.log[0].n}`)
+    expect(c.inbox.some((m) => m.type === 'recap')).toBe(false)
+  })
+
+  test('the room keeps only its newest events', async () => {
+    const { w, conns } = await startedGame()
+    const saved = w.data.get('state') as { eventCount: number }
+    // A full log, as after a long game: the next event pushes out the oldest.
+    const full = Array.from({ length: LOG_SIZE }, (_, i) => ({ type: 'seatChanged', n: saved.eventCount - LOG_SIZE + i + 1 }))
+    w.data.set('state', { ...saved, log: full })
+    await w.wake()
+    await w.send(conns[1], { type: 'rename', name: 'Asha' })
+    const after = w.data.get('state') as { log: { n: number }[]; eventCount: number }
+    expect(after.log).toHaveLength(LOG_SIZE)
+    expect(after.log[0].n).toBe(full[1].n)
+    expect(after.log.at(-1)!.n).toBe(after.eventCount)
   })
 })
 

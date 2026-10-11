@@ -72,3 +72,34 @@ export async function fetchStatus(room: KeptRoom): Promise<RoomStatus | null | '
     return 'unknown'
   }
 }
+
+const SEEN_KEY = 'tricks-seen'
+
+function readSeen(): Record<string, number> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as unknown
+    return typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, number>) : {}
+  } catch {
+    return {}
+  }
+}
+
+/** The number of the last event this device saw in a room it sits in, to ask what it missed; null if none is kept. */
+export function lastSeenEvent(game: string, code: string): number | null {
+  const n = readSeen()[`${game}-${code}`]
+  return Number.isInteger(n) && n >= 0 ? n : null
+}
+
+/** Keeps the room's latest event as seen, for the rooms this device sits in only; the rest are dropped as it writes. */
+export function noteSeenEvent(game: string, code: string, n: number): void {
+  const key = `${game}-${code}`
+  const seen = readSeen()
+  if (seen[key] === n) return
+  const kept = new Set(keptRooms().map((r) => `${r.game}-${r.code}`))
+  const next = Object.fromEntries(Object.entries({ ...seen, [key]: n }).filter(([k]) => kept.has(k)))
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(next))
+  } catch {
+    // A full or blocked store forgets.
+  }
+}

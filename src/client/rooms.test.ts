@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { MAX_ROOMS, ROOM_KEPT_MS, forgetRoom, keepRoom, keptRooms } from './rooms'
+import { MAX_ROOMS, ROOM_KEPT_MS, forgetRoom, keepRoom, keptRooms, lastSeenEvent, noteSeenEvent } from './rooms'
 
 describe('the rooms a device sits in', () => {
   beforeEach(() => {
@@ -37,6 +37,16 @@ describe('the rooms a device sits in', () => {
     expect(keptRooms(MAX_ROOMS + 5)).toHaveLength(MAX_ROOMS)
     expect(keptRooms(MAX_ROOMS + 5)[0].code).toBe(`R${MAX_ROOMS + 4}`)
     expect(keptRooms(MAX_ROOMS + 4 + ROOM_KEPT_MS)).toEqual([])
+  })
+
+  test('the last event seen is kept for the rooms the device sits in only', () => {
+    keepRoom('thunee', 'AAAAAA')
+    noteSeenEvent('thunee', 'AAAAAA', 41)
+    noteSeenEvent('hearts', 'BBBBBB', 7)
+    expect(lastSeenEvent('thunee', 'AAAAAA')).toBe(41)
+    expect(lastSeenEvent('hearts', 'BBBBBB')).toBeNull()
+    localStorage.setItem('tricks-seen', '{"thunee-AAAAAA":"x"}')
+    expect(lastSeenEvent('thunee', 'AAAAAA')).toBeNull()
   })
 
   test('a list that is not one reads as empty', () => {

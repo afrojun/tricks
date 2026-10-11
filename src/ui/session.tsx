@@ -56,7 +56,7 @@ export function sessionHooks<V extends ShellView, A, E>() {
     return session as unknown as Session<V, A, E>
   }
   /** Everything the server last told this client. */
-  function useClient(): ClientState<V> {
+  function useClient(): ClientState<V, E> {
     const { store } = useSession()
     return useSyncExternalStore(store.subscribe, store.getState)
   }
