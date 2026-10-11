@@ -9,7 +9,7 @@ import { recap as spadesRecap } from './spades/ui/recap'
 import { recap as thuneeRecap } from './thunee/ui/recap'
 import { Table as ThuneeTable } from './thunee/engine/testing'
 import { viewFor as thuneeView } from './thunee/engine'
-import { createGame as createHearts, viewFor as heartsView } from './hearts'
+import { createGame as createHearts, hearts, viewFor as heartsView } from './hearts'
 import { createGame as createSpades, spades, viewFor as spadesView } from './spades'
 
 /** A view with these names at the table; the recaps read only names and seats from it. */
@@ -51,6 +51,12 @@ describe('while you were away', () => {
       0,
     )
     expect(lines).toEqual(['You took the queen of spades', 'Hearts were broken', 'Devi won the game'])
+  })
+
+  test('Hearts: a trick is recapped by who took it and whether the queen was in it, never its points', () => {
+    expect(hearts.recapOf({ type: 'trickWon', seat: 2, points: -9, queen: false })).toEqual({ type: 'trickWon', seat: 2, queen: false })
+    expect(hearts.recapOf({ type: 'cardPlayed', seat: 2, card: { suit: 'diamonds', rank: 'J' } })).toBeNull()
+    expect(hearts.recapOf({ type: 'passChosen', seat: 2 })).toBeNull()
   })
 
   test('Spades: a challenge is recapped without its card, since play may go on after it', () => {

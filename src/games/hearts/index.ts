@@ -22,8 +22,13 @@ import {
 export const hearts: GameModule<Game, Action, GameEvent, View> = {
   id: 'hearts',
   name: 'Hearts',
-  // A challenge ends the round, so the cards a round's summary names are past play.
-  recapOf: recapOnly(['trickWon', 'heartsBroken', 'challengeResolved', 'roundScored', 'gameOver']),
+  recapOf: (event) => {
+    // Who took a trick, and whether the queen of spades was in it, but not its points: with the jack of
+    // diamonds those would tell which trick, face down by now, held her or the jack.
+    if (event.type === 'trickWon') return { type: event.type, seat: event.seat, queen: event.queen }
+    // A challenge ends the round, so the cards a round's summary names are past play.
+    return recapOnly<GameEvent>(['heartsBroken', 'challengeResolved', 'roundScored', 'gameOver'])(event)
+  },
   formatVersion: FORMAT_VERSION,
   seatCounts: SEAT_COUNTS,
   createGame,
