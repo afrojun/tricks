@@ -806,6 +806,29 @@ describe('pace', () => {
   })
 })
 
+describe('status', () => {
+  test('a seated device hears whom its game waits on; anyone else hears nothing', async () => {
+    const { w } = await startedGame()
+    const status = await w.server.status(TOKENS[1])
+    expect(status).toMatchObject({ stage: 'playing', seat: 1, names: ['P0', 'P1', 'P2', 'P3'], standIn: false, pace: 'live' })
+    const toAct = gameOf(w.host.name)!.seatsToAct((w.data.get('state') as { game: TableState }).game)
+    expect(status!.waitingOn).toEqual(toAct)
+    expect(status!.yourTurn).toBe(toAct.includes(1))
+    for (const token of ['s'.repeat(20), null, 'short', 'constructor', '__proto__']) expect(await w.server.status(token)).toBeNull()
+  })
+
+  test('a lobby, a seat played for by the computer, and a room that names no game', async () => {
+    const w = await new World().boot()
+    const me = await w.connect(TOKENS[0])
+    await w.send(me, { type: 'sit', seat: 0, name: 'Asha' })
+    expect(await w.server.status(TOKENS[0])).toMatchObject({ stage: 'lobby', seat: 0, names: ['Asha', '', '', ''], waitingOn: [], yourTurn: false })
+    const other = new World()
+    other.host = { ...other.host, name: 'rummy-ABCDEF' }
+    await other.boot()
+    expect(await other.server.status(TOKENS[0])).toBeNull()
+  })
+})
+
 describe('over days', () => {
   /** Two people and two computers playing Hearts over days, both people gone. */
   async function overDays() {

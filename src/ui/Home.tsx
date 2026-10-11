@@ -11,6 +11,7 @@ import { navigate, replaceAddress, useGameClient } from './session'
 import { Sheet } from './Sheet'
 import { playSound } from './sound'
 import { TopBar, TricksLink } from './TopBar'
+import { YourGames } from './YourGames'
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // no I or O
 
@@ -198,6 +199,9 @@ export function Home() {
         <h1 className="wordmark text-[4.2rem] md:text-[6rem]">{game.name}</h1>
         <p className="font-semibold mt-1">{game.tagline}</p>
       </header>
+
+      {/* Only the games of this one that need the player now: the Tricks home lists the rest. */}
+      <YourGames game={game.id} onlyYours />
 
       {/* One column on a phone, Play above Learn; from md, Play and Learn side by side, the rest across both. */}
       <div className="home-width grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">

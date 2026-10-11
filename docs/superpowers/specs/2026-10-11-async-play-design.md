@@ -1,6 +1,6 @@
 # Playing over days
 
-**Date:** 2026-10-11. **Status:** designed, and reviewed for design and copy; built in parts, in the order of section 3. Part 1 built.
+**Date:** 2026-10-11. **Status:** designed, and reviewed for design and copy; built in parts, in the order of section 3. Parts 1 and 2 built.
 
 ## 1. The gap
 

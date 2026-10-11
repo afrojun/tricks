@@ -2,6 +2,7 @@ import PartySocket from 'partysocket'
 import type { TableAction, TableView } from '../kit/table'
 import { PACE_PARAM, PING, PONG, REPLACED_CLOSE_CODE, ROOM_FULL_CLOSE_CODE, type ServerMessage, TOKEN_PARAM, roomName } from '../protocol'
 import { deviceToken } from './identity'
+import { forgetRoom, keepRoom } from './rooms'
 import { pace } from './pace'
 import type { Say } from '../kit/talk'
 import { Playback } from './playback'
@@ -44,6 +45,7 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
       if (message.type === 'said') return talk.receive(message)
       store.receive(message, receivedAt)
       if (message.type === 'sync') message.said?.forEach((said) => talk.receive(said))
+      if (message.type === 'sync') remember(message.seat !== null)
       // Coming back to a seat the AI was minding: take it back straight away.
       if (justOpened && message.type === 'sync') {
         justOpened = false
@@ -71,6 +73,17 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
   // A lift is only worth telling as it happens: one queued while the socket was down would be stale when sent.
   const lift = (up: boolean) => {
     if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ lift: up }))
+  }
+  /**
+   * Whether this device sits here, as "Your games" keeps it: kept when a sync first gives it a seat on
+   * this visit, forgotten when one gives it none (it stood up, or the room was reset).
+   */
+  let seated: boolean | null = null
+  const remember = (now: boolean) => {
+    if (now === seated) return
+    seated = now
+    if (now) keepRoom(game.id, code)
+    else forgetRoom(game.id, code)
   }
   let everOpened = false
   let justOpened = false
