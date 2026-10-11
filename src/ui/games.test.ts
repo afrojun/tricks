@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { GAMES as SERVER_GAMES } from '../games'
 import { GAMES, loadGame } from './games'
 import { tableSizes } from './seats'
 
@@ -6,6 +7,10 @@ describe('the browser’s list of games', () => {
   test.each(GAMES.map((entry) => [entry.id, entry] as const))('%s is listed as its own client says', async (_, entry) => {
     const client = await loadGame(entry.id)
     expect({ id: client.id, name: client.name, tagline: client.tagline, seatCounts: [...client.seatCounts] }).toEqual({ id: entry.id, name: entry.name, tagline: entry.tagline, seatCounts: [...entry.seatCounts] })
+  })
+
+  test('the server calls each game by the same name, in its notifications', () => {
+    expect([...SERVER_GAMES.values()].map((m) => [m.id, m.name])).toEqual(GAMES.map((g) => [g.id, g.name]))
   })
 
   test('a game is loaded once', async () => {

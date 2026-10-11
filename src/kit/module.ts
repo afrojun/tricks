@@ -26,6 +26,8 @@ export type Ask<G, A> = (game: G) => Step<A> | null
 export interface GameModule<G extends TableState, A, E, V extends TableView> {
   /** 'thunee', 'hearts': also the path and the room-name prefix. */
   id: string
+  /** 'Thunee', 'Hearts': what a room calls the game in a notification. The screens' own name is the client's. */
+  name: string
   formatVersion: number
   /** [2, 4] for Thunee, [4] for Hearts. */
   seatCounts: readonly number[]

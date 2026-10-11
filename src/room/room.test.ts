@@ -3,6 +3,7 @@ import { chooseAction, chooseJodhi } from '../games/thunee/ai/choose'
 import { HONEST } from '../kit/mind'
 import { NUDGE_GAP_MS, TALK_GAP_MS } from '../kit/talk'
 import { type TableState, TURN_LIMIT_MS } from '../kit/table'
+import type { PushMessage, PushResult } from './webpush'
 import type { Action, GameEvent, View } from '../games/thunee/engine'
 import { type Game, availableActions, createGame } from '../games/thunee/engine'
 import { Table, card, seededRng } from '../games/thunee/engine/testing'
@@ -10,6 +11,7 @@ import { gameOf, isRoomName } from '../games'
 import { type View as HeartsView, availableActions as heartsAvailable, createGame as createHearts, FORMAT_VERSION as HEARTS_FORMAT } from '../games/hearts'
 import { GameStore } from '../client/store'
 import {
+  type PushTarget,
   type ServerMessage as GenericServerMessage,
   MAX_PACE,
   REPLACED_CLOSE_CODE,
@@ -91,7 +93,14 @@ class World {
       deleteAll: async () => void this.data.clear(),
     },
     connections: () => this.conns,
+    push: async (target: PushTarget, message: PushMessage) => {
+      this.pushed.push({ endpoint: target.endpoint, ...message })
+      return this.pushResult
+    },
   }
+  /** The notifications the room sent, and what the push service answers. */
+  pushed: ({ endpoint: string } & PushMessage)[] = []
+  pushResult: PushResult = 'sent'
 
   /** Builds a new server instance over the same storage, as after a restart: every socket is gone. */
   async boot() {
@@ -834,6 +843,82 @@ describe('status', () => {
     other.host = { ...other.host, name: 'rummy-ABCDEF' }
     await other.boot()
     expect(await other.server.status(TOKENS[0])).toBeNull()
+  })
+})
+
+describe('notifications', () => {
+  const target = (n: number): PushTarget => ({ endpoint: `https://fcm.googleapis.com/fcm/send/device${n}`, keys: { p256dh: 'p'.repeat(87), auth: 'a'.repeat(22) } })
+  const pushes = (w: World) => (w.data.get('state') as { pushes?: Record<string, PushTarget> }).pushes ?? {}
+
+  /** Asha and Bheki at Hearts with two computers, over days unless `live`; Asha asks for notifications, then goes. Bheki starts. */
+  async function hearts(live = false) {
+    const w = new World()
+    w.host = { ...w.host, name: 'hearts-TESTAB' }
+    await w.boot()
+    const a = await w.connect(TOKENS[0])
+    const b = await w.connect(TOKENS[1])
+    await w.send(a, { type: 'sit', seat: 0, name: 'Asha' })
+    await w.send(b, { type: 'sit', seat: 1, name: 'Bheki' })
+    for (const seat of [2, 3]) await w.send(a, { type: 'addAi', seat })
+    if (!live) await w.send(a, { type: 'setSettings', settings: { pace: 'async', timers: null } })
+    await w.server.onMessage(JSON.stringify({ push: target(0) }), a)
+    await w.close(a)
+    return { w, b }
+  }
+
+  test('a person away hears that their turn has come, once, naming the game and the others', async () => {
+    const { w, b } = await hearts()
+    expect(Object.keys(pushes(w))).toEqual([TOKENS[0]])
+    await w.send(b, { type: 'start' })
+    expect(w.pushed).toEqual([{ endpoint: target(0).endpoint, title: 'Your turn', body: expect.stringMatching(/^Hearts with Bheki, \w+ and \w+$/), url: '/hearts/TESTAB', tag: 'hearts-TESTAB' }])
+    // The computers pass while Asha's turn still waits: nothing more.
+    for (let i = 0; i < 10 && w.alarm !== null && w.alarm - w.now < 60_000; i++) await w.fireAlarm()
+    expect(w.pushed).toHaveLength(1)
+  })
+
+  test('nothing while the table plays together, and nothing to someone connected', async () => {
+    const live = await hearts(true)
+    await live.w.send(live.b, { type: 'start' })
+    expect(live.w.pushed).toEqual([])
+    const { w, b } = await hearts()
+    await w.server.onMessage(JSON.stringify({ push: target(1) }), b)
+    await w.send(b, { type: 'start' })
+    expect(w.pushed.map((p) => p.endpoint)).toEqual([target(0).endpoint])
+  })
+
+  test('a nudge reaches a person away; the computer standing in says so', async () => {
+    const { w, b } = await hearts()
+    await w.send(b, { type: 'start' })
+    w.pushed = []
+    w.now += TALK_GAP_MS
+    await w.say(b, { kind: 'throw', id: 'nudge', at: 0 })
+    expect(w.pushed.map((p) => p.title)).toEqual(['Bheki nudged you'])
+    w.now += TURN_LIMIT_MS
+    await w.server.onAlarm()
+    expect(w.pushed.map((p) => p.title)).toContain('The computer is playing for you')
+  })
+
+  test('a service that no longer knows the device is forgotten; so is a device that stands up', async () => {
+    const { w, b } = await hearts()
+    w.pushResult = 'gone'
+    await w.send(b, { type: 'start' })
+    await vi.waitFor(() => expect(pushes(w)).toEqual({}))
+
+    const again = await hearts()
+    const a = await again.w.connect(TOKENS[0])
+    await again.w.send(a, { type: 'leaveSeat' })
+    expect(pushes(again.w)).toEqual({})
+  })
+
+  test('only a seated device, only a push service, and null for none', async () => {
+    const { w, b } = await hearts()
+    const watcher = await w.connect('w'.repeat(20))
+    await w.server.onMessage(JSON.stringify({ push: target(2) }), watcher)
+    await w.server.onMessage(JSON.stringify({ push: { ...target(3), endpoint: 'https://evil.example/x' } }), b)
+    expect(Object.keys(pushes(w))).toEqual([TOKENS[0]])
+    await w.server.onMessage(JSON.stringify({ push: target(1) }), b)
+    await w.server.onMessage(JSON.stringify({ push: null }), b)
+    expect(Object.keys(pushes(w))).toEqual([TOKENS[0]])
   })
 })
 

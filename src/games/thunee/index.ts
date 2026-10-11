@@ -21,6 +21,7 @@ import {
 
 export const thunee: GameModule<Game, Action, GameEvent, View> = {
   id: 'thunee',
+  name: 'Thunee',
   formatVersion: FORMAT_VERSION,
   seatCounts: SEAT_COUNTS,
   createGame,

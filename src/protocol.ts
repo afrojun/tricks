@@ -25,15 +25,32 @@ export const TOO_MANY_MESSAGES_CLOSE_CODE = 4430
 /** The close code for a device's oldest socket to a room, closed when it opens one too many. */
 export const REPLACED_CLOSE_CODE = 4409
 
+/** Where a device's browser receives its notifications, as `PushSubscription.toJSON()` gives it. */
+export interface PushTarget {
+  endpoint: string
+  keys: { p256dh: string; auth: string }
+}
+
+const pushTargetSchema = z.object({
+  endpoint: z.string().max(1000),
+  keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
+})
+
 /**
- * An action for the game; something said at the table; or a card lifted in the sender's hand, or put
- * back. The last two are not part of the game: the room relays them and never saves them.
+ * An action for the game; something said at the table; a card lifted in the sender's hand, or put
+ * back; or where to send the sender's notifications, or null for none. The middle two are not part of
+ * the game: the room relays them and never saves them. The last the room keeps for the sender's seat.
  */
-export type ClientMessage<A> = { action: A } | { say: Say } | { lift: boolean }
+export type ClientMessage<A> = { action: A } | { say: Say } | { lift: boolean } | { push: PushTarget | null }
 
 /** What a client may send to a room whose game admits `action`. */
 export function clientMessageSchema<A>(action: z.ZodType<A>): z.ZodType<ClientMessage<A>> {
-  return z.union([z.object({ action }), z.object({ say: saySchema }), z.object({ lift: z.boolean() })]) as z.ZodType<ClientMessage<A>>
+  return z.union([
+    z.object({ action }),
+    z.object({ say: saySchema }),
+    z.object({ lift: z.boolean() }),
+    z.object({ push: pushTargetSchema.nullable() }),
+  ]) as z.ZodType<ClientMessage<A>>
 }
 
 export type NumberedEvent<E> = E & { n: number }
