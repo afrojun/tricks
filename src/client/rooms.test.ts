@@ -22,6 +22,16 @@ describe('the rooms a device sits in', () => {
     expect(keptRooms(3000).map((r) => r.code)).toEqual(['BBBBBB'])
   })
 
+  test('an answer about an older seat does not forget a room kept again since', () => {
+    keepRoom('thunee', 'AAAAAA', 1000)
+    const asked = keptRooms(1000)[0]
+    keepRoom('thunee', 'AAAAAA', 2000)
+    forgetRoom(asked.game, asked.code, 2000, asked.seen)
+    expect(keptRooms(2000)).toEqual([{ game: 'thunee', code: 'AAAAAA', seen: 2000 }])
+    forgetRoom('thunee', 'AAAAAA', 2000, 2000)
+    expect(keptRooms(2000)).toEqual([])
+  })
+
   test('only the newest few, and none unseen for a month', () => {
     for (let i = 0; i < MAX_ROOMS + 5; i++) keepRoom('spades', `R${i}`, i)
     expect(keptRooms(MAX_ROOMS + 5)).toHaveLength(MAX_ROOMS)

@@ -47,10 +47,13 @@ export function keepRoom(game: string, code: string, now = Date.now()): void {
   write([{ game, code, seen: now }, ...others].slice(0, MAX_ROOMS))
 }
 
-/** This device has no seat in a room any more: stood up, or the room was reset. */
-export function forgetRoom(game: string, code: string, now = Date.now()): void {
+/**
+ * This device has no seat in a room any more: stood up, or the room was reset. With `seen`, only if the
+ * room has not been kept again since then: an answer about an older seat must not forget a newer one.
+ */
+export function forgetRoom(game: string, code: string, now = Date.now(), seen?: number): void {
   const rooms = keptRooms(now)
-  const left = rooms.filter((r) => r.game !== game || r.code !== code)
+  const left = rooms.filter((r) => r.game !== game || r.code !== code || (seen !== undefined && r.seen !== seen))
   if (left.length !== rooms.length) write(left)
 }
 
@@ -59,7 +62,7 @@ export async function fetchStatus(room: KeptRoom): Promise<RoomStatus | null | '
   try {
     const response = await fetch(`/parties/room/${roomName(room.game, room.code)}`, { headers: { [STATUS_TOKEN_HEADER]: deviceToken() } })
     if (response.status === 404) {
-      forgetRoom(room.game, room.code)
+      forgetRoom(room.game, room.code, Date.now(), room.seen)
       return null
     }
     // Too many requests, or the network: say nothing of it this time.
