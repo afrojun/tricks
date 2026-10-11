@@ -74,7 +74,8 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
   }
   let everOpened = false
   let justOpened = false
-  let held = false
+  /** Why the room closed this socket, while the page waits for the player to come back. */
+  let held: ConnectionStatus | undefined
 
   socket.addEventListener('open', () => {
     everOpened = true
@@ -84,9 +85,9 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
   })
   socket.addEventListener('close', (e) => {
     playback.reset() // nothing from the old connection may arrive after the store starts waiting for a fresh view
-    const status = HELD[e.code]
-    held = status !== undefined
-    store.setConnection(status ?? (everOpened ? 'reconnecting' : 'connecting'))
+    // A close the page made itself, on the room's word, carries whatever code; the word stands.
+    held = HELD[e.code] ?? held
+    store.setConnection(held ?? (everOpened ? 'reconnecting' : 'connecting'))
   })
   // A phone that sleeps or changes network can leave a socket that looks open
   // but is dead. Ping the room and reconnect if it goes quiet.
@@ -114,7 +115,7 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     if (!held) socket.reconnect()
   }
   const reconnect = () => {
-    held = false
+    held = undefined
     store.setConnection(everOpened ? 'reconnecting' : 'connecting')
     socket.reconnect()
   }
@@ -128,6 +129,12 @@ export function openSession<V extends TableView, A, E>(game: SessionGame<E>, cod
     try {
       message = JSON.parse(e.data as string)
     } catch {
+      return
+    }
+    if (message.type === 'closing') {
+      // The room's close may never arrive: close the socket here, and wait for the player.
+      held = HELD[message.code]
+      if (held) socket.close(message.code)
       return
     }
     playback.push(message)

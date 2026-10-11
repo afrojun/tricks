@@ -297,6 +297,11 @@ class Table {
 
   private close(conn: RoomConnection, code: number, reason: string): void {
     this.allowance.delete(conn.id)
+    // Rare, and the signal worth keeping: a device opening too many, a crowd, a flood. No token or address.
+    console.log(JSON.stringify({ room: this.host.name, closed: code }))
+    // The page is told first, if it can be: closed from another socket's event, as a device's oldest
+    // or a crowded-out watcher is, a socket's close frame never reaches it (workerd, 2026-10).
+    this.deliver(conn, () => ({ type: 'closing', code }))
     try {
       conn.close(code, reason)
     } catch (error) {

@@ -13,12 +13,14 @@ export { Room } from './room'
  */
 async function admitSocket(request: Request, lobby: Lobby<Env>, env: Env): Promise<Request | Response> {
   if (!isRoomName(lobby.name)) {
+    console.log(JSON.stringify({ refused: 'unknownRoom' }))
     const [client, server] = Object.values(new WebSocketPair())
     server.accept()
     server.close(UNKNOWN_ROOM_CLOSE_CODE, 'Unknown room')
     return new Response(null, { status: 101, webSocket: client })
   }
   const verdict = await gate(request, env.CONNECTS)
+  if (verdict !== 'open') console.log(JSON.stringify({ refused: verdict, origin: verdict === 'foreign' ? request.headers.get('Origin')?.slice(0, 100) : undefined }))
   if (verdict === 'foreign') return new Response('Forbidden', { status: 403 })
   if (verdict === 'tooFast') return new Response('Too many requests', { status: 429 })
   return asRoomSees(request)

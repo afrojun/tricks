@@ -30,9 +30,9 @@
     "logs": {
       "enabled": true,
       "head_sampling_rate": 1,
-      // One line per request and room message, with its outcome. Pages are served as assets
-      // without running the Worker, so these are mostly room traffic.
-      "invocation_logs": true
+      // Only what the code logs: errors, and each socket refused or closed by the limits. A line
+      // per request and room message would be mostly a game going well, and grow with every table.
+      "invocation_logs": false
     }
   },
   // Cloudflare creates the DNS record for the custom domain on the first deploy. From CI, wrangler

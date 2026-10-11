@@ -946,10 +946,32 @@ describe('limits', () => {
     w.now += 1000
     const newest = await w.connect(TOKENS[0])
     expect(first.closed?.code).toBe(REPLACED_CLOSE_CODE)
+    // Told first: a close made during another socket's event never reaches the page.
+    expect(first.inbox.at(-1)).toEqual({ type: 'closing', code: REPLACED_CLOSE_CODE })
     expect(rest.every((c) => c.closed === null)).toBe(true)
     expect(newest.sync.seat).toBe(0)
     await w.server.onClose(first) // the old socket's close arrives later
     expect(newest.view.seats[0].connected).toBe(true)
+  })
+
+  test('a socket that cannot be told is closed all the same', async () => {
+    const w = await new World().boot()
+    const first = await w.connect(TOKENS[0])
+    for (let i = 1; i < MAX_SOCKETS_PER_DEVICE; i++) {
+      w.now += 1000
+      await w.connect(TOKENS[0])
+    }
+    first.send = () => {
+      throw new Error('gone')
+    }
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    w.now += 1000
+    try {
+      await w.connect(TOKENS[0])
+    } finally {
+      errors.mockRestore()
+    }
+    expect(first.closed?.code).toBe(REPLACED_CLOSE_CODE)
   })
 
   test('past the limits the oldest watcher goes, from the crowded address first, and nobody seated', async () => {
@@ -965,6 +987,7 @@ describe('limits', () => {
     for (let i = 0; i < MAX_WATCHERS_PER_ADDRESS; i++) crowd.push(await watcher(`crowd${i}`, '2.2.2.2'))
     const more = await watcher('more', '2.2.2.2')
     expect(crowd[0].closed?.code).toBe(ROOM_FULL_CLOSE_CODE)
+    expect(crowd[0].inbox.at(-1)).toEqual({ type: 'closing', code: ROOM_FULL_CLOSE_CODE })
     expect(early.closed).toBeNull()
     expect(more.sync.view.phase.kind).toBe('lobby')
 

@@ -58,6 +58,11 @@ export type ServerMessage<V, E> =
   | { type: 'error'; message: string }
   /** A player at the table lifted a card in their hand (`up`), or put it back or played it. Never saved, never paced. */
   | { type: 'lift'; seat: Seat; up: boolean }
+  /**
+   * The room is closing this socket, with this close code. Sent before the close itself: the runtime
+   * never sends the close frame of a socket closed while the room handles another's event.
+   */
+  | { type: 'closing'; code: number }
 
 /** The connection query parameter carrying the device's secret token. */
 export const TOKEN_PARAM = 'token'

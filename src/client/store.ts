@@ -76,6 +76,7 @@ export class GameStore<V extends TableView, E> {
       return
     }
     if (message.type === 'said') return // talk, which the session hands to its own store
+    if (message.type === 'closing') return // the session's, which closes the socket
     if (message.type === 'lift') {
       const others = this.state.lifted.filter((seat) => seat !== message.seat)
       this.update({ lifted: message.up ? [...others, message.seat] : others })
