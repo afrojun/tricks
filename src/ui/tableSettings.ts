@@ -1,4 +1,4 @@
-/** The table's pace and timers as a host keeps them on this device, for the next game they create. */
+/** The table's settings (its pace, together or over days, and its timers) as a host keeps them on this device. Not the browser scripts' speed, which is `src/client/pace.ts`. */
 import { LIVE, type TableSettings, type TimerSpec, validTimers } from '../kit/table'
 import type { TimerControl } from './contract'
 

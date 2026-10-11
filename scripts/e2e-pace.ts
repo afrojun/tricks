@@ -3,17 +3,19 @@
  * a change says who made it, the host changes it again from the menu during play, and the next
  * game the host creates starts on it. Needs `pnpm dev`.
  */
-import { type Locator, chromium } from 'playwright-core'
+import type { Locator } from 'playwright-core'
+import { launch, paced } from './browser'
 import { addComputers } from './lobby'
 
 const base = process.env.APP_URL ?? 'http://localhost:5173'
 const shots = process.env.SHOTS
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium' })
+const browser = await launch()
 const problems: string[] = []
 
 async function open(name: string) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
   await context.addInitScript(() => localStorage.setItem('tricks-muted', '1'))
+  await paced(context)
   const page = await context.newPage()
   page.on('pageerror', (e) => problems.push(`${name} pageerror: ${e.message}`))
   return { context, page }

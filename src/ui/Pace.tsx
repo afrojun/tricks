@@ -1,6 +1,6 @@
 import type { TableSettings } from '../kit/table'
 import type { ShellView } from './contract'
-import { PACES, defaultTimers, rememberSettings } from './pace'
+import { PACES, defaultTimers, rememberSettings } from './tableSettings'
 import { NumberRule } from './Rules'
 import { useGameClient, useSession } from './session'
 import { plural } from './text'

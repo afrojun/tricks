@@ -9,7 +9,7 @@ import { TalkLayer } from './talk/TalkLayer'
 import { Sheet } from './Sheet'
 import { SuitText } from './SuitText'
 import { rejectionText, seatName } from './text'
-import { paceChangedText } from './pace'
+import { paceChangedText } from './tableSettings'
 import type { TableEvent } from '../kit/table'
 
 function isPaceChanged(event: { type: string }): event is Extract<TableEvent, { type: 'paceChanged' }> {
