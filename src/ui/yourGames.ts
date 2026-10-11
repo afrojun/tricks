@@ -1,6 +1,6 @@
 /** The words and order of "Your games": what each game a device sits in is waiting on. */
 import type { RoomStatus } from '../protocol'
-import { listNames } from './talk/choices'
+import { listNames, tableTitle } from '../kit/words'
 
 /**
  * Runs `work` each time `run` is called and shows only the latest call's answer: an earlier call that
@@ -23,8 +23,7 @@ export function latestOnly<T>(work: () => Promise<T>, show: (value: T) => void):
 
 /** "Thunee with Asha, Chan and Devi", or the game and its code while nobody else has sat down. */
 export function gameTitle(game: string, code: string, status: RoomStatus): string {
-  const others = status.names.filter((name, seat) => name !== '' && seat !== status.seat)
-  return others.length > 0 ? `${game} with ${listNames(others)}` : `${game}, game ${code}`
+  return tableTitle(game, code, status.names, status.seat)
 }
 
 /** What the game waits on, as the row's second line. */

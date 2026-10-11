@@ -21,6 +21,7 @@ import {
 
 export const spades: GameModule<Game, Action, GameEvent, View> = {
   id: 'spades',
+  name: 'Spades',
   formatVersion: FORMAT_VERSION,
   seatCounts: SEAT_COUNTS,
   createGame,

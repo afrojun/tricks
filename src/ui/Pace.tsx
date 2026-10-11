@@ -1,6 +1,7 @@
 import type { TableSettings } from '../kit/table'
 import type { ShellView } from './contract'
 import { PACES, defaultTimers, rememberSettings } from './tableSettings'
+import { NotifyOffer } from './Notify'
 import { NumberRule } from './Rules'
 import { useGameClient, useSession } from './session'
 import { plural } from './text'
@@ -22,12 +23,15 @@ export function PaceControls({ view }: { view: ShellView }) {
     rememberSettings(game.id, next)
   }
 
+  // Over days the table is played away from it: everyone seated is offered notifications.
+  const offer = settings.pace === 'async' && view.seat !== null && <NotifyOffer />
   if (!isHost) {
     return (
       <div className="grid gap-1">
         <p>
           <b>{chosen.label}</b>: {chosen.text}
         </p>
+        {offer}
         {game.timers.length > 0 &&
           settings.pace === 'live' &&
           (timed ? (
@@ -59,6 +63,7 @@ export function PaceControls({ view }: { view: ShellView }) {
         </div>
         <p className="text-sm text-on-surface-muted">{chosen.text}</p>
       </div>
+      {offer}
       {game.timers.length > 0 &&
         (settings.pace === 'async' ? (
           <p className="text-sm text-on-surface-muted">No time limits over days.</p>

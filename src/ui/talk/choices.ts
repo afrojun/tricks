@@ -41,11 +41,7 @@ export function heard(showing: readonly Showing[], reactions: boolean, muted: Re
   return muted.size === 0 ? showing : showing.filter((s) => !muted.has(s.seat))
 }
 
-/** "Asha", "Asha and Devi", "Asha, Chan and Devi". */
-export function listNames(names: readonly string[]): string {
-  if (names.length <= 1) return names[0] ?? ''
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
-}
+export { listNames } from '../../kit/words'
 
 interface VoterSeat {
   kind: 'empty' | 'human' | 'ai'

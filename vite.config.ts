@@ -25,7 +25,8 @@ function chunkFileNames(chunk: { facadeModuleId: string | null }): string {
  * Installable: a manifest and a service worker (Workbox). The pages, icons and sounds are precached,
  * the fonts cached as they arrive, and any address that is not a file is the app. Room sockets at
  * /parties/* are never cached. The worker waits for the player to accept an update (`Update` in
- * src/ui), so an open table is never reloaded under them; `pnpm dev` runs without it.
+ * src/ui), so an open table is never reloaded under them; `pnpm dev` runs without it. It also shows
+ * notifications (public/push-sw.js).
  */
 const pwa = VitePWA({
   registerType: 'prompt',
@@ -47,6 +48,8 @@ const pwa = VitePWA({
   },
   workbox: {
     cacheId: 'tricks',
+    // Notifications: showing a room's push, and opening its game on a tap (public/push-sw.js).
+    importScripts: ['/push-sw.js'],
     globPatterns: ['**/*.{js,css,html,svg,png,mp3}'],
     navigateFallback: '/index.html',
     navigateFallbackDenylist: [/^\/parties\//],

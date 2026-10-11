@@ -8,6 +8,7 @@ import { isMuted, setMuted } from './sound'
 import { seatName } from './text'
 import { ThemePicker } from './ThemePicker'
 import { LeaveQuestion } from './Leave'
+import { useNotify } from './Notify'
 import { PaceControls } from './Pace'
 
 /** A line of the menu that opens something or does something: "Rules in this game", "Last trick". */
@@ -27,6 +28,7 @@ export function GameMenu({ view, summary, rows }: { view: ShellView; summary: st
   const marksPlayable = useShowsPlayable()
   const reactions = useTalksOn()
   const coached = useCoach()
+  const notify = useNotify()
   const [leaving, setLeaving] = useState<boolean | null>(null)
   const leave = useRef<HTMLButtonElement>(null)
   // Staying puts the focus back on Leave game, where it was before the question.
@@ -61,6 +63,9 @@ export function GameMenu({ view, summary, rows }: { view: ShellView; summary: st
           />
           <Switch label="Reactions" on={reactions} onChange={setTalksOn} />
           <Switch label="Highlight playable cards" on={marksPlayable} onChange={setShowsPlayable} />
+          {!coached && (notify.state === 'on' || notify.state === 'off') && (
+            <Switch label="Notifications" on={notify.state === 'on'} onChange={(on) => void (on ? notify.on() : notify.off())} />
+          )}
         </div>
       </MenuSection>
       {!coached && view.host === view.seat && (

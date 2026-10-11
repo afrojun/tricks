@@ -4,6 +4,8 @@ declare namespace Cloudflare {
     Room: DurableObjectNamespace<import('./room').Room>
     /** Sockets opened per address, before any room wakes (`ratelimits` in `wrangler.jsonc`). */
     CONNECTS: RateLimit
+    /** The private key that signs notifications, a JWK: a secret (`wrangler secret put VAPID_PRIVATE_KEY`), or `.dev.vars` locally. Absent, rooms send none. */
+    VAPID_PRIVATE_KEY?: string
   }
 }
 

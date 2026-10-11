@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { GAMES } from './games'
 import { PlayingCard } from './Card'
 import { Link } from './Link'
@@ -8,6 +9,13 @@ import { YourGames } from './YourGames'
 
 /** `/`: the games, and the look that every game shares. Loads no game. */
 export function TricksHome() {
+  // The app's badge says a game waits on the player; here they see which.
+  useEffect(() => {
+    const clear = () => document.visibilityState === 'visible' && void navigator.clearAppBadge?.().catch(() => {})
+    clear()
+    document.addEventListener('visibilitychange', clear)
+    return () => document.removeEventListener('visibilitychange', clear)
+  }, [])
   return (
     <main className="home min-h-full flex flex-col items-center gap-5 p-4 pb-10">
       <TopBar />
