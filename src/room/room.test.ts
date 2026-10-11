@@ -825,7 +825,7 @@ describe('status', () => {
     expect(await w.server.status(TOKENS[2])).toMatchObject({ stage: 'roundOver', waitingOn: [], yourTurn: false })
   })
 
-  test('a lobby, a seat played for by the computer, and a room that names no game', async () => {
+  test('a lobby, and a room that names no game', async () => {
     const w = await new World().boot()
     const me = await w.connect(TOKENS[0])
     await w.send(me, { type: 'sit', seat: 0, name: 'Asha' })
