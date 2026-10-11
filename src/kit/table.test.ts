@@ -490,6 +490,21 @@ describe('over days', () => {
     expect(standInDue(last.game, last.now + 10 * TURN_LIMIT_MS)).toBeNull()
   })
 
+  test('a wait begun together starts again when the table goes over days', () => {
+    const t = started().do(0, { type: 'wait', seats: [1] })
+    t.now += 3 * TURN_LIMIT_MS
+    t.do(0, { type: 'setSettings', settings: { pace: 'async', timers: null } })
+    expect(standInDue(t.game, t.now)).toBeNull()
+    expect(standInDeadline(t.game)).toBe(t.now + TURN_LIMIT_MS)
+  })
+
+  test('a stand-in for no seat, or one not due, is refused and never thrown', () => {
+    const t = waitingOnOne()
+    for (const seat of [null, undefined, 9, -1, '1']) {
+      expect(t.try('system', { type: 'standIn', seat } as unknown as TableAction)).toBe('notAllowed')
+    }
+  })
+
   test('nobody hands a seat to the computer by hand over days', () => {
     const t = waitingOnOne().do('system', { type: 'setConnected', seat: 1, connected: false })
     expect(replaceableSeats(t.view(0), t.now + TURN_LIMIT_MS)).toEqual([])

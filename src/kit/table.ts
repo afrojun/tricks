@@ -312,7 +312,8 @@ export function tableAction(
       events.push({ type: 'seatChanged' })
     }
     if (action.type === 'standIn') {
-      if (standInDue(game, ctx.now) !== action.seat) return 'notAllowed'
+      const due = standInDue(game, ctx.now)
+      if (due === null || due !== action.seat) return 'notAllowed'
       game.seats[action.seat].standIn = true
       events.push({ type: 'seatChanged' })
     }
@@ -322,7 +323,7 @@ export function tableAction(
 
   if (action.type === 'replaceWithAi' || action.type === 'reclaimSeat' || action.type === 'setSettings') {
     if (actor === null) return 'notSeated'
-    if (action.type === 'setSettings') return setSettings(game, actor, action.settings, events, options)
+    if (action.type === 'setSettings') return setSettings(game, actor, action.settings, ctx, events, options)
     return action.type === 'replaceWithAi' ? replaceWithAi(game, actor, action.seat, ctx, events) : reclaimSeat(game, actor, ctx, events)
   }
   return lobbyAction(game, actor, action, ctx, events, options)
@@ -443,15 +444,18 @@ function replaceWithAi(game: TableState, actor: Seat, seat: Seat, ctx: Ctx, even
  * The host sets how the table is run, in any phase. Timers must name exactly the game's windows,
  * each a whole number of seconds in its range; a game without windows has none.
  */
-function setSettings(game: TableState, actor: Seat, settings: TableSettings, events: { push(event: TableEvent): unknown }, options: TableOptions): TableReject | null {
+function setSettings(game: TableState, actor: Seat, settings: TableSettings, ctx: Ctx, events: { push(event: TableEvent): unknown }, options: TableOptions): TableReject | null {
   if (actingHost(game) !== actor) return 'notHost'
   // Read with care: a game's wire schema checks only each field's type, and a toy's none.
   if (typeof settings !== 'object' || settings === null) return 'notAllowed'
   if (settings.pace !== 'live' && settings.pace !== 'async') return 'badChoice'
   const timers: unknown = settings.timers
   if (timers !== null && (typeof timers !== 'object' || timers === undefined || !validTimers(timers as Record<string, unknown>, options.timers ?? {}))) return 'badChoice'
-  if (settings.pace !== game.settings.pace) events.push({ type: 'paceChanged', seat: actor, pace: settings.pace })
-  else events.push({ type: 'seatChanged' })
+  if (settings.pace !== game.settings.pace) {
+    events.push({ type: 'paceChanged', seat: actor, pace: settings.pace })
+    // Every wait starts again under the new pace: a turn long waited on together is not two days late over days.
+    game.waiting = game.waiting.map((w) => ({ seat: w.seat, since: ctx.now }))
+  } else events.push({ type: 'seatChanged' })
   game.settings = { pace: settings.pace, timers: settings.timers === null ? null : { ...settings.timers } }
   return null
 }
