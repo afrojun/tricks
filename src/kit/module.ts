@@ -51,6 +51,11 @@ export interface GameModule<G extends TableState, A, E, V extends TableView> {
   dueStep(game: G, now: number): Step<A> | null
   /** Questions to put to computer seats after an applied action. The host applies each answer before asking the next. */
   reactions(game: G, events: readonly E[]): Ask<G, A>[]
+  /**
+   * The kinds of event a recap may carry to a player coming back: those its client's `recap` reads, and
+   * none that shows a card a view would hide by then (a card played). The table's own are the room's to add.
+   */
+  recapEvents: readonly string[]
   /** What the computers say about an applied action's events, shown with them. Never saved; `rng` is the host's. */
   banter?(game: G, events: readonly E[], rng: () => number): Said[]
 }

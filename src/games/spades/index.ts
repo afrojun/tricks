@@ -22,6 +22,7 @@ import {
 export const spades: GameModule<Game, Action, GameEvent, View> = {
   id: 'spades',
   name: 'Spades',
+  recapEvents: ['called', 'nilBroken', 'contractMade', 'challengeResolved', 'roundScored', 'gameOver'],
   formatVersion: FORMAT_VERSION,
   seatCounts: SEAT_COUNTS,
   createGame,

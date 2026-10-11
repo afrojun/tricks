@@ -1,9 +1,9 @@
-import { hasCard, removeCard, shuffle } from '../../../kit/cards'
+import { hasCard, removeCard, sameCard, shuffle } from '../../../kit/cards'
 import { firstCheat, recordPlay } from '../../../kit/integrity'
 import { TRICK_PAUSE_MS } from '../../../kit/rules'
 import { type Ctx, type Seat, allSeats, nextSeat } from '../../../kit/table'
 import { trickWinner } from '../../../kit/tricks'
-import { type Card, TWO_OF_CLUBS, createDeck, strength, trickPoints } from './cards'
+import { type Card, QUEEN_OF_SPADES, TWO_OF_CLUBS, createDeck, strength, trickPoints } from './cards'
 import { breaksHearts, excusesFor, situation } from './excuses'
 import { HAND_SIZE, PLAYERS, passDirection, passTarget } from './rules'
 import { finishRound } from './scoring'
@@ -63,7 +63,8 @@ export function playCard(game: Game, play: RoundPlay, seat: Seat, card: Card, ct
     return
   }
   const winner = trickWinner(play.current, { trump: null, strength })
-  events.push({ type: 'trickWon', seat: winner, points: trickPoints(play.current.map((p) => p.card), game.rules) })
+  const cards = play.current.map((p) => p.card)
+  events.push({ type: 'trickWon', seat: winner, points: trickPoints(cards, game.rules), queen: cards.some((c) => sameCard(c, QUEEN_OF_SPADES)) })
   play.tricks.push({ plays: play.current, winner })
   play.current = []
   game.phase = { kind: 'trickPause', play, deadline: ctx.now + TRICK_PAUSE_MS }

@@ -22,6 +22,7 @@ import {
 export const hearts: GameModule<Game, Action, GameEvent, View> = {
   id: 'hearts',
   name: 'Hearts',
+  recapEvents: ['trickWon', 'heartsBroken', 'challengeResolved', 'roundScored', 'gameOver'],
   formatVersion: FORMAT_VERSION,
   seatCounts: SEAT_COUNTS,
   createGame,

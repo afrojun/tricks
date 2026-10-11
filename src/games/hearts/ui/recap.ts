@@ -1,26 +1,16 @@
 /** What happened at a Hearts table while a player was away, in a few lines: who took the queen of spades, the challenges, each round's result and the game's. */
 import type { GameEvent, View } from '../engine'
-import { sameCard } from '../../../kit/cards'
 import type { Seat } from '../../../kit/table'
 import { seatName } from '../../../ui/text'
 import { headline } from './text'
 
-const QUEEN = { suit: 'spades', rank: 'Q' } as const
-
 export function recap(events: readonly GameEvent[], view: View, seat: Seat | null): string[] {
   const who = (s: Seat) => (s === seat ? 'You' : seatName(view, s))
   const whom = (s: Seat) => (s === seat ? 'you' : seatName(view, s))
-  let queenInTrick = false
   return events.flatMap((event): string[] => {
     switch (event.type) {
-      case 'cardPlayed':
-        if (sameCard(event.card, QUEEN)) queenInTrick = true
-        return []
-      case 'trickWon': {
-        const took = queenInTrick
-        queenInTrick = false
-        return took ? [`${who(event.seat)} took the queen of spades`] : []
-      }
+      case 'trickWon':
+        return event.queen ? [`${who(event.seat)} took the queen of spades`] : []
       case 'heartsBroken':
         return ['Hearts were broken']
       case 'challengeResolved':

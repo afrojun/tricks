@@ -54,7 +54,16 @@ export function keepRoom(game: string, code: string, now = Date.now()): void {
 export function forgetRoom(game: string, code: string, now = Date.now(), seen?: number): void {
   const rooms = keptRooms(now)
   const left = rooms.filter((r) => r.game !== game || r.code !== code || (seen !== undefined && r.seen !== seen))
-  if (left.length !== rooms.length) write(left)
+  if (left.length === rooms.length) return
+  write(left)
+  // Its last event seen goes with it: a room reset and played again is a new game.
+  try {
+    const seenEvents = JSON.parse(localStorage.getItem('tricks-seen') ?? '{}') as Record<string, number>
+    delete seenEvents[`${game}-${code}`]
+    localStorage.setItem('tricks-seen', JSON.stringify(seenEvents))
+  } catch {
+    // A full or blocked store forgets.
+  }
 }
 
 /** What a room says of this device's seat now, or null when it gives none: the room forgot the seat, and so does the device. */
@@ -86,6 +95,7 @@ function readSeen(): Record<string, number> {
 
 /** The number of the last event this device saw in a room it sits in, to ask what it missed; null if none is kept. */
 export function lastSeenEvent(game: string, code: string): number | null {
+  if (!keptRooms().some((r) => r.game === game && r.code === code)) return null
   const n = readSeen()[`${game}-${code}`]
   return Number.isInteger(n) && n >= 0 ? n : null
 }

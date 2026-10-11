@@ -87,8 +87,8 @@ describe('Hearts’ lessons', () => {
 describe('Hearts’ narration', () => {
   test('a trick won says who took how many points', () => {
     const t = new Table({ passing: 'none' }).deal(NO_PASS)
-    expect(text(heartsCoach.narrate({ type: 'trickWon', seat: 0, points: 0 }, you(t.game)))).toBe('You win the trick. It held no points.')
-    expect(text(heartsCoach.narrate({ type: 'trickWon', seat: 2, points: 14 }, you(t.game)))).toBe('P2 wins the trick. P2 takes 14 points.')
+    expect(text(heartsCoach.narrate({ type: 'trickWon', seat: 0, points: 0, queen: false }, you(t.game)))).toBe('You win the trick. It held no points.')
+    expect(text(heartsCoach.narrate({ type: 'trickWon', seat: 2, points: 14, queen: true }, you(t.game)))).toBe('P2 wins the trick. P2 takes 14 points.')
   })
 
   test('a challenge names who takes the 26', () => {

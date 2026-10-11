@@ -1,4 +1,9 @@
 import { describe, expect, test } from 'vitest'
+import { type Contract, runContract } from '../kit/contract'
+import type { TableState, TableView } from '../kit/table'
+import { heartsContract } from './hearts/contract'
+import { contractRules, spadesContract } from './spades/contract'
+import { thuneeContract } from './thunee/contract'
 import { recap as heartsRecap } from './hearts/ui/recap'
 import { recap as spadesRecap } from './spades/ui/recap'
 import { recap as thuneeRecap } from './thunee/ui/recap'
@@ -32,14 +37,13 @@ describe('while you were away', () => {
     expect(lines).toEqual(['Asha called 40', 'Chan chose trump by last card', 'You called Thunee', 'Devi called Jodhi 20', 'Asha challenged you', 'Asha and Devi won the game'])
   })
 
-  test('Hearts: who took the queen of spades, and nothing for an ordinary trick', () => {
+  test('Hearts: who took the queen of spades, from the trick alone, and nothing for an ordinary trick', () => {
     const view = named(heartsView(createHearts(), 0), NAMES)
     const lines = heartsRecap(
       [
-        { type: 'cardPlayed', seat: 1, card: { suit: 'clubs', rank: '2' } },
-        { type: 'trickWon', seat: 1, points: 0 },
-        { type: 'cardPlayed', seat: 2, card: { suit: 'spades', rank: 'Q' } },
-        { type: 'trickWon', seat: 0, points: 13 },
+        { type: 'trickWon', seat: 1, points: 0, queen: false },
+        // Played before the player left, taken while they were away: the trick says so.
+        { type: 'trickWon', seat: 0, points: 13, queen: true },
         { type: 'heartsBroken' },
         { type: 'gameOver', winner: 3 },
       ],
@@ -62,5 +66,28 @@ describe('while you were away', () => {
       0,
     )
     expect(lines).toEqual(['Asha called 3', 'You called Nil', 'Your Nil was broken', 'Chan’s Nil was broken'])
+  })
+
+  /**
+   * A whole seeded game: the recap from only the events the room may send says all that the recap from every
+   * event says. So the module's list never leaves out what its client's recap reads.
+   */
+  test.each([
+    ['thunee', thuneeContract({ allowCheating: true }, 4).contract, thuneeRecap],
+    ['hearts', heartsContract({ allowCheating: true }).contract, heartsRecap],
+    ['spades', spadesContract({ ...contractRules(4), allowCheating: true }, 4).contract, spadesRecap],
+  ] as const)('%s: the events a recap may carry are all its recap reads', (_, contract, recap) => {
+    const events: { type: string }[] = []
+    const watched = { ...contract, check: (...args: Parameters<NonNullable<typeof contract.check>>) => {
+      contract.check?.(...(args as [never, never, never, never]))
+      events.push(...(args[1] as { type: string }[]))
+    } } as unknown as Contract<TableState, unknown, unknown, TableView>
+    const { game } = runContract(watched, 7)
+    const view = contract.module.viewFor(game as never, 0)
+    const allowed = new Set(contract.module.recapEvents)
+    const all = (recap as (e: readonly unknown[], v: unknown, s: number) => string[])(events, view, 0)
+    expect(all.length).toBeGreaterThan(0)
+    expect((recap as (e: readonly unknown[], v: unknown, s: number) => string[])(events.filter((e) => allowed.has(e.type)), view, 0)).toEqual(all)
+    expect(allowed.has('cardPlayed')).toBe(false)
   })
 })

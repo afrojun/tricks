@@ -90,6 +90,8 @@ interface Saved {
 
 /** How many of the newest events a room keeps for its recaps. */
 export const LOG_SIZE = 200
+/** The table's own events a recap may carry, in every game. */
+const TABLE_RECAP = ['paceChanged']
 
 export interface Deps {
   now: () => number
@@ -451,10 +453,14 @@ class Table {
    * still has every one of them. A room that has moved on further, or been reset, says nothing.
    */
   private recap(conn: RoomConnection, since: string | null): void {
+    // Only for a player coming back to their seat: a watcher has nothing to have missed.
+    if (this.seatOf(conn) === null) return
     const seen = since === null || !/^\d{1,9}$/.test(since) ? null : Number(since)
     const log = this.saved.log ?? []
     if (seen === null || seen >= this.saved.eventCount || log.length === 0 || log[0].n > seen + 1) return
-    this.sendTo(conn, { type: 'recap', events: log.filter((e) => e.n > seen) })
+    // Only what the game says a recap may tell: never a card played, which the view hides once its trick is past.
+    const told = new Set<string>([...this.module.recapEvents, ...TABLE_RECAP])
+    this.sendTo(conn, { type: 'recap', events: log.filter((e) => e.n > seen && told.has(e.type)) })
   }
 
   /**

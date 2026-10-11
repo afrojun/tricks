@@ -47,7 +47,7 @@ describe('Hearts on the client', () => {
     // Events as the engine sends them together, one message each.
     const messages: GameEvent[][] = [
       [{ type: 'cardPlayed', seat: 0, card }, { type: 'heartsBroken' }],
-      [{ type: 'trickWon', seat: 0, points: 1 }, { type: 'roundScored', summary: summary({ reason: 'moon', moon: 2, points: [26, 26, 0, 26] }) }],
+      [{ type: 'trickWon', seat: 0, points: 1, queen: false }, { type: 'roundScored', summary: summary({ reason: 'moon', moon: 2, points: [26, 26, 0, 26] }) }],
       [{ type: 'roundScored', summary: summary({ reason: 'moon', moon: 1 }) }, { type: 'gameOver', winner: 1 }],
       [{ type: 'challengeResolved', challenger: 1, accused: 0, guilty: true }, { type: 'roundScored', summary: summary({ reason: 'challenge', challenge }) }, { type: 'gameOver', winner: 1 }],
       [{ type: 'challengeResolved', challenger: 1, accused: 0, guilty: true }, { type: 'roundScored', summary: summary({ reason: 'challenge', challenge }) }],
@@ -152,9 +152,9 @@ describe('each event is heard, and only where something happens at the table', (
   })
 
   test("the viewer's trick is gathered in loudly, anyone else's quietly", () => {
-    expect(heard({ type: 'trickWon', seat: 1, points: 0 })).toEqual([['sweep']])
-    expect(heard({ type: 'trickWon', seat: 3, points: 0 })).toEqual([['sweepTheirs']])
-    expect(heard({ type: 'trickWon', seat: 1, points: 0 }, null)).toEqual([['sweepTheirs']])
+    expect(heard({ type: 'trickWon', seat: 1, points: 0, queen: false })).toEqual([['sweep']])
+    expect(heard({ type: 'trickWon', seat: 3, points: 0, queen: false })).toEqual([['sweepTheirs']])
+    expect(heard({ type: 'trickWon', seat: 1, points: 0, queen: false }, null)).toEqual([['sweepTheirs']])
   })
 
   test('a challenge knocks, and its verdict sounds as the verdict shows, after the challenge', () => {

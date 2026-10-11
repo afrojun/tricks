@@ -852,8 +852,9 @@ describe('recaps', () => {
   async function cameBack(since: number | null) {
     const { w, conns } = await startedGame()
     const at = conns[0].sync.lastEvent!
-    // Something happens while the device is gone: each change is an event.
+    // Something happens while the device is gone: names change, which a recap leaves out, and the pace, which it tells.
     for (const name of ['Asha', 'Bheki', 'Chan']) await w.send(conns[1], { type: 'rename', name })
+    await w.send(conns[0], { type: 'setSettings', settings: { pace: 'async', timers: null } })
     const query = since === null ? '' : `&since=${since}`
     const back = await w.connect(TOKENS[0], null, query)
     return { w, back, at }
@@ -871,8 +872,9 @@ describe('recaps', () => {
     const again = await w.connect(TOKENS[0], null, `&since=${at}`)
     const first = again.inbox[0]
     expect(first.type).toBe('recap')
-    const events = (first as { events: { n: number }[] }).events
-    expect(events.map((e) => e.n)).toEqual(Array.from({ length: count - at }, (_, i) => at + i + 1))
+    const events = (first as { events: { type: string }[] }).events
+    expect(events.map((e) => e.type)).toEqual(['paceChanged'])
+    expect(count).toBeGreaterThan(at + 1)
     expect(again.inbox[1].type).toBe('sync')
   })
 
@@ -888,6 +890,32 @@ describe('recaps', () => {
     await w.wake()
     const c = await w.connect(TOKENS[1], null, `&since=${saved.log[0].n}`)
     expect(c.inbox.some((m) => m.type === 'recap')).toBe(false)
+  })
+
+  test('only a player coming back to a seat, and never a card played', async () => {
+    // Hearts with one person and three computers who play for them: cards are played while the device is away.
+    const w = new World()
+    w.host = { ...w.host, name: 'hearts-TESTAB' }
+    await w.boot()
+    const me = await w.connect(TOKENS[0])
+    await w.send(me, { type: 'sit', seat: 0, name: 'Asha' })
+    for (const seat of [1, 2, 3]) await w.send(me, { type: 'addAi', seat })
+    await w.send(me, { type: 'start' })
+    const at = me.sync.lastEvent!
+    await w.close(me)
+    const saved0 = w.data.get('state') as { game: TableState }
+    w.data.set('state', { ...saved0, game: { ...saved0.game, aiActAt: w.now, seats: saved0.game.seats.map((s, i) => (i === 0 ? { ...s, standIn: true } : s)) } })
+    await w.wake()
+    for (let i = 0; i < 40 && w.alarm !== null && w.alarm - w.now < 60_000; i++) await w.fireAlarm()
+    const saved = w.data.get('state') as { log: { type: string; n: number }[] }
+    expect(saved.log.some((e) => e.n > at && e.type === 'cardPlayed')).toBe(true)
+
+    const watcher = await w.connect('w'.repeat(20), null, `&since=${at}`)
+    expect(watcher.inbox.some((m) => m.type === 'recap')).toBe(false)
+    const back = await w.connect(TOKENS[0], null, `&since=${at}`)
+    const recap = back.inbox.find((m) => m.type === 'recap') as { events: { type: string }[] }
+    expect(recap.events.length).toBeGreaterThan(0)
+    expect(recap.events.every((e) => gameOf(w.host.name)!.recapEvents.includes(e.type))).toBe(true)
   })
 
   test('the room keeps only its newest events', async () => {
